@@ -1,35 +1,37 @@
-# Sideline Stats V0.5 — Readable Sharing + Automatic Scoring
+# Sideline Stats V0.6 — Full-Screen iPhone Sharing
 
-## New in V0.5
+## Share output redesign
+Share Game Stats now creates phone-shaped 1170 × 2532 PNG pages with much larger type.
 
-### Share Game Stats
-Instead of one extra-tall image, sharing now creates **three iPhone-friendly 1080×1350 images**:
-1. Scoreboard + Game Leaders + Team Totals
-2. Offense by player (Rushing, Passing, Receiving + team totals)
-3. Defense & Special Teams by player + team totals
+The output starts with:
+- Game score
+- Game Leaders
+- Team Totals
 
-This keeps the detail readable in Messages without needing to zoom into one giant stat sheet.
+Then it creates separate full-screen pages only for categories that have stats:
+- Rushing
+- Passing
+- Receiving
+- Defense
+- Special Teams
 
-### Automatic scoring
-Scoring extras now update the team score automatically:
-- TD = 6 points
-- PAT / 1-point conversion = 1 point
-- 2-point conversion = 2 points
+Each category is player-by-player and includes a TEAM TOTAL row.
 
-### Score corrections
-The live-game header now includes:
-- **Set / Correct Our Score**
-- **Set Opponent Score**
+If a category has too many players to remain readable, the app automatically creates another page instead of shrinking the text.
 
-This allows you to match the official scoreboard if a scoring play was missed or entered incorrectly.
+This is intentionally more pages than V0.5. The goal is that when a parent receives the images in Messages and taps one, the page is already sized like an iPhone screen and the text is readable without pinch-zooming.
 
-### Data migration
-Existing V0.2, V0.3 and V0.4 data migrates forward automatically.
+## Existing features retained
+- Automatic TD +6, PAT +1, 2PT +2 scoring
+- Manual score correction
+- Persistent data
+- Delete game
+- Reset all data
+- Existing V0.2–V0.5 data migrates forward
 
-## Update GitHub Pages
-Upload/replace in the SAME `sideline-stats` repository:
+## GitHub update
+Replace:
 - index.html
 - manifest.webmanifest
 
-README.md is optional.
-Commit to main; your GitHub Pages URL stays the same.
+in the SAME sideline-stats repository and commit to main.

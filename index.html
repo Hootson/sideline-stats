@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V0.5</title>
+<title>Sideline Stats V0.6</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -109,7 +109,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V0.5 • GAME-DAY TEST BUILD</div>
+      <div class="muted" style="color:#dfe9e2">V0.6 • GAME-DAY TEST BUILD</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -235,7 +235,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
       <div id="statsBox"></div>
     </div>
     <button class="btn" id="shareStatsBtn" style="margin-top:14px">Share Game Stats</button>
-    <div class="share-tip">Shares 3 readable iPhone-sized pages: Game Leaders, Offense, and Defense/Special Teams.</div>
+    <div class="share-tip">Shares full-screen iPhone pages with large text. Categories paginate automatically instead of shrinking.</div>
   </section>
 
   <section class="screen" data-screen="share">
@@ -259,7 +259,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
 <script>
 (function(){
-const KEY="sidelineStatsV05", OLDKEY="sidelineStatsV04", OLDERKEY="sidelineStatsV03", OLDESTKEY="sidelineStatsV02";
+const KEY="sidelineStatsV06", OLDKEY="sidelineStatsV05", OLDERKEY="sidelineStatsV04", OLDESTKEY="sidelineStatsV03", LEGACYKEY="sidelineStatsV02";
 const empty={team:null,roster:[],games:[],activeGameId:null,flow:{},editingPlayId:null};
 let S=load();
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -269,6 +269,7 @@ function load(){try{
       if(!raw)raw=localStorage.getItem(OLDKEY);
       if(!raw)raw=localStorage.getItem(OLDERKEY);
       if(!raw)raw=localStorage.getItem(OLDESTKEY);
+      if(!raw)raw=localStorage.getItem(LEGACYKEY);
       if(raw)localStorage.setItem(KEY,raw);
       return raw?Object.assign({},empty,JSON.parse(raw)):JSON.parse(JSON.stringify(empty))
     }catch(e){return JSON.parse(JSON.stringify(empty))}}
@@ -303,7 +304,7 @@ $("#resetAllBtn").addEventListener("click",()=>{
   if(!first)return;
   const phrase=prompt('For safety, type RESET to confirm:');
   if(phrase!=="RESET")return toast("Reset cancelled");
-  localStorage.removeItem(KEY); localStorage.removeItem(OLDKEY); localStorage.removeItem(OLDERKEY); localStorage.removeItem(OLDESTKEY);
+  localStorage.removeItem(KEY); localStorage.removeItem(OLDKEY); localStorage.removeItem(OLDERKEY); localStorage.removeItem(OLDESTKEY); localStorage.removeItem(LEGACYKEY);
   S=JSON.parse(JSON.stringify(empty));
   syncChrome();populateSetup();renderRoster();go("setup");toast("All data cleared");
 });
@@ -640,89 +641,166 @@ $("#copyBtn").addEventListener("click",async()=>{const g=statGame();try{await na
 $("#goShareStats").addEventListener("click",()=>go("stats"));
 
 
-function canvasBase(title,g){
-  const W=1080,H=1350,cv=document.createElement("canvas");cv.width=W;cv.height=H;const c=cv.getContext("2d");
-  c.fillStyle="#f4f6f5";c.fillRect(0,0,W,H);
-  c.fillStyle=S.team.primary;c.fillRect(0,0,W,225);c.fillStyle=S.team.secondary;c.fillRect(0,213,W,12);
-  c.textAlign="left";c.fillStyle="#fff";
-  c.font="800 24px -apple-system,BlinkMacSystemFont,Segoe UI,Arial";c.fillText("SIDELINE STATS • GAME STATS",48,48);
-  c.font="900 44px -apple-system,BlinkMacSystemFont,Segoe UI,Arial";c.fillText(S.team.name,48,103);
-  c.font="900 31px -apple-system,BlinkMacSystemFont,Segoe UI,Arial";c.fillText(`${S.team.name}  ${displayedOurScore(g)} – ${g.oppScore}  ${g.opponent}`,48,153);
-  c.font="600 20px -apple-system,BlinkMacSystemFont,Segoe UI,Arial";c.fillText(`${g.date} • ${g.location} • ${g.status==="complete"?"FINAL":"LIVE"}`,48,190);
-  c.fillStyle=S.team.primary;c.font="900 29px -apple-system,BlinkMacSystemFont,Segoe UI,Arial";c.fillText(title,48,275);
-  return {cv,c,W,H,y:305};
+
+const SHARE_W=1170, SHARE_H=2532, SHARE_MARGIN=64;
+
+function phoneCanvas(title,g,subtitle=""){
+  const cv=document.createElement("canvas");cv.width=SHARE_W;cv.height=SHARE_H;const c=cv.getContext("2d");
+  c.fillStyle="#f4f6f5";c.fillRect(0,0,SHARE_W,SHARE_H);
+  c.fillStyle=S.team.primary;c.fillRect(0,0,SHARE_W,430);
+  c.fillStyle=S.team.secondary;c.fillRect(0,410,SHARE_W,20);
+  c.textAlign="left";
+  c.fillStyle="#fff";
+  c.font="800 34px -apple-system,BlinkMacSystemFont,Segoe UI,Arial";
+  c.fillText("SIDELINE STATS • GAME STATS",SHARE_MARGIN,72);
+  c.font="900 66px -apple-system,BlinkMacSystemFont,Segoe UI,Arial";
+  c.fillText(S.team.name,SHARE_MARGIN,160);
+  c.font="900 48px -apple-system,BlinkMacSystemFont,Segoe UI,Arial";
+  c.fillText(`${S.team.name}  ${displayedOurScore(g)} – ${g.oppScore}  ${g.opponent}`,SHARE_MARGIN,240);
+  c.font="650 30px -apple-system,BlinkMacSystemFont,Segoe UI,Arial";
+  c.fillText(`${g.date} • ${g.location} • ${g.status==="complete"?"FINAL":"LIVE"}`,SHARE_MARGIN,300);
+  c.fillStyle="#ffffffcc";c.font="700 28px -apple-system,BlinkMacSystemFont,Segoe UI,Arial";
+  if(subtitle)c.fillText(subtitle,SHARE_MARGIN,355);
+  c.fillStyle=S.team.primary;c.font="900 48px -apple-system,BlinkMacSystemFont,Segoe UI,Arial";
+  c.fillText(title,SHARE_MARGIN,515);
+  return {cv,c,y:560};
 }
-function cRound(ctx,x,y,w,h,r,fill){ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fillStyle=fill;ctx.fill()}
-function cText(ctx,text,x,y,size,weight,color,align="left"){ctx.font=`${weight} ${size}px -apple-system,BlinkMacSystemFont,Segoe UI,Arial`;ctx.fillStyle=color;ctx.textAlign=align;ctx.fillText(String(text),x,y)}
-function makeLeaderPage(g){
-  const {cv,c,W}=canvasBase("GAME LEADERS",g);let y=315;
+function rr(c,x,y,w,h,r,fill){c.beginPath();c.roundRect(x,y,w,h,r);c.fillStyle=fill;c.fill()}
+function txt(c,t,x,y,size,weight,color,align="left"){c.font=`${weight} ${size}px -apple-system,BlinkMacSystemFont,Segoe UI,Arial`;c.fillStyle=color;c.textAlign=align;c.fillText(String(t),x,y)}
+function footer(c,pageText){
+  txt(c,pageText,SHARE_W/2,2470,25,700,"#7b847e","center");
+}
+function summaryPage(g){
+  const {cv,c}=phoneCanvas("GAME LEADERS",g,"A quick look at the game");let y=585;
   const s=agg(g);
   const rush=[...s].filter(x=>x.car).sort((a,b)=>b.ry-a.ry)[0];
   const pass=[...s].filter(x=>x.att).sort((a,b)=>b.py-a.py)[0];
   const rec=[...s].filter(x=>x.rec).sort((a,b)=>b.rey-a.rey)[0];
   const def=[...s].filter(x=>x.t+x.tfl+x.sack+x.int+x.ff+x.fr).sort((a,b)=>(b.t+b.tfl*2+b.sack*2+b.int*3)-(a.t+a.tfl*2+a.sack*2+a.int*3))[0];
   const leaders=[];
-  if(rush)leaders.push(["RUSHING",pname(rush.id),`${rush.car} carries • ${rush.ry} yds • ${rush.rtd} TD`]);
-  if(pass)leaders.push(["PASSING",pname(pass.id),`${pass.cmp}/${pass.att} • ${pass.py} yds • ${pass.ptd} TD • ${pass.pi} INT`]);
-  if(rec)leaders.push(["RECEIVING",pname(rec.id),`${rec.rec} rec • ${rec.rey} yds • ${rec.retd} TD`]);
-  if(def)leaders.push(["DEFENSE",pname(def.id),`${def.t} tkl • ${def.tfl} TFL • ${def.sack} sack • ${def.int} INT`]);
+  if(rush)leaders.push(["RUSHING",pname(rush.id),`${rush.car} carries  •  ${rush.ry} yards  •  ${rush.rtd} TD`]);
+  if(pass)leaders.push(["PASSING",pname(pass.id),`${pass.cmp}/${pass.att}  •  ${pass.py} yards  •  ${pass.ptd} TD  •  ${pass.pi} INT`]);
+  if(rec)leaders.push(["RECEIVING",pname(rec.id),`${rec.rec} receptions  •  ${rec.rey} yards  •  ${rec.retd} TD`]);
+  if(def)leaders.push(["DEFENSE",pname(def.id),`${def.t} tackles  •  ${def.tfl} TFL  •  ${def.sack} sacks  •  ${def.int} INT`]);
+
   leaders.forEach(([cat,name,line])=>{
-    cRound(c,48,y,984,150,20,"#ffffff");c.fillStyle=S.team.secondary;c.fillRect(48,y,12,150);
-    cText(c,cat,82,y+38,19,900,S.team.primary);cText(c,name,82,y+82,31,900,"#152019");cText(c,line,82,y+120,22,650,"#58645c");y+=170;
+    rr(c,SHARE_MARGIN,y,SHARE_W-SHARE_MARGIN*2,260,28,"#ffffff");
+    c.fillStyle=S.team.secondary;c.fillRect(SHARE_MARGIN,y,16,260);
+    txt(c,cat,SHARE_MARGIN+45,y+60,28,900,S.team.primary);
+    txt(c,name,SHARE_MARGIN+45,y+125,48,900,"#152019");
+    txt(c,line,SHARE_MARGIN+45,y+190,31,650,"#58645c");
+    y+=290;
   });
-  y+=12;cText(c,"TEAM TOTALS",48,y+30,28,900,S.team.primary);y+=55;
+
+  y+=20;txt(c,"TEAM TOTALS",SHARE_MARGIN,y+42,42,900,S.team.primary);y+=85;
   const totals=[
-    ["Rushing",`${s.reduce((a,x)=>a+x.car,0)} CAR`,`${s.reduce((a,x)=>a+x.ry,0)} YDS`],
-    ["Passing",`${s.reduce((a,x)=>a+x.cmp,0)}/${s.reduce((a,x)=>a+x.att,0)}`,`${s.reduce((a,x)=>a+x.py,0)} YDS`],
-    ["Receiving",`${s.reduce((a,x)=>a+x.rec,0)} REC`,`${s.reduce((a,x)=>a+x.rey,0)} YDS`],
-    ["Defense",`${s.reduce((a,x)=>a+x.t,0)} TKL`,`${s.reduce((a,x)=>a+x.tfl,0)} TFL • ${s.reduce((a,x)=>a+x.sack,0)} SACK`]
+    ["RUSHING",`${s.reduce((a,x)=>a+x.car,0)} carries`,`${s.reduce((a,x)=>a+x.ry,0)} yards`],
+    ["PASSING",`${s.reduce((a,x)=>a+x.cmp,0)}/${s.reduce((a,x)=>a+x.att,0)}`,`${s.reduce((a,x)=>a+x.py,0)} yards`],
+    ["RECEIVING",`${s.reduce((a,x)=>a+x.rec,0)} receptions`,`${s.reduce((a,x)=>a+x.rey,0)} yards`],
+    ["DEFENSE",`${s.reduce((a,x)=>a+x.t,0)} tackles`,`${s.reduce((a,x)=>a+x.tfl,0)} TFL • ${s.reduce((a,x)=>a+x.sack,0)} sacks`]
   ];
-  totals.forEach((t,idx)=>{
-    const col=idx%2,row=Math.floor(idx/2),x=48+col*505,yy=y+row*122;
-    cRound(c,x,yy,480,102,18,"#ffffff");cText(c,t[0].toUpperCase(),x+22,yy+30,17,900,S.team.primary);
-    cText(c,t[1],x+22,yy+69,27,900,"#152019");cText(c,t[2],x+225,yy+69,19,700,"#68736b");
+  totals.forEach((t,i)=>{
+    const col=i%2,row=Math.floor(i/2),x=SHARE_MARGIN+col*530,yy=y+row*180;
+    rr(c,x,yy,500,150,22,"#ffffff");
+    txt(c,t[0],x+24,yy+42,24,900,S.team.primary);
+    txt(c,t[1],x+24,yy+92,36,900,"#152019");
+    txt(c,t[2],x+24,yy+130,26,650,"#68736b");
   });
+  footer(c,"Game Leaders");
   return cv;
 }
-function drawTableSection(c,title,headers,rows,total,y){
-  cText(c,title,48,y+28,27,900,S.team.primary);y+=48;
-  const W=984, cols=headers.length, firstW=cols>=6?300:360, rem=(W-firstW)/(cols-1);
-  c.fillStyle="#edf3ef";c.fillRect(48,y,W,42);
-  headers.forEach((h,i)=>{
-    cText(c,h,i===0?60:(48+firstW+rem*i-rem-10),y+27,15,900,S.team.primary,i===0?"left":"right");
-  }); y+=42;
-  const all=[...rows,total];
-  all.forEach((r,idx)=>{
-    const isTotal=idx===all.length-1;c.fillStyle=isTotal?"#eef5f0":"#ffffff";c.fillRect(48,y,W,48);
-    c.strokeStyle="#dbe3de";c.beginPath();c.moveTo(48,y+48);c.lineTo(1032,y+48);c.stroke();
-    r.forEach((v,i)=>{
-      cText(c,v,i===0?60:(48+firstW+rem*i-rem-10),y+31,16,isTotal?900:650,isTotal?S.team.primary:"#152019",i===0?"left":"right");
-    });y+=48;
-  });return y+24;
+function categoryPages(g,section){
+  const MAX_ROWS=13;
+  const pages=[];
+  const chunks=[];
+  for(let i=0;i<section.rows.length;i+=MAX_ROWS)chunks.push(section.rows.slice(i,i+MAX_ROWS));
+  if(!chunks.length)return pages;
+
+  chunks.forEach((rows,idx)=>{
+    const continuation=chunks.length>1?`Page ${idx+1} of ${chunks.length}`:"Player-by-player stats";
+    const {cv,c}=phoneCanvas(section.title,g,continuation);let y=585;
+    const cols=section.headers.length;
+    const tableW=SHARE_W-SHARE_MARGIN*2;
+    const firstW=cols>=6?380:440;
+    const rem=(tableW-firstW)/(cols-1);
+
+    c.fillStyle="#eaf1ec";c.fillRect(SHARE_MARGIN,y,tableW,88);
+    section.headers.forEach((h,i)=>{
+      const x=i===0?SHARE_MARGIN+22:SHARE_MARGIN+firstW+rem*i-rem-18;
+      txt(c,h,x,y+56,25,900,S.team.primary,i===0?"left":"right");
+    });
+    y+=88;
+
+    rows.forEach(r=>{
+      c.fillStyle="#ffffff";c.fillRect(SHARE_MARGIN,y,tableW,112);
+      c.strokeStyle="#dbe3de";c.lineWidth=2;c.beginPath();c.moveTo(SHARE_MARGIN,y+112);c.lineTo(SHARE_W-SHARE_MARGIN,y+112);c.stroke();
+      r.forEach((v,i)=>{
+        const x=i===0?SHARE_MARGIN+22:SHARE_MARGIN+firstW+rem*i-rem-18;
+        txt(c,v,x,y+69,i===0?31:29,i===0?800:700,"#152019",i===0?"left":"right");
+      });
+      y+=112;
+    });
+
+    if(idx===chunks.length-1){
+      y+=18;c.fillStyle="#edf4ef";c.fillRect(SHARE_MARGIN,y,tableW,122);
+      section.total.forEach((v,i)=>{
+        const x=i===0?SHARE_MARGIN+22:SHARE_MARGIN+firstW+rem*i-rem-18;
+        txt(c,v,x,y+76,i===0?31:29,900,S.team.primary,i===0?"left":"right");
+      });
+      y+=122;
+    }
+
+    if(rows.length<MAX_ROWS){
+      y+=55;
+      txt(c,section.note||"",SHARE_MARGIN,y,27,650,"#68736b");
+    }
+    footer(c,section.title + (chunks.length>1?` • ${idx+1}/${chunks.length}`:""));
+    pages.push(cv);
+  });
+  return pages;
 }
-function makeOffensePage(g){
-  const {cv,c}=canvasBase("OFFENSE BY PLAYER",g);let y=310;const s=agg(g);
+function makeSharePages(g){
+  const s=agg(g);
+  const pages=[summaryPage(g)];
+  const sections=[];
+
   const rush=s.filter(x=>x.car).map(x=>[pname(x.id),x.car,x.ry,x.rtd]);
-  const rt=["TEAM TOTAL",s.reduce((a,x)=>a+x.car,0),s.reduce((a,x)=>a+x.ry,0),s.reduce((a,x)=>a+x.rtd,0)];
-  if(rush.length)y=drawTableSection(c,"RUSHING",["PLAYER","CAR","YDS","TD"],rush,rt,y);
+  if(rush.length)sections.push({
+    title:"RUSHING",headers:["PLAYER","CAR","YDS","TD"],rows:rush,
+    total:["TEAM TOTAL",s.reduce((a,x)=>a+x.car,0),s.reduce((a,x)=>a+x.ry,0),s.reduce((a,x)=>a+x.rtd,0)],
+    note:"Carries, rushing yards and rushing touchdowns."
+  });
+
   const pass=s.filter(x=>x.att).map(x=>[pname(x.id),`${x.cmp}/${x.att}`,x.py,x.ptd,x.pi]);
-  const pt=["TEAM TOTAL",`${s.reduce((a,x)=>a+x.cmp,0)}/${s.reduce((a,x)=>a+x.att,0)}`,s.reduce((a,x)=>a+x.py,0),s.reduce((a,x)=>a+x.ptd,0),s.reduce((a,x)=>a+x.pi,0)];
-  if(pass.length)y=drawTableSection(c,"PASSING",["PLAYER","CMP/ATT","YDS","TD","INT"],pass,pt,y);
+  if(pass.length)sections.push({
+    title:"PASSING",headers:["PLAYER","CMP/ATT","YDS","TD","INT"],rows:pass,
+    total:["TEAM TOTAL",`${s.reduce((a,x)=>a+x.cmp,0)}/${s.reduce((a,x)=>a+x.att,0)}`,s.reduce((a,x)=>a+x.py,0),s.reduce((a,x)=>a+x.ptd,0),s.reduce((a,x)=>a+x.pi,0)],
+    note:"Completions/attempts, passing yards, touchdowns and interceptions."
+  });
+
   const rec=s.filter(x=>x.rec).map(x=>[pname(x.id),x.rec,x.rey,x.retd]);
-  const rct=["TEAM TOTAL",s.reduce((a,x)=>a+x.rec,0),s.reduce((a,x)=>a+x.rey,0),s.reduce((a,x)=>a+x.retd,0)];
-  if(rec.length)y=drawTableSection(c,"RECEIVING",["PLAYER","REC","YDS","TD"],rec,rct,y);
-  return cv;
-}
-function makeDefensePage(g){
-  const {cv,c}=canvasBase("DEFENSE & SPECIAL TEAMS",g);let y=310;const s=agg(g);
-  const d=s.filter(x=>x.t+x.tfl+x.sack+x.int+x.ff+x.fr).map(x=>[pname(x.id),x.t,x.tfl,x.sack,x.int,x.ff,x.fr]);
-  const dt=["TEAM TOTAL",s.reduce((a,x)=>a+x.t,0),s.reduce((a,x)=>a+x.tfl,0),s.reduce((a,x)=>a+x.sack,0),s.reduce((a,x)=>a+x.int,0),s.reduce((a,x)=>a+x.ff,0),s.reduce((a,x)=>a+x.fr,0)];
-  if(d.length)y=drawTableSection(c,"DEFENSE",["PLAYER","TKL","TFL","SACK","INT","FF","FR"],d,dt,y);
+  if(rec.length)sections.push({
+    title:"RECEIVING",headers:["PLAYER","REC","YDS","TD"],rows:rec,
+    total:["TEAM TOTAL",s.reduce((a,x)=>a+x.rec,0),s.reduce((a,x)=>a+x.rey,0),s.reduce((a,x)=>a+x.retd,0)],
+    note:"Receptions, receiving yards and receiving touchdowns."
+  });
+
+  const def=s.filter(x=>x.t+x.tfl+x.sack+x.int+x.ff+x.fr).map(x=>[pname(x.id),x.t,x.tfl,x.sack,x.int,x.ff,x.fr]);
+  if(def.length)sections.push({
+    title:"DEFENSE",headers:["PLAYER","TKL","TFL","SACK","INT","FF","FR"],rows:def,
+    total:["TEAM TOTAL",s.reduce((a,x)=>a+x.t,0),s.reduce((a,x)=>a+x.tfl,0),s.reduce((a,x)=>a+x.sack,0),s.reduce((a,x)=>a+x.int,0),s.reduce((a,x)=>a+x.ff,0),s.reduce((a,x)=>a+x.fr,0)],
+    note:"Tackles, tackles for loss, sacks, interceptions and fumbles."
+  });
+
   const sp=s.filter(x=>x.kr+x.pr).map(x=>[pname(x.id),x.kr,x.kry,x.pr,x.pry]);
-  const st=["TEAM TOTAL",s.reduce((a,x)=>a+x.kr,0),s.reduce((a,x)=>a+x.kry,0),s.reduce((a,x)=>a+x.pr,0),s.reduce((a,x)=>a+x.pry,0)];
-  if(sp.length)y=drawTableSection(c,"SPECIAL TEAMS",["PLAYER","KR","KR YDS","PR","PR YDS"],sp,st,y);
-  if(!d.length&&!sp.length)cText(c,"No defense or special teams stats recorded yet.",48,360,24,650,"#68736b");
-  return cv;
+  if(sp.length)sections.push({
+    title:"SPECIAL TEAMS",headers:["PLAYER","KR","KR YDS","PR","PR YDS"],rows:sp,
+    total:["TEAM TOTAL",s.reduce((a,x)=>a+x.kr,0),s.reduce((a,x)=>a+x.kry,0),s.reduce((a,x)=>a+x.pr,0),s.reduce((a,x)=>a+x.pry,0)],
+    note:"Kick-return and punt-return production."
+  });
+
+  sections.forEach(sec=>pages.push(...categoryPages(g,sec)));
+  return pages;
 }
 async function canvasFile(cv,name){
   const blob=await new Promise(res=>cv.toBlob(res,"image/png"));
@@ -732,20 +810,23 @@ $("#shareStatsBtn").addEventListener("click",async()=>{
   const g=statGame();if(!g)return toast("Record a game first");
   try{
     const safe=S.team.name.replace(/[^a-z0-9]/gi,"_");
-    const files=[
-      await canvasFile(makeLeaderPage(g),`${safe}_01_game_leaders.png`),
-      await canvasFile(makeOffensePage(g),`${safe}_02_offense.png`),
-      await canvasFile(makeDefensePage(g),`${safe}_03_defense.png`)
-    ];
+    const canvases=makeSharePages(g);
+    const names=["game_leaders","rushing","passing","receiving","defense","special_teams"];
+    const files=[];
+    for(let i=0;i<canvases.length;i++){
+      files.push(await canvasFile(canvases[i],`${safe}_${String(i+1).padStart(2,"0")}_${names[i]||"stats"}.png`));
+    }
     if(navigator.canShare&&navigator.canShare({files})&&navigator.share){
       await navigator.share({title:`${S.team.name} Game Stats`,text:`${S.team.name} vs ${g.opponent}`,files});
     }else{
-      for(const f of files){const a=document.createElement("a");a.href=URL.createObjectURL(f);a.download=f.name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1500)}
-      toast("Three readable stat images saved/downloaded");
+      for(const f of files){
+        const a=document.createElement("a");a.href=URL.createObjectURL(f);a.download=f.name;a.click();
+        setTimeout(()=>URL.revokeObjectURL(a.href),1600);
+      }
+      toast(`${files.length} full-screen stat pages saved`);
     }
   }catch(e){console.error(e);toast("Could not share game stats on this browser")}
 });
-
 
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]))}
 
