@@ -1,37 +1,14 @@
-# Sideline Stats V0.6 — Full-Screen iPhone Sharing
+# Sideline Stats V0.7
 
-## Share output redesign
-Share Game Stats now creates phone-shaped 1170 × 2532 PNG pages with much larger type.
+## New
+- Approved hybrid iPhone share design: score header, Top Performers (Passing, Receiving, Rushing, Defense), ESPN-style tables, AVG columns, team totals.
+- Rushing AVG = yards/carry.
+- Passing AVG = yards/attempt.
+- Receiving AVG = yards/reception.
+- Defensive plays now support multiple credited defenders in one play. Each selected defender can receive 1.0 or 0.5 credit.
+- Shared tackles and half-sacks are supported and display as decimal totals.
+- Group defensive plays can also be edited after entry.
+- Existing V0.2–V0.6 data migrates forward.
 
-The output starts with:
-- Game score
-- Game Leaders
-- Team Totals
-
-Then it creates separate full-screen pages only for categories that have stats:
-- Rushing
-- Passing
-- Receiving
-- Defense
-- Special Teams
-
-Each category is player-by-player and includes a TEAM TOTAL row.
-
-If a category has too many players to remain readable, the app automatically creates another page instead of shrinking the text.
-
-This is intentionally more pages than V0.5. The goal is that when a parent receives the images in Messages and taps one, the page is already sized like an iPhone screen and the text is readable without pinch-zooming.
-
-## Existing features retained
-- Automatic TD +6, PAT +1, 2PT +2 scoring
-- Manual score correction
-- Persistent data
-- Delete game
-- Reset all data
-- Existing V0.2–V0.5 data migrates forward
-
-## GitHub update
-Replace:
-- index.html
-- manifest.webmanifest
-
-in the SAME sideline-stats repository and commit to main.
+## GitHub
+Replace index.html and manifest.webmanifest in the same repository and commit to main.
