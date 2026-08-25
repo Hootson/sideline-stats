@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V0.7</title>
+<title>Sideline Stats V0.8</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -41,7 +41,7 @@ input,select{width:100%;font-size:16px;padding:12px;border:1px solid var(--line)
 .playtop{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.playactions{display:flex;gap:6px;flex-shrink:0}
 .playactions button{border:1px solid var(--line);background:white;border-radius:8px;padding:6px 8px;font-size:11px;font-weight:800;cursor:pointer}
 .playactions .del{color:var(--danger)}
-nav{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:min(540px,100%);display:grid;grid-template-columns:repeat(4,1fr);background:white;border-top:1px solid var(--line);padding:8px 8px calc(8px + env(safe-area-inset-bottom));z-index:30}
+nav{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:min(540px,100%);display:grid;grid-template-columns:repeat(3,1fr);background:white;border-top:1px solid var(--line);padding:8px 8px calc(8px + env(safe-area-inset-bottom));z-index:30}
 nav button{border:0;background:white;color:var(--muted);font-size:12px;padding:7px;cursor:pointer}
 nav.hidden{display:none}
 .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:10px 14px;border-radius:999px;display:none;z-index:50;font-size:13px}
@@ -115,7 +115,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V0.7 • GAME-DAY TEST BUILD</div>
+      <div class="muted" style="color:#dfe9e2">V0.8 • GAME-DAY TEST BUILD</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -273,7 +273,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
 <script>
 (function(){
-const KEY="sidelineStatsV07", OLDKEY="sidelineStatsV06", OLDERKEY="sidelineStatsV05", OLDESTKEY="sidelineStatsV04", LEGACYKEY="sidelineStatsV03", LEGACYKEY2="sidelineStatsV02";
+const KEY="sidelineStatsV08", OLDKEY="sidelineStatsV07", OLDERKEY="sidelineStatsV06", OLDESTKEY="sidelineStatsV05", LEGACYKEY="sidelineStatsV04", LEGACYKEY2="sidelineStatsV03", LEGACYKEY3="sidelineStatsV02";
 const empty={team:null,roster:[],games:[],activeGameId:null,flow:{},editingPlayId:null};
 let S=load();
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -285,6 +285,7 @@ function load(){try{
       if(!raw)raw=localStorage.getItem(OLDESTKEY);
       if(!raw)raw=localStorage.getItem(LEGACYKEY);
       if(!raw)raw=localStorage.getItem(LEGACYKEY2);
+      if(!raw)raw=localStorage.getItem(LEGACYKEY3);
       if(raw)localStorage.setItem(KEY,raw);
       return raw?Object.assign({},empty,JSON.parse(raw)):JSON.parse(JSON.stringify(empty))
     }catch(e){return JSON.parse(JSON.stringify(empty))}}
@@ -319,7 +320,7 @@ $("#resetAllBtn").addEventListener("click",()=>{
   if(!first)return;
   const phrase=prompt('For safety, type RESET to confirm:');
   if(phrase!=="RESET")return toast("Reset cancelled");
-  localStorage.removeItem(KEY); localStorage.removeItem(OLDKEY); localStorage.removeItem(OLDERKEY); localStorage.removeItem(OLDESTKEY); localStorage.removeItem(LEGACYKEY); localStorage.removeItem(LEGACYKEY2);
+  localStorage.removeItem(KEY); localStorage.removeItem(OLDKEY); localStorage.removeItem(OLDERKEY); localStorage.removeItem(OLDESTKEY); localStorage.removeItem(LEGACYKEY); localStorage.removeItem(LEGACYKEY2); localStorage.removeItem(LEGACYKEY3);
   S=JSON.parse(JSON.stringify(empty));
   syncChrome();populateSetup();renderRoster();go("setup");toast("All data cleared");
 });
