@@ -1,19 +1,23 @@
-# Sideline Stats Prototype
+# Sideline Stats V0.2 — Game-Day Test Build
 
-This repository contains the working Sideline Stats web prototype.
+## What changed
+- Team setup is required before the bottom navigation is available.
+- "Edit Team" button always lets you return to team setup.
+- Larger primary/accent color controls with visible color swatches and hex values.
+- Team, roster, games, scores and plays automatically persist in browser local storage.
+- Create and save separate games.
+- Open previous games.
+- Edit or delete recorded plays.
+- Undo last play.
+- Automatic offense/defense stats.
+- Share/copy a game summary.
+- No sample roster is auto-added.
 
-## Publish with GitHub Pages
+## Update your GitHub Pages site
+Upload/replace:
+- index.html
+- manifest.webmanifest
 
-1. Create a new GitHub repository named `sideline-stats`.
-2. Upload `index.html` and `manifest.webmanifest` to the repository root.
-3. Open **Settings → Pages**.
-4. Under **Build and deployment**, choose **Deploy from a branch**.
-5. Select branch **main** and folder **/(root)**, then click **Save**.
-6. Wait about 1–2 minutes. GitHub will show your public Pages URL.
+README.md is optional.
 
-Typical URL:
-`https://YOUR-USERNAME.github.io/sideline-stats/`
-
-## iPhone
-
-Open the Pages URL in Safari, tap **Share**, then **Add to Home Screen**.
+Commit directly to main. GitHub Pages should redeploy automatically.
