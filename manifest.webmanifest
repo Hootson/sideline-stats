@@ -1,0 +1,9 @@
+{
+  "name": "Sideline Stats",
+  "short_name": "Sideline Stats",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f4f6f5",
+  "theme_color": "#2f6f3e",
+  "description": "Youth football sideline statkeeping prototype"
+}

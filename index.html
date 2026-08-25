@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Sideline Stats Prototype</title>
+<meta name="theme-color" content="#2f6f3e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Sideline Stats">
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+:root{--p:#2f6f3e;--s:#f2b134;--bg:#f4f6f5;--card:#fff;--text:#152019;--muted:#68736b;--line:#dbe2dd}
+*{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}
+.app{max-width:520px;margin:auto;min-height:100vh}.top{position:sticky;top:0;z-index:5;background:var(--p);color:white;padding:16px;font-weight:800;display:flex;justify-content:space-between}
+.screen{display:none;padding:16px 16px 92px}.screen.active{display:block}.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px}
+h2{margin:0 0 12px}label{display:block;font-size:13px;font-weight:700;margin:12px 0 6px}input,select{width:100%;font-size:16px;padding:12px;border:1px solid var(--line);border-radius:10px;background:white}
+.row{display:flex;gap:10px}.row>*{flex:1}.btn{width:100%;border:0;border-radius:12px;padding:14px;font-weight:800;font-size:16px;background:var(--p);color:#fff}.btn.alt{background:var(--s);color:#111}.btn.ghost{background:white;color:var(--p);border:1px solid var(--line)}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.choice{border:1px solid var(--line);background:white;border-radius:12px;min-height:72px;font-size:18px;font-weight:800}.choice.sel{background:var(--p);color:white}
+.badge{display:inline-block;background:#eef5f0;color:var(--p);padding:5px 8px;border-radius:999px;font-size:12px;font-weight:800}.muted{color:var(--muted);font-size:13px}
+.player{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}.jersey{font-size:22px;font-weight:900;color:var(--p)}
+.score{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;text-align:center}.score b{font-size:38px}.hero{background:linear-gradient(135deg,var(--p),#111);color:white}
+.play{padding:10px 0;border-bottom:1px solid var(--line)}.play:last-child{border-bottom:0}.hidden{display:none!important}
+nav{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:min(520px,100%);display:grid;grid-template-columns:repeat(4,1fr);background:white;border-top:1px solid var(--line);padding:8px;z-index:6}
+nav button{border:0;background:white;color:var(--muted);font-size:12px;padding:8px}.toast{position:fixed;bottom:86px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:10px 14px;border-radius:999px;display:none;z-index:10}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;border-bottom:1px solid var(--line);text-align:right}th:first-child,td:first-child{text-align:left}
+.preview{padding:16px;border-radius:12px;color:#fff;font-weight:900;background:var(--p);border-bottom:8px solid var(--s)}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="top"><span id="title">Sideline Stats</span><span id="teamMini"></span></div>
+
+<section class="screen active" data-screen="setup">
+  <div class="card hero"><div class="muted" style="color:#dfe7e1">WORKING PROTOTYPE</div><h2 style="margin-top:6px">Create your team</h2><div>Set colors, build a roster, then stat a game.</div></div>
+  <div class="card">
+    <label>Team name</label><input id="teamName" value="Wildcats">
+    <div class="row"><div><label>Grade</label><select id="grade"><option>5th Grade</option><option>4th Grade</option><option>6th Grade</option></select></div><div><label>Season</label><input id="season" value="2026"></div></div>
+    <div class="row"><div><label>Primary</label><input id="primary" type="color" value="#2f6f3e"></div><div><label>Accent</label><input id="secondary" type="color" value="#f2b134"></div></div>
+    <div class="preview" id="preview">WILDCATS</div>
+    <button class="btn" id="saveTeam" style="margin-top:14px">Save Team & Add Roster</button>
+  </div>
+</section>
+
+<section class="screen" data-screen="roster">
+  <div class="card">
+    <h2>Roster <span class="badge" id="count">0 / 25</span></h2>
+    <div class="row"><input id="jersey" inputmode="numeric" placeholder="#"><input id="player" placeholder="Player name"></div>
+    <button class="btn" id="addPlayer" style="margin-top:10px">Add Player</button>
+  </div>
+  <div class="card" id="rosterList"></div>
+  <button class="btn alt" id="openGame">Open Game</button>
+</section>
+
+<section class="screen" data-screen="game">
+  <div class="card hero">
+    <div class="score"><div><div id="teamGame">Wildcats</div><b id="ourScore">0</b></div><div>VS</div><div><input id="oppName" value="Opponent" style="text-align:center;font-weight:800"><b id="oppScore">0</b></div></div>
+  </div>
+  <div class="card" id="stepMain"><h2>What happened?</h2><div class="grid2">
+    <button class="choice action" data-action="Rush">🏃<br>RUSH</button><button class="choice action" data-action="Pass">🏈<br>PASS</button>
+    <button class="choice action" data-action="Defense">🛡️<br>DEFENSE</button><button class="choice action" data-action="Special">⭐<br>SPECIAL</button>
+  </div><button class="btn ghost" id="undo" style="margin-top:12px">↶ Undo Last Play</button></div>
+
+  <div class="card hidden" id="stepSub"><h2 id="subTitle">Choose</h2><div id="subGrid" class="grid2"></div><button class="btn ghost cancel" style="margin-top:12px">Cancel</button></div>
+  <div class="card hidden" id="stepPlayer"><div class="muted" id="flowText"></div><h2>Select player</h2><div id="playerGrid" class="grid"></div><button class="btn ghost cancel" style="margin-top:12px">Cancel</button></div>
+  <div class="card hidden" id="stepYards"><h2>How many yards?</h2><div id="yardGrid" class="grid"></div><label>Custom</label><div class="row"><input id="customYards" inputmode="numeric" placeholder="23 or -4"><button class="btn" id="customBtn">Use</button></div></div>
+  <div class="card hidden" id="stepExtras"><h2>Anything else?</h2><div class="grid2">
+    <button class="choice extra" data-extra="TD">TD</button><button class="choice extra" data-extra="1st Down">1ST DOWN</button>
+    <button class="choice extra" data-extra="Fumble">FUMBLE</button><button class="choice extra" data-extra="2PT">2PT</button>
+  </div><button class="btn" id="recordPlay" style="margin-top:12px">Record Play</button></div>
+
+  <div class="card"><h2>Recent plays</h2><div id="recent"><span class="muted">No plays yet.</span></div></div>
+</section>
+
+<section class="screen" data-screen="stats"><div class="card"><h2>Team Stats</h2><div id="statsBox"></div></div></section>
+
+<section class="screen" data-screen="share">
+  <div class="card hero"><div class="muted" style="color:#dfe7e1">GAME SUMMARY</div><h2 id="shareTeam">Wildcats</h2><div id="shareBody"></div></div>
+  <button class="btn" id="shareBtn">Share Summary</button>
+  <button class="btn ghost" id="copyBtn" style="margin-top:10px">Copy Text Summary</button>
+</section>
+
+<nav>
+<button data-go="roster">👥<br>Roster</button><button data-go="game">🏈<br>Game</button><button data-go="stats">📊<br>Stats</button><button data-go="share">↗️<br>Share</button>
+</nav>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+const S={team:{name:"Wildcats",primary:"#2f6f3e",secondary:"#f2b134"},roster:[],plays:[],flow:{}};
+const demo=[[2,"Alex"],[4,"Mason"],[5,"Jackson"],[7,"Dylan"],[8,"Carter"],[11,"Tyler"],[12,"Lucas"],[14,"Ben"],[17,"Jake"],[18,"Noah"],[21,"Cole"],[22,"Sam"],[24,"Parker"]];
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+function toast(m){let t=$("#toast");t.textContent=m;t.style.display="block";setTimeout(()=>t.style.display="none",1400)}
+function colors(){document.documentElement.style.setProperty("--p",S.team.primary);document.documentElement.style.setProperty("--s",S.team.secondary)}
+function go(name){$$(".screen").forEach(x=>x.classList.remove("active"));$(`[data-screen="${name}"]`).classList.add("active");$("#title").textContent={setup:"Sideline Stats",roster:"Roster",game:"Live Game",stats:"Team Stats",share:"Share"}[name]; if(name==="stats")renderStats(); if(name==="share")renderShare();}
+$$("[data-go]").forEach(b=>b.addEventListener("click",()=>go(b.dataset.go)));
+function preview(){let p=$("#primary").value,s=$("#secondary").value,n=$("#teamName").value||"TEAM";$("#preview").style.background=p;$("#preview").style.borderBottomColor=s;$("#preview").textContent=n.toUpperCase()}
+["#primary","#secondary","#teamName"].forEach(id=>$(id).addEventListener("input",preview));
+$("#saveTeam").addEventListener("click",()=>{S.team.name=$("#teamName").value.trim()||"Team";S.team.primary=$("#primary").value;S.team.secondary=$("#secondary").value;colors();$("#teamMini").textContent=S.team.name;$("#teamGame").textContent=S.team.name;if(!S.roster.length)demo.forEach(([jersey,name])=>S.roster.push({jersey,name}));renderRoster();go("roster")});
+function renderRoster(){S.roster.sort((a,b)=>a.jersey-b.jersey);$("#count").textContent=`${S.roster.length} / 25`;$("#rosterList").innerHTML=S.roster.map((p,i)=>`<div class="player"><div><span class="jersey">#${p.jersey}</span> &nbsp; ${p.name}</div><button class="choice remove" data-i="${i}" style="min-height:auto;padding:6px 10px">×</button></div>`).join("")||'<span class="muted">No players yet.</span>';$$(".remove").forEach(b=>b.addEventListener("click",()=>{S.roster.splice(+b.dataset.i,1);renderRoster()}))}
+$("#addPlayer").addEventListener("click",()=>{if(S.roster.length>=25)return toast("25-player limit");let j=parseInt($("#jersey").value,10),n=$("#player").value.trim();if(!j||!n)return toast("Add number and name");S.roster.push({jersey:j,name:n});$("#jersey").value="";$("#player").value="";renderRoster()});
+$("#openGame").addEventListener("click",()=>go("game"));
+function reset(){S.flow={};["#stepSub","#stepPlayer","#stepYards","#stepExtras"].forEach(id=>$(id).classList.add("hidden"));$("#stepMain").classList.remove("hidden");$$(".extra").forEach(b=>b.classList.remove("sel"))}
+$$(".cancel").forEach(b=>b.addEventListener("click",reset));
+$$(".action").forEach(b=>b.addEventListener("click",()=>start(b.dataset.action)));
+function start(type){S.flow={type,extras:[]};$("#stepMain").classList.add("hidden");if(type==="Rush")showPlayers("Who had the ball?","runner");else if(type==="Pass")showPlayers("Select QB","qb");else if(type==="Defense")showSubs("Defensive stat",["Tackle","TFL","Sack","INT","Forced Fumble","Fumble Recovery"]);else showSubs("Special teams",["Kick Return","Punt Return"])}
+function showSubs(title,items){$("#subTitle").textContent=title;$("#subGrid").innerHTML=items.map(x=>`<button class="choice sub" data-v="${x}">${x}</button>`).join("");$("#stepSub").classList.remove("hidden");$$(".sub").forEach(b=>b.addEventListener("click",()=>{S.flow.sub=b.dataset.v;$("#stepSub").classList.add("hidden");if(S.flow.type==="Defense")showPlayers(`${b.dataset.v} — select player`,"def");else showPlayers(`${b.dataset.v} — select returner`,"special")}))}
+function showPlayers(text,mode){$("#flowText").textContent=text;$("#playerGrid").innerHTML=S.roster.map(p=>`<button class="choice pick" data-j="${p.jersey}" data-mode="${mode}">#${p.jersey}<br><span class="muted">${p.name}</span></button>`).join("");$("#stepPlayer").classList.remove("hidden");$$(".pick").forEach(b=>b.addEventListener("click",()=>pick(+b.dataset.j,b.dataset.mode)))}
+function pick(j,mode){$("#stepPlayer").classList.add("hidden");if(mode==="qb"){S.flow.player=j;showSubs("Pass result",["Complete","Incomplete","Intercepted","Sack"]);$$(".sub").forEach(b=>{let old=b.onclick;b.addEventListener("click",()=>{})})}
+else if(mode==="runner"){S.flow.player=j;showYards()}
+else if(mode==="special"){S.flow.player=j;showYards()}
+else {S.flow.player=j;recordNow()}}
+const origShowSubs=showSubs;
+showSubs=function(title,items){
+  $("#subTitle").textContent=title;$("#subGrid").innerHTML=items.map(x=>`<button class="choice sub" data-v="${x}">${x}</button>`).join("");$("#stepSub").classList.remove("hidden");
+  $$(".sub").forEach(b=>b.addEventListener("click",()=>{let v=b.dataset.v;S.flow.sub=v;$("#stepSub").classList.add("hidden");
+    if(S.flow.type==="Pass"){
+      if(v==="Complete")showPlayers("Complete — select receiver","receiver"); else recordNow();
+    } else if(S.flow.type==="Defense") showPlayers(`${v} — select player`,"def");
+    else showPlayers(`${v} — select returner`,"special");
+  }))
+}
+function pick(j,mode){
+  $("#stepPlayer").classList.add("hidden");
+  if(mode==="qb"){S.flow.player=j;showSubs("Pass result",["Complete","Incomplete","Intercepted","Sack"])}
+  else if(mode==="receiver"){S.flow.player2=j;showYards()}
+  else if(mode==="runner"||mode==="special"){S.flow.player=j;showYards()}
+  else {S.flow.player=j;recordNow()}
+}
+function showYards(){let vals=[-10,-5,-3,-2,-1,0,1,2,3,4,5,6,7,10,15];$("#yardGrid").innerHTML=vals.map(v=>`<button class="choice yard" data-v="${v}">${v>0?"+":""}${v}</button>`).join("");$("#stepYards").classList.remove("hidden");$$(".yard").forEach(b=>b.addEventListener("click",()=>yards(+b.dataset.v)))}
+$("#customBtn").addEventListener("click",()=>{let v=parseInt($("#customYards").value,10);if(Number.isNaN(v))return toast("Enter yards");yards(v)});
+function yards(v){S.flow.yards=v;$("#stepYards").classList.add("hidden");$("#stepExtras").classList.remove("hidden")}
+$$(".extra").forEach(b=>b.addEventListener("click",()=>{let x=b.dataset.extra,i=S.flow.extras.indexOf(x);if(i>=0){S.flow.extras.splice(i,1);b.classList.remove("sel")}else{S.flow.extras.push(x);b.classList.add("sel")}}));
+$("#recordPlay").addEventListener("click",recordNow);
+function recordNow(){S.plays.push(JSON.parse(JSON.stringify({...S.flow,ts:Date.now()})));renderRecent();toast("Play recorded");reset()}
+$("#undo").addEventListener("click",()=>{if(!S.plays.length)return toast("Nothing to undo");S.plays.pop();renderRecent();toast("Last play removed")});
+function pname(j){let p=S.roster.find(x=>x.jersey===j);return p?`#${j} ${p.name}`:`#${j}`}
+function ptext(p){if(p.type==="Rush")return `Rush ${pname(p.player)} ${sgn(p.yards)} yds${ex(p)}`;if(p.type==="Pass"){if(p.sub==="Complete")return `Pass ${pname(p.player)} → ${pname(p.player2)} ${sgn(p.yards)} yds${ex(p)}`;return `Pass ${pname(p.player)} — ${p.sub}`};if(p.type==="Defense")return `${p.sub} — ${pname(p.player)}`;return `${p.sub} — ${pname(p.player)} ${sgn(p.yards)} yds${ex(p)}`}
+function sgn(v){return (+v>0?"+":"")+(v||0)} function ex(p){return p.extras&&p.extras.length?" · "+p.extras.join(", "):""}
+function renderRecent(){let a=S.plays.slice(-8).reverse();$("#recent").innerHTML=a.length?a.map(p=>`<div class="play"><strong>${ptext(p)}</strong></div>`).join(""):'<span class="muted">No plays yet.</span>'}
+function agg(){let m={};S.roster.forEach(p=>m[p.jersey]={j:p.jersey,n:p.name,car:0,ry:0,rtd:0,att:0,cmp:0,py:0,ptd:0,pi:0,rec:0,rey:0,retd:0,t:0,tfl:0,sack:0,int:0,ff:0,fr:0,kr:0,kry:0,pr:0,pry:0});S.plays.forEach(p=>{let a=m[p.player],b=m[p.player2];if(p.type==="Rush"&&a){a.car++;a.ry+=+p.yards||0;if(p.extras?.includes("TD"))a.rtd++}if(p.type==="Pass"&&a){a.att++;if(p.sub==="Complete"){a.cmp++;a.py+=+p.yards||0;if(p.extras?.includes("TD"))a.ptd++;if(b){b.rec++;b.rey+=+p.yards||0;if(p.extras?.includes("TD"))b.retd++}}if(p.sub==="Intercepted")a.pi++}if(p.type==="Defense"&&a){if(p.sub==="Tackle")a.t++;if(p.sub==="TFL")a.tfl++;if(p.sub==="Sack")a.sack++;if(p.sub==="INT")a.int++;if(p.sub==="Forced Fumble")a.ff++;if(p.sub==="Fumble Recovery")a.fr++}if(p.type==="Special"&&a){if(p.sub==="Kick Return"){a.kr++;a.kry+=+p.yards||0}else{a.pr++;a.pry+=+p.yards||0}}});return Object.values(m)}
+function tbl(h,rows){if(!rows.length)return'<div class="muted">No stats yet.</div>';return`<table><tr>${h.map(x=>`<th>${x}</th>`).join("")}</tr>${rows.map(r=>`<tr>${r.map(x=>`<td>${x}</td>`).join("")}</tr>`).join("")}</table>`}
+function renderStats(){let s=agg();$("#statsBox").innerHTML=`<h3>Rushing</h3>${tbl(["Player","CAR","YDS","TD"],s.filter(x=>x.car).map(x=>[pname(x.j),x.car,x.ry,x.rtd]))}<h3>Passing</h3>${tbl(["Player","CMP/ATT","YDS","TD","INT"],s.filter(x=>x.att).map(x=>[pname(x.j),x.cmp+"/"+x.att,x.py,x.ptd,x.pi]))}<h3>Receiving</h3>${tbl(["Player","REC","YDS","TD"],s.filter(x=>x.rec).map(x=>[pname(x.j),x.rec,x.rey,x.retd]))}<h3>Defense</h3>${tbl(["Player","TKL","TFL","SACK","INT","FF","FR"],s.filter(x=>x.t+x.tfl+x.sack+x.int+x.ff+x.fr).map(x=>[pname(x.j),x.t,x.tfl,x.sack,x.int,x.ff,x.fr]))}`}
+function summary(){return `${S.team.name} vs ${$("#oppName").value||"Opponent"}\n\n${S.plays.map(ptext).join("\n")}`}
+function renderShare(){$("#shareTeam").textContent=S.team.name;let s=agg(),rush=[...s].sort((a,b)=>b.ry-a.ry)[0],rec=[...s].sort((a,b)=>b.rey-a.rey)[0],def=[...s].sort((a,b)=>(b.t+b.tfl+b.sack)-(a.t+a.tfl+a.sack))[0];$("#shareBody").innerHTML=`<div><strong>${S.team.name} vs ${$("#oppName").value||"Opponent"}</strong></div><br>${rush?.ry?`🏃 ${pname(rush.j)} — ${rush.ry} rushing yds<br>`:""}${rec?.rey?`🙌 ${pname(rec.j)} — ${rec.rey} receiving yds<br>`:""}${def&&(def.t+def.tfl+def.sack)?`🛡️ ${pname(def.j)} — ${def.t} tackles, ${def.tfl} TFL, ${def.sack} sacks`:""}`}
+$("#copyBtn").addEventListener("click",async()=>{try{await navigator.clipboard.writeText(summary());toast("Summary copied")}catch(e){toast("Copy not supported here")}});
+$("#shareBtn").addEventListener("click",async()=>{if(navigator.share){try{await navigator.share({title:`${S.team.name} Game Summary`,text:summary()})}catch(e){}}else toast("Use Copy Text Summary")});
+colors();preview();
+})();
+</script>
+</body></html>
