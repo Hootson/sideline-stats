@@ -1,23 +1,35 @@
-# Sideline Stats V0.4 — Shareable Stats Build
+# Sideline Stats V0.5 — Readable Sharing + Automatic Scoring
 
-## New in V0.4
-- The Stats tab is now the primary shareable format.
-- Share action renamed to **Share Game Stats**.
-- Team totals appear at the bottom of every active section:
-  - Rushing
-  - Passing
-  - Receiving
-  - Defense
-  - Special Teams
-- Share output includes the full player-by-player breakdown, not just leaders.
-- Shared image is designed as a narrower, vertically scrolling/stat-sheet format that is much easier to read on iPhone.
-- The separate Share tab now points users to the shareable Stats view.
-- Existing V0.2/V0.3 browser data migrates automatically.
+## New in V0.5
+
+### Share Game Stats
+Instead of one extra-tall image, sharing now creates **three iPhone-friendly 1080×1350 images**:
+1. Scoreboard + Game Leaders + Team Totals
+2. Offense by player (Rushing, Passing, Receiving + team totals)
+3. Defense & Special Teams by player + team totals
+
+This keeps the detail readable in Messages without needing to zoom into one giant stat sheet.
+
+### Automatic scoring
+Scoring extras now update the team score automatically:
+- TD = 6 points
+- PAT / 1-point conversion = 1 point
+- 2-point conversion = 2 points
+
+### Score corrections
+The live-game header now includes:
+- **Set / Correct Our Score**
+- **Set Opponent Score**
+
+This allows you to match the official scoreboard if a scoring play was missed or entered incorrectly.
+
+### Data migration
+Existing V0.2, V0.3 and V0.4 data migrates forward automatically.
 
 ## Update GitHub Pages
-Upload/replace in the SAME repository:
+Upload/replace in the SAME `sideline-stats` repository:
 - index.html
 - manifest.webmanifest
 
 README.md is optional.
-Commit to main. Your URL stays the same.
+Commit to main; your GitHub Pages URL stays the same.

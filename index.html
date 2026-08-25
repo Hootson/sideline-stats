@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V0.4</title>
+<title>Sideline Stats V0.5</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -109,7 +109,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V0.4 • GAME-DAY TEST BUILD</div>
+      <div class="muted" style="color:#dfe9e2">V0.5 • GAME-DAY TEST BUILD</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -184,8 +184,8 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
           <div><div id="oppGame">Opponent</div><b id="oppScore">0</b></div>
         </div>
         <div class="row" style="margin-top:10px">
-          <button class="btn small" id="ourPlus">+ Our Score</button>
-          <button class="btn small" id="oppPlus">+ Opp Score</button>
+          <button class="btn small" id="setOurScore">Set / Correct Our Score</button>
+          <button class="btn small" id="setOppScore">Set Opponent Score</button>
         </div>
       </div>
 
@@ -204,9 +204,13 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
       <div class="card hidden" id="stepPlayer"><div class="muted" id="flowText"></div><h2>Select player</h2><div id="playerGrid" class="grid"></div><button class="btn ghost cancel" style="margin-top:12px">Cancel</button></div>
       <div class="card hidden" id="stepYards"><h2>How many yards?</h2><div id="yardGrid" class="grid"></div><label>Custom</label><div class="row"><input id="customYards" inputmode="numeric" placeholder="23 or -4"><button class="btn" id="customBtn">Use</button></div></div>
       <div class="card hidden" id="stepExtras"><h2>Anything else?</h2><div class="grid2">
-        <button class="choice extra" data-extra="TD">TD</button><button class="choice extra" data-extra="1st Down">1ST DOWN</button>
-        <button class="choice extra" data-extra="Fumble">FUMBLE</button><button class="choice extra" data-extra="2PT">2PT</button>
-      </div><button class="btn" id="recordPlay" style="margin-top:12px">Record Play</button></div>
+        <button class="choice extra" data-extra="TD">TD +6</button>
+        <button class="choice extra" data-extra="1st Down">1ST DOWN</button>
+        <button class="choice extra" data-extra="Fumble">FUMBLE</button>
+        <button class="choice extra" data-extra="1PT">PAT +1</button>
+        <button class="choice extra" data-extra="2PT">2PT +2</button>
+      </div><div class="inline-note" style="margin-top:10px">Scoring selections update your team score automatically.</div>
+      <button class="btn" id="recordPlay" style="margin-top:12px">Record Play</button></div>
 
       <div id="editPlayCard" class="card editor hidden">
         <h2>Edit Play</h2>
@@ -231,7 +235,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
       <div id="statsBox"></div>
     </div>
     <button class="btn" id="shareStatsBtn" style="margin-top:14px">Share Game Stats</button>
-    <div class="share-tip">Shares the same full stats view you see above.</div>
+    <div class="share-tip">Shares 3 readable iPhone-sized pages: Game Leaders, Offense, and Defense/Special Teams.</div>
   </section>
 
   <section class="screen" data-screen="share">
@@ -255,15 +259,16 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
 <script>
 (function(){
-const KEY="sidelineStatsV04", OLDKEY="sidelineStatsV03", OLDERKEY="sidelineStatsV02";
+const KEY="sidelineStatsV05", OLDKEY="sidelineStatsV04", OLDERKEY="sidelineStatsV03", OLDESTKEY="sidelineStatsV02";
 const empty={team:null,roster:[],games:[],activeGameId:null,flow:{},editingPlayId:null};
 let S=load();
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 
 function load(){try{
       let raw=localStorage.getItem(KEY);
-      if(!raw){raw=localStorage.getItem(OLDKEY)}
-      if(!raw){raw=localStorage.getItem(OLDERKEY)}
+      if(!raw)raw=localStorage.getItem(OLDKEY);
+      if(!raw)raw=localStorage.getItem(OLDERKEY);
+      if(!raw)raw=localStorage.getItem(OLDESTKEY);
       if(raw)localStorage.setItem(KEY,raw);
       return raw?Object.assign({},empty,JSON.parse(raw)):JSON.parse(JSON.stringify(empty))
     }catch(e){return JSON.parse(JSON.stringify(empty))}}
@@ -298,7 +303,7 @@ $("#resetAllBtn").addEventListener("click",()=>{
   if(!first)return;
   const phrase=prompt('For safety, type RESET to confirm:');
   if(phrase!=="RESET")return toast("Reset cancelled");
-  localStorage.removeItem(KEY); localStorage.removeItem(OLDKEY); localStorage.removeItem(OLDERKEY);
+  localStorage.removeItem(KEY); localStorage.removeItem(OLDKEY); localStorage.removeItem(OLDERKEY); localStorage.removeItem(OLDESTKEY);
   S=JSON.parse(JSON.stringify(empty));
   syncChrome();populateSetup();renderRoster();go("setup");toast("All data cleared");
 });
@@ -357,7 +362,7 @@ function renderGameList(){
   if(!S.games.length){list.innerHTML='<span class="muted">No games yet.</span>';return}
   list.innerHTML=[...S.games].sort((a,b)=>b.date.localeCompare(a.date)).map(g=>`
     <div class="game-card">
-      <div class="game-info"><strong>${esc(S.team.name)} vs ${esc(g.opponent)}</strong><span>${g.date} • ${g.location} • ${g.ourScore}-${g.oppScore}</span></div>
+      <div class="game-info"><strong>${esc(S.team.name)} vs ${esc(g.opponent)}</strong><span>${g.date} • ${g.location} • ${displayedOurScore(g)}-${g.oppScore}</span></div>
       <div style="display:flex;gap:6px">
         <button class="btn ghost small open-game" data-id="${g.id}">${g.status==="complete"?"View":"Open"}</button>
         <button class="btn danger small delete-game" data-id="${g.id}">Delete</button>
@@ -374,19 +379,51 @@ function renderGameList(){
 $("#newGameBtn").addEventListener("click",()=>{
   if(!S.roster.length)return toast("Add your roster first");
   const opp=$("#newOpponent").value.trim();if(!opp)return toast("Enter an opponent");
-  const g={id:uid(),opponent:opp,date:$("#newGameDate").value||today(),location:$("#newLocation").value,status:"live",ourScore:0,oppScore:0,plays:[]};
+  const g={id:uid(),opponent:opp,date:$("#newGameDate").value||today(),location:$("#newLocation").value,status:"live",ourScore:0,scoreAdjustment:0,oppScore:0,plays:[]};
   S.games.push(g);S.activeGameId=g.id;persist();resetFlow();renderGameArea()
 });
 $("#endGameBtn").addEventListener("click",()=>{
   const g=currentGame();if(!g)return;
   g.status="complete";S.activeGameId=null;persist();toast("Game saved");renderGameArea()
 });
-$("#ourPlus").addEventListener("click",()=>score("ours"));
-$("#oppPlus").addEventListener("click",()=>score("opp"));
-function score(side){const g=currentGame();if(!g)return;const v=prompt("Add how many points? (e.g. 6, 2, 1, 3)","6");const n=parseInt(v,10);if(Number.isNaN(n))return;if(side==="ours")g.ourScore+=n;else g.oppScore+=n;persist();renderLiveGame()}
+$("#setOurScore").addEventListener("click",()=>{
+  const g=currentGame();if(!g)return;ensureScoreModel(g);
+  const current=displayedOurScore(g);
+  const v=prompt("Set our official score:",String(current));
+  if(v===null)return;const n=parseInt(v,10);if(Number.isNaN(n)||n<0)return toast("Enter a valid score");
+  g.scoreAdjustment=n-autoPoints(g);g.ourScore=n;persist();renderLiveGame();toast("Score corrected");
+});
+$("#setOppScore").addEventListener("click",()=>{
+  const g=currentGame();if(!g)return;
+  const v=prompt("Set opponent official score:",String(g.oppScore||0));
+  if(v===null)return;const n=parseInt(v,10);if(Number.isNaN(n)||n<0)return toast("Enter a valid score");
+  g.oppScore=n;persist();renderLiveGame();toast("Opponent score updated");
+});
+
+function pointsFromPlay(p){
+  if(!p||!p.extras)return 0;
+  let pts=0;
+  if(p.extras.includes("TD"))pts+=6;
+  if(p.extras.includes("1PT"))pts+=1;
+  if(p.extras.includes("2PT"))pts+=2;
+  return pts;
+}
+function autoPoints(g){return (g?.plays||[]).reduce((sum,p)=>sum+pointsFromPlay(p),0)}
+function ensureScoreModel(g){
+  if(!g)return;
+  if(typeof g.scoreAdjustment!=="number"){
+    const auto=autoPoints(g);
+    const old=Number(g.ourScore||0);
+    // Smart migration: if old score was zero but plays already contain scoring,
+    // treat the zero as the old prototype bug and allow auto-scoring to correct it.
+    g.scoreAdjustment=(old===0 && auto>0)?0:(old-auto);
+  }
+}
+function displayedOurScore(g){ensureScoreModel(g);return autoPoints(g)+Number(g.scoreAdjustment||0)}
+
 function renderLiveGame(){
   const g=currentGame();if(!g)return;
-  $("#teamGame").textContent=S.team.name;$("#oppGame").textContent=g.opponent;$("#ourScore").textContent=g.ourScore;$("#oppScore").textContent=g.oppScore;
+  ensureScoreModel(g);$("#teamGame").textContent=S.team.name;$("#oppGame").textContent=g.opponent;$("#ourScore").textContent=displayedOurScore(g);$("#oppScore").textContent=g.oppScore;
   $("#gameMeta").textContent=`${g.date} • ${g.location}`;renderRecent();resetFlow();
 }
 function resetFlow(){S.flow={};["#stepSub","#stepPlayer","#stepYards","#stepExtras"].forEach(id=>$(id).classList.add("hidden"));$("#stepMain").classList.remove("hidden");$$(".extra").forEach(b=>b.classList.remove("sel"))}
@@ -432,9 +469,9 @@ $$(".extra").forEach(b=>b.addEventListener("click",()=>{let x=b.dataset.extra,i=
 $("#recordPlay").addEventListener("click",recordNow);
 function recordNow(){
   const g=currentGame();if(!g)return;
-  g.plays.push({...JSON.parse(JSON.stringify(S.flow)),id:uid(),ts:Date.now()});persist();renderRecent();toast("Play recorded");resetFlow()
+  g.plays.push({...JSON.parse(JSON.stringify(S.flow)),id:uid(),ts:Date.now()});g.ourScore=displayedOurScore(g);persist();renderLiveGame();toast("Play recorded");resetFlow()
 }
-$("#undo").addEventListener("click",()=>{const g=currentGame();if(!g||!g.plays.length)return toast("Nothing to undo");g.plays.pop();persist();renderRecent();toast("Last play removed")});
+$("#undo").addEventListener("click",()=>{const g=currentGame();if(!g||!g.plays.length)return toast("Nothing to undo");g.plays.pop();g.ourScore=displayedOurScore(g);persist();renderLiveGame();toast("Last play removed")});
 
 function player(id){return S.roster.find(p=>p.id===id)}
 function pname(id){let p=player(id);return p?`#${p.jersey} ${p.name}`:"#?"}
@@ -450,7 +487,7 @@ function renderRecent(){
   const g=currentGame();if(!g){$("#recent").innerHTML='<span class="muted">No game open.</span>';return}
   const arr=[...g.plays].reverse();
   $("#recent").innerHTML=arr.length?arr.map(p=>`<div class="play"><div class="playtop"><div><strong>${esc(ptext(p))}</strong><div class="muted">${new Date(p.ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</div></div><div class="playactions"><button class="edit-play" data-id="${p.id}">Edit</button><button class="del delete-play" data-id="${p.id}">Delete</button></div></div></div>`).join(""):'<span class="muted">No plays yet.</span>';
-  $$(".delete-play").forEach(b=>b.addEventListener("click",()=>{g.plays=g.plays.filter(p=>p.id!==b.dataset.id);persist();renderRecent();toast("Play deleted")}));
+  $$(".delete-play").forEach(b=>b.addEventListener("click",()=>{g.plays=g.plays.filter(p=>p.id!==b.dataset.id);g.ourScore=displayedOurScore(g);persist();renderLiveGame();toast("Play deleted")}));
   $$(".edit-play").forEach(b=>b.addEventListener("click",()=>openEditor(b.dataset.id)))
 }
 function playerOptions(selected){return S.roster.map(p=>`<option value="${p.id}" ${p.id===selected?"selected":""}>#${p.jersey} ${esc(p.name)}</option>`).join("")}
@@ -461,7 +498,7 @@ function openEditor(id){
   if(p.player2)html+=`<label>Receiver</label><select id="editPlayer2">${playerOptions(p.player2)}</select>`;
   if(p.type==="Rush"||p.type==="Special"||(p.type==="Pass"&&p.sub==="Complete"))html+=`<label>Yards</label><input id="editYards" inputmode="numeric" value="${p.yards||0}">`;
   if(p.type==="Rush"||p.type==="Special"||(p.type==="Pass"&&p.sub==="Complete")){
-    const choices=["TD","1st Down","Fumble","2PT"];
+    const choices=["TD","1st Down","Fumble","1PT","2PT"];
     html+=`<label>Extras</label><div class="checks">${choices.map(x=>`<label class="check"><input type="checkbox" class="editExtra" value="${x}" ${p.extras?.includes(x)?"checked":""}>${x}</label>`).join("")}</div>`;
   }
   $("#editFields").innerHTML=html;$("#editPlayCard").classList.remove("hidden");$("#editPlayCard").scrollIntoView({behavior:"smooth",block:"center"})
@@ -472,7 +509,7 @@ $("#saveEdit").addEventListener("click",()=>{
   if($("#editPlayer"))p.player=$("#editPlayer").value;if($("#editPlayer2"))p.player2=$("#editPlayer2").value;
   if($("#editYards")){const y=parseInt($("#editYards").value,10);if(Number.isNaN(y))return toast("Enter valid yards");p.yards=y}
   if($$(".editExtra").length)p.extras=$$(".editExtra").filter(x=>x.checked).map(x=>x.value);
-  persist();$("#editPlayCard").classList.add("hidden");S.editingPlayId=null;renderRecent();toast("Play updated")
+  g.ourScore=displayedOurScore(g);persist();$("#editPlayCard").classList.add("hidden");S.editingPlayId=null;renderLiveGame();toast("Play updated")
 });
 
 function agg(g){
@@ -493,7 +530,7 @@ function renderStats(){
   const g=statGame();
   $("#statsShareTitle").textContent=S.team?.name||"Team";
   if(!g){$("#statsGameLabel").textContent="";$("#statsBox").innerHTML='<div class="stats-block"><span class="muted">Record a game first.</span></div>';return}
-  $("#statsGameLabel").textContent=`${S.team.name} ${g.ourScore} – ${g.oppScore} ${g.opponent} • ${g.date} • ${g.location}`;
+  $("#statsGameLabel").textContent=`${S.team.name} ${displayedOurScore(g)} – ${g.oppScore} ${g.opponent} • ${g.date} • ${g.location}`;
   let s=agg(g);
 
   const rushRows=s.filter(x=>x.car).map(x=>[pname(x.id),x.car,x.ry,x.rtd]);
@@ -521,7 +558,7 @@ function renderStats(){
 }
 function summaryText(g){
   if(!g)return "No game recorded.";
-  return `${S.team.name} vs ${g.opponent}\n${g.date} • ${g.location}\nScore: ${S.team.name} ${g.ourScore} - ${g.oppScore} ${g.opponent}\n\n${g.plays.map(ptext).join("\n")}`
+  return `${S.team.name} vs ${g.opponent}\n${g.date} • ${g.location}\nScore: ${S.team.name} ${displayedOurScore(g)} - ${g.oppScore} ${g.opponent}\n\n${g.plays.map(ptext).join("\n")}`
 }
 function shareTable(headers,rows){
   if(!rows.length)return '<div class="muted">No stats recorded.</div>';
@@ -602,70 +639,113 @@ $("#copyBtn").addEventListener("click",async()=>{const g=statGame();try{await na
 
 $("#goShareStats").addEventListener("click",()=>go("stats"));
 
-function drawStatsCanvas(g){
-  const s=agg(g);
-  const sections=[
-    {title:"RUSHING",headers:["PLAYER","CAR","YDS","TD"],rows:s.filter(x=>x.car).map(x=>[pname(x.id),x.car,x.ry,x.rtd]),total:["TEAM TOTAL",s.reduce((a,x)=>a+x.car,0),s.reduce((a,x)=>a+x.ry,0),s.reduce((a,x)=>a+x.rtd,0)]},
-    {title:"PASSING",headers:["PLAYER","CMP/ATT","YDS","TD","INT"],rows:s.filter(x=>x.att).map(x=>[pname(x.id),`${x.cmp}/${x.att}`,x.py,x.ptd,x.pi]),total:["TEAM TOTAL",`${s.reduce((a,x)=>a+x.cmp,0)}/${s.reduce((a,x)=>a+x.att,0)}`,s.reduce((a,x)=>a+x.py,0),s.reduce((a,x)=>a+x.ptd,0),s.reduce((a,x)=>a+x.pi,0)]},
-    {title:"RECEIVING",headers:["PLAYER","REC","YDS","TD"],rows:s.filter(x=>x.rec).map(x=>[pname(x.id),x.rec,x.rey,x.retd]),total:["TEAM TOTAL",s.reduce((a,x)=>a+x.rec,0),s.reduce((a,x)=>a+x.rey,0),s.reduce((a,x)=>a+x.retd,0)]},
-    {title:"DEFENSE",headers:["PLAYER","TKL","TFL","SACK","INT","FF","FR"],rows:s.filter(x=>x.t+x.tfl+x.sack+x.int+x.ff+x.fr).map(x=>[pname(x.id),x.t,x.tfl,x.sack,x.int,x.ff,x.fr]),total:["TEAM TOTAL",s.reduce((a,x)=>a+x.t,0),s.reduce((a,x)=>a+x.tfl,0),s.reduce((a,x)=>a+x.sack,0),s.reduce((a,x)=>a+x.int,0),s.reduce((a,x)=>a+x.ff,0),s.reduce((a,x)=>a+x.fr,0)]},
-    {title:"SPECIAL TEAMS",headers:["PLAYER","KR","KR YDS","PR","PR YDS"],rows:s.filter(x=>x.kr+x.pr).map(x=>[pname(x.id),x.kr,x.kry,x.pr,x.pry]),total:["TEAM TOTAL",s.reduce((a,x)=>a+x.kr,0),s.reduce((a,x)=>a+x.kry,0),s.reduce((a,x)=>a+x.pr,0),s.reduce((a,x)=>a+x.pry,0)]}
-  ].filter(sec=>sec.rows.length);
 
-  const W=900, margin=40, headerH=210, rowH=46, sectionTitleH=48, tableHeadH=40, sectionGap=24;
-  let H=headerH+40;
-  sections.forEach(sec=>H+=sectionTitleH+tableHeadH+rowH*(sec.rows.length+1)+sectionGap);
-  H+=40;
-  const cv=document.createElement("canvas");cv.width=W;cv.height=H;const c=cv.getContext("2d");
+function canvasBase(title,g){
+  const W=1080,H=1350,cv=document.createElement("canvas");cv.width=W;cv.height=H;const c=cv.getContext("2d");
   c.fillStyle="#f4f6f5";c.fillRect(0,0,W,H);
-
-  c.fillStyle=S.team.primary;c.fillRect(0,0,W,headerH-10);c.fillStyle=S.team.secondary;c.fillRect(0,headerH-10,W,10);
-  c.fillStyle="#fff";c.textAlign="left";c.font="800 20px -apple-system,Segoe UI,Arial";c.fillText("SIDELINE STATS • GAME STATS",margin,48);
-  c.font="900 40px -apple-system,Segoe UI,Arial";c.fillText(S.team.name,margin,98);
-  c.font="800 26px -apple-system,Segoe UI,Arial";c.fillText(`${S.team.name}  ${g.ourScore} – ${g.oppScore}  ${g.opponent}`,margin,145);
-  c.font="600 18px -apple-system,Segoe UI,Arial";c.fillText(`${g.date} • ${g.location} • ${g.status==="complete"?"FINAL":"LIVE"}`,margin,178);
-
-  let y=headerH+22;
-  sections.forEach(sec=>{
-    c.fillStyle=S.team.primary;c.font="900 24px -apple-system,Segoe UI,Arial";c.fillText(sec.title,margin,y+28);y+=sectionTitleH;
-
-    const cols=sec.headers.length;
-    const firstW=cols>=6?240:300;
-    const remW=(W-margin*2-firstW)/(cols-1);
-    const xs=[margin];
-    for(let i=1;i<cols;i++)xs.push(margin+firstW+remW*(i-1));
-
-    c.fillStyle="#eef3ef";c.fillRect(margin,y,W-margin*2,tableHeadH);
-    c.font="800 15px -apple-system,Segoe UI,Arial";c.fillStyle=S.team.primary;
-    sec.headers.forEach((h,i)=>{c.textAlign=i===0?"left":"right";const x=i===0?xs[i]+8:(i===cols-1?W-margin-8:xs[i]+remW-8);c.fillText(h,x,y+26)});
-    y+=tableHeadH;
-
-    const drawRow=(row,total=false)=>{
-      c.fillStyle=total?"#f1f6f2":"#fff";c.fillRect(margin,y,W-margin*2,rowH);
-      c.strokeStyle="#dbe3de";c.beginPath();c.moveTo(margin,y+rowH);c.lineTo(W-margin,y+rowH);c.stroke();
-      c.font=(total?"900 ":"600 ")+"16px -apple-system,Segoe UI,Arial";c.fillStyle=total?S.team.primary:"#152019";
-      row.forEach((val,i)=>{c.textAlign=i===0?"left":"right";const x=i===0?xs[i]+8:(i===cols-1?W-margin-8:xs[i]+remW-8);c.fillText(String(val),x,y+29)});
-      y+=rowH;
-    };
-    sec.rows.forEach(r=>drawRow(r,false));drawRow(sec.total,true);
-    y+=sectionGap;
+  c.fillStyle=S.team.primary;c.fillRect(0,0,W,225);c.fillStyle=S.team.secondary;c.fillRect(0,213,W,12);
+  c.textAlign="left";c.fillStyle="#fff";
+  c.font="800 24px -apple-system,BlinkMacSystemFont,Segoe UI,Arial";c.fillText("SIDELINE STATS • GAME STATS",48,48);
+  c.font="900 44px -apple-system,BlinkMacSystemFont,Segoe UI,Arial";c.fillText(S.team.name,48,103);
+  c.font="900 31px -apple-system,BlinkMacSystemFont,Segoe UI,Arial";c.fillText(`${S.team.name}  ${displayedOurScore(g)} – ${g.oppScore}  ${g.opponent}`,48,153);
+  c.font="600 20px -apple-system,BlinkMacSystemFont,Segoe UI,Arial";c.fillText(`${g.date} • ${g.location} • ${g.status==="complete"?"FINAL":"LIVE"}`,48,190);
+  c.fillStyle=S.team.primary;c.font="900 29px -apple-system,BlinkMacSystemFont,Segoe UI,Arial";c.fillText(title,48,275);
+  return {cv,c,W,H,y:305};
+}
+function cRound(ctx,x,y,w,h,r,fill){ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fillStyle=fill;ctx.fill()}
+function cText(ctx,text,x,y,size,weight,color,align="left"){ctx.font=`${weight} ${size}px -apple-system,BlinkMacSystemFont,Segoe UI,Arial`;ctx.fillStyle=color;ctx.textAlign=align;ctx.fillText(String(text),x,y)}
+function makeLeaderPage(g){
+  const {cv,c,W}=canvasBase("GAME LEADERS",g);let y=315;
+  const s=agg(g);
+  const rush=[...s].filter(x=>x.car).sort((a,b)=>b.ry-a.ry)[0];
+  const pass=[...s].filter(x=>x.att).sort((a,b)=>b.py-a.py)[0];
+  const rec=[...s].filter(x=>x.rec).sort((a,b)=>b.rey-a.rey)[0];
+  const def=[...s].filter(x=>x.t+x.tfl+x.sack+x.int+x.ff+x.fr).sort((a,b)=>(b.t+b.tfl*2+b.sack*2+b.int*3)-(a.t+a.tfl*2+a.sack*2+a.int*3))[0];
+  const leaders=[];
+  if(rush)leaders.push(["RUSHING",pname(rush.id),`${rush.car} carries • ${rush.ry} yds • ${rush.rtd} TD`]);
+  if(pass)leaders.push(["PASSING",pname(pass.id),`${pass.cmp}/${pass.att} • ${pass.py} yds • ${pass.ptd} TD • ${pass.pi} INT`]);
+  if(rec)leaders.push(["RECEIVING",pname(rec.id),`${rec.rec} rec • ${rec.rey} yds • ${rec.retd} TD`]);
+  if(def)leaders.push(["DEFENSE",pname(def.id),`${def.t} tkl • ${def.tfl} TFL • ${def.sack} sack • ${def.int} INT`]);
+  leaders.forEach(([cat,name,line])=>{
+    cRound(c,48,y,984,150,20,"#ffffff");c.fillStyle=S.team.secondary;c.fillRect(48,y,12,150);
+    cText(c,cat,82,y+38,19,900,S.team.primary);cText(c,name,82,y+82,31,900,"#152019");cText(c,line,82,y+120,22,650,"#58645c");y+=170;
+  });
+  y+=12;cText(c,"TEAM TOTALS",48,y+30,28,900,S.team.primary);y+=55;
+  const totals=[
+    ["Rushing",`${s.reduce((a,x)=>a+x.car,0)} CAR`,`${s.reduce((a,x)=>a+x.ry,0)} YDS`],
+    ["Passing",`${s.reduce((a,x)=>a+x.cmp,0)}/${s.reduce((a,x)=>a+x.att,0)}`,`${s.reduce((a,x)=>a+x.py,0)} YDS`],
+    ["Receiving",`${s.reduce((a,x)=>a+x.rec,0)} REC`,`${s.reduce((a,x)=>a+x.rey,0)} YDS`],
+    ["Defense",`${s.reduce((a,x)=>a+x.t,0)} TKL`,`${s.reduce((a,x)=>a+x.tfl,0)} TFL • ${s.reduce((a,x)=>a+x.sack,0)} SACK`]
+  ];
+  totals.forEach((t,idx)=>{
+    const col=idx%2,row=Math.floor(idx/2),x=48+col*505,yy=y+row*122;
+    cRound(c,x,yy,480,102,18,"#ffffff");cText(c,t[0].toUpperCase(),x+22,yy+30,17,900,S.team.primary);
+    cText(c,t[1],x+22,yy+69,27,900,"#152019");cText(c,t[2],x+225,yy+69,19,700,"#68736b");
   });
   return cv;
 }
-
+function drawTableSection(c,title,headers,rows,total,y){
+  cText(c,title,48,y+28,27,900,S.team.primary);y+=48;
+  const W=984, cols=headers.length, firstW=cols>=6?300:360, rem=(W-firstW)/(cols-1);
+  c.fillStyle="#edf3ef";c.fillRect(48,y,W,42);
+  headers.forEach((h,i)=>{
+    cText(c,h,i===0?60:(48+firstW+rem*i-rem-10),y+27,15,900,S.team.primary,i===0?"left":"right");
+  }); y+=42;
+  const all=[...rows,total];
+  all.forEach((r,idx)=>{
+    const isTotal=idx===all.length-1;c.fillStyle=isTotal?"#eef5f0":"#ffffff";c.fillRect(48,y,W,48);
+    c.strokeStyle="#dbe3de";c.beginPath();c.moveTo(48,y+48);c.lineTo(1032,y+48);c.stroke();
+    r.forEach((v,i)=>{
+      cText(c,v,i===0?60:(48+firstW+rem*i-rem-10),y+31,16,isTotal?900:650,isTotal?S.team.primary:"#152019",i===0?"left":"right");
+    });y+=48;
+  });return y+24;
+}
+function makeOffensePage(g){
+  const {cv,c}=canvasBase("OFFENSE BY PLAYER",g);let y=310;const s=agg(g);
+  const rush=s.filter(x=>x.car).map(x=>[pname(x.id),x.car,x.ry,x.rtd]);
+  const rt=["TEAM TOTAL",s.reduce((a,x)=>a+x.car,0),s.reduce((a,x)=>a+x.ry,0),s.reduce((a,x)=>a+x.rtd,0)];
+  if(rush.length)y=drawTableSection(c,"RUSHING",["PLAYER","CAR","YDS","TD"],rush,rt,y);
+  const pass=s.filter(x=>x.att).map(x=>[pname(x.id),`${x.cmp}/${x.att}`,x.py,x.ptd,x.pi]);
+  const pt=["TEAM TOTAL",`${s.reduce((a,x)=>a+x.cmp,0)}/${s.reduce((a,x)=>a+x.att,0)}`,s.reduce((a,x)=>a+x.py,0),s.reduce((a,x)=>a+x.ptd,0),s.reduce((a,x)=>a+x.pi,0)];
+  if(pass.length)y=drawTableSection(c,"PASSING",["PLAYER","CMP/ATT","YDS","TD","INT"],pass,pt,y);
+  const rec=s.filter(x=>x.rec).map(x=>[pname(x.id),x.rec,x.rey,x.retd]);
+  const rct=["TEAM TOTAL",s.reduce((a,x)=>a+x.rec,0),s.reduce((a,x)=>a+x.rey,0),s.reduce((a,x)=>a+x.retd,0)];
+  if(rec.length)y=drawTableSection(c,"RECEIVING",["PLAYER","REC","YDS","TD"],rec,rct,y);
+  return cv;
+}
+function makeDefensePage(g){
+  const {cv,c}=canvasBase("DEFENSE & SPECIAL TEAMS",g);let y=310;const s=agg(g);
+  const d=s.filter(x=>x.t+x.tfl+x.sack+x.int+x.ff+x.fr).map(x=>[pname(x.id),x.t,x.tfl,x.sack,x.int,x.ff,x.fr]);
+  const dt=["TEAM TOTAL",s.reduce((a,x)=>a+x.t,0),s.reduce((a,x)=>a+x.tfl,0),s.reduce((a,x)=>a+x.sack,0),s.reduce((a,x)=>a+x.int,0),s.reduce((a,x)=>a+x.ff,0),s.reduce((a,x)=>a+x.fr,0)];
+  if(d.length)y=drawTableSection(c,"DEFENSE",["PLAYER","TKL","TFL","SACK","INT","FF","FR"],d,dt,y);
+  const sp=s.filter(x=>x.kr+x.pr).map(x=>[pname(x.id),x.kr,x.kry,x.pr,x.pry]);
+  const st=["TEAM TOTAL",s.reduce((a,x)=>a+x.kr,0),s.reduce((a,x)=>a+x.kry,0),s.reduce((a,x)=>a+x.pr,0),s.reduce((a,x)=>a+x.pry,0)];
+  if(sp.length)y=drawTableSection(c,"SPECIAL TEAMS",["PLAYER","KR","KR YDS","PR","PR YDS"],sp,st,y);
+  if(!d.length&&!sp.length)cText(c,"No defense or special teams stats recorded yet.",48,360,24,650,"#68736b");
+  return cv;
+}
+async function canvasFile(cv,name){
+  const blob=await new Promise(res=>cv.toBlob(res,"image/png"));
+  return new File([blob],name,{type:"image/png"});
+}
 $("#shareStatsBtn").addEventListener("click",async()=>{
   const g=statGame();if(!g)return toast("Record a game first");
   try{
-    const cv=drawStatsCanvas(g);
-    const blob=await new Promise(res=>cv.toBlob(res,"image/png"));
-    const file=new File([blob],`${S.team.name.replace(/[^a-z0-9]/gi,"_")}_game_stats.png`,{type:"image/png"});
-    if(navigator.canShare&&navigator.canShare({files:[file]})&&navigator.share){
-      await navigator.share({title:`${S.team.name} Game Stats`,text:`${S.team.name} vs ${g.opponent}`,files:[file]});
+    const safe=S.team.name.replace(/[^a-z0-9]/gi,"_");
+    const files=[
+      await canvasFile(makeLeaderPage(g),`${safe}_01_game_leaders.png`),
+      await canvasFile(makeOffensePage(g),`${safe}_02_offense.png`),
+      await canvasFile(makeDefensePage(g),`${safe}_03_defense.png`)
+    ];
+    if(navigator.canShare&&navigator.canShare({files})&&navigator.share){
+      await navigator.share({title:`${S.team.name} Game Stats`,text:`${S.team.name} vs ${g.opponent}`,files});
     }else{
-      const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=file.name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);toast("Game stats image saved/downloaded");
+      for(const f of files){const a=document.createElement("a");a.href=URL.createObjectURL(f);a.download=f.name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1500)}
+      toast("Three readable stat images saved/downloaded");
     }
-  }catch(e){toast("Could not share stats image on this browser")}
+  }catch(e){console.error(e);toast("Could not share game stats on this browser")}
 });
+
 
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]))}
 
