@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V0.2</title>
+<title>Sideline Stats V0.3</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -58,6 +58,35 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 .editor .checks{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:10px 0}
 .check{display:flex;align-items:center;gap:7px;font-size:13px}.check input{width:auto}
 .inline-note{padding:10px 12px;border-radius:10px;background:#f7faf8;border:1px solid var(--line);font-size:13px;color:var(--muted)}
+
+.share-sheet{background:white;border:1px solid var(--line);border-radius:20px;overflow:hidden;margin-bottom:14px;box-shadow:0 5px 20px #00000012}
+.share-banner{background:var(--p);color:white;padding:18px;border-bottom:8px solid var(--s)}
+.share-brand{font-size:12px;font-weight:900;letter-spacing:.08em;opacity:.9}
+.share-team{font-size:27px;font-weight:950;margin-top:4px}
+.share-score{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;text-align:center;gap:12px;margin-top:16px}
+.share-score .teamlabel{font-size:12px;font-weight:800;opacity:.9}
+.share-score .bigscore{font-size:45px;font-weight:950;line-height:1}
+.share-score .versus{font-size:12px;font-weight:900;opacity:.75}
+.share-meta{text-align:center;font-size:12px;margin-top:10px;opacity:.9}
+.share-section{padding:15px 16px;border-bottom:1px solid var(--line)}
+.share-section:last-child{border-bottom:0}
+.share-section h3{margin:0 0 10px;color:var(--p)}
+.leader-grid{display:grid;grid-template-columns:1fr;gap:8px}
+.leader-card{border-left:5px solid var(--s);background:#f8faf9;padding:10px 12px;border-radius:10px}
+.leader-card strong{display:block;color:var(--p);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+.share-stat-table{width:100%;border-collapse:collapse;font-size:12px}
+.share-stat-table th{background:#f4f7f5;color:var(--p);font-weight:900}
+.share-stat-table th,.share-stat-table td{padding:7px 4px;border-bottom:1px solid var(--line);text-align:right}
+.share-stat-table th:first-child,.share-stat-table td:first-child{text-align:left}
+.data-danger{border:1px solid #efb5ae;background:#fff8f7}
+.data-danger h3{color:var(--danger)}
+.data-row{display:flex;gap:9px;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid #f1d7d3}
+.data-row:first-of-type{border-top:0}
+.data-row .copy{flex:1}
+.data-row .copy strong{display:block}
+.data-row .copy span{font-size:12px;color:var(--muted)}
+.share-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
 </style>
 </head>
 <body>
@@ -69,7 +98,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V0.2 • GAME-DAY TEST BUILD</div>
+      <div class="muted" style="color:#dfe9e2">V0.3 • GAME-DAY TEST BUILD</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -101,6 +130,14 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
       <div class="preview" id="preview" style="margin-top:14px">YOUR TEAM</div>
       <button class="btn" id="saveTeam" style="margin-top:14px">Save Team & Add Roster</button>
       <div id="setupGateNote" class="inline-note" style="margin-top:12px">Create your team first. The Roster, Game, Stats and Share tabs will unlock after you save.</div>
+    </div>
+
+    <div id="dataManagement" class="card data-danger hidden">
+      <h3 style="margin-top:0">Data Management</h3>
+      <div class="data-row">
+        <div class="copy"><strong>Clear all test data</strong><span>Deletes this team, roster, every saved game and all stats from this device.</span></div>
+      </div>
+      <button class="btn danger" id="resetAllBtn">Reset All Data</button>
     </div>
   </section>
 
@@ -178,12 +215,34 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
   </section>
 
   <section class="screen" data-screen="share">
-    <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">GAME SUMMARY</div>
-      <h2 id="shareTeam">Team</h2><div id="shareBody"></div>
+    <div id="shareSheet" class="share-sheet">
+      <div class="share-banner">
+        <div class="share-brand">SIDELINE STATS • GAME SUMMARY</div>
+        <div id="shareTeam" class="share-team">Team</div>
+        <div class="share-score">
+          <div><div id="shareOurLabel" class="teamlabel">TEAM</div><div id="shareOurScore" class="bigscore">0</div></div>
+          <div class="versus">VS</div>
+          <div><div id="shareOppLabel" class="teamlabel">OPPONENT</div><div id="shareOppScore" class="bigscore">0</div></div>
+        </div>
+        <div id="shareMeta" class="share-meta"></div>
+      </div>
+      <div class="share-section">
+        <h3>Game Leaders</h3>
+        <div id="shareLeaders" class="leader-grid"></div>
+      </div>
+      <div class="share-section">
+        <h3>Offense</h3>
+        <div id="shareOffense"></div>
+      </div>
+      <div class="share-section">
+        <h3>Defense</h3>
+        <div id="shareDefense"></div>
+      </div>
     </div>
-    <button class="btn" id="shareBtn">Share Summary</button>
-    <button class="btn ghost" id="copyBtn" style="margin-top:10px">Copy Text Summary</button>
+    <div class="share-actions">
+      <button class="btn" id="shareImageBtn">Share Branded Image</button>
+      <button class="btn ghost" id="copyBtn">Copy Text</button>
+    </div>
   </section>
 
   <nav id="bottomNav" class="hidden">
@@ -197,12 +256,16 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
 <script>
 (function(){
-const KEY="sidelineStatsV02";
+const KEY="sidelineStatsV03", OLDKEY="sidelineStatsV02";
 const empty={team:null,roster:[],games:[],activeGameId:null,flow:{},editingPlayId:null};
 let S=load();
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 
-function load(){try{const raw=localStorage.getItem(KEY);return raw?Object.assign({},empty,JSON.parse(raw)):JSON.parse(JSON.stringify(empty))}catch(e){return JSON.parse(JSON.stringify(empty))}}
+function load(){try{
+      let raw=localStorage.getItem(KEY);
+      if(!raw){raw=localStorage.getItem(OLDKEY);if(raw)localStorage.setItem(KEY,raw)}
+      return raw?Object.assign({},empty,JSON.parse(raw)):JSON.parse(JSON.stringify(empty))
+    }catch(e){return JSON.parse(JSON.stringify(empty))}}
 function persist(){localStorage.setItem(KEY,JSON.stringify(S))}
 function toast(m){let t=$("#toast");t.textContent=m;t.style.display="block";setTimeout(()=>t.style.display="none",1500)}
 function today(){return new Date().toISOString().slice(0,10)}
@@ -229,6 +292,15 @@ function syncChrome(){
   if(teamExists()) $("#editTeamBtn").textContent=`Edit ${S.team.name}`;
 }
 $("#editTeamBtn").addEventListener("click",()=>{populateSetup();go("setup")});
+$("#resetAllBtn").addEventListener("click",()=>{
+  const first=confirm("Reset ALL Sideline Stats data on this device? This will permanently delete the team, roster, saved games and stats.");
+  if(!first)return;
+  const phrase=prompt('For safety, type RESET to confirm:');
+  if(phrase!=="RESET")return toast("Reset cancelled");
+  localStorage.removeItem(KEY); localStorage.removeItem(OLDKEY);
+  S=JSON.parse(JSON.stringify(empty));
+  syncChrome();populateSetup();renderRoster();go("setup");toast("All data cleared");
+});
 
 function preview(){
   let p=$("#primary").value,s=$("#secondary").value,n=$("#teamName").value||"YOUR TEAM";
@@ -242,11 +314,11 @@ function populateSetup(){
     $("#teamName").value=S.team.name;$("#grade").value=S.team.grade||"5th Grade";$("#season").value=S.team.season||"2026";
     $("#primary").value=S.team.primary||"#177b46";$("#secondary").value=S.team.secondary||"#f0b33b";
     $("#setupHeading").textContent="Edit your team";$("#setupSub").textContent="Update your team details and colors.";
-    $("#saveTeam").textContent="Save Team Changes";$("#setupGateNote").classList.add("hidden");
+    $("#saveTeam").textContent="Save Team Changes";$("#setupGateNote").classList.add("hidden");$("#dataManagement").classList.remove("hidden");
   }else{
     $("#teamName").value="";$("#grade").value="5th Grade";$("#season").value="2026";$("#primary").value="#177b46";$("#secondary").value="#f0b33b";
     $("#setupHeading").textContent="Create your team";$("#setupSub").textContent="Set colors, build your roster, then stat a game.";
-    $("#saveTeam").textContent="Save Team & Add Roster";$("#setupGateNote").classList.remove("hidden");
+    $("#saveTeam").textContent="Save Team & Add Roster";$("#setupGateNote").classList.remove("hidden");$("#dataManagement").classList.add("hidden");
   }
   preview();
 }
@@ -285,9 +357,18 @@ function renderGameList(){
   list.innerHTML=[...S.games].sort((a,b)=>b.date.localeCompare(a.date)).map(g=>`
     <div class="game-card">
       <div class="game-info"><strong>${esc(S.team.name)} vs ${esc(g.opponent)}</strong><span>${g.date} • ${g.location} • ${g.ourScore}-${g.oppScore}</span></div>
-      <button class="btn ghost small open-game" data-id="${g.id}">${g.status==="complete"?"View":"Open"}</button>
+      <div style="display:flex;gap:6px">
+        <button class="btn ghost small open-game" data-id="${g.id}">${g.status==="complete"?"View":"Open"}</button>
+        <button class="btn danger small delete-game" data-id="${g.id}">Delete</button>
+      </div>
     </div>`).join("");
-  $$(".open-game").forEach(b=>b.addEventListener("click",()=>{S.activeGameId=b.dataset.id;persist();renderGameArea()}))
+  $$(".open-game").forEach(b=>b.addEventListener("click",()=>{S.activeGameId=b.dataset.id;persist();renderGameArea()}));
+  $$(".delete-game").forEach(b=>b.addEventListener("click",()=>{
+    const g=gameById(b.dataset.id); if(!g)return;
+    if(!confirm(`Delete the game vs ${g.opponent}? This removes all plays and stats from this game.`))return;
+    S.games=S.games.filter(x=>x.id!==g.id); if(S.activeGameId===g.id)S.activeGameId=null;
+    persist();renderGameArea();toast("Game deleted");
+  }))
 }
 $("#newGameBtn").addEventListener("click",()=>{
   if(!S.roster.length)return toast("Add your roster first");
@@ -413,14 +494,94 @@ function summaryText(g){
   if(!g)return "No game recorded.";
   return `${S.team.name} vs ${g.opponent}\n${g.date} • ${g.location}\nScore: ${S.team.name} ${g.ourScore} - ${g.oppScore} ${g.opponent}\n\n${g.plays.map(ptext).join("\n")}`
 }
+function shareTable(headers,rows){
+  if(!rows.length)return '<div class="muted">No stats recorded.</div>';
+  return `<table class="share-stat-table"><tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr>${rows.map(r=>`<tr>${r.map(c=>`<td>${esc(String(c))}</td>`).join("")}</tr>`).join("")}</table>`
+}
 function renderShare(){
-  const g=statGame();$("#shareTeam").textContent=S.team?.name||"Team";
-  if(!g){$("#shareBody").innerHTML='<span class="muted" style="color:#dfe9e2">Record a game first.</span>';return}
-  let s=agg(g),rush=[...s].sort((a,b)=>b.ry-a.ry)[0],rec=[...s].sort((a,b)=>b.rey-a.rey)[0],def=[...s].sort((a,b)=>(b.t+b.tfl+b.sack)-(a.t+a.tfl+a.sack))[0];
-  $("#shareBody").innerHTML=`<div><strong>vs ${esc(g.opponent)}</strong> • ${g.date}</div><div style="font-size:30px;font-weight:900;margin:8px 0">${g.ourScore} – ${g.oppScore}</div>${rush?.ry?`🏃 ${esc(pname(rush.id))} — ${rush.ry} rushing yds<br>`:""}${rec?.rey?`🙌 ${esc(pname(rec.id))} — ${rec.rey} receiving yds<br>`:""}${def&&(def.t+def.tfl+def.sack)?`🛡️ ${esc(pname(def.id))} — ${def.t} tackles, ${def.tfl} TFL, ${def.sack} sacks`:""}`
+  const g=statGame();
+  $("#shareTeam").textContent=S.team?.name||"Team";
+  if(!g){
+    $("#shareOurLabel").textContent=S.team?.name||"Team";$("#shareOurScore").textContent="0";
+    $("#shareOppLabel").textContent="Opponent";$("#shareOppScore").textContent="0";$("#shareMeta").textContent="";
+    $("#shareLeaders").innerHTML='<div class="muted">Record a game first.</div>';$("#shareOffense").innerHTML="";$("#shareDefense").innerHTML="";return
+  }
+  $("#shareOurLabel").textContent=S.team.name;$("#shareOurScore").textContent=g.ourScore;
+  $("#shareOppLabel").textContent=g.opponent;$("#shareOppScore").textContent=g.oppScore;
+  $("#shareMeta").textContent=`${g.date} • ${g.location} • ${g.status==="complete"?"FINAL":"LIVE"}`;
+
+  const s=agg(g);
+  const rush=[...s].filter(x=>x.car).sort((a,b)=>b.ry-a.ry)[0];
+  const pass=[...s].filter(x=>x.att).sort((a,b)=>b.py-a.py)[0];
+  const rec=[...s].filter(x=>x.rec).sort((a,b)=>b.rey-a.rey)[0];
+  const def=[...s].filter(x=>x.t+x.tfl+x.sack+x.int+x.ff+x.fr).sort((a,b)=>(b.t+b.tfl*2+b.sack*2+b.int*3)-(a.t+a.tfl*2+a.sack*2+a.int*3))[0];
+
+  const leaders=[];
+  if(rush)leaders.push(`<div class="leader-card"><strong>Rushing</strong>${esc(pname(rush.id))} • ${rush.car} CAR • ${rush.ry} YDS • ${rush.rtd} TD</div>`);
+  if(pass)leaders.push(`<div class="leader-card"><strong>Passing</strong>${esc(pname(pass.id))} • ${pass.cmp}/${pass.att} • ${pass.py} YDS • ${pass.ptd} TD</div>`);
+  if(rec)leaders.push(`<div class="leader-card"><strong>Receiving</strong>${esc(pname(rec.id))} • ${rec.rec} REC • ${rec.rey} YDS • ${rec.retd} TD</div>`);
+  if(def)leaders.push(`<div class="leader-card"><strong>Defense</strong>${esc(pname(def.id))} • ${def.t} TKL • ${def.tfl} TFL • ${def.sack} SACK • ${def.int} INT</div>`);
+  $("#shareLeaders").innerHTML=leaders.length?leaders.join(""):'<div class="muted">No individual stats yet.</div>';
+
+  let offense="";
+  offense+=`<h4>Rushing</h4>${shareTable(["Player","CAR","YDS","TD"],s.filter(x=>x.car).map(x=>[pname(x.id),x.car,x.ry,x.rtd]))}`;
+  offense+=`<h4>Passing</h4>${shareTable(["Player","C/A","YDS","TD","INT"],s.filter(x=>x.att).map(x=>[pname(x.id),`${x.cmp}/${x.att}`,x.py,x.ptd,x.pi]))}`;
+  offense+=`<h4>Receiving</h4>${shareTable(["Player","REC","YDS","TD"],s.filter(x=>x.rec).map(x=>[pname(x.id),x.rec,x.rey,x.retd]))}`;
+  $("#shareOffense").innerHTML=offense;
+  $("#shareDefense").innerHTML=shareTable(["Player","TKL","TFL","SACK","INT","FF","FR"],s.filter(x=>x.t+x.tfl+x.sack+x.int+x.ff+x.fr).map(x=>[pname(x.id),x.t,x.tfl,x.sack,x.int,x.ff,x.fr]));
+}
+function roundRect(ctx,x,y,w,h,r,fill){
+  ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fillStyle=fill;ctx.fill();
+}
+function canvasText(ctx,text,x,y,size,weight,color,align="left"){
+  ctx.font=`${weight} ${size}px -apple-system,BlinkMacSystemFont,Segoe UI,Arial`;ctx.fillStyle=color;ctx.textAlign=align;ctx.fillText(text,x,y)
+}
+function createSummaryCanvas(g){
+  const W=1200,H=1500,cv=document.createElement("canvas");cv.width=W;cv.height=H;const c=cv.getContext("2d");
+  c.fillStyle="#f4f6f5";c.fillRect(0,0,W,H);
+  c.fillStyle=S.team.primary;c.fillRect(0,0,W,410);c.fillStyle=S.team.secondary;c.fillRect(0,390,W,20);
+  canvasText(c,"SIDELINE STATS • GAME SUMMARY",70,72,28,800,"#ffffff");
+  canvasText(c,S.team.name.toUpperCase(),70,135,58,900,"#ffffff");
+  canvasText(c,S.team.name,260,235,28,800,"#ffffff","center");canvasText(c,String(g.ourScore),260,330,100,900,"#ffffff","center");
+  canvasText(c,"VS",600,265,30,900,"#ffffffaa","center");
+  canvasText(c,g.opponent,940,235,28,800,"#ffffff","center");canvasText(c,String(g.oppScore),940,330,100,900,"#ffffff","center");
+  canvasText(c,`${g.date}  •  ${g.location}  •  ${g.status==="complete"?"FINAL":"LIVE"}`,600,370,24,700,"#ffffffdd","center");
+
+  const s=agg(g), rush=[...s].filter(x=>x.car).sort((a,b)=>b.ry-a.ry)[0], rec=[...s].filter(x=>x.rec).sort((a,b)=>b.rey-a.rey)[0],
+        pass=[...s].filter(x=>x.att).sort((a,b)=>b.py-a.py)[0], def=[...s].filter(x=>x.t+x.tfl+x.sack+x.int).sort((a,b)=>(b.t+b.tfl*2+b.sack*2+b.int*3)-(a.t+a.tfl*2+a.sack*2+a.int*3))[0];
+
+  canvasText(c,"GAME LEADERS",70,475,30,900,S.team.primary);
+  let y=520;
+  const cards=[];
+  if(rush)cards.push(["RUSHING",`${pname(rush.id)}   ${rush.car} CAR  •  ${rush.ry} YDS  •  ${rush.rtd} TD`]);
+  if(pass)cards.push(["PASSING",`${pname(pass.id)}   ${pass.cmp}/${pass.att}  •  ${pass.py} YDS  •  ${pass.ptd} TD`]);
+  if(rec)cards.push(["RECEIVING",`${pname(rec.id)}   ${rec.rec} REC  •  ${rec.rey} YDS  •  ${rec.retd} TD`]);
+  if(def)cards.push(["DEFENSE",`${pname(def.id)}   ${def.t} TKL  •  ${def.tfl} TFL  •  ${def.sack} SACK  •  ${def.int} INT`]);
+  cards.slice(0,4).forEach(([lab,val])=>{roundRect(c,70,y,1060,105,18,"#ffffff");c.fillStyle=S.team.secondary;c.fillRect(70,y,12,105);canvasText(c,lab,105,y+38,20,900,S.team.primary);canvasText(c,val,105,y+76,27,700,"#152019");y+=125});
+
+  y+=20;canvasText(c,"TEAM STATS",70,y,30,900,S.team.primary);y+=52;
+  const rushAtt=s.reduce((a,x)=>a+x.car,0),rushY=s.reduce((a,x)=>a+x.ry,0),passAtt=s.reduce((a,x)=>a+x.att,0),passCmp=s.reduce((a,x)=>a+x.cmp,0),passY=s.reduce((a,x)=>a+x.py,0),
+        recs=s.reduce((a,x)=>a+x.rec,0),tackles=s.reduce((a,x)=>a+x.t,0),tfl=s.reduce((a,x)=>a+x.tfl,0),sacks=s.reduce((a,x)=>a+x.sack,0),ints=s.reduce((a,x)=>a+x.int,0);
+  const tiles=[["RUSHING",`${rushAtt} CAR`,`${rushY} YDS`],["PASSING",`${passCmp}/${passAtt}`,`${passY} YDS`],["RECEIVING",`${recs} REC`,""],["DEFENSE",`${tackles} TKL`,`${tfl} TFL • ${sacks} SACK • ${ints} INT`]];
+  tiles.forEach((t,i)=>{let col=i%2,row=Math.floor(i/2),x=70+col*535,yy=y+row*145;roundRect(c,x,yy,500,120,18,"#ffffff");canvasText(c,t[0],x+25,yy+35,19,900,S.team.primary);canvasText(c,t[1],x+25,yy+77,33,900,"#152019");if(t[2])canvasText(c,t[2],x+230,yy+77,22,700,"#68736b")});
+  canvasText(c,`${S.team.name} • ${S.team.grade||""} • ${S.team.season||""}`,600,1450,22,700,"#68736b","center");
+  return cv
 }
 $("#copyBtn").addEventListener("click",async()=>{const g=statGame();try{await navigator.clipboard.writeText(summaryText(g));toast("Summary copied")}catch(e){toast("Copy not supported here")}});
-$("#shareBtn").addEventListener("click",async()=>{const g=statGame();if(!g)return toast("Record a game first");if(navigator.share){try{await navigator.share({title:`${S.team.name} Game Summary`,text:summaryText(g)})}catch(e){}}else toast("Use Copy Text Summary")});
+$("#shareImageBtn").addEventListener("click",async()=>{
+  const g=statGame();if(!g)return toast("Record a game first");
+  try{
+    const cv=createSummaryCanvas(g);
+    const blob=await new Promise(res=>cv.toBlob(res,"image/png"));
+    const file=new File([blob],`${S.team.name.replace(/[^a-z0-9]/gi,"_")}_game_summary.png`,{type:"image/png"});
+    if(navigator.canShare&&navigator.canShare({files:[file]})&&navigator.share){
+      await navigator.share({title:`${S.team.name} Game Summary`,text:`${S.team.name} vs ${g.opponent}`,files:[file]});
+    }else{
+      const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=file.name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+      toast("Summary image saved/downloaded");
+    }
+  }catch(e){toast("Could not share image on this browser")}
+});
 
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]))}
 
