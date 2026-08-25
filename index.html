@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V0.3</title>
+<title>Sideline Stats V0.4</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -87,6 +87,17 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 .data-row .copy span{font-size:12px;color:var(--muted)}
 .share-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
+
+.stats-share-wrap{background:white;border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 4px 18px #0000000d}
+.stats-share-head{background:var(--p);color:white;padding:16px;border-bottom:8px solid var(--s)}
+.stats-share-head .eyebrow{font-size:11px;font-weight:900;letter-spacing:.08em;opacity:.9}
+.stats-share-head .title{font-size:24px;font-weight:950;margin-top:3px}
+.stats-share-head .sub{font-size:13px;margin-top:5px;opacity:.9}
+.stats-block{padding:14px 14px 4px}
+.stats-block h3{color:var(--p);margin:0 0 8px;font-size:18px}
+.stat-total-row td{font-weight:900;background:#f3f7f4;color:var(--p)}
+.share-tip{font-size:12px;color:var(--muted);margin-top:10px;text-align:center}
+
 </style>
 </head>
 <body>
@@ -98,7 +109,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V0.3 • GAME-DAY TEST BUILD</div>
+      <div class="muted" style="color:#dfe9e2">V0.4 • GAME-DAY TEST BUILD</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -211,38 +222,26 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
   </section>
 
   <section class="screen" data-screen="stats">
-    <div class="card"><h2>Game Stats</h2><div id="statsGameLabel" class="muted"></div><div id="statsBox"></div></div>
+    <div id="statsShareView" class="stats-share-wrap">
+      <div class="stats-share-head">
+        <div class="eyebrow">SIDELINE STATS • GAME STATS</div>
+        <div id="statsShareTitle" class="title">Team</div>
+        <div id="statsGameLabel" class="sub"></div>
+      </div>
+      <div id="statsBox"></div>
+    </div>
+    <button class="btn" id="shareStatsBtn" style="margin-top:14px">Share Game Stats</button>
+    <div class="share-tip">Shares the same full stats view you see above.</div>
   </section>
 
   <section class="screen" data-screen="share">
-    <div id="shareSheet" class="share-sheet">
-      <div class="share-banner">
-        <div class="share-brand">SIDELINE STATS • GAME SUMMARY</div>
-        <div id="shareTeam" class="share-team">Team</div>
-        <div class="share-score">
-          <div><div id="shareOurLabel" class="teamlabel">TEAM</div><div id="shareOurScore" class="bigscore">0</div></div>
-          <div class="versus">VS</div>
-          <div><div id="shareOppLabel" class="teamlabel">OPPONENT</div><div id="shareOppScore" class="bigscore">0</div></div>
-        </div>
-        <div id="shareMeta" class="share-meta"></div>
-      </div>
-      <div class="share-section">
-        <h3>Game Leaders</h3>
-        <div id="shareLeaders" class="leader-grid"></div>
-      </div>
-      <div class="share-section">
-        <h3>Offense</h3>
-        <div id="shareOffense"></div>
-      </div>
-      <div class="share-section">
-        <h3>Defense</h3>
-        <div id="shareDefense"></div>
-      </div>
+    <div class="card hero">
+      <div class="muted" style="color:#dfe9e2">SHARE</div>
+      <h2>Share Game Stats</h2>
+      <div>The full Stats view is now the shareable format, including player-by-player breakdowns and team totals.</div>
     </div>
-    <div class="share-actions">
-      <button class="btn" id="shareImageBtn">Share Branded Image</button>
-      <button class="btn ghost" id="copyBtn">Copy Text</button>
-    </div>
+    <button class="btn" id="goShareStats">Open Shareable Stats</button>
+    <button class="btn ghost" id="copyBtn" style="margin-top:10px">Copy Text Summary</button>
   </section>
 
   <nav id="bottomNav" class="hidden">
@@ -256,14 +255,16 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
 <script>
 (function(){
-const KEY="sidelineStatsV03", OLDKEY="sidelineStatsV02";
+const KEY="sidelineStatsV04", OLDKEY="sidelineStatsV03", OLDERKEY="sidelineStatsV02";
 const empty={team:null,roster:[],games:[],activeGameId:null,flow:{},editingPlayId:null};
 let S=load();
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 
 function load(){try{
       let raw=localStorage.getItem(KEY);
-      if(!raw){raw=localStorage.getItem(OLDKEY);if(raw)localStorage.setItem(KEY,raw)}
+      if(!raw){raw=localStorage.getItem(OLDKEY)}
+      if(!raw){raw=localStorage.getItem(OLDERKEY)}
+      if(raw)localStorage.setItem(KEY,raw);
       return raw?Object.assign({},empty,JSON.parse(raw)):JSON.parse(JSON.stringify(empty))
     }catch(e){return JSON.parse(JSON.stringify(empty))}}
 function persist(){localStorage.setItem(KEY,JSON.stringify(S))}
@@ -281,7 +282,7 @@ function go(name){
   $("#topTitle").textContent={setup:"Sideline Stats",roster:"Roster",game:"Game",stats:"Team Stats",share:"Share"}[name];
   if(name==="game")renderGameArea();
   if(name==="stats")renderStats();
-  if(name==="share")renderShare();
+  
 }
 $$("[data-go]").forEach(b=>b.addEventListener("click",()=>go(b.dataset.go)));
 
@@ -297,7 +298,7 @@ $("#resetAllBtn").addEventListener("click",()=>{
   if(!first)return;
   const phrase=prompt('For safety, type RESET to confirm:');
   if(phrase!=="RESET")return toast("Reset cancelled");
-  localStorage.removeItem(KEY); localStorage.removeItem(OLDKEY);
+  localStorage.removeItem(KEY); localStorage.removeItem(OLDKEY); localStorage.removeItem(OLDERKEY);
   S=JSON.parse(JSON.stringify(empty));
   syncChrome();populateSetup();renderRoster();go("setup");toast("All data cleared");
 });
@@ -484,11 +485,39 @@ function agg(g){
   });return Object.values(m)
 }
 function statGame(){return currentGame()||[...S.games].sort((a,b)=>b.date.localeCompare(a.date))[0]||null}
-function tbl(h,rows){if(!rows.length)return'<div class="muted">No stats yet.</div>';return`<table><tr>${h.map(x=>`<th>${x}</th>`).join("")}</tr>${rows.map(r=>`<tr>${r.map(x=>`<td>${esc(String(x))}</td>`).join("")}</tr>`).join("")}</table>`}
+function tbl(h,rows,totalRow=null){
+  if(!rows.length&&!totalRow)return'<div class="muted">No stats yet.</div>';
+  return `<table><tr>${h.map(x=>`<th>${x}</th>`).join("")}</tr>${rows.map(r=>`<tr>${r.map(x=>`<td>${esc(String(x))}</td>`).join("")}</tr>`).join("")}${totalRow?`<tr class="stat-total-row">${totalRow.map(x=>`<td>${esc(String(x))}</td>`).join("")}</tr>`:""}</table>`
+}
 function renderStats(){
-  const g=statGame();if(!g){$("#statsGameLabel").textContent="";$("#statsBox").innerHTML='<span class="muted">Record a game first.</span>';return}
-  $("#statsGameLabel").textContent=`${S.team.name} vs ${g.opponent} • ${g.date}`;
-  let s=agg(g);$("#statsBox").innerHTML=`<h3>Rushing</h3>${tbl(["Player","CAR","YDS","TD"],s.filter(x=>x.car).map(x=>[pname(x.id),x.car,x.ry,x.rtd]))}<h3>Passing</h3>${tbl(["Player","CMP/ATT","YDS","TD","INT"],s.filter(x=>x.att).map(x=>[pname(x.id),x.cmp+"/"+x.att,x.py,x.ptd,x.pi]))}<h3>Receiving</h3>${tbl(["Player","REC","YDS","TD"],s.filter(x=>x.rec).map(x=>[pname(x.id),x.rec,x.rey,x.retd]))}<h3>Defense</h3>${tbl(["Player","TKL","TFL","SACK","INT","FF","FR"],s.filter(x=>x.t+x.tfl+x.sack+x.int+x.ff+x.fr).map(x=>[pname(x.id),x.t,x.tfl,x.sack,x.int,x.ff,x.fr]))}`
+  const g=statGame();
+  $("#statsShareTitle").textContent=S.team?.name||"Team";
+  if(!g){$("#statsGameLabel").textContent="";$("#statsBox").innerHTML='<div class="stats-block"><span class="muted">Record a game first.</span></div>';return}
+  $("#statsGameLabel").textContent=`${S.team.name} ${g.ourScore} – ${g.oppScore} ${g.opponent} • ${g.date} • ${g.location}`;
+  let s=agg(g);
+
+  const rushRows=s.filter(x=>x.car).map(x=>[pname(x.id),x.car,x.ry,x.rtd]);
+  const rushTot=["TEAM TOTAL",s.reduce((a,x)=>a+x.car,0),s.reduce((a,x)=>a+x.ry,0),s.reduce((a,x)=>a+x.rtd,0)];
+
+  const passRows=s.filter(x=>x.att).map(x=>[pname(x.id),`${x.cmp}/${x.att}`,x.py,x.ptd,x.pi]);
+  const passCmp=s.reduce((a,x)=>a+x.cmp,0), passAtt=s.reduce((a,x)=>a+x.att,0);
+  const passTot=["TEAM TOTAL",`${passCmp}/${passAtt}`,s.reduce((a,x)=>a+x.py,0),s.reduce((a,x)=>a+x.ptd,0),s.reduce((a,x)=>a+x.pi,0)];
+
+  const recRows=s.filter(x=>x.rec).map(x=>[pname(x.id),x.rec,x.rey,x.retd]);
+  const recTot=["TEAM TOTAL",s.reduce((a,x)=>a+x.rec,0),s.reduce((a,x)=>a+x.rey,0),s.reduce((a,x)=>a+x.retd,0)];
+
+  const defRows=s.filter(x=>x.t+x.tfl+x.sack+x.int+x.ff+x.fr).map(x=>[pname(x.id),x.t,x.tfl,x.sack,x.int,x.ff,x.fr]);
+  const defTot=["TEAM TOTAL",s.reduce((a,x)=>a+x.t,0),s.reduce((a,x)=>a+x.tfl,0),s.reduce((a,x)=>a+x.sack,0),s.reduce((a,x)=>a+x.int,0),s.reduce((a,x)=>a+x.ff,0),s.reduce((a,x)=>a+x.fr,0)];
+
+  const specialRows=s.filter(x=>x.kr+x.pr).map(x=>[pname(x.id),x.kr,x.kry,x.pr,x.pry]);
+  const specialTot=["TEAM TOTAL",s.reduce((a,x)=>a+x.kr,0),s.reduce((a,x)=>a+x.kry,0),s.reduce((a,x)=>a+x.pr,0),s.reduce((a,x)=>a+x.pry,0)];
+
+  $("#statsBox").innerHTML=
+    `<div class="stats-block"><h3>Rushing</h3>${tbl(["Player","CAR","YDS","TD"],rushRows,rushRows.length?rushTot:null)}</div>`+
+    `<div class="stats-block"><h3>Passing</h3>${tbl(["Player","CMP/ATT","YDS","TD","INT"],passRows,passRows.length?passTot:null)}</div>`+
+    `<div class="stats-block"><h3>Receiving</h3>${tbl(["Player","REC","YDS","TD"],recRows,recRows.length?recTot:null)}</div>`+
+    `<div class="stats-block"><h3>Defense</h3>${tbl(["Player","TKL","TFL","SACK","INT","FF","FR"],defRows,defRows.length?defTot:null)}</div>`+
+    `<div class="stats-block"><h3>Special Teams</h3>${tbl(["Player","KR","KR YDS","PR","PR YDS"],specialRows,specialRows.length?specialTot:null)}</div>`;
 }
 function summaryText(g){
   if(!g)return "No game recorded.";
@@ -568,19 +597,74 @@ function createSummaryCanvas(g){
   return cv
 }
 $("#copyBtn").addEventListener("click",async()=>{const g=statGame();try{await navigator.clipboard.writeText(summaryText(g));toast("Summary copied")}catch(e){toast("Copy not supported here")}});
-$("#shareImageBtn").addEventListener("click",async()=>{
+
+
+
+$("#goShareStats").addEventListener("click",()=>go("stats"));
+
+function drawStatsCanvas(g){
+  const s=agg(g);
+  const sections=[
+    {title:"RUSHING",headers:["PLAYER","CAR","YDS","TD"],rows:s.filter(x=>x.car).map(x=>[pname(x.id),x.car,x.ry,x.rtd]),total:["TEAM TOTAL",s.reduce((a,x)=>a+x.car,0),s.reduce((a,x)=>a+x.ry,0),s.reduce((a,x)=>a+x.rtd,0)]},
+    {title:"PASSING",headers:["PLAYER","CMP/ATT","YDS","TD","INT"],rows:s.filter(x=>x.att).map(x=>[pname(x.id),`${x.cmp}/${x.att}`,x.py,x.ptd,x.pi]),total:["TEAM TOTAL",`${s.reduce((a,x)=>a+x.cmp,0)}/${s.reduce((a,x)=>a+x.att,0)}`,s.reduce((a,x)=>a+x.py,0),s.reduce((a,x)=>a+x.ptd,0),s.reduce((a,x)=>a+x.pi,0)]},
+    {title:"RECEIVING",headers:["PLAYER","REC","YDS","TD"],rows:s.filter(x=>x.rec).map(x=>[pname(x.id),x.rec,x.rey,x.retd]),total:["TEAM TOTAL",s.reduce((a,x)=>a+x.rec,0),s.reduce((a,x)=>a+x.rey,0),s.reduce((a,x)=>a+x.retd,0)]},
+    {title:"DEFENSE",headers:["PLAYER","TKL","TFL","SACK","INT","FF","FR"],rows:s.filter(x=>x.t+x.tfl+x.sack+x.int+x.ff+x.fr).map(x=>[pname(x.id),x.t,x.tfl,x.sack,x.int,x.ff,x.fr]),total:["TEAM TOTAL",s.reduce((a,x)=>a+x.t,0),s.reduce((a,x)=>a+x.tfl,0),s.reduce((a,x)=>a+x.sack,0),s.reduce((a,x)=>a+x.int,0),s.reduce((a,x)=>a+x.ff,0),s.reduce((a,x)=>a+x.fr,0)]},
+    {title:"SPECIAL TEAMS",headers:["PLAYER","KR","KR YDS","PR","PR YDS"],rows:s.filter(x=>x.kr+x.pr).map(x=>[pname(x.id),x.kr,x.kry,x.pr,x.pry]),total:["TEAM TOTAL",s.reduce((a,x)=>a+x.kr,0),s.reduce((a,x)=>a+x.kry,0),s.reduce((a,x)=>a+x.pr,0),s.reduce((a,x)=>a+x.pry,0)]}
+  ].filter(sec=>sec.rows.length);
+
+  const W=900, margin=40, headerH=210, rowH=46, sectionTitleH=48, tableHeadH=40, sectionGap=24;
+  let H=headerH+40;
+  sections.forEach(sec=>H+=sectionTitleH+tableHeadH+rowH*(sec.rows.length+1)+sectionGap);
+  H+=40;
+  const cv=document.createElement("canvas");cv.width=W;cv.height=H;const c=cv.getContext("2d");
+  c.fillStyle="#f4f6f5";c.fillRect(0,0,W,H);
+
+  c.fillStyle=S.team.primary;c.fillRect(0,0,W,headerH-10);c.fillStyle=S.team.secondary;c.fillRect(0,headerH-10,W,10);
+  c.fillStyle="#fff";c.textAlign="left";c.font="800 20px -apple-system,Segoe UI,Arial";c.fillText("SIDELINE STATS • GAME STATS",margin,48);
+  c.font="900 40px -apple-system,Segoe UI,Arial";c.fillText(S.team.name,margin,98);
+  c.font="800 26px -apple-system,Segoe UI,Arial";c.fillText(`${S.team.name}  ${g.ourScore} – ${g.oppScore}  ${g.opponent}`,margin,145);
+  c.font="600 18px -apple-system,Segoe UI,Arial";c.fillText(`${g.date} • ${g.location} • ${g.status==="complete"?"FINAL":"LIVE"}`,margin,178);
+
+  let y=headerH+22;
+  sections.forEach(sec=>{
+    c.fillStyle=S.team.primary;c.font="900 24px -apple-system,Segoe UI,Arial";c.fillText(sec.title,margin,y+28);y+=sectionTitleH;
+
+    const cols=sec.headers.length;
+    const firstW=cols>=6?240:300;
+    const remW=(W-margin*2-firstW)/(cols-1);
+    const xs=[margin];
+    for(let i=1;i<cols;i++)xs.push(margin+firstW+remW*(i-1));
+
+    c.fillStyle="#eef3ef";c.fillRect(margin,y,W-margin*2,tableHeadH);
+    c.font="800 15px -apple-system,Segoe UI,Arial";c.fillStyle=S.team.primary;
+    sec.headers.forEach((h,i)=>{c.textAlign=i===0?"left":"right";const x=i===0?xs[i]+8:(i===cols-1?W-margin-8:xs[i]+remW-8);c.fillText(h,x,y+26)});
+    y+=tableHeadH;
+
+    const drawRow=(row,total=false)=>{
+      c.fillStyle=total?"#f1f6f2":"#fff";c.fillRect(margin,y,W-margin*2,rowH);
+      c.strokeStyle="#dbe3de";c.beginPath();c.moveTo(margin,y+rowH);c.lineTo(W-margin,y+rowH);c.stroke();
+      c.font=(total?"900 ":"600 ")+"16px -apple-system,Segoe UI,Arial";c.fillStyle=total?S.team.primary:"#152019";
+      row.forEach((val,i)=>{c.textAlign=i===0?"left":"right";const x=i===0?xs[i]+8:(i===cols-1?W-margin-8:xs[i]+remW-8);c.fillText(String(val),x,y+29)});
+      y+=rowH;
+    };
+    sec.rows.forEach(r=>drawRow(r,false));drawRow(sec.total,true);
+    y+=sectionGap;
+  });
+  return cv;
+}
+
+$("#shareStatsBtn").addEventListener("click",async()=>{
   const g=statGame();if(!g)return toast("Record a game first");
   try{
-    const cv=createSummaryCanvas(g);
+    const cv=drawStatsCanvas(g);
     const blob=await new Promise(res=>cv.toBlob(res,"image/png"));
-    const file=new File([blob],`${S.team.name.replace(/[^a-z0-9]/gi,"_")}_game_summary.png`,{type:"image/png"});
+    const file=new File([blob],`${S.team.name.replace(/[^a-z0-9]/gi,"_")}_game_stats.png`,{type:"image/png"});
     if(navigator.canShare&&navigator.canShare({files:[file]})&&navigator.share){
-      await navigator.share({title:`${S.team.name} Game Summary`,text:`${S.team.name} vs ${g.opponent}`,files:[file]});
+      await navigator.share({title:`${S.team.name} Game Stats`,text:`${S.team.name} vs ${g.opponent}`,files:[file]});
     }else{
-      const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=file.name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-      toast("Summary image saved/downloaded");
+      const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=file.name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);toast("Game stats image saved/downloaded");
     }
-  }catch(e){toast("Could not share image on this browser")}
+  }catch(e){toast("Could not share stats image on this browser")}
 });
 
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]))}
