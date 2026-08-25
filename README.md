@@ -1,11 +1,22 @@
-# Sideline Stats V0.8
+# Sideline Stats V1.1 — Game History
 
-Changes:
-- Removed the redundant Share tab from bottom navigation.
-- Sharing remains in Stats using the existing Share Game Stats button.
-- Enlarged fonts in the shareable stat tables.
-- Tightened/narrowed stat columns to use the iPhone screen more efficiently.
-- Slightly taller table rows preserve readability with the larger type.
-- Existing V0.2–V0.7 saved data migrates forward.
+## New in V1.1
+The Stats screen's **Game** view now includes a **Select game** dropdown.
 
-Upload `index.html` and `manifest.webmanifest` to the same GitHub repository and commit to `main`.
+You can:
+- Choose any prior game from the season
+- See that exact game's player-by-player stats
+- See the game result and whether it was Regular Season or Playoff
+- Share the selected game's stats with **Share Game Stats**
+
+Games are sorted newest first.
+
+The other Stats views remain:
+- Regular Season
+- Playoffs
+- Season Total
+
+Existing V0.2–V1.0 data migrates forward.
+
+## GitHub
+Replace `index.html` and `manifest.webmanifest` in the same `sideline-stats` repository and commit to `main`.

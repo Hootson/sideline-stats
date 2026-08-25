@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V0.8</title>
+<title>Sideline Stats V1.1</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -104,6 +104,29 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 .credit-btn{border:1px solid var(--line);background:#f7f9f8;border-radius:10px;padding:10px 12px;font-weight:900;cursor:pointer}
 .credit-btn.active{background:var(--p);color:#fff;border-color:var(--p)}
 
+
+.logo-upload-wrap{margin-top:14px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#fafbfa}
+.logo-row{display:flex;align-items:center;gap:12px}
+.logo-preview{width:76px;height:76px;border-radius:16px;border:1px solid var(--line);background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;flex:0 0 76px}
+.logo-preview img{width:100%;height:100%;object-fit:contain}
+.logo-placeholder{font-size:28px}
+.logo-actions{flex:1}
+.logo-actions input[type=file]{font-size:13px;padding:8px}
+.logo-actions .remove-logo{margin-top:7px}
+.preview-flex{display:flex;align-items:center;gap:12px}
+.preview-logo{width:48px;height:48px;border-radius:10px;background:#ffffff22;display:none;align-items:center;justify-content:center;overflow:hidden;flex:0 0 48px}
+.preview-logo img{width:100%;height:100%;object-fit:contain}
+
+
+.game-type-badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:10px;font-weight:900;margin-left:6px}
+.game-type-badge.regular{background:#eef5f0;color:var(--p)}
+.game-type-badge.playoff{background:#fff2e8;color:#a94b00}
+.stats-scope{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px;margin-bottom:12px;background:#fff;border:1px solid var(--line);border-radius:16px;position:sticky;top:57px;z-index:8}
+.scope-btn{border:1px solid var(--line);background:#f8faf9;border-radius:10px;padding:10px 6px;font-size:12px;font-weight:900;color:var(--muted)}
+.scope-btn.active{background:var(--p);color:#fff;border-color:var(--p)}
+.scope-summary{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.scope-pill{display:inline-block;background:#ffffff22;border:1px solid #ffffff33;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:800}
+
 </style>
 </head>
 <body>
@@ -115,7 +138,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V0.8 • GAME-DAY TEST BUILD</div>
+      <div class="muted" style="color:#dfe9e2">V1.1 • GAME HISTORY BUILD</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -144,7 +167,21 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
         </div>
       </div>
 
-      <div class="preview" id="preview" style="margin-top:14px">YOUR TEAM</div>
+      <div class="logo-upload-wrap">
+        <label style="margin-top:0">Team logo (optional)</label>
+        <div class="logo-row">
+          <div class="logo-preview" id="logoPreviewBox"><span class="logo-placeholder">🏈</span></div>
+          <div class="logo-actions">
+            <input id="teamLogoInput" type="file" accept="image/*">
+            <button class="btn ghost small remove-logo hidden" id="removeLogoBtn" type="button">Remove Logo</button>
+            <div class="muted" style="margin-top:6px">PNG or JPG works best. The logo is saved on this device with your team.</div>
+          </div>
+        </div>
+      </div>
+      <div class="preview preview-flex" id="preview" style="margin-top:14px">
+        <div class="preview-logo" id="previewLogo"></div>
+        <div id="previewTeamText">YOUR TEAM</div>
+      </div>
       <button class="btn" id="saveTeam" style="margin-top:14px">Save Team & Add Roster</button>
       <div id="setupGateNote" class="inline-note" style="margin-top:12px">Create your team first. The Roster, Game, Stats and Share tabs will unlock after you save.</div>
     </div>
@@ -177,6 +214,11 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
           <div><label>Date</label><input id="newGameDate" type="date"></div>
           <div><label>Location</label><select id="newLocation"><option>Home</option><option>Away</option><option>Neutral</option></select></div>
         </div>
+        <label>Game type</label>
+        <select id="newGameType">
+          <option value="regular">Regular Season</option>
+          <option value="playoff">Playoff</option>
+        </select>
         <button class="btn" id="newGameBtn" style="margin-top:12px">Start New Game</button>
       </div>
       <div class="card"><h3 style="margin-top:0">Saved games</h3><div id="gameList"><span class="muted">No games yet.</span></div></div>
@@ -240,6 +282,16 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
   </section>
 
   <section class="screen" data-screen="stats">
+    <div class="stats-scope" id="statsScope">
+      <button class="scope-btn active" data-scope="game">Game</button>
+      <button class="scope-btn" data-scope="regular">Regular Season</button>
+      <button class="scope-btn" data-scope="playoff">Playoffs</button>
+      <button class="scope-btn" data-scope="season">Season Total</button>
+    </div>
+    <div id="gameHistoryPicker" class="card" style="padding:12px;margin-bottom:12px">
+      <label style="margin-top:0">Select game</label>
+      <select id="statsGameSelect"></select>
+    </div>
     <div id="statsShareView" class="stats-share-wrap">
       <div class="stats-share-head">
         <div class="eyebrow">SIDELINE STATS • GAME STATS</div>
@@ -252,30 +304,21 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
     <div class="share-tip">Shares one slick iPhone-first box score with Top Performers, AVG metrics, player tables and team totals.</div>
   </section>
 
-  <section class="screen" data-screen="share">
-    <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">SHARE</div>
-      <h2>Share Game Stats</h2>
-      <div>The full Stats view is now the shareable format, including player-by-player breakdowns and team totals.</div>
-    </div>
-    <button class="btn" id="goShareStats">Open Shareable Stats</button>
-    <button class="btn ghost" id="copyBtn" style="margin-top:10px">Copy Text Summary</button>
-  </section>
-
   <nav id="bottomNav" class="hidden">
     <button data-go="roster">👥<br>Roster</button>
     <button data-go="game">🏈<br>Game</button>
     <button data-go="stats">📊<br>Stats</button>
-    <button data-go="share">↗️<br>Share</button>
   </nav>
 </div>
 <div class="toast" id="toast"></div>
 
 <script>
 (function(){
-const KEY="sidelineStatsV08", OLDKEY="sidelineStatsV07", OLDERKEY="sidelineStatsV06", OLDESTKEY="sidelineStatsV05", LEGACYKEY="sidelineStatsV04", LEGACYKEY2="sidelineStatsV03", LEGACYKEY3="sidelineStatsV02";
+const KEY="sidelineStatsV11", OLDKEY="sidelineStatsV10", OLDERKEY="sidelineStatsV09", OLDESTKEY="sidelineStatsV08", LEGACYKEY="sidelineStatsV07", LEGACYKEY2="sidelineStatsV06", LEGACYKEY3="sidelineStatsV05", LEGACYKEY4="sidelineStatsV04", LEGACYKEY5="sidelineStatsV03", LEGACYKEY6="sidelineStatsV02";
 const empty={team:null,roster:[],games:[],activeGameId:null,flow:{},editingPlayId:null};
 let S=load();
+let statsScope="game";
+let selectedStatsGameId=null;
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 
 function load(){try{
@@ -286,10 +329,18 @@ function load(){try{
       if(!raw)raw=localStorage.getItem(LEGACYKEY);
       if(!raw)raw=localStorage.getItem(LEGACYKEY2);
       if(!raw)raw=localStorage.getItem(LEGACYKEY3);
+      if(!raw)raw=localStorage.getItem(LEGACYKEY4);
+      if(!raw)raw=localStorage.getItem(LEGACYKEY5);
+      if(!raw)raw=localStorage.getItem(LEGACYKEY6);
       if(raw)localStorage.setItem(KEY,raw);
       return raw?Object.assign({},empty,JSON.parse(raw)):JSON.parse(JSON.stringify(empty))
     }catch(e){return JSON.parse(JSON.stringify(empty))}}
 function persist(){localStorage.setItem(KEY,JSON.stringify(S))}
+function normalizeGames(){
+  let changed=false;
+  (S.games||[]).forEach(g=>{if(!g.gameType){g.gameType="regular";changed=true}});
+  if(changed)persist();
+}
 function toast(m){let t=$("#toast");t.textContent=m;t.style.display="block";setTimeout(()=>t.style.display="none",1500)}
 function today(){return new Date().toISOString().slice(0,10)}
 function colors(){let p=S.team?.primary||"#177b46",s=S.team?.secondary||"#f0b33b";document.documentElement.style.setProperty("--p",p);document.documentElement.style.setProperty("--s",s);document.querySelector('meta[name="theme-color"]').setAttribute("content",p)}
@@ -320,15 +371,16 @@ $("#resetAllBtn").addEventListener("click",()=>{
   if(!first)return;
   const phrase=prompt('For safety, type RESET to confirm:');
   if(phrase!=="RESET")return toast("Reset cancelled");
-  localStorage.removeItem(KEY); localStorage.removeItem(OLDKEY); localStorage.removeItem(OLDERKEY); localStorage.removeItem(OLDESTKEY); localStorage.removeItem(LEGACYKEY); localStorage.removeItem(LEGACYKEY2); localStorage.removeItem(LEGACYKEY3);
+  localStorage.removeItem(KEY); localStorage.removeItem(OLDKEY); localStorage.removeItem(OLDERKEY); localStorage.removeItem(OLDESTKEY); localStorage.removeItem(LEGACYKEY); localStorage.removeItem(LEGACYKEY2); localStorage.removeItem(LEGACYKEY3); localStorage.removeItem(LEGACYKEY4); localStorage.removeItem(LEGACYKEY5); localStorage.removeItem(LEGACYKEY6);
   S=JSON.parse(JSON.stringify(empty));
   syncChrome();populateSetup();renderRoster();go("setup");toast("All data cleared");
 });
 
 function preview(){
   let p=$("#primary").value,s=$("#secondary").value,n=$("#teamName").value||"YOUR TEAM";
-  $("#preview").style.background=p;$("#preview").style.borderBottomColor=s;$("#preview").textContent=n.toUpperCase();
+  $("#preview").style.background=p;$("#preview").style.borderBottomColor=s;$("#previewTeamText").textContent=n.toUpperCase();
   $("#primaryHex").textContent=p.toUpperCase();$("#secondaryHex").textContent=s.toUpperCase();
+  renderLogoPreview(S.team?.logoData||null);
 }
 ["#primary","#secondary","#teamName"].forEach(id=>$(id).addEventListener("input",preview));
 
@@ -343,11 +395,41 @@ function populateSetup(){
     $("#setupHeading").textContent="Create your team";$("#setupSub").textContent="Set colors, build your roster, then stat a game.";
     $("#saveTeam").textContent="Save Team & Add Roster";$("#setupGateNote").classList.remove("hidden");$("#dataManagement").classList.add("hidden");
   }
-  preview();
+  preview();renderLogoPreview(S.team?.logoData||null);
 }
+
+function renderLogoPreview(data){
+  const box=$("#logoPreviewBox"), small=$("#previewLogo");
+  if(data){
+    box.innerHTML=`<img src="${data}" alt="Team logo">`;
+    small.style.display="flex";small.innerHTML=`<img src="${data}" alt="Team logo">`;
+    $("#removeLogoBtn").classList.remove("hidden");
+  }else{
+    box.innerHTML='<span class="logo-placeholder">🏈</span>';
+    small.style.display="none";small.innerHTML="";
+    $("#removeLogoBtn").classList.add("hidden");
+  }
+}
+$("#teamLogoInput").addEventListener("change",()=>{
+  const file=$("#teamLogoInput").files?.[0];
+  if(!file)return;
+  if(file.size>2.5*1024*1024){$("#teamLogoInput").value="";return toast("Please choose a logo under 2.5 MB")}
+  const reader=new FileReader();
+  reader.onload=()=>{
+    if(!S.team)S.team={};
+    S.team.logoData=reader.result;
+    renderLogoPreview(S.team.logoData);
+  };
+  reader.readAsDataURL(file);
+});
+$("#removeLogoBtn").addEventListener("click",()=>{
+  if(!S.team)S.team={};
+  S.team.logoData=null;$("#teamLogoInput").value="";renderLogoPreview(null);
+});
+
 $("#saveTeam").addEventListener("click",()=>{
   const name=$("#teamName").value.trim();if(!name)return toast("Enter a team name");
-  S.team={name,grade:$("#grade").value,season:$("#season").value.trim()||"2026",primary:$("#primary").value,secondary:$("#secondary").value};
+  S.team={name,grade:$("#grade").value,season:$("#season").value.trim()||"2026",primary:$("#primary").value,secondary:$("#secondary").value,logoData:S.team?.logoData||null};
   persist();syncChrome();renderRoster();toast("Team saved");
   go("roster");
 });
@@ -379,13 +461,13 @@ function renderGameList(){
   if(!S.games.length){list.innerHTML='<span class="muted">No games yet.</span>';return}
   list.innerHTML=[...S.games].sort((a,b)=>b.date.localeCompare(a.date)).map(g=>`
     <div class="game-card">
-      <div class="game-info"><strong>${esc(S.team.name)} vs ${esc(g.opponent)}</strong><span>${g.date} • ${g.location} • ${displayedOurScore(g)}-${g.oppScore}</span></div>
+      <div class="game-info"><strong>${esc(S.team.name)} vs ${esc(g.opponent)} <span class="game-type-badge ${(g.gameType||"regular")==="playoff"?"playoff":"regular"}">${(g.gameType||"regular")==="playoff"?"PLAYOFF":"REGULAR"}</span></strong><span>${g.date} • ${g.location} • ${displayedOurScore(g)}-${g.oppScore}</span></div>
       <div style="display:flex;gap:6px">
         <button class="btn ghost small open-game" data-id="${g.id}">${g.status==="complete"?"View":"Open"}</button>
         <button class="btn danger small delete-game" data-id="${g.id}">Delete</button>
       </div>
     </div>`).join("");
-  $$(".open-game").forEach(b=>b.addEventListener("click",()=>{S.activeGameId=b.dataset.id;persist();renderGameArea()}));
+  $$(".open-game").forEach(b=>b.addEventListener("click",()=>{S.activeGameId=b.dataset.id;selectedStatsGameId=b.dataset.id;persist();renderGameArea()}));
   $$(".delete-game").forEach(b=>b.addEventListener("click",()=>{
     const g=gameById(b.dataset.id); if(!g)return;
     if(!confirm(`Delete the game vs ${g.opponent}? This removes all plays and stats from this game.`))return;
@@ -396,8 +478,8 @@ function renderGameList(){
 $("#newGameBtn").addEventListener("click",()=>{
   if(!S.roster.length)return toast("Add your roster first");
   const opp=$("#newOpponent").value.trim();if(!opp)return toast("Enter an opponent");
-  const g={id:uid(),opponent:opp,date:$("#newGameDate").value||today(),location:$("#newLocation").value,status:"live",ourScore:0,scoreAdjustment:0,oppScore:0,plays:[]};
-  S.games.push(g);S.activeGameId=g.id;persist();resetFlow();renderGameArea()
+  const g={id:uid(),opponent:opp,date:$("#newGameDate").value||today(),location:$("#newLocation").value,gameType:$("#newGameType").value||"regular",status:"live",ourScore:0,scoreAdjustment:0,oppScore:0,plays:[]};
+  S.games.push(g);S.activeGameId=g.id;selectedStatsGameId=g.id;persist();resetFlow();renderGameArea()
 });
 $("#endGameBtn").addEventListener("click",()=>{
   const g=currentGame();if(!g)return;
@@ -441,7 +523,7 @@ function displayedOurScore(g){ensureScoreModel(g);return autoPoints(g)+Number(g.
 function renderLiveGame(){
   const g=currentGame();if(!g)return;
   ensureScoreModel(g);$("#teamGame").textContent=S.team.name;$("#oppGame").textContent=g.opponent;$("#ourScore").textContent=displayedOurScore(g);$("#oppScore").textContent=g.oppScore;
-  $("#gameMeta").textContent=`${g.date} • ${g.location}`;renderRecent();resetFlow();
+  $("#gameMeta").textContent=`${g.date} • ${g.location} • ${(g.gameType||"regular")==="playoff"?"Playoff":"Regular Season"}`;renderRecent();resetFlow();
 }
 function resetFlow(){S.flow={};["#stepSub","#stepPlayer","#stepDefenseCredits","#stepYards","#stepExtras"].forEach(id=>$(id).classList.add("hidden"));$("#stepMain").classList.remove("hidden");$$(".extra").forEach(b=>b.classList.remove("sel"))}
 $$(".cancel").forEach(b=>b.addEventListener("click",resetFlow));
@@ -550,51 +632,119 @@ $("#saveEdit").addEventListener("click",()=>{
 });
 
 function agg(g){
-  let m={};S.roster.forEach(p=>m[p.id]={id:p.id,j:p.jersey,n:p.name,car:0,ry:0,rtd:0,att:0,cmp:0,py:0,ptd:0,pi:0,rec:0,rey:0,retd:0,t:0,tfl:0,sack:0,int:0,ff:0,fr:0,kr:0,kry:0,pr:0,pry:0});
+  let m={};S.roster.forEach(p=>m[p.id]={id:p.id,j:p.jersey,n:p.name,car:0,ry:0,rtd:0,att:0,cmp:0,py:0,ptd:0,pi:0,rec:0,rey:0,retd:0,t:0,tfl:0,sack:0,int:0,ff:0,fr:0,kr:0,kry:0,pr:0,pry:0,rfd:0,pfd:0,recfd:0});
   (g?.plays||[]).forEach(p=>{let a=m[p.player],b=m[p.player2];
-    if(p.type==="Rush"&&a){a.car++;a.ry+=+p.yards||0;if(p.extras?.includes("TD"))a.rtd++}
-    if(p.type==="Pass"&&a){a.att++;if(p.sub==="Complete"){a.cmp++;a.py+=+p.yards||0;if(p.extras?.includes("TD"))a.ptd++;if(b){b.rec++;b.rey+=+p.yards||0;if(p.extras?.includes("TD"))b.retd++}}if(p.sub==="Intercepted")a.pi++}
+    if(p.type==="Rush"&&a){a.car++;a.ry+=+p.yards||0;if(p.extras?.includes("TD"))a.rtd++;if(p.extras?.includes("1st Down"))a.rfd++}
+    if(p.type==="Pass"&&a){a.att++;if(p.sub==="Complete"){a.cmp++;a.py+=+p.yards||0;if(p.extras?.includes("TD"))a.ptd++;if(p.extras?.includes("1st Down"))a.pfd++;if(b){b.rec++;b.rey+=+p.yards||0;if(p.extras?.includes("TD"))b.retd++;if(p.extras?.includes("1st Down"))b.recfd++}}if(p.sub==="Intercepted")a.pi++}
     if(p.type==="Defense"){if(p.defCredits){Object.entries(p.defCredits).forEach(([id,credit])=>{const d=m[id];if(!d)return;const v=Number(credit)||0;if(p.sub==="Tackle")d.t+=v;if(p.sub==="TFL")d.tfl+=v;if(p.sub==="Sack")d.sack+=v;if(p.sub==="INT")d.int+=v;if(p.sub==="Forced Fumble")d.ff+=v;if(p.sub==="Fumble Recovery")d.fr+=v;});}else if(a){if(p.sub==="Tackle")a.t++;if(p.sub==="TFL")a.tfl++;if(p.sub==="Sack")a.sack++;if(p.sub==="INT")a.int++;if(p.sub==="Forced Fumble")a.ff++;if(p.sub==="Fumble Recovery")a.fr++;}}
     if(p.type==="Special"&&a){if(p.sub==="Kick Return"){a.kr++;a.kry+=+p.yards||0}else{a.pr++;a.pry+=+p.yards||0}}
   });return Object.values(m)
 }
-function statGame(){return currentGame()||[...S.games].sort((a,b)=>b.date.localeCompare(a.date))[0]||null}
+
+function sortedGames(){return [...(S.games||[])].sort((a,b)=>(b.date||"").localeCompare(a.date||""))}
+function latestGame(){return sortedGames()[0]||null}
+function selectedStatsGame(){
+  const games=sortedGames();
+  if(!games.length)return null;
+  if(selectedStatsGameId){
+    const g=games.find(x=>x.id===selectedStatsGameId);
+    if(g)return g;
+  }
+  const active=currentGame();
+  if(active){selectedStatsGameId=active.id;return active}
+  selectedStatsGameId=games[0].id;
+  return games[0];
+}
+function renderGameHistoryPicker(){
+  const picker=$("#gameHistoryPicker"),sel=$("#statsGameSelect");
+  picker.classList.toggle("hidden",statsScope!=="game");
+  if(statsScope!=="game")return;
+  const games=sortedGames();
+  if(!games.length){sel.innerHTML='<option>No games yet</option>';sel.disabled=true;return}
+  sel.disabled=false;
+  const chosen=selectedStatsGame();
+  sel.innerHTML=games.map(g=>{
+    const us=displayedOurScore(g),them=Number(g.oppScore||0),result=us>them?"W":us<them?"L":"T";
+    const type=(g.gameType||"regular")==="playoff"?"Playoff":"Regular";
+    return `<option value="${g.id}" ${chosen&&chosen.id===g.id?"selected":""}>${g.date} — vs ${esc(g.opponent)} — ${result} ${us}-${them} — ${type}</option>`;
+  }).join("");
+}
+$("#statsGameSelect").addEventListener("change",()=>{selectedStatsGameId=$("#statsGameSelect").value;renderStats()});
+function statGame(){return currentGame()||latestGame()}
+function scopeGames(scope){
+  const games=[...(S.games||[])];
+  if(scope==="game"){const g=selectedStatsGame();return g?[g]:[]}
+  if(scope==="regular")return games.filter(g=>(g.gameType||"regular")==="regular");
+  if(scope==="playoff")return games.filter(g=>(g.gameType||"regular")==="playoff");
+  return games;
+}
+function recordFor(games){
+  let w=0,l=0,t=0;
+  games.forEach(g=>{const us=displayedOurScore(g),them=Number(g.oppScore||0);if(us>them)w++;else if(us<them)l++;else t++});
+  return t?`${w}-${l}-${t}`:`${w}-${l}`;
+}
+function statsSource(scope=statsScope){
+  const games=scopeGames(scope);
+  if(!games.length)return null;
+  if(scope==="game"){
+    const g=games[0];
+    return {scope,kind:"game",games,plays:g.plays||[],game:g,title:"Game",
+      label:`${S.team.name} ${displayedOurScore(g)} – ${g.oppScore} ${g.opponent} • ${g.date} • ${g.location} • ${(g.gameType||"regular")==="playoff"?"Playoff":"Regular Season"}`};
+  }
+  const labels={regular:"Regular Season Totals",playoff:"Playoff Totals",season:"Season Totals"};
+  return {scope,kind:"aggregate",games,plays:games.flatMap(g=>g.plays||[]),title:labels[scope],
+    label:`${S.team.season||""} ${labels[scope]} • ${games.length} game${games.length===1?"":"s"} • ${recordFor(games)}`};
+}
 function tbl(h,rows,totalRow=null){
   if(!rows.length&&!totalRow)return'<div class="muted">No stats yet.</div>';
   return `<table><tr>${h.map(x=>`<th>${x}</th>`).join("")}</tr>${rows.map(r=>`<tr>${r.map(x=>`<td>${esc(String(x))}</td>`).join("")}</tr>`).join("")}${totalRow?`<tr class="stat-total-row">${totalRow.map(x=>`<td>${esc(String(x))}</td>`).join("")}</tr>`:""}</table>`
 }
 function renderStats(){
-  const g=statGame();
+  renderGameHistoryPicker();
+  const src=statsSource(statsScope);
+  $$(".scope-btn").forEach(b=>b.classList.toggle("active",b.dataset.scope===statsScope));
   $("#statsShareTitle").textContent=S.team?.name||"Team";
-  if(!g){$("#statsGameLabel").textContent="";$("#statsBox").innerHTML='<div class="stats-block"><span class="muted">Record a game first.</span></div>';return}
-  $("#statsGameLabel").textContent=`${S.team.name} ${displayedOurScore(g)} – ${g.oppScore} ${g.opponent} • ${g.date} • ${g.location}`;
-  let s=agg(g);
+  $("#shareStatsBtn").textContent={
+    game:"Share Game Stats",
+    regular:"Share Regular Season Stats",
+    playoff:"Share Playoff Stats",
+    season:"Share Season Totals"
+  }[statsScope];
 
-  const rushRows=s.filter(x=>x.car).map(x=>[pname(x.id),x.car,x.ry,(x.ry/x.car).toFixed(1),x.rtd]);
+  if(!src){
+    $("#statsGameLabel").textContent="";
+    $("#statsBox").innerHTML=`<div class="stats-block"><span class="muted">No ${statsScope==="playoff"?"playoff":statsScope==="regular"?"regular season":"game"} stats yet.</span></div>`;
+    return;
+  }
+  $("#statsGameLabel").textContent=src.label;
+  const s=agg({plays:src.plays});
+
+  const rushRows=s.filter(x=>x.car).map(x=>[pname(x.id),x.car,x.ry,(x.ry/x.car).toFixed(1),x.rfd,x.rtd]);
   const rushCar=s.reduce((a,x)=>a+x.car,0),rushYds=s.reduce((a,x)=>a+x.ry,0);
-  const rushTot=["TEAM TOTAL",rushCar,rushYds,rushCar?(rushYds/rushCar).toFixed(1):"0.0",s.reduce((a,x)=>a+x.rtd,0)];
+  const rushTot=["TEAM TOTAL",rushCar,rushYds,rushCar?(rushYds/rushCar).toFixed(1):"0.0",s.reduce((a,x)=>a+x.rfd,0),s.reduce((a,x)=>a+x.rtd,0)];
 
-  const passRows=s.filter(x=>x.att).map(x=>[pname(x.id),`${x.cmp}/${x.att}`,x.py,(x.py/x.att).toFixed(1),x.ptd,x.pi]);
-  const passCmp=s.reduce((a,x)=>a+x.cmp,0), passAtt=s.reduce((a,x)=>a+x.att,0);
-  const passYds=s.reduce((a,x)=>a+x.py,0);const passTot=["TEAM TOTAL",`${passCmp}/${passAtt}`,passYds,passAtt?(passYds/passAtt).toFixed(1):"0.0",s.reduce((a,x)=>a+x.ptd,0),s.reduce((a,x)=>a+x.pi,0)];
+  const passRows=s.filter(x=>x.att).map(x=>[pname(x.id),`${x.cmp}/${x.att}`,x.py,(x.py/x.att).toFixed(1),x.pfd,x.ptd,x.pi]);
+  const passCmp=s.reduce((a,x)=>a+x.cmp,0),passAtt=s.reduce((a,x)=>a+x.att,0),passYds=s.reduce((a,x)=>a+x.py,0);
+  const passTot=["TEAM TOTAL",`${passCmp}/${passAtt}`,passYds,passAtt?(passYds/passAtt).toFixed(1):"0.0",s.reduce((a,x)=>a+x.pfd,0),s.reduce((a,x)=>a+x.ptd,0),s.reduce((a,x)=>a+x.pi,0)];
 
-  const recRows=s.filter(x=>x.rec).map(x=>[pname(x.id),x.rec,x.rey,(x.rey/x.rec).toFixed(1),x.retd]);
+  const recRows=s.filter(x=>x.rec).map(x=>[pname(x.id),x.rec,x.rey,(x.rey/x.rec).toFixed(1),x.recfd,x.retd]);
   const recCt=s.reduce((a,x)=>a+x.rec,0),recYds=s.reduce((a,x)=>a+x.rey,0);
-  const recTot=["TEAM TOTAL",recCt,recYds,recCt?(recYds/recCt).toFixed(1):"0.0",s.reduce((a,x)=>a+x.retd,0)];
+  const recTot=["TEAM TOTAL",recCt,recYds,recCt?(recYds/recCt).toFixed(1):"0.0",s.reduce((a,x)=>a+x.recfd,0),s.reduce((a,x)=>a+x.retd,0)];
 
-  const defRows=s.filter(x=>x.t+x.tfl+x.sack+x.int+x.ff+x.fr).map(x=>[pname(x.id),x.t,x.tfl,x.sack,x.int,x.ff,x.fr]);
-  const defTot=["TEAM TOTAL",s.reduce((a,x)=>a+x.t,0),s.reduce((a,x)=>a+x.tfl,0),s.reduce((a,x)=>a+x.sack,0),s.reduce((a,x)=>a+x.int,0),s.reduce((a,x)=>a+x.ff,0),s.reduce((a,x)=>a+x.fr,0)];
+  const defRows=s.filter(x=>x.t+x.tfl+x.sack+x.int+x.ff+x.fr).map(x=>[pname(x.id),fmt(x.t),fmt(x.tfl),fmt(x.sack),fmt(x.int),fmt(x.ff),fmt(x.fr)]);
+  const defTot=["TEAM TOTAL",fmt(s.reduce((a,x)=>a+x.t,0)),fmt(s.reduce((a,x)=>a+x.tfl,0)),fmt(s.reduce((a,x)=>a+x.sack,0)),fmt(s.reduce((a,x)=>a+x.int,0)),fmt(s.reduce((a,x)=>a+x.ff,0)),fmt(s.reduce((a,x)=>a+x.fr,0))];
 
   const specialRows=s.filter(x=>x.kr+x.pr).map(x=>[pname(x.id),x.kr,x.kry,x.pr,x.pry]);
   const specialTot=["TEAM TOTAL",s.reduce((a,x)=>a+x.kr,0),s.reduce((a,x)=>a+x.kry,0),s.reduce((a,x)=>a+x.pr,0),s.reduce((a,x)=>a+x.pry,0)];
 
   $("#statsBox").innerHTML=
-    `<div class="stats-block"><h3>Rushing</h3>${tbl(["Player","CAR","YDS","AVG","TD"],rushRows,rushRows.length?rushTot:null)}</div>`+
-    `<div class="stats-block"><h3>Passing</h3>${tbl(["Player","CMP/ATT","YDS","AVG","TD","INT"],passRows,passRows.length?passTot:null)}</div>`+
-    `<div class="stats-block"><h3>Receiving</h3>${tbl(["Player","REC","YDS","AVG","TD"],recRows,recRows.length?recTot:null)}</div>`+
+    `<div class="stats-block"><h3>Rushing</h3>${tbl(["Player","CAR","YDS","AVG","1D","TD"],rushRows,rushRows.length?rushTot:null)}</div>`+
+    `<div class="stats-block"><h3>Passing</h3>${tbl(["Player","CMP/ATT","YDS","AVG","1D","TD","INT"],passRows,passRows.length?passTot:null)}</div>`+
+    `<div class="stats-block"><h3>Receiving</h3>${tbl(["Player","REC","YDS","AVG","1D","TD"],recRows,recRows.length?recTot:null)}</div>`+
     `<div class="stats-block"><h3>Defense</h3>${tbl(["Player","TKL","TFL","SACK","INT","FF","FR"],defRows,defRows.length?defTot:null)}</div>`+
     `<div class="stats-block"><h3>Special Teams</h3>${tbl(["Player","KR","KR YDS","PR","PR YDS"],specialRows,specialRows.length?specialTot:null)}</div>`;
 }
+$$(".scope-btn").forEach(b=>b.addEventListener("click",()=>{statsScope=b.dataset.scope;renderStats()}));
 function summaryText(g){
   if(!g)return "No game recorded.";
   return `${S.team.name} vs ${g.opponent}\n${g.date} • ${g.location}\nScore: ${S.team.name} ${displayedOurScore(g)} - ${g.oppScore} ${g.opponent}\n\n${g.plays.map(ptext).join("\n")}`
@@ -684,27 +834,85 @@ const SHARE_W=1170, SHARE_H=2532, SHARE_MARGIN=42;
 function rr(c,x,y,w,h,r,fill){c.beginPath();c.roundRect(x,y,w,h,r);c.fillStyle=fill;c.fill()}
 function tx(c,t,x,y,size,weight,color,align="left"){c.font=`${weight} ${size}px -apple-system,BlinkMacSystemFont,Segoe UI,Arial`;c.fillStyle=color;c.textAlign=align;c.fillText(String(t),x,y)}
 function fmt(v){return Number.isInteger(Number(v))?String(Number(v)):Number(v).toFixed(1)}
-function makeHybridShare(g){
+
+async function makeHybridShare(src){
  const cv=document.createElement("canvas");cv.width=SHARE_W;cv.height=SHARE_H;const c=cv.getContext("2d");c.fillStyle="#f4f6f5";c.fillRect(0,0,SHARE_W,SHARE_H);
  c.fillStyle=S.team.primary;c.fillRect(0,0,SHARE_W,480);c.fillStyle=S.team.secondary;c.fillRect(0,460,SHARE_W,20);c.textAlign="center";c.fillStyle="#fff";
- c.font="800 30px -apple-system,Segoe UI,Arial";c.fillText("SIDELINE STATS",SHARE_W/2,55);c.font="950 70px -apple-system,Segoe UI,Arial";c.fillText(S.team.name.toUpperCase(),SHARE_W/2,145);
- c.font="950 95px -apple-system,Segoe UI,Arial";c.fillText(String(displayedOurScore(g)),355,275);c.fillText(String(g.oppScore),815,275);c.font="800 28px -apple-system,Segoe UI,Arial";c.fillText(S.team.name.toUpperCase(),355,325);c.fillText(g.opponent.toUpperCase(),815,325);c.font="900 34px -apple-system,Segoe UI,Arial";c.fillText(g.status==="complete"?"FINAL":"LIVE",SHARE_W/2,370);c.font="650 25px -apple-system,Segoe UI,Arial";c.fillText(`${g.date} • ${g.location}`,SHARE_W/2,420);
- let y=510;const s=agg(g);tx(c,"★  TOP PERFORMERS  ★",SHARE_W/2,y+38,40,950,S.team.primary,"center");y+=70;
+
+ if(S.team.logoData){
+   try{
+     const logo=await loadImg(S.team.logoData),box=130,x=50,y=35;
+     c.save();c.beginPath();c.roundRect(x,y,box,box,24);c.clip();c.fillStyle="#fff";c.fillRect(x,y,box,box);
+     const sc=Math.min(box/logo.width,box/logo.height),dw=logo.width*sc,dh=logo.height*sc;
+     c.drawImage(logo,x+(box-dw)/2,y+(box-dh)/2,dw,dh);c.restore();
+   }catch(e){}
+ }
+
+ c.font="800 30px -apple-system,Segoe UI,Arial";c.fillStyle="#fff";c.fillText("SIDELINE STATS",SHARE_W/2,55);
+ c.font="950 68px -apple-system,Segoe UI,Arial";c.fillText(S.team.name.toUpperCase(),SHARE_W/2,145);
+
+ if(src.kind==="game"){
+   const g=src.game;
+   c.font="950 95px -apple-system,Segoe UI,Arial";c.fillText(String(displayedOurScore(g)),355,275);c.fillText(String(g.oppScore),815,275);
+   c.font="800 28px -apple-system,Segoe UI,Arial";c.fillText(S.team.name.toUpperCase(),355,325);c.fillText(g.opponent.toUpperCase(),815,325);
+   c.font="900 34px -apple-system,Segoe UI,Arial";c.fillText(g.status==="complete"?"FINAL":"LIVE",SHARE_W/2,370);
+   c.font="650 24px -apple-system,Segoe UI,Arial";c.fillText(`${g.date} • ${g.location} • ${(g.gameType||"regular")==="playoff"?"PLAYOFF":"REGULAR SEASON"}`,SHARE_W/2,420);
+ }else{
+   c.font="950 48px -apple-system,Segoe UI,Arial";c.fillText(src.title.toUpperCase(),SHARE_W/2,255);
+   c.font="800 34px -apple-system,Segoe UI,Arial";c.fillText(`${S.team.season||""} • ${src.games.length} GAME${src.games.length===1?"":"S"}`,SHARE_W/2,325);
+   c.font="900 48px -apple-system,Segoe UI,Arial";c.fillText(`RECORD  ${recordFor(src.games)}`,SHARE_W/2,400);
+ }
+
+ let y=510;const s=agg({plays:src.plays});tx(c,"★  TOP PERFORMERS  ★",SHARE_W/2,y+38,40,950,S.team.primary,"center");y+=70;
  const pass=[...s].filter(x=>x.att).sort((a,b)=>b.py-a.py)[0],rec=[...s].filter(x=>x.rec).sort((a,b)=>b.rey-a.rey)[0],rush=[...s].filter(x=>x.car).sort((a,b)=>b.ry-a.ry)[0],def=[...s].filter(x=>x.t+x.tfl+x.sack+x.int+x.ff+x.fr).sort((a,b)=>(b.t+b.tfl*2+b.sack*2+b.int*3)-(a.t+a.tfl*2+a.sack*2+a.int*3))[0];
- const cards=[["PASSING",pass,pass?`${pass.cmp}/${pass.att}`:"—",pass?`${pass.py} YDS`:"",pass&&pass.att?`${(pass.py/pass.att).toFixed(1)} AVG | ${pass.ptd} TD`:""],["RECEIVING",rec,rec?`${rec.rec} REC`:"—",rec?`${rec.rey} YDS`:"",rec&&rec.rec?`${(rec.rey/rec.rec).toFixed(1)} AVG | ${rec.retd} TD`:""],["RUSHING",rush,rush?`${rush.ry} YDS`:"—",rush?`${rush.car} CAR`:"",rush&&rush.car?`${(rush.ry/rush.car).toFixed(1)} AVG | ${rush.rtd} TD`:""],["DEFENSE",def,def?`${fmt(def.t)} TKL`:"—",def?`${fmt(def.tfl)} TFL | ${fmt(def.ff)} FF`:"",""]];
+ const cards=[
+  ["PASSING",pass,pass?`${pass.cmp}/${pass.att}`:"—",pass?`${pass.py} YDS`:"",pass&&pass.att?`${(pass.py/pass.att).toFixed(1)} AVG | ${pass.ptd} TD`:""],
+  ["RECEIVING",rec,rec?`${rec.rec} REC`:"—",rec?`${rec.rey} YDS`:"",rec&&rec.rec?`${(rec.rey/rec.rec).toFixed(1)} AVG | ${rec.retd} TD`:""],
+  ["RUSHING",rush,rush?`${rush.ry} YDS`:"—",rush?`${rush.car} CAR`:"",rush&&rush.car?`${(rush.ry/rush.car).toFixed(1)} AVG | ${rush.rtd} TD`:""],
+  ["DEFENSE",def,def?`${fmt(def.t)} TKL`:"—",def?`${fmt(def.tfl)} TFL | ${fmt(def.ff)} FF`:"",""]
+ ];
  const gap=14,w=(SHARE_W-SHARE_MARGIN*2-gap*3)/4;cards.forEach((d,i)=>{const x=SHARE_MARGIN+i*(w+gap);rr(c,x,y,w,245,20,"#fff");tx(c,d[0],x+w/2,y+42,22,900,S.team.primary,"center");tx(c,d[1]?pname(d[1].id):"—",x+w/2,y+82,25,900,"#152019","center");tx(c,d[2],x+w/2,y+135,34,950,"#152019","center");tx(c,d[3],x+w/2,y+177,25,800,"#152019","center");if(d[4]){rr(c,x+15,y+195,w-30,36,9,"#edf2ef");tx(c,d[4],x+w/2,y+220,19,850,"#152019","center")}});y+=275;
- function section(title,headers,rows,total){const x=28,ww=SHARE_W-56;rr(c,x,y,ww,60,16,"#fff");tx(c,title,x+28,y+42,36,950,"#152019");y+=60;c.fillStyle="#111";c.fillRect(x,y,ww,46);const cols=headers.length,first=cols>=7?300:330,rem=(ww-first)/(cols-1);headers.forEach((h,i)=>{const xx=i===0?x+28:x+first+rem*i-rem/2;tx(c,h,xx,y+31,19,900,"#fff",i===0?"left":"center")});y+=46;const draw=(r,t=false)=>{c.fillStyle=t?"#fff2e8":"#fff";c.fillRect(x,y,ww,55);c.strokeStyle="#dfe4e1";c.beginPath();c.moveTo(x,y+55);c.lineTo(x+ww,y+55);c.stroke();r.forEach((v,i)=>{const xx=i===0?x+28:x+first+rem*i-rem/2;tx(c,v,xx,y+37,22,t?900:(i===0?800:700),t?S.team.primary:"#152019",i===0?"left":"center")});y+=55};rows.forEach(r=>draw(r));draw(total,true);y+=18}
- let rows=s.filter(x=>x.car).map(x=>[pname(x.id),x.car,x.ry,(x.ry/x.car).toFixed(1),x.rtd]);if(rows.length){let car=s.reduce((a,x)=>a+x.car,0),yd=s.reduce((a,x)=>a+x.ry,0);section("RUSHING",["PLAYER","CAR","YDS","AVG","TD"],rows,["TEAM TOTAL",car,yd,car?(yd/car).toFixed(1):"0.0",s.reduce((a,x)=>a+x.rtd,0)])}
- rows=s.filter(x=>x.att).map(x=>[pname(x.id),`${x.cmp}/${x.att}`,x.py,(x.py/x.att).toFixed(1),x.ptd,x.pi]);if(rows.length){let att=s.reduce((a,x)=>a+x.att,0),cmp=s.reduce((a,x)=>a+x.cmp,0),yd=s.reduce((a,x)=>a+x.py,0);section("PASSING",["PLAYER","CMP/ATT","YDS","AVG","TD","INT"],rows,["TEAM TOTAL",`${cmp}/${att}`,yd,att?(yd/att).toFixed(1):"0.0",s.reduce((a,x)=>a+x.ptd,0),s.reduce((a,x)=>a+x.pi,0)])}
- rows=s.filter(x=>x.rec).map(x=>[pname(x.id),x.rec,x.rey,(x.rey/x.rec).toFixed(1),x.retd]);if(rows.length){let rc=s.reduce((a,x)=>a+x.rec,0),yd=s.reduce((a,x)=>a+x.rey,0);section("RECEIVING",["PLAYER","REC","YDS","AVG","TD"],rows,["TEAM TOTAL",rc,yd,rc?(yd/rc).toFixed(1):"0.0",s.reduce((a,x)=>a+x.retd,0)])}
- rows=s.filter(x=>x.t+x.tfl+x.sack+x.int+x.ff+x.fr).map(x=>[pname(x.id),fmt(x.t),fmt(x.tfl),fmt(x.sack),fmt(x.int),fmt(x.ff),fmt(x.fr)]);if(rows.length)section("DEFENSE",["PLAYER","TKL","TFL","SACK","INT","FF","FR"],rows,["TEAM TOTAL",fmt(s.reduce((a,x)=>a+x.t,0)),fmt(s.reduce((a,x)=>a+x.tfl,0)),fmt(s.reduce((a,x)=>a+x.sack,0)),fmt(s.reduce((a,x)=>a+x.int,0)),fmt(s.reduce((a,x)=>a+x.ff,0)),fmt(s.reduce((a,x)=>a+x.fr,0))]);
- c.fillStyle="#111";c.fillRect(0,SHARE_H-90,SHARE_W,90);tx(c,S.team.name.toUpperCase(),SHARE_W/2,SHARE_H-34,30,900,S.team.secondary,"center");return cv}
+
+ function section(title,headers,rows,total){
+   const x=28,ww=SHARE_W-56;rr(c,x,y,ww,60,16,"#fff");tx(c,title,x+28,y+42,36,950,"#152019");y+=60;
+   c.fillStyle="#111";c.fillRect(x,y,ww,46);const cols=headers.length,first=cols>=7?275:305,rem=(ww-first)/(cols-1);
+   headers.forEach((h,i)=>{const xx=i===0?x+28:x+first+rem*i-rem/2;tx(c,h,xx,y+32,20,900,"#fff",i===0?"left":"center")});y+=46;
+   const draw=(r,t=false)=>{c.fillStyle=t?"#fff2e8":"#fff";c.fillRect(x,y,ww,58);c.strokeStyle="#dfe4e1";c.beginPath();c.moveTo(x,y+58);c.lineTo(x+ww,y+58);c.stroke();r.forEach((v,i)=>{const xx=i===0?x+28:x+first+rem*i-rem/2;tx(c,v,xx,y+39,23,t?900:(i===0?800:700),t?S.team.primary:"#152019",i===0?"left":"center")});y+=58};
+   rows.forEach(r=>draw(r));draw(total,true);y+=18
+ }
+
+ let rows=s.filter(x=>x.car).map(x=>[pname(x.id),x.car,x.ry,(x.ry/x.car).toFixed(1),x.rfd,x.rtd]);
+ if(rows.length){let car=s.reduce((a,x)=>a+x.car,0),yd=s.reduce((a,x)=>a+x.ry,0);section("RUSHING",["PLAYER","CAR","YDS","AVG","1D","TD"],rows,["TEAM TOTAL",car,yd,car?(yd/car).toFixed(1):"0.0",s.reduce((a,x)=>a+x.rfd,0),s.reduce((a,x)=>a+x.rtd,0)])}
+ rows=s.filter(x=>x.att).map(x=>[pname(x.id),`${x.cmp}/${x.att}`,x.py,(x.py/x.att).toFixed(1),x.pfd,x.ptd,x.pi]);
+ if(rows.length){let att=s.reduce((a,x)=>a+x.att,0),cmp=s.reduce((a,x)=>a+x.cmp,0),yd=s.reduce((a,x)=>a+x.py,0);section("PASSING",["PLAYER","CMP/ATT","YDS","AVG","1D","TD","INT"],rows,["TEAM TOTAL",`${cmp}/${att}`,yd,att?(yd/att).toFixed(1):"0.0",s.reduce((a,x)=>a+x.pfd,0),s.reduce((a,x)=>a+x.ptd,0),s.reduce((a,x)=>a+x.pi,0)])}
+ rows=s.filter(x=>x.rec).map(x=>[pname(x.id),x.rec,x.rey,(x.rey/x.rec).toFixed(1),x.recfd,x.retd]);
+ if(rows.length){let rc=s.reduce((a,x)=>a+x.rec,0),yd=s.reduce((a,x)=>a+x.rey,0);section("RECEIVING",["PLAYER","REC","YDS","AVG","1D","TD"],rows,["TEAM TOTAL",rc,yd,rc?(yd/rc).toFixed(1):"0.0",s.reduce((a,x)=>a+x.recfd,0),s.reduce((a,x)=>a+x.retd,0)])}
+ rows=s.filter(x=>x.t+x.tfl+x.sack+x.int+x.ff+x.fr).map(x=>[pname(x.id),fmt(x.t),fmt(x.tfl),fmt(x.sack),fmt(x.int),fmt(x.ff),fmt(x.fr)]);
+ if(rows.length)section("DEFENSE",["PLAYER","TKL","TFL","SACK","INT","FF","FR"],rows,["TEAM TOTAL",fmt(s.reduce((a,x)=>a+x.t,0)),fmt(s.reduce((a,x)=>a+x.tfl,0)),fmt(s.reduce((a,x)=>a+x.sack,0)),fmt(s.reduce((a,x)=>a+x.int,0)),fmt(s.reduce((a,x)=>a+x.ff,0)),fmt(s.reduce((a,x)=>a+x.fr,0))]);
+
+ c.fillStyle="#111";c.fillRect(0,SHARE_H-90,SHARE_W,90);tx(c,S.team.name.toUpperCase(),SHARE_W/2,SHARE_H-34,30,900,S.team.secondary,"center");
+ return cv
+}
 async function canvasFile(cv,name){const blob=await new Promise(res=>cv.toBlob(res,"image/png"));return new File([blob],name,{type:"image/png"})}
-$("#shareStatsBtn").addEventListener("click",async()=>{const g=statGame();if(!g)return toast("Record a game first");try{const safe=S.team.name.replace(/[^a-z0-9]/gi,"_");const file=await canvasFile(makeHybridShare(g),`${safe}_game_stats.png`);if(navigator.canShare&&navigator.canShare({files:[file]})&&navigator.share)await navigator.share({title:`${S.team.name} Game Stats`,text:`${S.team.name} vs ${g.opponent}`,files:[file]});else{const a=document.createElement("a");a.href=URL.createObjectURL(file);a.download=file.name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1600);toast("Game stats image saved")}}catch(e){console.error(e);toast("Could not share game stats on this browser")}});
+$("#shareStatsBtn").addEventListener("click",async()=>{
+  const src=statsSource(statsScope);if(!src)return toast("No stats in this view yet");
+  try{
+    const safe=S.team.name.replace(/[^a-z0-9]/gi,"_");
+    const suffix={game:"game",regular:"regular_season",playoff:"playoffs",season:"season_totals"}[statsScope];
+    const file=await canvasFile(await makeHybridShare(src),`${safe}_${suffix}_stats.png`);
+    const shareTitle={game:"Game Stats",regular:"Regular Season Stats",playoff:"Playoff Stats",season:"Season Totals"}[statsScope];
+    if(navigator.canShare&&navigator.canShare({files:[file]})&&navigator.share){
+      await navigator.share({title:`${S.team.name} ${shareTitle}`,text:src.label,files:[file]});
+    }else{
+      const a=document.createElement("a");a.href=URL.createObjectURL(file);a.download=file.name;a.click();
+      setTimeout(()=>URL.revokeObjectURL(a.href),1600);toast(`${shareTitle} image saved`);
+    }
+  }catch(e){console.error(e);toast("Could not share stats on this browser")}
+});
 
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]))}
 
-populateSetup();syncChrome();renderRoster();
+normalizeGames();populateSetup();syncChrome();renderRoster();
 if(teamExists())go("roster");else go("setup");
 })();
 </script>
