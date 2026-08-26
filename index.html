@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V1.1</title>
+<title>Sideline Stats V1.2</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -29,7 +29,7 @@ input,select{width:100%;font-size:16px;padding:12px;border:1px solid var(--line)
 .btn{width:100%;border:0;border-radius:12px;padding:14px;font-weight:900;font-size:16px;background:var(--p);color:#fff;cursor:pointer}
 .btn.alt{background:var(--s);color:#171717}.btn.ghost{background:white;color:var(--p);border:1px solid var(--line)}.btn.danger{background:#fff1ef;color:var(--danger);border:1px solid #ffd1ca}
 .btn.small{width:auto;padding:8px 10px;font-size:12px}
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
 .choice{border:1px solid var(--line);background:white;border-radius:12px;min-height:70px;font-size:17px;font-weight:900;cursor:pointer}.choice.sel{background:var(--p);color:white;border-color:var(--p)}
 .badge{display:inline-block;background:#eef5f0;color:var(--p);padding:5px 8px;border-radius:999px;font-size:12px;font-weight:900}
 .muted{color:var(--muted);font-size:13px}
@@ -41,7 +41,7 @@ input,select{width:100%;font-size:16px;padding:12px;border:1px solid var(--line)
 .playtop{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.playactions{display:flex;gap:6px;flex-shrink:0}
 .playactions button{border:1px solid var(--line);background:white;border-radius:8px;padding:6px 8px;font-size:11px;font-weight:800;cursor:pointer}
 .playactions .del{color:var(--danger)}
-nav{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:min(540px,100%);display:grid;grid-template-columns:repeat(3,1fr);background:white;border-top:1px solid var(--line);padding:8px 8px calc(8px + env(safe-area-inset-bottom));z-index:30}
+nav{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:min(540px,100%);display:grid;grid-template-columns:repeat(4,1fr);background:white;border-top:1px solid var(--line);padding:8px 8px calc(8px + env(safe-area-inset-bottom));z-index:30}
 nav button{border:0;background:white;color:var(--muted);font-size:12px;padding:7px;cursor:pointer}
 nav.hidden{display:none}
 .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:10px 14px;border-radius:999px;display:none;z-index:50;font-size:13px}
@@ -127,6 +127,25 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 .scope-summary{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
 .scope-pill{display:inline-block;background:#ffffff22;border:1px solid #ffffff33;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:800}
 
+
+.roster-tools{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.file-hidden{display:none}
+.snap-toolbar{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.snap-row{display:grid;grid-template-columns:56px 1fr auto;align-items:center;gap:10px;padding:10px 8px;border-bottom:1px solid var(--line);background:#fff}
+.snap-row.on-field{background:#f1f8f3}
+.snap-toggle{appearance:none;width:44px;height:28px;border-radius:999px;background:#d7ddd9;position:relative;cursor:pointer;transition:.15s}
+.snap-toggle:before{content:"";position:absolute;width:22px;height:22px;border-radius:50%;background:#fff;left:3px;top:3px;box-shadow:0 1px 3px #0003;transition:.15s}
+.snap-toggle:checked{background:var(--p)}
+.snap-toggle:checked:before{transform:translateX(16px)}
+.snap-name strong{display:block}.snap-name span{font-size:12px;color:var(--muted)}
+.snap-count{text-align:right;min-width:68px}.snap-count b{font-size:25px;color:var(--p)}
+.snap-met{display:inline-block;font-size:10px;font-weight:900;padding:3px 6px;border-radius:999px;background:#e8f5eb;color:#20743a}
+.snap-notmet{display:inline-block;font-size:10px;font-weight:900;padding:3px 6px;border-radius:999px;background:#fff3e7;color:#a65300}
+.snap-hero{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.snap-big{font-size:34px;font-weight:950;color:var(--p)}
+.snap-history{font-size:12px;color:var(--muted);margin-top:8px}
+.prototype-purchase{background:#fff9ee;border:1px solid #efd6a6;color:#6c4b11}
+
 </style>
 </head>
 <body>
@@ -138,7 +157,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V1.1 • GAME HISTORY BUILD</div>
+      <div class="muted" style="color:#dfe9e2">V1.2 • TEAM TOOLS BUILD</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -202,6 +221,15 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
       <button class="btn" id="addPlayer" style="margin-top:10px">Add Player</button>
     </div>
     <div class="card" id="rosterList"></div>
+    <div class="card">
+      <h3 style="margin-top:0">Roster Tools</h3>
+      <div class="muted">Export once and reuse the roster on another phone or after resetting test data.</div>
+      <div class="roster-tools">
+        <button class="btn ghost" id="exportRosterBtn">Export Roster</button>
+        <button class="btn ghost" id="importRosterBtn">Import Roster</button>
+      </div>
+      <input class="file-hidden" id="importRosterFile" type="file" accept=".json,application/json">
+    </div>
     <button class="btn alt" id="goGames">Continue to Games</button>
   </section>
 
@@ -281,7 +309,40 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
     </div>
   </section>
 
-  <section class="screen" data-screen="stats">
+    <section class="screen" data-screen="snaps">
+    <div class="card">
+      <h2>Snap Tracker</h2>
+      <label>Select game</label>
+      <select id="snapGameSelect"></select>
+      <div class="inline-note" style="margin-top:10px">
+        Set the players currently <strong>ON FIELD</strong>, then tap Record Snap.
+        The lineup stays selected—only change substitutions between plays.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="snap-hero">
+        <div><div class="muted">Team snaps recorded</div><div id="teamSnapCount" class="snap-big">0</div></div>
+        <div style="text-align:right"><div class="muted">League minimum</div><div class="badge">10 snaps / player</div></div>
+      </div>
+      <div class="snap-toolbar" style="margin-top:12px">
+        <button class="btn ghost" id="selectAllSnaps">Select All</button>
+        <button class="btn ghost" id="clearAllSnaps">Clear All</button>
+      </div>
+      <button class="btn" id="recordSnapBtn">Record Snap</button>
+      <button class="btn danger" id="undoSnapBtn" style="margin-top:8px">Undo Last Snap</button>
+      <div id="snapHistoryText" class="snap-history"></div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0">Player Snap Counts</h3>
+      <div id="snapRoster"></div>
+    </div>
+
+    <button class="btn ghost" id="shareSnapReportBtn">Share / Export Snap Report</button>
+  </section>
+
+<section class="screen" data-screen="stats">
     <div class="stats-scope" id="statsScope">
       <button class="scope-btn active" data-scope="game">Game</button>
       <button class="scope-btn" data-scope="regular">Regular Season</button>
@@ -307,6 +368,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
   <nav id="bottomNav" class="hidden">
     <button data-go="roster">👥<br>Roster</button>
     <button data-go="game">🏈<br>Game</button>
+    <button data-go="snaps">✅<br>Snaps</button>
     <button data-go="stats">📊<br>Stats</button>
   </nav>
 </div>
@@ -314,7 +376,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
 <script>
 (function(){
-const KEY="sidelineStatsV11", OLDKEY="sidelineStatsV10", OLDERKEY="sidelineStatsV09", OLDESTKEY="sidelineStatsV08", LEGACYKEY="sidelineStatsV07", LEGACYKEY2="sidelineStatsV06", LEGACYKEY3="sidelineStatsV05", LEGACYKEY4="sidelineStatsV04", LEGACYKEY5="sidelineStatsV03", LEGACYKEY6="sidelineStatsV02";
+const KEY="sidelineStatsV12", OLDKEY="sidelineStatsV11", OLDERKEY="sidelineStatsV10", OLDESTKEY="sidelineStatsV09", LEGACYKEY="sidelineStatsV08", LEGACYKEY2="sidelineStatsV07", LEGACYKEY3="sidelineStatsV06", LEGACYKEY4="sidelineStatsV05", LEGACYKEY5="sidelineStatsV04", LEGACYKEY6="sidelineStatsV03", LEGACYKEY7="sidelineStatsV02";
 const empty={team:null,roster:[],games:[],activeGameId:null,flow:{},editingPlayId:null};
 let S=load();
 let statsScope="game";
@@ -332,13 +394,20 @@ function load(){try{
       if(!raw)raw=localStorage.getItem(LEGACYKEY4);
       if(!raw)raw=localStorage.getItem(LEGACYKEY5);
       if(!raw)raw=localStorage.getItem(LEGACYKEY6);
+      if(!raw)raw=localStorage.getItem(LEGACYKEY7);
       if(raw)localStorage.setItem(KEY,raw);
       return raw?Object.assign({},empty,JSON.parse(raw)):JSON.parse(JSON.stringify(empty))
     }catch(e){return JSON.parse(JSON.stringify(empty))}}
 function persist(){localStorage.setItem(KEY,JSON.stringify(S))}
 function normalizeGames(){
   let changed=false;
-  (S.games||[]).forEach(g=>{if(!g.gameType){g.gameType="regular";changed=true}});
+  (S.games||[]).forEach(g=>{
+    if(!g.gameType){g.gameType="regular";changed=true}
+    if(!g.snapTracker){g.snapTracker={counts:{},onField:{},history:[]};changed=true}
+    if(!g.snapTracker.counts)g.snapTracker.counts={};
+    if(!g.snapTracker.onField)g.snapTracker.onField={};
+    if(!g.snapTracker.history)g.snapTracker.history=[];
+  });
   if(changed)persist();
 }
 function toast(m){let t=$("#toast");t.textContent=m;t.style.display="block";setTimeout(()=>t.style.display="none",1500)}
@@ -352,8 +421,9 @@ function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2
 function go(name){
   if(!teamExists() && name!=="setup"){toast("Create your team first");name="setup"}
   $$(".screen").forEach(x=>x.classList.remove("active"));$(`[data-screen="${name}"]`).classList.add("active");
-  $("#topTitle").textContent={setup:"Sideline Stats",roster:"Roster",game:"Game",stats:"Team Stats",share:"Share"}[name];
+  $("#topTitle").textContent={setup:"Sideline Stats",roster:"Roster",game:"Game",snaps:"Snap Tracker",stats:"Team Stats",share:"Share"}[name];
   if(name==="game")renderGameArea();
+  if(name==="snaps")renderSnapTracker();
   if(name==="stats")renderStats();
   
 }
@@ -371,7 +441,7 @@ $("#resetAllBtn").addEventListener("click",()=>{
   if(!first)return;
   const phrase=prompt('For safety, type RESET to confirm:');
   if(phrase!=="RESET")return toast("Reset cancelled");
-  localStorage.removeItem(KEY); localStorage.removeItem(OLDKEY); localStorage.removeItem(OLDERKEY); localStorage.removeItem(OLDESTKEY); localStorage.removeItem(LEGACYKEY); localStorage.removeItem(LEGACYKEY2); localStorage.removeItem(LEGACYKEY3); localStorage.removeItem(LEGACYKEY4); localStorage.removeItem(LEGACYKEY5); localStorage.removeItem(LEGACYKEY6);
+  localStorage.removeItem(KEY); localStorage.removeItem(OLDKEY); localStorage.removeItem(OLDERKEY); localStorage.removeItem(OLDESTKEY); localStorage.removeItem(LEGACYKEY); localStorage.removeItem(LEGACYKEY2); localStorage.removeItem(LEGACYKEY3); localStorage.removeItem(LEGACYKEY4); localStorage.removeItem(LEGACYKEY5); localStorage.removeItem(LEGACYKEY6); localStorage.removeItem(LEGACYKEY7);
   S=JSON.parse(JSON.stringify(empty));
   syncChrome();populateSetup();renderRoster();go("setup");toast("All data cleared");
 });
@@ -429,9 +499,55 @@ $("#removeLogoBtn").addEventListener("click",()=>{
 
 $("#saveTeam").addEventListener("click",()=>{
   const name=$("#teamName").value.trim();if(!name)return toast("Enter a team name");
-  S.team={name,grade:$("#grade").value,season:$("#season").value.trim()||"2026",primary:$("#primary").value,secondary:$("#secondary").value,logoData:S.team?.logoData||null};
+  const oldSeason=S.team?.season||null,newSeason=$("#season").value.trim()||"2026";
+  if(oldSeason&&newSeason!==oldSeason){
+    const ok=confirm(`Start a new ${newSeason} season?\n\nIn the production app this is where the season purchase/unlock screen will appear. For this prototype, Continue simulates that purchase.`);
+    if(!ok){$("#season").value=oldSeason;return}
+  }
+  S.team={name,grade:$("#grade").value,season:newSeason,primary:$("#primary").value,secondary:$("#secondary").value,logoData:S.team?.logoData||null};
   persist();syncChrome();renderRoster();toast("Team saved");
   go("roster");
+});
+
+
+function rosterExportData(){
+  return {
+    format:"sideline-stats-roster",
+    version:1,
+    exportedAt:new Date().toISOString(),
+    teamName:S.team?.name||"",
+    roster:S.roster.map(p=>({jersey:p.jersey,name:p.name}))
+  };
+}
+$("#exportRosterBtn").addEventListener("click",async()=>{
+  if(!S.roster.length)return toast("No roster to export");
+  const data=JSON.stringify(rosterExportData(),null,2);
+  const blob=new Blob([data],{type:"application/json"});
+  const safe=(S.team?.name||"team").replace(/[^a-z0-9]/gi,"_");
+  const file=new File([blob],`${safe}_roster.json`,{type:"application/json"});
+  try{
+    if(navigator.canShare&&navigator.canShare({files:[file]})&&navigator.share){
+      await navigator.share({title:`${S.team.name} Roster`,files:[file]});
+    }else{
+      const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=file.name;a.click();
+      setTimeout(()=>URL.revokeObjectURL(a.href),1500);toast("Roster exported");
+    }
+  }catch(e){console.error(e)}
+});
+$("#importRosterBtn").addEventListener("click",()=>$("#importRosterFile").click());
+$("#importRosterFile").addEventListener("change",async()=>{
+  const file=$("#importRosterFile").files?.[0];if(!file)return;
+  try{
+    const obj=JSON.parse(await file.text());
+    if(obj.format!=="sideline-stats-roster"||!Array.isArray(obj.roster))throw new Error("Invalid roster");
+    const incoming=obj.roster.filter(x=>x&&x.name!==undefined&&x.jersey!==undefined).slice(0,25);
+    if(!incoming.length)throw new Error("Empty roster");
+    if(S.roster.length&&!confirm(`Replace the current ${S.roster.length}-player roster with the ${incoming.length}-player imported roster?`)){
+      $("#importRosterFile").value="";return;
+    }
+    S.roster=incoming.map(x=>({id:uid(),jersey:Number(x.jersey),name:String(x.name)}));
+    persist();renderRoster();$("#importRosterFile").value="";toast(`${S.roster.length} players imported`);
+  }catch(e){toast("That file is not a Sideline Stats roster")}
 });
 
 function renderRoster(){
@@ -478,7 +594,7 @@ function renderGameList(){
 $("#newGameBtn").addEventListener("click",()=>{
   if(!S.roster.length)return toast("Add your roster first");
   const opp=$("#newOpponent").value.trim();if(!opp)return toast("Enter an opponent");
-  const g={id:uid(),opponent:opp,date:$("#newGameDate").value||today(),location:$("#newLocation").value,gameType:$("#newGameType").value||"regular",status:"live",ourScore:0,scoreAdjustment:0,oppScore:0,plays:[]};
+  const g={id:uid(),opponent:opp,date:$("#newGameDate").value||today(),location:$("#newLocation").value,gameType:$("#newGameType").value||"regular",status:"live",ourScore:0,scoreAdjustment:0,oppScore:0,plays:[],snapTracker:{counts:{},onField:{},history:[]}};
   S.games.push(g);S.activeGameId=g.id;selectedStatsGameId=g.id;persist();resetFlow();renderGameArea()
 });
 $("#endGameBtn").addEventListener("click",()=>{
@@ -640,6 +756,85 @@ function agg(g){
     if(p.type==="Special"&&a){if(p.sub==="Kick Return"){a.kr++;a.kry+=+p.yards||0}else{a.pr++;a.pry+=+p.yards||0}}
   });return Object.values(m)
 }
+
+
+let selectedSnapGameId=null;
+function snapGame(){
+  const games=sortedGames();
+  if(!games.length)return null;
+  if(selectedSnapGameId){
+    const g=games.find(x=>x.id===selectedSnapGameId);if(g)return g;
+  }
+  const active=currentGame();if(active){selectedSnapGameId=active.id;return active}
+  selectedSnapGameId=games[0].id;return games[0];
+}
+function ensureSnap(g){
+  if(!g.snapTracker)g.snapTracker={counts:{},onField:{},history:[]};
+  g.snapTracker.counts=g.snapTracker.counts||{};
+  g.snapTracker.onField=g.snapTracker.onField||{};
+  g.snapTracker.history=g.snapTracker.history||[];
+  return g.snapTracker;
+}
+function renderSnapTracker(){
+  const sel=$("#snapGameSelect"),games=sortedGames();
+  if(!games.length){
+    sel.innerHTML='<option>No games yet</option>';sel.disabled=true;
+    $("#snapRoster").innerHTML='<div class="muted">Start a game first, then use Snap Tracker.</div>';
+    $("#teamSnapCount").textContent="0";return;
+  }
+  sel.disabled=false;const g=snapGame();
+  sel.innerHTML=games.map(x=>`<option value="${x.id}" ${x.id===g.id?"selected":""}>${x.date} — vs ${esc(x.opponent)}</option>`).join("");
+  const st=ensureSnap(g);
+  $("#teamSnapCount").textContent=st.history.length;
+  $("#snapHistoryText").textContent=st.history.length?`Last snap credited to ${st.history[st.history.length-1].length} player${st.history[st.history.length-1].length===1?"":"s"}.`:"No snaps recorded yet.";
+  $("#snapRoster").innerHTML=S.roster.map(p=>{
+    const on=!!st.onField[p.id],n=Number(st.counts[p.id]||0),met=n>=10;
+    return `<div class="snap-row ${on?"on-field":""}">
+      <input class="snap-toggle snap-player-toggle" type="checkbox" data-id="${p.id}" ${on?"checked":""}>
+      <div class="snap-name"><strong>#${p.jersey} ${esc(p.name)}</strong><span>${on?"ON FIELD":"Sideline"}</span></div>
+      <div class="snap-count"><b>${n}</b><br><span class="${met?"snap-met":"snap-notmet"}">${met?"10+ MET":`${10-n} TO GO`}</span></div>
+    </div>`;
+  }).join("");
+  $$(".snap-player-toggle").forEach(t=>t.addEventListener("change",()=>{
+    st.onField[t.dataset.id]=t.checked;persist();renderSnapTracker();
+  }));
+}
+$("#snapGameSelect").addEventListener("change",()=>{selectedSnapGameId=$("#snapGameSelect").value;renderSnapTracker()});
+$("#selectAllSnaps").addEventListener("click",()=>{
+  const g=snapGame();if(!g)return;const st=ensureSnap(g);S.roster.forEach(p=>st.onField[p.id]=true);persist();renderSnapTracker()
+});
+$("#clearAllSnaps").addEventListener("click",()=>{
+  const g=snapGame();if(!g)return;const st=ensureSnap(g);st.onField={};persist();renderSnapTracker()
+});
+$("#recordSnapBtn").addEventListener("click",()=>{
+  const g=snapGame();if(!g)return toast("Start a game first");
+  const st=ensureSnap(g);const ids=S.roster.filter(p=>st.onField[p.id]).map(p=>p.id);
+  if(!ids.length)return toast("No players are marked ON FIELD");
+  ids.forEach(id=>st.counts[id]=Number(st.counts[id]||0)+1);
+  st.history.push(ids);persist();renderSnapTracker();toast(`Snap ${st.history.length} recorded`);
+});
+$("#undoSnapBtn").addEventListener("click",()=>{
+  const g=snapGame();if(!g)return;const st=ensureSnap(g);
+  const ids=st.history.pop();if(!ids)return toast("No snap to undo");
+  ids.forEach(id=>st.counts[id]=Math.max(0,Number(st.counts[id]||0)-1));
+  persist();renderSnapTracker();toast("Last snap removed");
+});
+$("#shareSnapReportBtn").addEventListener("click",async()=>{
+  const g=snapGame();if(!g)return toast("No game selected");
+  const st=ensureSnap(g);
+  const rows=S.roster.map(p=>({jersey:p.jersey,name:p.name,snaps:Number(st.counts[p.id]||0)})).sort((a,b)=>a.jersey-b.jersey);
+  const csv=["Jersey,Player,Snaps,Minimum 10 Met",...rows.map(r=>`${r.jersey},"${String(r.name).replaceAll('"','""')}",${r.snaps},${r.snaps>=10?"Yes":"No"}`)].join("\\n");
+  const blob=new Blob([csv],{type:"text/csv"});
+  const safe=(S.team?.name||"team").replace(/[^a-z0-9]/gi,"_");
+  const file=new File([blob],`${safe}_${g.date}_snap_report.csv`,{type:"text/csv"});
+  try{
+    if(navigator.canShare&&navigator.canShare({files:[file]})&&navigator.share){
+      await navigator.share({title:`${S.team.name} Snap Report`,text:`${g.date} vs ${g.opponent} — ${st.history.length} team snaps recorded`,files:[file]});
+    }else{
+      const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=file.name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1500);toast("Snap report exported");
+    }
+  }catch(e){console.error(e)}
+});
 
 function sortedGames(){return [...(S.games||[])].sort((a,b)=>(b.date||"").localeCompare(a.date||""))}
 function latestGame(){return sortedGames()[0]||null}
@@ -822,14 +1017,6 @@ function createSummaryCanvas(g){
   canvasText(c,`${S.team.name} • ${S.team.grade||""} • ${S.team.season||""}`,600,1450,22,700,"#68736b","center");
   return cv
 }
-$("#copyBtn").addEventListener("click",async()=>{const g=statGame();try{await navigator.clipboard.writeText(summaryText(g));toast("Summary copied")}catch(e){toast("Copy not supported here")}});
-
-
-
-$("#goShareStats").addEventListener("click",()=>go("stats"));
-
-
-
 const SHARE_W=1170, SHARE_H=2532, SHARE_MARGIN=42;
 function rr(c,x,y,w,h,r,fill){c.beginPath();c.roundRect(x,y,w,h,r);c.fillStyle=fill;c.fill()}
 function tx(c,t,x,y,size,weight,color,align="left"){c.font=`${weight} ${size}px -apple-system,BlinkMacSystemFont,Segoe UI,Arial`;c.fillStyle=color;c.textAlign=align;c.fillText(String(t),x,y)}
