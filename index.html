@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V2.1</title>
+<title>Sideline Stats V2.2</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -234,7 +234,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V2.1 • ROSTER PRELOAD REMOVED</div>
+      <div class="muted" style="color:#dfe9e2">V2.2 • STABILITY FIX</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -945,7 +945,7 @@ function recordNow(){
   else toast("Play recorded");
   resetFlow()
 }
-$("#undo").addEventListener("click",()=>{const g=currentGame();if(!g||!g.plays.length)return toast("Nothing to undo");g.plays.pop();rebuildGameState(g)g.ourScore=displayedOurScore(g);persist();renderLiveGame();toast("Last play removed")});
+$("#undo").addEventListener("click",()=>{const g=currentGame();if(!g||!g.plays.length)return toast("Nothing to undo");g.plays.pop();rebuildGameState(g);g.ourScore=displayedOurScore(g);persist();renderLiveGame();toast("Last play removed")});
 
 function player(id){return S.roster.find(p=>p.id===id)}
 function pname(id){let p=player(id);return p?`#${p.jersey} ${p.name}`:"#?"}
@@ -966,7 +966,7 @@ function renderRecent(){
   const g=currentGame();if(!g){$("#recent").innerHTML='<span class="muted">No game open.</span>';return}
   const arr=[...g.plays].reverse();
   $("#recent").innerHTML=arr.length?arr.map(p=>`<div class="play"><div class="playtop"><div><strong>${esc(ptext(p))}</strong><div class="muted">${new Date(p.ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</div></div><div class="playactions"><button class="edit-play" data-id="${p.id}">Edit</button><button class="del delete-play" data-id="${p.id}">Delete</button></div></div></div>`).join(""):'<span class="muted">No plays yet.</span>';
-  $$(".delete-play").forEach(b=>b.addEventListener("click",()=>{g.plays=g.plays.filter(p=>p.id!==b.dataset.id);rebuildGameState(g)g.ourScore=displayedOurScore(g);persist();renderLiveGame();toast("Play deleted")}));
+  $$(".delete-play").forEach(b=>b.addEventListener("click",()=>{g.plays=g.plays.filter(p=>p.id!==b.dataset.id);rebuildGameState(g);g.ourScore=displayedOurScore(g);persist();renderLiveGame();toast("Play deleted")}));
   $$(".edit-play").forEach(b=>b.addEventListener("click",()=>openEditor(b.dataset.id)))
 }
 function playerOptions(selected){return S.roster.map(p=>`<option value="${p.id}" ${p.id===selected?"selected":""}>#${p.jersey} ${esc(p.name)}</option>`).join("")}

@@ -1,21 +1,25 @@
-# Sideline Stats V2.1 — Preloaded Roster Removed
+# Sideline Stats V2.2 — Stability Fix
 
-The automatic fake roster has been removed completely.
+V2.1 contained a JavaScript syntax error in the Undo/Delete game-state rebuild code.
 
-First-time flow is back to:
-1. Create team
-2. Save team
-3. Go to Roster
-4. Add players manually
+Because the browser could not parse the script, the entire app stopped initializing — including the Create Team button.
 
-All other recent features remain in place:
-- Snap tracker with 10-snap progress bars
-- Kickoff / half-start flow
-- Possession and turnover logic
-- Down tracking
-- Punt flow
-- Shareable stats images
-- Game / regular-season / playoff / season totals
+V2.2 fixes that syntax error. No fake/preloaded roster is included.
+
+All recent functionality remains:
+- Team setup
+- Roster
+- Game history
+- Regular season / playoff / season totals
+- Share Stats
+- Team logo
+- Downs
+- Possession / turnovers
+- Punt
+- Half-start kickoffs
+- Snap tracker with 10-snap progress
+
+The full JavaScript file was syntax-checked after the repair.
 
 ## GitHub
 Replace `index.html` and `manifest.webmanifest` in the same repository and commit to `main`.
