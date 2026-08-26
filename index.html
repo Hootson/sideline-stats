@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V1.2</title>
+<title>Sideline Stats V1.6</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -128,23 +128,73 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 .scope-pill{display:inline-block;background:#ffffff22;border:1px solid #ffffff33;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:800}
 
 
-.roster-tools{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
-.file-hidden{display:none}
-.snap-toolbar{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
-.snap-row{display:grid;grid-template-columns:56px 1fr auto;align-items:center;gap:10px;padding:10px 8px;border-bottom:1px solid var(--line);background:#fff}
-.snap-row.on-field{background:#f1f8f3}
-.snap-toggle{appearance:none;width:44px;height:28px;border-radius:999px;background:#d7ddd9;position:relative;cursor:pointer;transition:.15s}
-.snap-toggle:before{content:"";position:absolute;width:22px;height:22px;border-radius:50%;background:#fff;left:3px;top:3px;box-shadow:0 1px 3px #0003;transition:.15s}
-.snap-toggle:checked{background:var(--p)}
-.snap-toggle:checked:before{transform:translateX(16px)}
-.snap-name strong{display:block}.snap-name span{font-size:12px;color:var(--muted)}
-.snap-count{text-align:right;min-width:68px}.snap-count b{font-size:25px;color:var(--p)}
-.snap-met{display:inline-block;font-size:10px;font-weight:900;padding:3px 6px;border-radius:999px;background:#e8f5eb;color:#20743a}
-.snap-notmet{display:inline-block;font-size:10px;font-weight:900;padding:3px 6px;border-radius:999px;background:#fff3e7;color:#a65300}
-.snap-hero{display:flex;justify-content:space-between;align-items:center;gap:12px}
-.snap-big{font-size:34px;font-weight:950;color:var(--p)}
-.snap-history{font-size:12px;color:var(--muted);margin-top:8px}
-.prototype-purchase{background:#fff9ee;border:1px solid #efd6a6;color:#6c4b11}
+/* V1.2 Game screen */
+.game-score-card{
+  position:relative;overflow:hidden;border-radius:22px;margin-bottom:14px;
+  background:var(--p);color:#fff;border:2px solid var(--s);
+  box-shadow:0 8px 22px #00000018;
+}
+.game-score-card:before,.game-score-card:after{
+  content:"";position:absolute;top:0;bottom:0;width:14px;background:var(--s);opacity:.95
+}
+.game-score-card:before{left:0}.game-score-card:after{right:0}
+.game-score-inner{padding:20px 22px 16px}
+.game-score-grid{display:grid;grid-template-columns:1fr .9fr 1fr;gap:12px;align-items:center;text-align:center}
+.game-team-side{min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.game-team-logo,.game-opponent-badge{
+  width:72px;height:72px;border-radius:16px;background:#ffffff;
+  border:3px solid var(--s);display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:8px
+}
+.game-team-logo img{width:100%;height:100%;object-fit:contain}
+.game-opponent-badge{font-size:30px;font-weight:950;color:var(--p)}
+.game-team-name{font-size:17px;font-weight:900;line-height:1.05;min-height:36px;display:flex;align-items:center;justify-content:center}
+.game-score-num{font-size:60px;font-weight:950;line-height:1;margin-top:5px}
+.game-center{border-left:1px solid #ffffff55;border-right:1px solid #ffffff55;padding:6px 8px}
+.game-vs{font-size:36px;font-weight:950;line-height:1}
+.game-date{font-size:13px;font-weight:750;margin-top:10px;opacity:.95}
+.game-badges{display:flex;flex-direction:column;gap:7px;align-items:center;margin-top:9px}
+.game-badge{display:inline-block;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:900;background:var(--s);color:var(--p)}
+.game-type-text{font-size:12px;font-weight:850;color:#fff}
+.score-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.score-action{border:2px solid var(--s);background:transparent;color:#fff;border-radius:13px;padding:12px 8px;font-size:13px;font-weight:900}
+.score-action.primary{background:var(--s);color:var(--p)}
+.down-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:12px;margin-bottom:12px}
+.down-title{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}
+.down-title strong{font-size:16px}
+.down-buttons{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+.down-btn{border:1px solid var(--line);background:#f7f9f8;color:var(--text);border-radius:10px;padding:10px 4px;font-size:14px;font-weight:900}
+.down-btn.active{background:var(--p);color:#fff;border-color:var(--p);box-shadow:inset 0 -4px 0 var(--s)}
+.punt-btn{margin-top:10px;background:#fff;color:var(--p);border:2px solid var(--s)}
+#stepMain .choice{color:var(--p)}
+#stepMain .choice strong{color:var(--p)}
+
+
+.down-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:12px;margin-bottom:12px}
+.down-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.down-title strong{font-size:18px}
+.down-buttons{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.down-btn{border:1px solid var(--line);background:#f7f9f8;color:var(--text);border-radius:11px;padding:12px 4px;font-size:16px;font-weight:950}
+.down-btn.active{background:var(--p);color:#fff;border-color:var(--p);box-shadow:inset 0 -4px 0 var(--s)}
+.punt-btn{margin-top:10px;background:#fff;color:var(--p);border:2px solid var(--s);font-size:17px}
+
+
+.possession-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;border:2px solid var(--s);border-radius:14px;padding:10px 12px;margin-bottom:10px;background:var(--p);color:#fff}
+.possession-main{font-size:17px;font-weight:950}
+.possession-sub{font-size:12px;font-weight:800;opacity:.9;margin-top:2px}
+.possession-toggle{border:1px solid var(--s);background:var(--s);color:var(--p);border-radius:10px;padding:9px 10px;font-size:12px;font-weight:900}
+.turnover-note{margin-top:9px;padding:8px 9px;border-radius:9px;background:#fff;border:1px solid var(--s);font-size:11px;color:var(--muted)}
+
+
+.snap-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.snap-roster{display:flex;flex-direction:column;gap:8px}
+.snap-player{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;border:1px solid var(--line);background:#fff;border-radius:12px;padding:10px 12px}
+.snap-check{width:26px;height:26px;accent-color:var(--p)}
+.snap-player-name{font-weight:900}
+.snap-player-name .num{color:var(--p);font-size:20px;margin-right:6px}
+.snap-count{font-weight:950;color:var(--p);font-size:18px;min-width:34px;text-align:right}
+.snap-record-btn{position:sticky;bottom:82px;margin-top:14px;z-index:7}
+.snap-summary{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.snap-pill{background:#eef5f0;color:var(--p);border-radius:999px;padding:5px 8px;font-size:12px;font-weight:900}
 
 </style>
 </head>
@@ -157,7 +207,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V1.2 • TEAM TOOLS BUILD</div>
+      <div class="muted" style="color:#dfe9e2">V1.6 • SNAP TRACKER</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -221,15 +271,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
       <button class="btn" id="addPlayer" style="margin-top:10px">Add Player</button>
     </div>
     <div class="card" id="rosterList"></div>
-    <div class="card">
-      <h3 style="margin-top:0">Roster Tools</h3>
-      <div class="muted">Export once and reuse the roster on another phone or after resetting test data.</div>
-      <div class="roster-tools">
-        <button class="btn ghost" id="exportRosterBtn">Export Roster</button>
-        <button class="btn ghost" id="importRosterBtn">Import Roster</button>
-      </div>
-      <input class="file-hidden" id="importRosterFile" type="file" accept=".json,application/json">
-    </div>
     <button class="btn alt" id="goGames">Continue to Games</button>
   </section>
 
@@ -253,16 +294,55 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
     </div>
 
     <div id="liveGame" class="hidden">
-      <div class="card hero">
-        <div class="score">
-          <div><div id="teamGame">Team</div><b id="ourScore">0</b></div>
-          <div><div style="font-weight:900">VS</div><div class="muted" style="color:#dfe9e2" id="gameMeta"></div></div>
-          <div><div id="oppGame">Opponent</div><b id="oppScore">0</b></div>
+      <div class="game-score-card">
+        <div class="game-score-inner">
+          <div class="game-score-grid">
+            <div class="game-team-side">
+              <div class="game-team-logo" id="gameTeamLogo"><div style="font-size:30px;font-weight:950;color:var(--p)">SS</div></div>
+              <div class="game-team-name" id="teamGame">Team</div>
+              <div class="game-score-num" id="ourScore">0</div>
+            </div>
+            <div class="game-center">
+              <div class="game-vs">VS</div>
+              <div class="game-date" id="gameDate">—</div>
+              <div class="game-badges">
+                <span class="game-badge" id="gameLocation">Home</span>
+                <span class="game-type-text" id="gameTypeText">Regular Season</span>
+              </div>
+            </div>
+            <div class="game-team-side">
+              <div class="game-opponent-badge" id="oppBadge">O</div>
+              <div class="game-team-name" id="oppGame">Opponent</div>
+              <div class="game-score-num" id="oppScore">0</div>
+            </div>
+          </div>
+          <div class="score-actions">
+            <button class="score-action primary" id="setOurScore">Set / Correct Our Score</button>
+            <button class="score-action" id="setOppScore">Set Opponent Score</button>
+          </div>
         </div>
-        <div class="row" style="margin-top:10px">
-          <button class="btn small" id="setOurScore">Set / Correct Our Score</button>
-          <button class="btn small" id="setOppScore">Set Opponent Score</button>
+      </div>
+
+      <div class="possession-bar">
+        <div>
+          <div class="possession-main" id="possessionMain">Our Ball — Offense</div>
+          <div class="possession-sub" id="possessionSub">1st down</div>
         </div>
+        <button class="possession-toggle" id="togglePossession">Switch to Defense</button>
+      </div>
+
+      <div class="down-card">
+        <div class="down-title">
+          <strong>Current Down</strong>
+          <span class="muted">Tap to correct the current down</span>
+        </div>
+        <div class="down-buttons">
+          <button class="down-btn" data-down="1">1ST</button>
+          <button class="down-btn" data-down="2">2ND</button>
+          <button class="down-btn" data-down="3">3RD</button>
+          <button class="down-btn" data-down="4">4TH</button>
+        </div>
+        <div class="turnover-note">Turnovers and punts automatically switch possession and reset the new team to 1st down.</div>
       </div>
 
       <div class="card" id="stepMain">
@@ -273,7 +353,8 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
           <button class="choice action" data-action="Defense">🛡️<br>DEFENSE</button>
           <button class="choice action" data-action="Special">⭐<br>SPECIAL</button>
         </div>
-        <button class="btn ghost" id="undo" style="margin-top:12px">↶ Undo Last Play</button>
+        <button class="btn punt-btn" id="quickPunt">🏈 PUNT</button>
+        <button class="btn ghost" id="undo" style="margin-top:10px">↶ Undo Last Play</button>
       </div>
 
       <div class="card hidden" id="stepSub"><h2 id="subTitle">Choose</h2><div id="subGrid" class="grid2"></div><button class="btn ghost cancel" style="margin-top:12px">Cancel</button></div>
@@ -309,37 +390,25 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
     </div>
   </section>
 
-    <section class="screen" data-screen="snaps">
+  
+  <section class="screen" data-screen="snaps">
     <div class="card">
-      <h2>Snap Tracker</h2>
-      <label>Select game</label>
-      <select id="snapGameSelect"></select>
-      <div class="inline-note" style="margin-top:10px">
-        Set the players currently <strong>ON FIELD</strong>, then tap Record Snap.
-        The lineup stays selected—only change substitutions between plays.
+      <div class="snap-toolbar">
+        <div>
+          <h2 style="margin:0">Snap Tracker</h2>
+          <div class="muted">Everyone starts checked. Uncheck only the players on the sideline.</div>
+        </div>
+        <button class="btn ghost small" id="checkAllSnaps">Check All</button>
+      </div>
+      <div class="snap-summary">
+        <span class="snap-pill" id="snapOnFieldCount">0 on field</span>
+        <span class="snap-pill" id="snapTotalCount">0 snaps recorded</span>
       </div>
     </div>
-
     <div class="card">
-      <div class="snap-hero">
-        <div><div class="muted">Team snaps recorded</div><div id="teamSnapCount" class="snap-big">0</div></div>
-        <div style="text-align:right"><div class="muted">League minimum</div><div class="badge">10 snaps / player</div></div>
-      </div>
-      <div class="snap-toolbar" style="margin-top:12px">
-        <button class="btn ghost" id="selectAllSnaps">Select All</button>
-        <button class="btn ghost" id="clearAllSnaps">Clear All</button>
-      </div>
-      <button class="btn" id="recordSnapBtn">Record Snap</button>
-      <button class="btn danger" id="undoSnapBtn" style="margin-top:8px">Undo Last Snap</button>
-      <div id="snapHistoryText" class="snap-history"></div>
+      <div id="snapRoster" class="snap-roster"></div>
+      <button class="btn snap-record-btn" id="recordSnapBtn">Record Snap</button>
     </div>
-
-    <div class="card">
-      <h3 style="margin-top:0">Player Snap Counts</h3>
-      <div id="snapRoster"></div>
-    </div>
-
-    <button class="btn ghost" id="shareSnapReportBtn">Share / Export Snap Report</button>
   </section>
 
 <section class="screen" data-screen="stats">
@@ -376,7 +445,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
 <script>
 (function(){
-const KEY="sidelineStatsV12", OLDKEY="sidelineStatsV11", OLDERKEY="sidelineStatsV10", OLDESTKEY="sidelineStatsV09", LEGACYKEY="sidelineStatsV08", LEGACYKEY2="sidelineStatsV07", LEGACYKEY3="sidelineStatsV06", LEGACYKEY4="sidelineStatsV05", LEGACYKEY5="sidelineStatsV04", LEGACYKEY6="sidelineStatsV03", LEGACYKEY7="sidelineStatsV02";
+const KEY="sidelineStatsV16", OLDKEY="sidelineStatsV15", OLDERKEY="sidelineStatsV14", OLDESTKEY="sidelineStatsV13", LEGACYKEY="sidelineStatsV12", LEGACYKEY2="sidelineStatsV11", LEGACYKEY3="sidelineStatsV10", LEGACYKEY4="sidelineStatsV09", LEGACYKEY5="sidelineStatsV08", LEGACYKEY6="sidelineStatsV07", LEGACYKEY7="sidelineStatsV06", LEGACYKEY8="sidelineStatsV05", LEGACYKEY9="sidelineStatsV04", LEGACYKEY10="sidelineStatsV03", LEGACYKEY11="sidelineStatsV02";
 const empty={team:null,roster:[],games:[],activeGameId:null,flow:{},editingPlayId:null};
 let S=load();
 let statsScope="game";
@@ -395,19 +464,22 @@ function load(){try{
       if(!raw)raw=localStorage.getItem(LEGACYKEY5);
       if(!raw)raw=localStorage.getItem(LEGACYKEY6);
       if(!raw)raw=localStorage.getItem(LEGACYKEY7);
+      if(!raw)raw=localStorage.getItem(LEGACYKEY8);
+      if(!raw)raw=localStorage.getItem(LEGACYKEY9);
+      if(!raw)raw=localStorage.getItem(LEGACYKEY10);
+      if(!raw)raw=localStorage.getItem(LEGACYKEY11);
       if(raw)localStorage.setItem(KEY,raw);
       return raw?Object.assign({},empty,JSON.parse(raw)):JSON.parse(JSON.stringify(empty))
     }catch(e){return JSON.parse(JSON.stringify(empty))}}
 function persist(){localStorage.setItem(KEY,JSON.stringify(S))}
+function normalizeRoster(){
+  let changed=false;
+  (S.roster||[]).forEach(p=>{if(typeof p.snaps!=="number"){p.snaps=0;changed=true}});
+  if(changed)persist();
+}
 function normalizeGames(){
   let changed=false;
-  (S.games||[]).forEach(g=>{
-    if(!g.gameType){g.gameType="regular";changed=true}
-    if(!g.snapTracker){g.snapTracker={counts:{},onField:{},history:[]};changed=true}
-    if(!g.snapTracker.counts)g.snapTracker.counts={};
-    if(!g.snapTracker.onField)g.snapTracker.onField={};
-    if(!g.snapTracker.history)g.snapTracker.history=[];
-  });
+  (S.games||[]).forEach(g=>{if(!g.gameType){g.gameType="regular";changed=true} if(!g.down||g.down<1||g.down>4){g.down=1;changed=true} if(!g.possession){g.possession="ours";changed=true}if(!Array.isArray(g.snapRecords)){g.snapRecords=[];changed=true}});
   if(changed)persist();
 }
 function toast(m){let t=$("#toast");t.textContent=m;t.style.display="block";setTimeout(()=>t.style.display="none",1500)}
@@ -421,9 +493,9 @@ function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2
 function go(name){
   if(!teamExists() && name!=="setup"){toast("Create your team first");name="setup"}
   $$(".screen").forEach(x=>x.classList.remove("active"));$(`[data-screen="${name}"]`).classList.add("active");
-  $("#topTitle").textContent={setup:"Sideline Stats",roster:"Roster",game:"Game",snaps:"Snap Tracker",stats:"Team Stats",share:"Share"}[name];
+  $("#topTitle").textContent={setup:"Sideline Stats",roster:"Roster",game:"Game",snaps:"Snaps",stats:"Team Stats",share:"Share"}[name];
   if(name==="game")renderGameArea();
-  if(name==="snaps")renderSnapTracker();
+  if(name==="snaps")renderSnaps();
   if(name==="stats")renderStats();
   
 }
@@ -441,7 +513,7 @@ $("#resetAllBtn").addEventListener("click",()=>{
   if(!first)return;
   const phrase=prompt('For safety, type RESET to confirm:');
   if(phrase!=="RESET")return toast("Reset cancelled");
-  localStorage.removeItem(KEY); localStorage.removeItem(OLDKEY); localStorage.removeItem(OLDERKEY); localStorage.removeItem(OLDESTKEY); localStorage.removeItem(LEGACYKEY); localStorage.removeItem(LEGACYKEY2); localStorage.removeItem(LEGACYKEY3); localStorage.removeItem(LEGACYKEY4); localStorage.removeItem(LEGACYKEY5); localStorage.removeItem(LEGACYKEY6); localStorage.removeItem(LEGACYKEY7);
+  localStorage.removeItem(KEY); localStorage.removeItem(OLDKEY); localStorage.removeItem(OLDERKEY); localStorage.removeItem(OLDESTKEY); localStorage.removeItem(LEGACYKEY); localStorage.removeItem(LEGACYKEY2); localStorage.removeItem(LEGACYKEY3); localStorage.removeItem(LEGACYKEY4); localStorage.removeItem(LEGACYKEY5); localStorage.removeItem(LEGACYKEY6); localStorage.removeItem(LEGACYKEY7); localStorage.removeItem(LEGACYKEY8); localStorage.removeItem(LEGACYKEY9); localStorage.removeItem(LEGACYKEY10); localStorage.removeItem(LEGACYKEY11);
   S=JSON.parse(JSON.stringify(empty));
   syncChrome();populateSetup();renderRoster();go("setup");toast("All data cleared");
 });
@@ -499,55 +571,9 @@ $("#removeLogoBtn").addEventListener("click",()=>{
 
 $("#saveTeam").addEventListener("click",()=>{
   const name=$("#teamName").value.trim();if(!name)return toast("Enter a team name");
-  const oldSeason=S.team?.season||null,newSeason=$("#season").value.trim()||"2026";
-  if(oldSeason&&newSeason!==oldSeason){
-    const ok=confirm(`Start a new ${newSeason} season?\n\nIn the production app this is where the season purchase/unlock screen will appear. For this prototype, Continue simulates that purchase.`);
-    if(!ok){$("#season").value=oldSeason;return}
-  }
-  S.team={name,grade:$("#grade").value,season:newSeason,primary:$("#primary").value,secondary:$("#secondary").value,logoData:S.team?.logoData||null};
+  S.team={name,grade:$("#grade").value,season:$("#season").value.trim()||"2026",primary:$("#primary").value,secondary:$("#secondary").value,logoData:S.team?.logoData||null};
   persist();syncChrome();renderRoster();toast("Team saved");
   go("roster");
-});
-
-
-function rosterExportData(){
-  return {
-    format:"sideline-stats-roster",
-    version:1,
-    exportedAt:new Date().toISOString(),
-    teamName:S.team?.name||"",
-    roster:S.roster.map(p=>({jersey:p.jersey,name:p.name}))
-  };
-}
-$("#exportRosterBtn").addEventListener("click",async()=>{
-  if(!S.roster.length)return toast("No roster to export");
-  const data=JSON.stringify(rosterExportData(),null,2);
-  const blob=new Blob([data],{type:"application/json"});
-  const safe=(S.team?.name||"team").replace(/[^a-z0-9]/gi,"_");
-  const file=new File([blob],`${safe}_roster.json`,{type:"application/json"});
-  try{
-    if(navigator.canShare&&navigator.canShare({files:[file]})&&navigator.share){
-      await navigator.share({title:`${S.team.name} Roster`,files:[file]});
-    }else{
-      const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=file.name;a.click();
-      setTimeout(()=>URL.revokeObjectURL(a.href),1500);toast("Roster exported");
-    }
-  }catch(e){console.error(e)}
-});
-$("#importRosterBtn").addEventListener("click",()=>$("#importRosterFile").click());
-$("#importRosterFile").addEventListener("change",async()=>{
-  const file=$("#importRosterFile").files?.[0];if(!file)return;
-  try{
-    const obj=JSON.parse(await file.text());
-    if(obj.format!=="sideline-stats-roster"||!Array.isArray(obj.roster))throw new Error("Invalid roster");
-    const incoming=obj.roster.filter(x=>x&&x.name!==undefined&&x.jersey!==undefined).slice(0,25);
-    if(!incoming.length)throw new Error("Empty roster");
-    if(S.roster.length&&!confirm(`Replace the current ${S.roster.length}-player roster with the ${incoming.length}-player imported roster?`)){
-      $("#importRosterFile").value="";return;
-    }
-    S.roster=incoming.map(x=>({id:uid(),jersey:Number(x.jersey),name:String(x.name)}));
-    persist();renderRoster();$("#importRosterFile").value="";toast(`${S.roster.length} players imported`);
-  }catch(e){toast("That file is not a Sideline Stats roster")}
 });
 
 function renderRoster(){
@@ -560,7 +586,7 @@ $("#addPlayer").addEventListener("click",()=>{
   let j=parseInt($("#jersey").value,10),n=$("#player").value.trim();
   if(Number.isNaN(j)||!n)return toast("Add jersey number and player name");
   if(S.roster.some(p=>p.jersey===j))return toast("That jersey number already exists");
-  S.roster.push({id:uid(),jersey:j,name:n});$("#jersey").value="";$("#player").value="";persist();renderRoster()
+  S.roster.push({id:uid(),jersey:j,name:n,snaps:0});$("#jersey").value="";$("#player").value="";persist();renderRoster()
 });
 $("#goGames").addEventListener("click",()=>go("game"));
 
@@ -594,7 +620,7 @@ function renderGameList(){
 $("#newGameBtn").addEventListener("click",()=>{
   if(!S.roster.length)return toast("Add your roster first");
   const opp=$("#newOpponent").value.trim();if(!opp)return toast("Enter an opponent");
-  const g={id:uid(),opponent:opp,date:$("#newGameDate").value||today(),location:$("#newLocation").value,gameType:$("#newGameType").value||"regular",status:"live",ourScore:0,scoreAdjustment:0,oppScore:0,plays:[],snapTracker:{counts:{},onField:{},history:[]}};
+  const g={id:uid(),opponent:opp,date:$("#newGameDate").value||today(),location:$("#newLocation").value,gameType:$("#newGameType").value||"regular",status:"live",ourScore:0,scoreAdjustment:0,oppScore:0,down:1,possession:"ours",plays:[]};
   S.games.push(g);S.activeGameId=g.id;selectedStatsGameId=g.id;persist();resetFlow();renderGameArea()
 });
 $("#endGameBtn").addEventListener("click",()=>{
@@ -638,18 +664,102 @@ function displayedOurScore(g){ensureScoreModel(g);return autoPoints(g)+Number(g.
 
 function renderLiveGame(){
   const g=currentGame();if(!g)return;
-  ensureScoreModel(g);$("#teamGame").textContent=S.team.name;$("#oppGame").textContent=g.opponent;$("#ourScore").textContent=displayedOurScore(g);$("#oppScore").textContent=g.oppScore;
-  $("#gameMeta").textContent=`${g.date} • ${g.location} • ${(g.gameType||"regular")==="playoff"?"Playoff":"Regular Season"}`;renderRecent();resetFlow();
+  ensureScoreModel(g);
+  $("#teamGame").textContent=S.team.name;
+  $("#oppGame").textContent=g.opponent;
+  $("#ourScore").textContent=displayedOurScore(g);
+  $("#oppScore").textContent=g.oppScore;
+  $("#gameDate").textContent=g.date||"";
+  $("#gameLocation").textContent=g.location||"Home";
+  $("#gameTypeText").textContent=(g.gameType||"regular")==="playoff"?"Playoff":"Regular Season";
+  const initial=(g.opponent||"O").trim().charAt(0).toUpperCase()||"O";
+  $("#oppBadge").textContent=initial;
+  if(S.team?.logoData){
+    $("#gameTeamLogo").innerHTML=`<img src="${S.team.logoData}" alt="${esc(S.team.name)} logo">`;
+  }else{
+    $("#gameTeamLogo").innerHTML=`<div style="font-size:26px;font-weight:950;color:var(--p)">${esc((S.team.name||"SS").split(/\s+/).map(x=>x[0]).join("").slice(0,2).toUpperCase())}</div>`;
+  }
+  if(!g.down||g.down<1||g.down>4)g.down=1;
+  if(!g.possession)g.possession="ours";
+  $("#possessionMain").textContent=g.possession==="ours"
+    ? `${S.team.name} Ball — Offense`
+    : `${g.opponent} Ball — Defense`;
+  $("#possessionSub").textContent=`${ordinal(g.down)} down`;
+  $("#togglePossession").textContent=g.possession==="ours"?"Switch to Defense":"Switch to Offense";
+  $$(".down-btn").forEach(b=>b.classList.toggle("active",Number(b.dataset.down)===Number(g.down)));
+  persist();renderRecent();resetFlow();
 }
+
+$("#togglePossession").addEventListener("click",()=>{
+  const g=currentGame();if(!g)return;
+  const next=g.possession==="ours"?"opp":"ours";
+  const who=next==="ours"?S.team.name:g.opponent;
+  if(confirm(`Switch possession to ${who}? Down will reset to 1st.`)){
+    g.possession=next;g.down=1;persist();renderLiveGame();toast(`${who} ball — 1st down`);
+  }
+});
+$$(".down-btn").forEach(b=>b.addEventListener("click",()=>{
+  const g=currentGame();if(!g)return;
+  g.down=Number(b.dataset.down);persist();renderLiveGame();toast(`${ordinal(g.down)} down`);
+}));
+function ordinal(n){return n===1?"1st":n===2?"2nd":n===3?"3rd":"4th"}
+function advanceDownAfterPlay(g,p){
+  if(!g||!p)return;
+
+  if(g.possession==="ours"){
+    if(p.type==="Defense"||p.type==="Special")return;
+
+    // We punted.
+    if(p.type==="Punt"){g.possession="opp";g.down=1;return}
+
+    // We threw an interception.
+    if(p.type==="Pass"&&p.sub==="Intercepted"){g.possession="opp";g.down=1;return}
+
+    // We lost a fumble.
+    if(p.extras?.includes("Fumble Lost")){g.possession="opp";g.down=1;return}
+
+    // Scoring play is complete; opponent takes the next possession.
+    if(p.extras?.includes("TD")){g.possession="opp";g.down=1;return}
+
+    // We made a first down.
+    if(p.extras?.includes("1st Down")){g.down=1;return}
+
+    // Failed 4th down = turnover on downs.
+    if(Number(g.down)===4){g.possession="opp";g.down=1;return}
+
+    g.down=(Number(g.down)||1)+1;
+    return;
+  }
+
+  // Opponent has the ball; we're entering defensive stats.
+  if(g.possession==="opp"){
+    if(p.type!=="Defense")return;
+
+    // Our defense creates a turnover.
+    if(p.sub==="INT"||p.sub==="Fumble Recovery"){g.possession="ours";g.down=1;return}
+
+    // Defensive stop on 4th = our ball.
+    if(Number(g.down)===4){g.possession="ours";g.down=1;return}
+
+    // Otherwise advance opponent down.
+    g.down=(Number(g.down)||1)+1;
+  }
+}
+
 function resetFlow(){S.flow={};["#stepSub","#stepPlayer","#stepDefenseCredits","#stepYards","#stepExtras"].forEach(id=>$(id).classList.add("hidden"));$("#stepMain").classList.remove("hidden");$$(".extra").forEach(b=>b.classList.remove("sel"))}
 $$(".cancel").forEach(b=>b.addEventListener("click",resetFlow));
 $$(".action").forEach(b=>b.addEventListener("click",()=>start(b.dataset.action)));
+$("#quickPunt").addEventListener("click",()=>{
+  S.flow={type:"Punt",sub:"Punt",extras:[]};
+  $("#stepMain").classList.add("hidden");
+  showPlayers("Select punter","punter");
+});
 function start(type){
   S.flow={type,extras:[]};$("#stepMain").classList.add("hidden");
   if(type==="Rush")showPlayers("Who had the ball?","runner");
   else if(type==="Pass")showPlayers("Select QB","qb");
   else if(type==="Defense")showSubs("Defensive stat",["Tackle","TFL","Sack","INT","Forced Fumble","Fumble Recovery"]);
-  else showSubs("Special teams",["Kick Return","Punt Return"])
+  else showSubs("Special teams",["Kick Return","Punt Return","Punt"])
 }
 function showSubs(title,items){
   $("#subTitle").textContent=title;$("#subGrid").innerHTML=items.map(x=>`<button class="choice sub" data-v="${x}">${x}</button>`).join("");$("#stepSub").classList.remove("hidden");
@@ -657,7 +767,7 @@ function showSubs(title,items){
     let v=b.dataset.v;S.flow.sub=v;$("#stepSub").classList.add("hidden");
     if(S.flow.type==="Pass"){if(v==="Complete")showPlayers("Complete — select receiver","receiver");else recordNow()}
     else if(S.flow.type==="Defense")showDefenseCredits(v);
-    else showPlayers(`${v} — select returner`,"special")
+    else if(v==="Punt"){S.flow.type="Punt";showPlayers("Select punter","punter")}else if(v==="Punt"){S.flow.type="Punt";showPlayers("Punt — select punter","punter")}else showPlayers(`${v} — select returner`,"special")
   }))
 }
 function showDefenseCredits(stat){
@@ -674,8 +784,15 @@ function showDefenseCredits(stat){
 $("#recordDefenseCredits").addEventListener("click",()=>{
   const entries=Object.entries(S.flow.defCredits||{});if(!entries.length)return toast("Select at least one defender");
   const g=currentGame();if(!g)return;
-  g.plays.push({id:uid(),ts:Date.now(),type:"Defense",sub:S.flow.sub,defCredits:Object.fromEntries(entries.map(([id,v])=>[id,Number(v)])),extras:[]});
-  g.ourScore=displayedOurScore(g);persist();renderLiveGame();toast("Defensive play recorded");resetFlow();
+  const p={id:uid(),ts:Date.now(),type:"Defense",sub:S.flow.sub,defCredits:Object.fromEntries(entries.map(([id,v])=>[id,Number(v)])),extras:[]};
+  g.plays.push(p);
+  advanceDownAfterPlay(g,p);
+  g.ourScore=displayedOurScore(g);
+  persist();renderLiveGame();
+  if(p.sub==="INT")toast(`${S.team.name} ball — 1st down`);
+  else if(p.sub==="Fumble Recovery")toast(`${S.team.name} ball — 1st down`);
+  else toast("Defensive play recorded");
+  resetFlow();
 });
 
 function showPlayers(text,mode){
@@ -688,7 +805,7 @@ function pick(id,mode){
   $("#stepPlayer").classList.add("hidden");
   if(mode==="qb"){S.flow.player=id;showSubs("Pass result",["Complete","Incomplete","Intercepted","Sack"])}
   else if(mode==="receiver"){S.flow.player2=id;showYards()}
-  else if(mode==="runner"||mode==="special"){S.flow.player=id;showYards()}
+  else if(mode==="runner"||mode==="special"||mode==="punter"){S.flow.player=id;showYards()}
   else{S.flow.player=id;recordNow()}
 }
 function showYards(){
@@ -697,22 +814,38 @@ function showYards(){
   $("#stepYards").classList.remove("hidden");$$(".yard").forEach(b=>b.addEventListener("click",()=>yards(+b.dataset.v)))
 }
 $("#customBtn").addEventListener("click",()=>{let v=parseInt($("#customYards").value,10);if(Number.isNaN(v))return toast("Enter yards");yards(v)});
-function yards(v){S.flow.yards=v;$("#stepYards").classList.add("hidden");$("#stepExtras").classList.remove("hidden")}
+function yards(v){S.flow.yards=v;$("#stepYards").classList.add("hidden");if(S.flow.type==="Punt")recordNow();else $("#stepExtras").classList.remove("hidden")}
 $$(".extra").forEach(b=>b.addEventListener("click",()=>{let x=b.dataset.extra,i=S.flow.extras.indexOf(x);if(i>=0){S.flow.extras.splice(i,1);b.classList.remove("sel")}else{S.flow.extras.push(x);b.classList.add("sel")}}));
 $("#recordPlay").addEventListener("click",recordNow);
 function recordNow(){
   const g=currentGame();if(!g)return;
-  g.plays.push({...JSON.parse(JSON.stringify(S.flow)),id:uid(),ts:Date.now()});g.ourScore=displayedOurScore(g);persist();renderLiveGame();toast("Play recorded");resetFlow()
+
+  if(g.possession==="ours"&&S.flow.extras?.includes("Fumble")&&!S.flow.extras.includes("Fumble Lost")){
+    if(confirm("Was the fumble lost to the other team?"))S.flow.extras.push("Fumble Lost");
+  }
+
+  const p={...JSON.parse(JSON.stringify(S.flow)),id:uid(),ts:Date.now()};
+  g.plays.push(p);
+  advanceDownAfterPlay(g,p);
+  g.ourScore=displayedOurScore(g);
+  persist();renderLiveGame();
+
+  if(p.type==="Pass"&&p.sub==="Intercepted")toast(`${g.opponent} ball — 1st down`);
+  else if(p.extras?.includes("Fumble Lost"))toast(`${g.opponent} ball — 1st down`);
+  else if(p.type==="Punt")toast(`${g.opponent} ball — 1st down`);
+  else toast("Play recorded");
+  resetFlow()
 }
-$("#undo").addEventListener("click",()=>{const g=currentGame();if(!g||!g.plays.length)return toast("Nothing to undo");g.plays.pop();g.ourScore=displayedOurScore(g);persist();renderLiveGame();toast("Last play removed")});
+$("#undo").addEventListener("click",()=>{const g=currentGame();if(!g||!g.plays.length)return toast("Nothing to undo");g.plays.pop();g.down=1;g.possession="ours";for(const p of g.plays){advanceDownAfterPlay(g,p)}g.ourScore=displayedOurScore(g);persist();renderLiveGame();toast("Last play removed")});
 
 function player(id){return S.roster.find(p=>p.id===id)}
 function pname(id){let p=player(id);return p?`#${p.jersey} ${p.name}`:"#?"}
 function sgn(v){return (+v>0?"+":"")+(v||0)}
 function ex(p){return p.extras&&p.extras.length?" · "+p.extras.join(", "):""}
 function ptext(p){
-  if(p.type==="Rush")return `Rush ${pname(p.player)} ${sgn(p.yards)} yds${ex(p)}`;
-  if(p.type==="Pass"){if(p.sub==="Complete")return `Pass ${pname(p.player)} → ${pname(p.player2)} ${sgn(p.yards)} yds${ex(p)}`;return `Pass ${pname(p.player)} — ${p.sub}`}
+  if(p.type==="Rush")return `Rush ${pname(p.player)} ${sgn(p.yards)} yds${ex(p)}${p.extras?.includes("Fumble Lost")?" — LOST":""}`;
+  if(p.type==="Pass"){if(p.sub==="Complete")return `Pass ${pname(p.player)} → ${pname(p.player2)} ${sgn(p.yards)} yds${ex(p)}${p.extras?.includes("Fumble Lost")?" — LOST":""}`;return `Pass ${pname(p.player)} — ${p.sub}`}
+  if(p.type==="Punt")return `Punt — ${pname(p.player)} ${Math.abs(Number(p.yards)||0)} yds`;
   if(p.type==="Defense"){if(p.defCredits){const parts=Object.entries(p.defCredits).map(([id,v])=>`${pname(id)}${Number(v)===0.5?" (0.5)":""}`);return `${p.sub} — ${parts.join(" + ")}`;}return `${p.sub} — ${pname(p.player)}`;}
   return `${p.sub} — ${pname(p.player)} ${sgn(p.yards)} yds${ex(p)}`
 }
@@ -720,7 +853,7 @@ function renderRecent(){
   const g=currentGame();if(!g){$("#recent").innerHTML='<span class="muted">No game open.</span>';return}
   const arr=[...g.plays].reverse();
   $("#recent").innerHTML=arr.length?arr.map(p=>`<div class="play"><div class="playtop"><div><strong>${esc(ptext(p))}</strong><div class="muted">${new Date(p.ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</div></div><div class="playactions"><button class="edit-play" data-id="${p.id}">Edit</button><button class="del delete-play" data-id="${p.id}">Delete</button></div></div></div>`).join(""):'<span class="muted">No plays yet.</span>';
-  $$(".delete-play").forEach(b=>b.addEventListener("click",()=>{g.plays=g.plays.filter(p=>p.id!==b.dataset.id);g.ourScore=displayedOurScore(g);persist();renderLiveGame();toast("Play deleted")}));
+  $$(".delete-play").forEach(b=>b.addEventListener("click",()=>{g.plays=g.plays.filter(p=>p.id!==b.dataset.id);g.down=1;g.possession="ours";for(const p of g.plays){advanceDownAfterPlay(g,p)}g.ourScore=displayedOurScore(g);persist();renderLiveGame();toast("Play deleted")}));
   $$(".edit-play").forEach(b=>b.addEventListener("click",()=>openEditor(b.dataset.id)))
 }
 function playerOptions(selected){return S.roster.map(p=>`<option value="${p.id}" ${p.id===selected?"selected":""}>#${p.jersey} ${esc(p.name)}</option>`).join("")}
@@ -756,85 +889,6 @@ function agg(g){
     if(p.type==="Special"&&a){if(p.sub==="Kick Return"){a.kr++;a.kry+=+p.yards||0}else{a.pr++;a.pry+=+p.yards||0}}
   });return Object.values(m)
 }
-
-
-let selectedSnapGameId=null;
-function snapGame(){
-  const games=sortedGames();
-  if(!games.length)return null;
-  if(selectedSnapGameId){
-    const g=games.find(x=>x.id===selectedSnapGameId);if(g)return g;
-  }
-  const active=currentGame();if(active){selectedSnapGameId=active.id;return active}
-  selectedSnapGameId=games[0].id;return games[0];
-}
-function ensureSnap(g){
-  if(!g.snapTracker)g.snapTracker={counts:{},onField:{},history:[]};
-  g.snapTracker.counts=g.snapTracker.counts||{};
-  g.snapTracker.onField=g.snapTracker.onField||{};
-  g.snapTracker.history=g.snapTracker.history||[];
-  return g.snapTracker;
-}
-function renderSnapTracker(){
-  const sel=$("#snapGameSelect"),games=sortedGames();
-  if(!games.length){
-    sel.innerHTML='<option>No games yet</option>';sel.disabled=true;
-    $("#snapRoster").innerHTML='<div class="muted">Start a game first, then use Snap Tracker.</div>';
-    $("#teamSnapCount").textContent="0";return;
-  }
-  sel.disabled=false;const g=snapGame();
-  sel.innerHTML=games.map(x=>`<option value="${x.id}" ${x.id===g.id?"selected":""}>${x.date} — vs ${esc(x.opponent)}</option>`).join("");
-  const st=ensureSnap(g);
-  $("#teamSnapCount").textContent=st.history.length;
-  $("#snapHistoryText").textContent=st.history.length?`Last snap credited to ${st.history[st.history.length-1].length} player${st.history[st.history.length-1].length===1?"":"s"}.`:"No snaps recorded yet.";
-  $("#snapRoster").innerHTML=S.roster.map(p=>{
-    const on=!!st.onField[p.id],n=Number(st.counts[p.id]||0),met=n>=10;
-    return `<div class="snap-row ${on?"on-field":""}">
-      <input class="snap-toggle snap-player-toggle" type="checkbox" data-id="${p.id}" ${on?"checked":""}>
-      <div class="snap-name"><strong>#${p.jersey} ${esc(p.name)}</strong><span>${on?"ON FIELD":"Sideline"}</span></div>
-      <div class="snap-count"><b>${n}</b><br><span class="${met?"snap-met":"snap-notmet"}">${met?"10+ MET":`${10-n} TO GO`}</span></div>
-    </div>`;
-  }).join("");
-  $$(".snap-player-toggle").forEach(t=>t.addEventListener("change",()=>{
-    st.onField[t.dataset.id]=t.checked;persist();renderSnapTracker();
-  }));
-}
-$("#snapGameSelect").addEventListener("change",()=>{selectedSnapGameId=$("#snapGameSelect").value;renderSnapTracker()});
-$("#selectAllSnaps").addEventListener("click",()=>{
-  const g=snapGame();if(!g)return;const st=ensureSnap(g);S.roster.forEach(p=>st.onField[p.id]=true);persist();renderSnapTracker()
-});
-$("#clearAllSnaps").addEventListener("click",()=>{
-  const g=snapGame();if(!g)return;const st=ensureSnap(g);st.onField={};persist();renderSnapTracker()
-});
-$("#recordSnapBtn").addEventListener("click",()=>{
-  const g=snapGame();if(!g)return toast("Start a game first");
-  const st=ensureSnap(g);const ids=S.roster.filter(p=>st.onField[p.id]).map(p=>p.id);
-  if(!ids.length)return toast("No players are marked ON FIELD");
-  ids.forEach(id=>st.counts[id]=Number(st.counts[id]||0)+1);
-  st.history.push(ids);persist();renderSnapTracker();toast(`Snap ${st.history.length} recorded`);
-});
-$("#undoSnapBtn").addEventListener("click",()=>{
-  const g=snapGame();if(!g)return;const st=ensureSnap(g);
-  const ids=st.history.pop();if(!ids)return toast("No snap to undo");
-  ids.forEach(id=>st.counts[id]=Math.max(0,Number(st.counts[id]||0)-1));
-  persist();renderSnapTracker();toast("Last snap removed");
-});
-$("#shareSnapReportBtn").addEventListener("click",async()=>{
-  const g=snapGame();if(!g)return toast("No game selected");
-  const st=ensureSnap(g);
-  const rows=S.roster.map(p=>({jersey:p.jersey,name:p.name,snaps:Number(st.counts[p.id]||0)})).sort((a,b)=>a.jersey-b.jersey);
-  const csv=["Jersey,Player,Snaps,Minimum 10 Met",...rows.map(r=>`${r.jersey},"${String(r.name).replaceAll('"','""')}",${r.snaps},${r.snaps>=10?"Yes":"No"}`)].join("\\n");
-  const blob=new Blob([csv],{type:"text/csv"});
-  const safe=(S.team?.name||"team").replace(/[^a-z0-9]/gi,"_");
-  const file=new File([blob],`${safe}_${g.date}_snap_report.csv`,{type:"text/csv"});
-  try{
-    if(navigator.canShare&&navigator.canShare({files:[file]})&&navigator.share){
-      await navigator.share({title:`${S.team.name} Snap Report`,text:`${g.date} vs ${g.opponent} — ${st.history.length} team snaps recorded`,files:[file]});
-    }else{
-      const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=file.name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1500);toast("Snap report exported");
-    }
-  }catch(e){console.error(e)}
-});
 
 function sortedGames(){return [...(S.games||[])].sort((a,b)=>(b.date||"").localeCompare(a.date||""))}
 function latestGame(){return sortedGames()[0]||null}
@@ -894,6 +948,86 @@ function tbl(h,rows,totalRow=null){
   if(!rows.length&&!totalRow)return'<div class="muted">No stats yet.</div>';
   return `<table><tr>${h.map(x=>`<th>${x}</th>`).join("")}</tr>${rows.map(r=>`<tr>${r.map(x=>`<td>${esc(String(x))}</td>`).join("")}</tr>`).join("")}${totalRow?`<tr class="stat-total-row">${totalRow.map(x=>`<td>${esc(String(x))}</td>`).join("")}</tr>`:""}</table>`
 }
+
+let snapSelections={};
+
+function initializeSnapSelections(){
+  snapSelections={};
+  (S.roster||[]).forEach(p=>snapSelections[p.id]=true);
+}
+
+function currentGameSnapCount(playerId){
+  const g=currentGame();
+  if(!g||!Array.isArray(g.snapRecords))return 0;
+  return g.snapRecords.reduce((sum,r)=>sum+(r.playerIds||[]).includes(playerId),0);
+}
+function renderSnaps(){
+  normalizeRoster();
+  if(!Object.keys(snapSelections).length)initializeSnapSelections();
+
+  const box=$("#snapRoster");
+  if(!S.roster.length){
+    box.innerHTML='<span class="muted">Add your roster first.</span>';
+    $("#recordSnapBtn").disabled=true;
+    $("#snapOnFieldCount").textContent="0 on field";
+    $("#snapTotalCount").textContent="0 snaps recorded";
+    return;
+  }
+  $("#recordSnapBtn").disabled=false;
+
+  const ordered=[...S.roster].sort((a,b)=>a.jersey-b.jersey);
+  box.innerHTML=ordered.map(p=>`
+    <label class="snap-player">
+      <input class="snap-check" type="checkbox" data-id="${p.id}" ${snapSelections[p.id]!==false?"checked":""}>
+      <div class="snap-player-name"><span class="num">#${p.jersey}</span>${esc(p.name)}</div>
+      <div class="snap-count">${currentGameSnapCount(p.id)}</div>
+    </label>`).join("");
+
+  $$(".snap-check").forEach(ch=>ch.addEventListener("change",()=>{
+    snapSelections[ch.dataset.id]=ch.checked;
+    updateSnapSummary();
+  }));
+  updateSnapSummary();
+}
+
+function updateSnapSummary(){
+  const on=(S.roster||[]).filter(p=>snapSelections[p.id]!==false).length;
+  const g=currentGame();const total=g&&Array.isArray(g.snapRecords)?g.snapRecords.reduce((a,r)=>a+(r.playerIds||[]).length,0):0;
+  $("#snapOnFieldCount").textContent=`${on} on field`;
+  $("#snapTotalCount").textContent=`${total} player-snaps`;
+}
+
+$("#checkAllSnaps").addEventListener("click",()=>{
+  initializeSnapSelections();renderSnaps();
+});
+
+$("#recordSnapBtn").addEventListener("click",()=>{
+  if(!S.roster.length)return toast("Add your roster first");
+  const onField=S.roster.filter(p=>snapSelections[p.id]!==false);
+  if(!onField.length)return toast("No players selected");
+
+  onField.forEach(p=>p.snaps=(p.snaps||0)+1);
+
+  // Save a snap record to the active game as proof/history.
+  const g=currentGame();
+  if(g){
+    if(!Array.isArray(g.snapRecords))g.snapRecords=[];
+    g.snapRecords.push({
+      id:uid(),
+      ts:Date.now(),
+      playerIds:onField.map(p=>p.id)
+    });
+  }
+
+  persist();
+  toast(`Snap recorded for ${onField.length} players`);
+
+  // Reset EVERYONE to checked for the next play.
+  initializeSnapSelections();
+  renderSnaps();
+});
+
+
 function renderStats(){
   renderGameHistoryPicker();
   const src=statsSource(statsScope);
@@ -1017,68 +1151,206 @@ function createSummaryCanvas(g){
   canvasText(c,`${S.team.name} • ${S.team.grade||""} • ${S.team.season||""}`,600,1450,22,700,"#68736b","center");
   return cv
 }
+$("#copyBtn").addEventListener("click",async()=>{const g=statGame();try{await navigator.clipboard.writeText(summaryText(g));toast("Summary copied")}catch(e){toast("Copy not supported here")}});
+
+
+
+$("#goShareStats").addEventListener("click",()=>go("stats"));
+
+
+
 const SHARE_W=1170, SHARE_H=2532, SHARE_MARGIN=42;
 function rr(c,x,y,w,h,r,fill){c.beginPath();c.roundRect(x,y,w,h,r);c.fillStyle=fill;c.fill()}
 function tx(c,t,x,y,size,weight,color,align="left"){c.font=`${weight} ${size}px -apple-system,BlinkMacSystemFont,Segoe UI,Arial`;c.fillStyle=color;c.textAlign=align;c.fillText(String(t),x,y)}
 function fmt(v){return Number.isInteger(Number(v))?String(Number(v)):Number(v).toFixed(1)}
 
+
 async function makeHybridShare(src){
- const cv=document.createElement("canvas");cv.width=SHARE_W;cv.height=SHARE_H;const c=cv.getContext("2d");c.fillStyle="#f4f6f5";c.fillRect(0,0,SHARE_W,SHARE_H);
- c.fillStyle=S.team.primary;c.fillRect(0,0,SHARE_W,480);c.fillStyle=S.team.secondary;c.fillRect(0,460,SHARE_W,20);c.textAlign="center";c.fillStyle="#fff";
+  const W=1170,H=2532,cv=document.createElement("canvas");cv.width=W;cv.height=H;const c=cv.getContext("2d");
+  const P=S.team.primary, A=S.team.secondary;
+  c.fillStyle="#ffffff";c.fillRect(0,0,W,H);
 
- if(S.team.logoData){
-   try{
-     const logo=await loadImg(S.team.logoData),box=130,x=50,y=35;
-     c.save();c.beginPath();c.roundRect(x,y,box,box,24);c.clip();c.fillStyle="#fff";c.fillRect(x,y,box,box);
-     const sc=Math.min(box/logo.width,box/logo.height),dw=logo.width*sc,dh=logo.height*sc;
-     c.drawImage(logo,x+(box-dw)/2,y+(box-dh)/2,dw,dh);c.restore();
-   }catch(e){}
- }
+  function rect(x,y,w,h,r,fill){
+    c.beginPath();c.roundRect(x,y,w,h,r);c.fillStyle=fill;c.fill();
+  }
+  function text(t,x,y,size,weight,color,align="left"){
+    c.font=`${weight} ${size}px -apple-system,BlinkMacSystemFont,Segoe UI,Arial`;
+    c.fillStyle=color;c.textAlign=align;c.fillText(String(t),x,y);
+  }
+  function tint(hex, alpha=0.10){
+    const h=hex.replace("#","");
+    const r=parseInt(h.substring(0,2),16),g=parseInt(h.substring(2,4),16),b=parseInt(h.substring(4,6),16);
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
 
- c.font="800 30px -apple-system,Segoe UI,Arial";c.fillStyle="#fff";c.fillText("SIDELINE STATS",SHARE_W/2,55);
- c.font="950 68px -apple-system,Segoe UI,Arial";c.fillText(S.team.name.toUpperCase(),SHARE_W/2,145);
+  // ---------- HEADER ----------
+  c.fillStyle=P;c.fillRect(0,0,W,470);
+  c.fillStyle=A;c.fillRect(0,450,W,20);
 
- if(src.kind==="game"){
-   const g=src.game;
-   c.font="950 95px -apple-system,Segoe UI,Arial";c.fillText(String(displayedOurScore(g)),355,275);c.fillText(String(g.oppScore),815,275);
-   c.font="800 28px -apple-system,Segoe UI,Arial";c.fillText(S.team.name.toUpperCase(),355,325);c.fillText(g.opponent.toUpperCase(),815,325);
-   c.font="900 34px -apple-system,Segoe UI,Arial";c.fillText(g.status==="complete"?"FINAL":"LIVE",SHARE_W/2,370);
-   c.font="650 24px -apple-system,Segoe UI,Arial";c.fillText(`${g.date} • ${g.location} • ${(g.gameType||"regular")==="playoff"?"PLAYOFF":"REGULAR SEASON"}`,SHARE_W/2,420);
- }else{
-   c.font="950 48px -apple-system,Segoe UI,Arial";c.fillText(src.title.toUpperCase(),SHARE_W/2,255);
-   c.font="800 34px -apple-system,Segoe UI,Arial";c.fillText(`${S.team.season||""} • ${src.games.length} GAME${src.games.length===1?"":"S"}`,SHARE_W/2,325);
-   c.font="900 48px -apple-system,Segoe UI,Arial";c.fillText(`RECORD  ${recordFor(src.games)}`,SHARE_W/2,400);
- }
+  if(S.team.logoData){
+    try{
+      const logo=await loadImg(S.team.logoData);
+      const box=122,x=48,y=38;
+      rect(x,y,box,box,24,"#ffffff");
+      const sc=Math.min((box-14)/logo.width,(box-14)/logo.height),dw=logo.width*sc,dh=logo.height*sc;
+      c.drawImage(logo,x+(box-dw)/2,y+(box-dh)/2,dw,dh);
+    }catch(e){}
+  }
 
- let y=510;const s=agg({plays:src.plays});tx(c,"★  TOP PERFORMERS  ★",SHARE_W/2,y+38,40,950,S.team.primary,"center");y+=70;
- const pass=[...s].filter(x=>x.att).sort((a,b)=>b.py-a.py)[0],rec=[...s].filter(x=>x.rec).sort((a,b)=>b.rey-a.rey)[0],rush=[...s].filter(x=>x.car).sort((a,b)=>b.ry-a.ry)[0],def=[...s].filter(x=>x.t+x.tfl+x.sack+x.int+x.ff+x.fr).sort((a,b)=>(b.t+b.tfl*2+b.sack*2+b.int*3)-(a.t+a.tfl*2+a.sack*2+a.int*3))[0];
- const cards=[
-  ["PASSING",pass,pass?`${pass.cmp}/${pass.att}`:"—",pass?`${pass.py} YDS`:"",pass&&pass.att?`${(pass.py/pass.att).toFixed(1)} AVG | ${pass.ptd} TD`:""],
-  ["RECEIVING",rec,rec?`${rec.rec} REC`:"—",rec?`${rec.rey} YDS`:"",rec&&rec.rec?`${(rec.rey/rec.rec).toFixed(1)} AVG | ${rec.retd} TD`:""],
-  ["RUSHING",rush,rush?`${rush.ry} YDS`:"—",rush?`${rush.car} CAR`:"",rush&&rush.car?`${(rush.ry/rush.car).toFixed(1)} AVG | ${rush.rtd} TD`:""],
-  ["DEFENSE",def,def?`${fmt(def.t)} TKL`:"—",def?`${fmt(def.tfl)} TFL | ${fmt(def.ff)} FF`:"",""]
- ];
- const gap=14,w=(SHARE_W-SHARE_MARGIN*2-gap*3)/4;cards.forEach((d,i)=>{const x=SHARE_MARGIN+i*(w+gap);rr(c,x,y,w,245,20,"#fff");tx(c,d[0],x+w/2,y+42,22,900,S.team.primary,"center");tx(c,d[1]?pname(d[1].id):"—",x+w/2,y+82,25,900,"#152019","center");tx(c,d[2],x+w/2,y+135,34,950,"#152019","center");tx(c,d[3],x+w/2,y+177,25,800,"#152019","center");if(d[4]){rr(c,x+15,y+195,w-30,36,9,"#edf2ef");tx(c,d[4],x+w/2,y+220,19,850,"#152019","center")}});y+=275;
+  text("SIDELINE STATS",W/2,52,31,850,"#ffffff","center");
+  text(S.team.name.toUpperCase(),W/2,125,67,950,"#ffffff","center");
 
- function section(title,headers,rows,total){
-   const x=28,ww=SHARE_W-56;rr(c,x,y,ww,60,16,"#fff");tx(c,title,x+28,y+42,36,950,"#152019");y+=60;
-   c.fillStyle="#111";c.fillRect(x,y,ww,46);const cols=headers.length,first=cols>=7?275:305,rem=(ww-first)/(cols-1);
-   headers.forEach((h,i)=>{const xx=i===0?x+28:x+first+rem*i-rem/2;tx(c,h,xx,y+32,20,900,"#fff",i===0?"left":"center")});y+=46;
-   const draw=(r,t=false)=>{c.fillStyle=t?"#fff2e8":"#fff";c.fillRect(x,y,ww,58);c.strokeStyle="#dfe4e1";c.beginPath();c.moveTo(x,y+58);c.lineTo(x+ww,y+58);c.stroke();r.forEach((v,i)=>{const xx=i===0?x+28:x+first+rem*i-rem/2;tx(c,v,xx,y+39,23,t?900:(i===0?800:700),t?S.team.primary:"#152019",i===0?"left":"center")});y+=58};
-   rows.forEach(r=>draw(r));draw(total,true);y+=18
- }
+  if(src.kind==="game"){
+    const g=src.game;
+    text(String(displayedOurScore(g)),255,245,105,950,"#ffffff","center");
+    text(String(g.oppScore),915,245,105,950,"#ffffff","center");
+    text(S.team.name.toUpperCase(),255,300,30,900,"#ffffff","center");
+    text(g.opponent.toUpperCase(),915,300,30,900,"#ffffff","center");
+    text(g.status==="complete"?"FINAL":"LIVE",W/2,245,48,950,A,"center");
+    text(`${g.date} • ${g.location}`,W/2,315,30,800,"#ffffff","center");
+    text((g.gameType||"regular")==="playoff"?"PLAYOFF":"REGULAR SEASON",W/2,365,32,900,"#ffffff","center");
+  }else{
+    text(src.title.toUpperCase(),W/2,235,50,950,A,"center");
+    text(`${S.team.season||""} • ${src.games.length} GAME${src.games.length===1?"":"S"}`,W/2,310,31,800,"#ffffff","center");
+    text(`RECORD ${recordFor(src.games)}`,W/2,375,47,950,"#ffffff","center");
+  }
 
- let rows=s.filter(x=>x.car).map(x=>[pname(x.id),x.car,x.ry,(x.ry/x.car).toFixed(1),x.rfd,x.rtd]);
- if(rows.length){let car=s.reduce((a,x)=>a+x.car,0),yd=s.reduce((a,x)=>a+x.ry,0);section("RUSHING",["PLAYER","CAR","YDS","AVG","1D","TD"],rows,["TEAM TOTAL",car,yd,car?(yd/car).toFixed(1):"0.0",s.reduce((a,x)=>a+x.rfd,0),s.reduce((a,x)=>a+x.rtd,0)])}
- rows=s.filter(x=>x.att).map(x=>[pname(x.id),`${x.cmp}/${x.att}`,x.py,(x.py/x.att).toFixed(1),x.pfd,x.ptd,x.pi]);
- if(rows.length){let att=s.reduce((a,x)=>a+x.att,0),cmp=s.reduce((a,x)=>a+x.cmp,0),yd=s.reduce((a,x)=>a+x.py,0);section("PASSING",["PLAYER","CMP/ATT","YDS","AVG","1D","TD","INT"],rows,["TEAM TOTAL",`${cmp}/${att}`,yd,att?(yd/att).toFixed(1):"0.0",s.reduce((a,x)=>a+x.pfd,0),s.reduce((a,x)=>a+x.ptd,0),s.reduce((a,x)=>a+x.pi,0)])}
- rows=s.filter(x=>x.rec).map(x=>[pname(x.id),x.rec,x.rey,(x.rey/x.rec).toFixed(1),x.recfd,x.retd]);
- if(rows.length){let rc=s.reduce((a,x)=>a+x.rec,0),yd=s.reduce((a,x)=>a+x.rey,0);section("RECEIVING",["PLAYER","REC","YDS","AVG","1D","TD"],rows,["TEAM TOTAL",rc,yd,rc?(yd/rc).toFixed(1):"0.0",s.reduce((a,x)=>a+x.recfd,0),s.reduce((a,x)=>a+x.retd,0)])}
- rows=s.filter(x=>x.t+x.tfl+x.sack+x.int+x.ff+x.fr).map(x=>[pname(x.id),fmt(x.t),fmt(x.tfl),fmt(x.sack),fmt(x.int),fmt(x.ff),fmt(x.fr)]);
- if(rows.length)section("DEFENSE",["PLAYER","TKL","TFL","SACK","INT","FF","FR"],rows,["TEAM TOTAL",fmt(s.reduce((a,x)=>a+x.t,0)),fmt(s.reduce((a,x)=>a+x.tfl,0)),fmt(s.reduce((a,x)=>a+x.sack,0)),fmt(s.reduce((a,x)=>a+x.int,0)),fmt(s.reduce((a,x)=>a+x.ff,0)),fmt(s.reduce((a,x)=>a+x.fr,0))]);
+  const s=agg({plays:src.plays});
 
- c.fillStyle="#111";c.fillRect(0,SHARE_H-90,SHARE_W,90);tx(c,S.team.name.toUpperCase(),SHARE_W/2,SHARE_H-34,30,900,S.team.secondary,"center");
- return cv
+  // ---------- TOP PERFORMERS 2x2 ----------
+  let y=490;
+  rect(30,y,1110,76,18,A);
+  text("★  TOP PERFORMERS  ★",W/2,y+52,40,950,P,"center");
+  y+=96;
+
+  const pass=[...s].filter(x=>x.att).sort((a,b)=>b.py-a.py)[0];
+  const rec=[...s].filter(x=>x.rec).sort((a,b)=>b.rey-a.rey)[0];
+  const rush=[...s].filter(x=>x.car).sort((a,b)=>b.ry-a.ry)[0];
+  const def=[...s].filter(x=>x.t+x.tfl+x.sack+x.int+x.ff+x.fr)
+      .sort((a,b)=>(b.t+b.tfl*2+b.sack*2+b.int*3+b.ff*2+b.fr*2)-(a.t+a.tfl*2+a.sack*2+a.int*3+a.ff*2+a.fr*2))[0];
+
+  const cards=[
+    {
+      cat:"PASSING", player:pass,
+      left:pass?`${pass.cmp}/${pass.att}`:"—", leftLab:"CMP/ATT",
+      right:pass?`${pass.py}`:"—", rightLab:"YDS",
+      bottom:pass&&pass.att?`${(pass.py/pass.att).toFixed(1)} AVG  |  ${pass.ptd} TD`:""
+    },
+    {
+      cat:"RECEIVING", player:rec,
+      left:rec?`${rec.rec}`:"—", leftLab:"REC",
+      right:rec?`${rec.rey}`:"—", rightLab:"YDS",
+      bottom:rec&&rec.rec?`${(rec.rey/rec.rec).toFixed(1)} AVG  |  ${rec.retd} TD`:""
+    },
+    {
+      cat:"RUSHING", player:rush,
+      left:rush?`${rush.ry}`:"—", leftLab:"YDS",
+      right:rush?`${rush.car}`:"—", rightLab:"CAR",
+      bottom:rush&&rush.car?`${(rush.ry/rush.car).toFixed(1)} AVG  |  ${rush.rtd} TD`:""
+    },
+    {
+      cat:"DEFENSE", player:def,
+      left:def?`${fmt(def.t)}`:"—", leftLab:"TKL",
+      right:def?`${fmt(def.tfl)}`:"—", rightLab:"TFL",
+      bottom:def?`${fmt(def.sack)} SACK  |  ${fmt(def.int)} INT`:""
+    }
+  ];
+
+  const gap=18, cardW=(W-60-gap)/2, cardH=300;
+  cards.forEach((d,i)=>{
+    const col=i%2,row=Math.floor(i/2);
+    const x=30+col*(cardW+gap), yy=y+row*(cardH+18);
+    rect(x,yy,cardW,cardH,20,"#ffffff");
+    c.strokeStyle=tint(P,.24);c.lineWidth=2;c.stroke();
+    text(d.cat,x+cardW/2,yy+48,33,950,P,"center");
+    text(d.player?pname(d.player.id):"—",x+cardW/2,yy+95,32,900,"#111111","center");
+
+    text(d.left,x+cardW*.28,yy+178,64,950,"#111111","center");
+    text(d.right,x+cardW*.72,yy+178,64,950,"#111111","center");
+    c.strokeStyle=A;c.lineWidth=3;c.beginPath();c.moveTo(x+cardW/2,yy+125);c.lineTo(x+cardW/2,yy+210);c.stroke();
+    text(d.leftLab,x+cardW*.28,yy+218,25,900,"#111111","center");
+    text(d.rightLab,x+cardW*.72,yy+218,25,900,"#111111","center");
+    rect(x+16,yy+244,cardW-32,42,10,tint(A,.16));
+    text(d.bottom||"—",x+cardW/2,yy+273,25,900,"#111111","center");
+  });
+  y += cardH*2 + 54;
+
+  // ---------- TABLE HELPERS ----------
+  function tableSection(title,headers,rows,total){
+    const x=30,w=1110;
+    const titleH=64, headH=48, rowH=66;
+    rect(x,y,w,titleH,16,P);
+    text(title,x+26,y+45,38,950,"#ffffff","left");
+    y+=titleH;
+
+    c.fillStyle=A;c.fillRect(x,y,w,headH);
+    const cols=headers.length;
+    // Tighter columns with larger type.
+    const firstW=cols>=7?265:300;
+    const rem=(w-firstW)/(cols-1);
+
+    headers.forEach((h,i)=>{
+      const xx=i===0?x+22:x+firstW+rem*(i-1)+rem/2;
+      text(h,xx,y+33,22,950,P,i===0?"left":"center");
+    });
+    y+=headH;
+
+    const drawRow=(r,isTotal=false)=>{
+      c.fillStyle=isTotal?tint(A,.16):"#ffffff";c.fillRect(x,y,w,rowH);
+      c.strokeStyle=tint(P,.12);c.lineWidth=1;c.beginPath();c.moveTo(x,y+rowH);c.lineTo(x+w,y+rowH);c.stroke();
+      r.forEach((v,i)=>{
+        const xx=i===0?x+22:x+firstW+rem*(i-1)+rem/2;
+        text(v,xx,y+44,i===0?29:30,isTotal?950:(i===0?900:800),isTotal?P:"#111111",i===0?"left":"center");
+      });
+      y+=rowH;
+    };
+
+    rows.forEach(r=>drawRow(r,false));
+    drawRow(total,true);
+    y+=18;
+  }
+
+  let rows=s.filter(x=>x.car).map(x=>[pname(x.id),x.car,x.ry,(x.ry/x.car).toFixed(1),x.rfd,x.rtd]);
+  if(rows.length){
+    const car=s.reduce((a,x)=>a+x.car,0),yd=s.reduce((a,x)=>a+x.ry,0);
+    tableSection("RUSHING",["PLAYER","CAR","YDS","AVG","1D","TD"],rows,
+      ["TEAM TOTAL",car,yd,car?(yd/car).toFixed(1):"0.0",s.reduce((a,x)=>a+x.rfd,0),s.reduce((a,x)=>a+x.rtd,0)]);
+  }
+
+  rows=s.filter(x=>x.att).map(x=>[pname(x.id),`${x.cmp}/${x.att}`,x.py,(x.py/x.att).toFixed(1),x.pfd,x.ptd,x.pi]);
+  if(rows.length){
+    const att=s.reduce((a,x)=>a+x.att,0),cmp=s.reduce((a,x)=>a+x.cmp,0),yd=s.reduce((a,x)=>a+x.py,0);
+    tableSection("PASSING",["PLAYER","CMP/ATT","YDS","AVG","1D","TD","INT"],rows,
+      ["TEAM TOTAL",`${cmp}/${att}`,yd,att?(yd/att).toFixed(1):"0.0",s.reduce((a,x)=>a+x.pfd,0),s.reduce((a,x)=>a+x.ptd,0),s.reduce((a,x)=>a+x.pi,0)]);
+  }
+
+  rows=s.filter(x=>x.rec).map(x=>[pname(x.id),x.rec,x.rey,(x.rey/x.rec).toFixed(1),x.recfd,x.retd]);
+  if(rows.length){
+    const rc=s.reduce((a,x)=>a+x.rec,0),yd=s.reduce((a,x)=>a+x.rey,0);
+    tableSection("RECEIVING",["PLAYER","REC","YDS","AVG","1D","TD"],rows,
+      ["TEAM TOTAL",rc,yd,rc?(yd/rc).toFixed(1):"0.0",s.reduce((a,x)=>a+x.recfd,0),s.reduce((a,x)=>a+x.retd,0)]);
+  }
+
+  rows=s.filter(x=>x.t+x.tfl+x.sack+x.int+x.ff+x.fr).map(x=>[
+    pname(x.id),fmt(x.t),fmt(x.tfl),fmt(x.sack),fmt(x.int),fmt(x.ff),fmt(x.fr)
+  ]);
+  if(rows.length){
+    tableSection("DEFENSE",["PLAYER","TKL","TFL","SACK","INT","FF","FR"],rows,
+      ["TEAM TOTAL",
+       fmt(s.reduce((a,x)=>a+x.t,0)),
+       fmt(s.reduce((a,x)=>a+x.tfl,0)),
+       fmt(s.reduce((a,x)=>a+x.sack,0)),
+       fmt(s.reduce((a,x)=>a+x.int,0)),
+       fmt(s.reduce((a,x)=>a+x.ff,0)),
+       fmt(s.reduce((a,x)=>a+x.fr,0))]);
+  }
+
+  // Fill footer at whatever remains; keep it compact.
+  const footerH=70;
+  c.fillStyle=P;c.fillRect(0,H-footerH,W,footerH);
+  text(S.team.name.toUpperCase(),W/2,H-23,28,900,A,"center");
+
+  return cv;
 }
 async function canvasFile(cv,name){const blob=await new Promise(res=>cv.toBlob(res,"image/png"));return new File([blob],name,{type:"image/png"})}
 $("#shareStatsBtn").addEventListener("click",async()=>{
@@ -1099,7 +1371,7 @@ $("#shareStatsBtn").addEventListener("click",async()=>{
 
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]))}
 
-normalizeGames();populateSetup();syncChrome();renderRoster();
+normalizeRoster();normalizeGames();populateSetup();syncChrome();renderRoster();initializeSnapSelections();
 if(teamExists())go("roster");else go("setup");
 })();
 </script>
