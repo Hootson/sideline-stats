@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V2.4</title>
+<title>Sideline Stats V2.5</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -226,7 +226,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V2.4 • SHARE READABILITY</div>
+      <div class="muted" style="color:#dfe9e2">V2.5 • SPECIAL TEAMS FIX</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -987,12 +987,17 @@ $("#saveEdit").addEventListener("click",()=>{
 });
 
 function agg(g){
-  let m={};S.roster.forEach(p=>m[p.id]={id:p.id,j:p.jersey,n:p.name,car:0,ry:0,rtd:0,att:0,cmp:0,py:0,ptd:0,pi:0,rec:0,rey:0,retd:0,t:0,tfl:0,sack:0,int:0,ff:0,fr:0,kr:0,kry:0,pr:0,pry:0,rfd:0,pfd:0,recfd:0});
+  let m={};S.roster.forEach(p=>m[p.id]={id:p.id,j:p.jersey,n:p.name,car:0,ry:0,rtd:0,att:0,cmp:0,py:0,ptd:0,pi:0,rec:0,rey:0,retd:0,t:0,tfl:0,sack:0,int:0,ff:0,fr:0,kr:0,kry:0,pr:0,pry:0,punt:0,punty:0,rfd:0,pfd:0,recfd:0});
   (g?.plays||[]).forEach(p=>{let a=m[p.player],b=m[p.player2];
     if(p.type==="Rush"&&a){a.car++;a.ry+=+p.yards||0;if(p.extras?.includes("TD"))a.rtd++;if(p.extras?.includes("1st Down"))a.rfd++}
     if(p.type==="Pass"&&a){a.att++;if(p.sub==="Complete"){a.cmp++;a.py+=+p.yards||0;if(p.extras?.includes("TD"))a.ptd++;if(p.extras?.includes("1st Down"))a.pfd++;if(b){b.rec++;b.rey+=+p.yards||0;if(p.extras?.includes("TD"))b.retd++;if(p.extras?.includes("1st Down"))b.recfd++}}if(p.sub==="Intercepted")a.pi++}
     if(p.type==="Defense"){if(p.defCredits){Object.entries(p.defCredits).forEach(([id,credit])=>{const d=m[id];if(!d)return;const v=Number(credit)||0;if(p.sub==="Tackle")d.t+=v;if(p.sub==="TFL")d.tfl+=v;if(p.sub==="Sack")d.sack+=v;if(p.sub==="INT")d.int+=v;if(p.sub==="Forced Fumble")d.ff+=v;if(p.sub==="Fumble Recovery")d.fr+=v;});}else if(a){if(p.sub==="Tackle")a.t++;if(p.sub==="TFL")a.tfl++;if(p.sub==="Sack")a.sack++;if(p.sub==="INT")a.int++;if(p.sub==="Forced Fumble")a.ff++;if(p.sub==="Fumble Recovery")a.fr++;}}
-    if(p.type==="Special"&&a){if(p.sub==="Kick Return"){a.kr++;a.kry+=+p.yards||0}else{a.pr++;a.pry+=+p.yards||0}}
+    if(p.type==="Special"&&a){
+      if(p.sub==="Kick Return"){a.kr++;a.kry+=+p.yards||0}
+      else if(p.sub==="Punt Return"){a.pr++;a.pry+=+p.yards||0}
+    }
+    if(p.type==="Kickoff Return"&&a){a.kr++;a.kry+=+p.yards||0}
+    if(p.type==="Punt"&&a){a.punt++;a.punty+=Math.abs(+p.yards||0)}
   });return Object.values(m)
 }
 
@@ -1038,6 +1043,17 @@ function recordFor(games){
   games.forEach(g=>{const us=displayedOurScore(g),them=Number(g.oppScore||0);if(us>them)w++;else if(us<them)l++;else t++});
   return t?`${w}-${l}-${t}`:`${w}-${l}`;
 }
+
+function teamSpecialCounts(plays){
+  const list=plays||[];
+  return {
+    kickoffs:list.filter(p=>p.type==="Kickoff").length,
+    kickoffReturns:list.filter(p=>p.type==="Kickoff Return"||(p.type==="Special"&&p.sub==="Kick Return")).length,
+    punts:list.filter(p=>p.type==="Punt").length,
+    puntReturns:list.filter(p=>p.type==="Special"&&p.sub==="Punt Return").length
+  };
+}
+
 function statsSource(scope=statsScope){
   const games=scopeGames(scope);
   if(!games.length)return null;
@@ -1185,15 +1201,33 @@ function renderStats(){
   const defRows=s.filter(x=>x.t+x.tfl+x.sack+x.int+x.ff+x.fr).map(x=>[pname(x.id),fmt(x.t),fmt(x.tfl),fmt(x.sack),fmt(x.int),fmt(x.ff),fmt(x.fr)]);
   const defTot=["TEAM TOTAL",fmt(s.reduce((a,x)=>a+x.t,0)),fmt(s.reduce((a,x)=>a+x.tfl,0)),fmt(s.reduce((a,x)=>a+x.sack,0)),fmt(s.reduce((a,x)=>a+x.int,0)),fmt(s.reduce((a,x)=>a+x.ff,0)),fmt(s.reduce((a,x)=>a+x.fr,0))];
 
-  const specialRows=s.filter(x=>x.kr+x.pr).map(x=>[pname(x.id),x.kr,x.kry,x.pr,x.pry]);
-  const specialTot=["TEAM TOTAL",s.reduce((a,x)=>a+x.kr,0),s.reduce((a,x)=>a+x.kry,0),s.reduce((a,x)=>a+x.pr,0),s.reduce((a,x)=>a+x.pry,0)];
+  const specialRows=s.filter(x=>x.kr+x.pr+x.punt).map(x=>[
+    pname(x.id),x.kr,x.kry,x.pr,x.pry,x.punt,x.punty
+  ]);
+  const specialTot=["TEAM TOTAL",
+    s.reduce((a,x)=>a+x.kr,0),
+    s.reduce((a,x)=>a+x.kry,0),
+    s.reduce((a,x)=>a+x.pr,0),
+    s.reduce((a,x)=>a+x.pry,0),
+    s.reduce((a,x)=>a+x.punt,0),
+    s.reduce((a,x)=>a+x.punty,0)
+  ];
+  const specialTeamCounts=teamSpecialCounts(src.plays);
 
   $("#statsBox").innerHTML=
     `<div class="stats-block"><h3>Rushing</h3>${tbl(["Player","CAR","YDS","AVG","1D","TD"],rushRows,rushRows.length?rushTot:null)}</div>`+
     `<div class="stats-block"><h3>Passing</h3>${tbl(["Player","CMP/ATT","YDS","AVG","1D","TD","INT"],passRows,passRows.length?passTot:null)}</div>`+
     `<div class="stats-block"><h3>Receiving</h3>${tbl(["Player","REC","YDS","AVG","1D","TD"],recRows,recRows.length?recTot:null)}</div>`+
     `<div class="stats-block"><h3>Defense</h3>${tbl(["Player","TKL","TFL","SACK","INT","FF","FR"],defRows,defRows.length?defTot:null)}</div>`+
-    `<div class="stats-block"><h3>Special Teams</h3>${tbl(["Player","KR","KR YDS","PR","PR YDS"],specialRows,specialRows.length?specialTot:null)}</div>`;
+    `<div class="stats-block"><h3>Special Teams</h3>
+      <div class="scope-summary" style="margin-bottom:8px">
+        <span class="scope-pill">Kickoffs ${specialTeamCounts.kickoffs}</span>
+        <span class="scope-pill">Kick Returns ${specialTeamCounts.kickoffReturns}</span>
+        <span class="scope-pill">Punts ${specialTeamCounts.punts}</span>
+        <span class="scope-pill">Punt Returns ${specialTeamCounts.puntReturns}</span>
+      </div>
+      ${tbl(["Player","KR","KR YDS","PR","PR YDS","PUNT","PUNT YDS"],specialRows,specialRows.length?specialTot:null)}
+    </div>`;
 }
 $$(".scope-btn").forEach(b=>b.addEventListener("click",()=>{statsScope=b.dataset.scope;renderStats()}));
 function summaryText(g){
@@ -1438,6 +1472,21 @@ async function makeHybridShare(src){
       ["TEAM TOTAL",fmt(s.reduce((a,x)=>a+x.t,0)),fmt(s.reduce((a,x)=>a+x.tfl,0)),
        fmt(s.reduce((a,x)=>a+x.sack,0)),fmt(s.reduce((a,x)=>a+x.int,0)),
        fmt(s.reduce((a,x)=>a+x.ff,0)),fmt(s.reduce((a,x)=>a+x.fr,0))]);
+  }
+
+  rows=s.filter(x=>x.kr+x.pr+x.punt).map(x=>[
+    pname(x.id),x.kr,x.kry,x.pr,x.pry,x.punt,x.punty
+  ]);
+  if(rows.length){
+    tableSection("SPECIAL TEAMS",["PLAYER","KR","KR YDS","PR","PR YDS","PUNT","PUNT YDS"],rows,
+      ["TEAM TOTAL",
+       s.reduce((a,x)=>a+x.kr,0),
+       s.reduce((a,x)=>a+x.kry,0),
+       s.reduce((a,x)=>a+x.pr,0),
+       s.reduce((a,x)=>a+x.pry,0),
+       s.reduce((a,x)=>a+x.punt,0),
+       s.reduce((a,x)=>a+x.punty,0)
+      ]);
   }
 
   // Crop unused vertical whitespace instead of sending a mostly-empty image.
