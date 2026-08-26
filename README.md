@@ -1,25 +1,20 @@
-# Sideline Stats V2.2 — Stability Fix
+# Sideline Stats V2.4 — Share Readability
 
-V2.1 contained a JavaScript syntax error in the Undo/Delete game-state rebuild code.
+Share-image generator updated only; no mockup.
 
-Because the browser could not parse the script, the entire app stopped initializing — including the Create Team button.
+Changes:
+- Substantially larger fonts throughout
+- Narrower 1080px canvas for better iPhone readability
+- Less unused/dead space
+- Output automatically crops unused vertical space
+- More compact top summary
+- Primary + accent team colors integrated into the summary
+- Accent side rails and score panels
+- Larger score
+- Larger Top Performer names and stats
+- Larger table player names and stat values
+- Dense table rows and narrower columns
+- 2×2 Top Performers retained
+- Team totals, averages and first downs retained
 
-V2.2 fixes that syntax error. No fake/preloaded roster is included.
-
-All recent functionality remains:
-- Team setup
-- Roster
-- Game history
-- Regular season / playoff / season totals
-- Share Stats
-- Team logo
-- Downs
-- Possession / turnovers
-- Punt
-- Half-start kickoffs
-- Snap tracker with 10-snap progress
-
-The full JavaScript file was syntax-checked after the repair.
-
-## GitHub
-Replace `index.html` and `manifest.webmanifest` in the same repository and commit to `main`.
+Game functionality from V2.3 remains intact.

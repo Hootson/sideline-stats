@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V2.2</title>
+<title>Sideline Stats V2.4</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -197,14 +197,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 .snap-pill{background:#eef5f0;color:var(--p);border-radius:999px;padding:5px 8px;font-size:12px;font-weight:900}
 
 
-.kickoff-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:12px;margin-bottom:12px}
-.kickoff-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.kickoff-head strong{font-size:17px}
-.kickoff-status{font-size:12px;font-weight:900;color:var(--p);background:#eef5f0;border-radius:999px;padding:5px 8px}
-.kickoff-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
-.kickoff-btn{border:2px solid var(--s);border-radius:11px;padding:11px 6px;font-size:14px;font-weight:950}
-.kickoff-btn.receive{background:var(--p);color:#fff}
-.kickoff-btn.kick{background:#fff;color:var(--p)}
 
 
 .snap-player{grid-template-columns:auto 1fr minmax(84px,120px)}
@@ -234,7 +226,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V2.2 • STABILITY FIX</div>
+      <div class="muted" style="color:#dfe9e2">V2.4 • SHARE READABILITY</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -357,20 +349,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
         </div>
         <button class="possession-toggle" id="togglePossession">Switch to Defense</button>
       </div>
-
-      <div class="kickoff-card">
-        <div class="kickoff-head">
-          <strong id="kickoffTitle">Start 1st Half / Kickoff</strong>
-          <span class="kickoff-status" id="halfStatus">Pre-game</span>
-        </div>
-        <div class="muted" style="margin-top:4px">Kickoff sets possession and 1st down, but does not count as a down.</div>
-        <div class="kickoff-actions">
-          <button class="kickoff-btn receive" id="weReceiveKickoff">WE RECEIVE</button>
-          <button class="kickoff-btn kick" id="weKickKickoff">WE KICK</button>
-        </div>
-      </div>
-
-      <div class="down-card">
+<div class="down-card">
         <div class="down-title">
           <strong>Current Down</strong>
           <span class="muted">Tap to correct the current down</span>
@@ -392,6 +371,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
           <button class="choice action" data-action="Defense">🛡️<br>DEFENSE</button>
           <button class="choice action" data-action="Special">⭐<br>SPECIAL</button>
         </div>
+        <button class="btn punt-btn" id="quickKickoff">🦵 KICKOFF</button>
         <button class="btn punt-btn" id="quickPunt">🏈 PUNT</button>
         <button class="btn ghost" id="undo" style="margin-top:10px">↶ Undo Last Play</button>
       </div>
@@ -493,7 +473,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
 <script>
 (function(){
-const KEY="sidelineStatsV21", OLDKEY="sidelineStatsV20", OLDERKEY="sidelineStatsV19", OLDESTKEY="sidelineStatsV18", LEGACYKEY="sidelineStatsV17", LEGACYKEY2="sidelineStatsV16", LEGACYKEY3="sidelineStatsV15", LEGACYKEY4="sidelineStatsV14", LEGACYKEY5="sidelineStatsV13", LEGACYKEY6="sidelineStatsV12", LEGACYKEY7="sidelineStatsV11", LEGACYKEY8="sidelineStatsV10", LEGACYKEY9="sidelineStatsV09", LEGACYKEY10="sidelineStatsV08", LEGACYKEY11="sidelineStatsV07", LEGACYKEY12="sidelineStatsV06", LEGACYKEY13="sidelineStatsV05", LEGACYKEY14="sidelineStatsV04", LEGACYKEY15="sidelineStatsV03", LEGACYKEY16="sidelineStatsV02";
+const KEY="sidelineStatsV23", OLDKEY="sidelineStatsV20", OLDERKEY="sidelineStatsV19", OLDESTKEY="sidelineStatsV18", LEGACYKEY="sidelineStatsV17", LEGACYKEY2="sidelineStatsV16", LEGACYKEY3="sidelineStatsV15", LEGACYKEY4="sidelineStatsV14", LEGACYKEY5="sidelineStatsV13", LEGACYKEY6="sidelineStatsV12", LEGACYKEY7="sidelineStatsV11", LEGACYKEY8="sidelineStatsV10", LEGACYKEY9="sidelineStatsV09", LEGACYKEY10="sidelineStatsV08", LEGACYKEY11="sidelineStatsV07", LEGACYKEY12="sidelineStatsV06", LEGACYKEY13="sidelineStatsV05", LEGACYKEY14="sidelineStatsV04", LEGACYKEY15="sidelineStatsV03", LEGACYKEY16="sidelineStatsV02";
 const empty={team:null,roster:[],games:[],activeGameId:null,flow:{},editingPlayId:null};
 let S=load();
 let statsScope="game";
@@ -534,7 +514,7 @@ function normalizeRoster(){
 }
 function normalizeGames(){
   let changed=false;
-  (S.games||[]).forEach(g=>{if(!g.gameType){g.gameType="regular";changed=true} if(!g.down||g.down<1||g.down>4){g.down=1;changed=true} if(!g.possession){g.possession="ours";changed=true}if(!Array.isArray(g.snapRecords)){g.snapRecords=[];changed=true}if(typeof g.half!=="number"){g.half=0;changed=true}});
+  (S.games||[]).forEach(g=>{if(!g.gameType){g.gameType="regular";changed=true} if(!g.down||g.down<1||g.down>4){g.down=1;changed=true} if(!g.possession){g.possession="ours";changed=true}if(!Array.isArray(g.snapRecords)){g.snapRecords=[];changed=true}});
   if(changed)persist();
 }
 function toast(m){let t=$("#toast");t.textContent=m;t.style.display="block";setTimeout(()=>t.style.display="none",1500)}
@@ -675,7 +655,7 @@ function renderGameList(){
 $("#newGameBtn").addEventListener("click",()=>{
   if(!S.roster.length)return toast("Add your roster first");
   const opp=$("#newOpponent").value.trim();if(!opp)return toast("Enter an opponent");
-  const g={id:uid(),opponent:opp,date:$("#newGameDate").value||today(),location:$("#newLocation").value,gameType:$("#newGameType").value||"regular",status:"live",ourScore:0,scoreAdjustment:0,oppScore:0,down:1,possession:"ours",half:0,plays:[]};
+  const g={id:uid(),opponent:opp,date:$("#newGameDate").value||today(),location:$("#newLocation").value,gameType:$("#newGameType").value||"regular",status:"live",ourScore:0,scoreAdjustment:0,oppScore:0,down:1,possession:"ours",plays:[]};
   S.games.push(g);S.activeGameId=g.id;selectedStatsGameId=g.id;persist();resetFlow();renderGameArea()
 });
 $("#endGameBtn").addEventListener("click",()=>{
@@ -741,13 +721,7 @@ function renderLiveGame(){
     : `${g.opponent} Ball — Defense`;
   $("#possessionSub").textContent=`${ordinal(g.down)} down`;
   $("#togglePossession").textContent=g.possession==="ours"?"Switch to Defense":"Switch to Offense";
-  if(typeof g.half!=="number")g.half=0;
-  $("#halfStatus").textContent=kickoffLabel(g);
-  const nh=nextHalfNumber(g);
-  $("#kickoffTitle").textContent=`Start ${nh===1?"1st":"2nd"} Half / Kickoff`;
-  $("#weReceiveKickoff").disabled=g.half>=2;
-  $("#weKickKickoff").disabled=g.half>=2;
-  $$(".down-btn").forEach(b=>b.classList.toggle("active",Number(b.dataset.down)===Number(g.down)));
+$$(".down-btn").forEach(b=>b.classList.toggle("active",Number(b.dataset.down)===Number(g.down)));
   persist();renderRecent();resetFlow();
 }
 
@@ -760,29 +734,6 @@ $("#togglePossession").addEventListener("click",()=>{
   }
 });
 
-function recordHalfKickoff(receivingSide){
-  const g=currentGame();if(!g)return;
-  if((Number(g.half)||0)>=2)return toast("Both half kickoffs are already recorded");
-  const half=nextHalfNumber(g);
-  const receiver=receivingSide==="ours"?S.team.name:g.opponent;
-  const label=half===1?"1st":"2nd";
-  if(!confirm(`${label} half kickoff — ${receiver} receives?`))return;
-
-  const p={
-    id:uid(),ts:Date.now(),type:"Kickoff",
-    half,receivingSide,
-    sub:`${label} Half Kickoff`,
-    extras:[]
-  };
-  g.plays.push(p);
-  g.half=half;
-  g.possession=receivingSide;
-  g.down=1;
-  persist();renderLiveGame();
-  toast(`${receiver} ball — 1st down`);
-}
-$("#weReceiveKickoff").addEventListener("click",()=>recordHalfKickoff("ours"));
-$("#weKickKickoff").addEventListener("click",()=>recordHalfKickoff("opp"));
 
 $$(".down-btn").forEach(b=>b.addEventListener("click",()=>{
   const g=currentGame();if(!g)return;
@@ -790,27 +741,22 @@ $$(".down-btn").forEach(b=>b.addEventListener("click",()=>{
 }));
 function ordinal(n){return n===1?"1st":n===2?"2nd":n===3?"3rd":"4th"}
 function rebuildGameState(g){
-  g.down=1;g.possession="ours";g.half=0;
-  for(const p of (g.plays||[])){
-    if(p.type==="Kickoff"){
-      g.half=Number(p.half)||Math.min(2,(g.half||0)+1);
-      g.possession=p.receivingSide==="opp"?"opp":"ours";
-      g.down=1;
-    }else{
-      advanceDownAfterPlay(g,p);
-    }
-  }
-}
-function nextHalfNumber(g){return (Number(g.half)||0)<1?1:2}
-function kickoffLabel(g){
-  return (Number(g.half)||0)===0?"Pre-game":`${g.half===1?"1st":"2nd"} Half`;
+  g.down=1;
+  g.possession="ours";
+  for(const p of (g.plays||[]))advanceDownAfterPlay(g,p);
 }
 
 function advanceDownAfterPlay(g,p){
   if(!g||!p)return;
+
+  // Kickoffs and kickoff returns never consume a down.
   if(p.type==="Kickoff"){
-    g.half=Number(p.half)||g.half||1;
-    g.possession=p.receivingSide==="opp"?"opp":"ours";
+    g.possession=p.receivingSide==="ours"?"ours":"opp";
+    g.down=1;
+    return;
+  }
+  if(p.type==="Kickoff Return"){
+    g.possession="ours";
     g.down=1;
     return;
   }
@@ -818,46 +764,88 @@ function advanceDownAfterPlay(g,p){
   if(g.possession==="ours"){
     if(p.type==="Defense"||p.type==="Special")return;
 
-    // We punted.
-    if(p.type==="Punt"){g.possession="opp";g.down=1;return}
+    if(p.type==="Punt"){
+      g.possession="opp";
+      g.down=1;
+      return;
+    }
 
-    // We threw an interception.
-    if(p.type==="Pass"&&p.sub==="Intercepted"){g.possession="opp";g.down=1;return}
+    if(p.type==="Pass"&&p.sub==="Intercepted"){
+      g.possession="opp";
+      g.down=1;
+      return;
+    }
 
-    // We lost a fumble.
-    if(p.extras?.includes("Fumble Lost")){g.possession="opp";g.down=1;return}
+    if(p.extras?.includes("Fumble Lost")){
+      g.possession="opp";
+      g.down=1;
+      return;
+    }
 
-    // Scoring play is complete; opponent takes the next possession.
-    if(p.extras?.includes("TD")){g.possession="opp";g.down=1;return}
+    if(p.extras?.includes("TD")){
+      g.down=1;
+      return;
+    }
 
-    // We made a first down.
-    if(p.extras?.includes("1st Down")){g.down=1;return}
+    if(p.extras?.includes("1st Down")){
+      g.down=1;
+      return;
+    }
 
-    // Failed 4th down = turnover on downs.
-    if(Number(g.down)===4){g.possession="opp";g.down=1;return}
+    // Normal offensive play: 1st->2nd, 2nd->3rd, 3rd->4th.
+    if(Number(g.down) < 4){
+      g.down=Number(g.down)+1;
+      return;
+    }
 
-    g.down=(Number(g.down)||1)+1;
+    // 4th-down play that does not gain a first down = turnover on downs.
+    g.possession="opp";
+    g.down=1;
     return;
   }
 
-  // Opponent has the ball; we're entering defensive stats.
   if(g.possession==="opp"){
     if(p.type!=="Defense")return;
 
-    // Our defense creates a turnover.
-    if(p.sub==="INT"||p.sub==="Fumble Recovery"){g.possession="ours";g.down=1;return}
+    if(p.sub==="INT"||p.sub==="Fumble Recovery"){
+      g.possession="ours";
+      g.down=1;
+      return;
+    }
 
-    // Defensive stop on 4th = our ball.
-    if(Number(g.down)===4){g.possession="ours";g.down=1;return}
+    if(Number(g.down) < 4){
+      g.down=Number(g.down)+1;
+      return;
+    }
 
-    // Otherwise advance opponent down.
-    g.down=(Number(g.down)||1)+1;
+    g.possession="ours";
+    g.down=1;
   }
 }
 
 function resetFlow(){S.flow={};["#stepSub","#stepPlayer","#stepDefenseCredits","#stepYards","#stepExtras"].forEach(id=>$(id).classList.add("hidden"));$("#stepMain").classList.remove("hidden");$$(".extra").forEach(b=>b.classList.remove("sel"))}
 $$(".cancel").forEach(b=>b.addEventListener("click",resetFlow));
 $$(".action").forEach(b=>b.addEventListener("click",()=>start(b.dataset.action)));
+$("#quickKickoff").addEventListener("click",()=>{
+  const g=currentGame();if(!g)return;
+
+  if(g.possession==="ours"){
+    // We are kicking. No player/yards entry needed; simply give opponent the ball.
+    if(confirm(`We kick off to ${g.opponent}?`)){
+      const p={id:uid(),ts:Date.now(),type:"Kickoff",sub:"Kickoff",receivingSide:"opp",extras:[]};
+      g.plays.push(p);
+      g.possession="opp";
+      g.down=1;
+      persist();renderLiveGame();toast(`${g.opponent} ball — 1st down`);
+    }
+    return;
+  }
+
+  // We are receiving: record returner and return yards.
+  S.flow={type:"Kickoff Return",sub:"Kickoff Return",extras:[]};
+  $("#stepMain").classList.add("hidden");
+  showPlayers("Kickoff return — select returner","kickReturner");
+});
 $("#quickPunt").addEventListener("click",()=>{
   S.flow={type:"Punt",sub:"Punt",extras:[]};
   $("#stepMain").classList.add("hidden");
@@ -914,7 +902,7 @@ function pick(id,mode){
   $("#stepPlayer").classList.add("hidden");
   if(mode==="qb"){S.flow.player=id;showSubs("Pass result",["Complete","Incomplete","Intercepted","Sack"])}
   else if(mode==="receiver"){S.flow.player2=id;showYards()}
-  else if(mode==="runner"||mode==="special"||mode==="punter"){S.flow.player=id;showYards()}
+  else if(mode==="runner"||mode==="special"||mode==="punter"||mode==="kickReturner"){S.flow.player=id;showYards()}
   else{S.flow.player=id;recordNow()}
 }
 function showYards(){
@@ -923,7 +911,7 @@ function showYards(){
   $("#stepYards").classList.remove("hidden");$$(".yard").forEach(b=>b.addEventListener("click",()=>yards(+b.dataset.v)))
 }
 $("#customBtn").addEventListener("click",()=>{let v=parseInt($("#customYards").value,10);if(Number.isNaN(v))return toast("Enter yards");yards(v)});
-function yards(v){S.flow.yards=v;$("#stepYards").classList.add("hidden");if(S.flow.type==="Punt")recordNow();else $("#stepExtras").classList.remove("hidden")}
+function yards(v){S.flow.yards=v;$("#stepYards").classList.add("hidden");if(S.flow.type==="Punt"||S.flow.type==="Kickoff Return")recordNow();else $("#stepExtras").classList.remove("hidden")}
 $$(".extra").forEach(b=>b.addEventListener("click",()=>{let x=b.dataset.extra,i=S.flow.extras.indexOf(x);if(i>=0){S.flow.extras.splice(i,1);b.classList.remove("sel")}else{S.flow.extras.push(x);b.classList.add("sel")}}));
 $("#recordPlay").addEventListener("click",recordNow);
 function recordNow(){
@@ -935,7 +923,12 @@ function recordNow(){
 
   const p={...JSON.parse(JSON.stringify(S.flow)),id:uid(),ts:Date.now()};
   g.plays.push(p);
-  advanceDownAfterPlay(g,p);
+  if(p.type==="Kickoff Return"){
+    g.possession="ours";
+    g.down=1;
+  }else{
+    advanceDownAfterPlay(g,p);
+  }
   g.ourScore=displayedOurScore(g);
   persist();renderLiveGame();
 
@@ -1286,149 +1279,134 @@ function tx(c,t,x,y,size,weight,color,align="left"){c.font=`${weight} ${size}px 
 function fmt(v){return Number.isInteger(Number(v))?String(Number(v)):Number(v).toFixed(1)}
 
 
-async function makeHybridShare(src){
-  const W=1170,H=2532,cv=document.createElement("canvas");cv.width=W;cv.height=H;const c=cv.getContext("2d");
-  const P=S.team.primary, A=S.team.secondary;
-  c.fillStyle="#ffffff";c.fillRect(0,0,W,H);
 
-  function rect(x,y,w,h,r,fill){
-    c.beginPath();c.roundRect(x,y,w,h,r);c.fillStyle=fill;c.fill();
-  }
+async function makeHybridShare(src){
+  // Narrower canvas + substantially larger type = much easier to read on an iPhone.
+  const W=1080,H=2400,cv=document.createElement("canvas");cv.width=W;cv.height=H;const c=cv.getContext("2d");
+  const P=S.team.primary,A=S.team.secondary;
+  c.fillStyle="#fff";c.fillRect(0,0,W,H);
+
+  function rect(x,y,w,h,r,fill){c.beginPath();c.roundRect(x,y,w,h,r);c.fillStyle=fill;c.fill()}
   function text(t,x,y,size,weight,color,align="left"){
     c.font=`${weight} ${size}px -apple-system,BlinkMacSystemFont,Segoe UI,Arial`;
     c.fillStyle=color;c.textAlign=align;c.fillText(String(t),x,y);
   }
-  function tint(hex, alpha=0.10){
-    const h=hex.replace("#","");
-    const r=parseInt(h.substring(0,2),16),g=parseInt(h.substring(2,4),16),b=parseInt(h.substring(4,6),16);
-    return `rgba(${r},${g},${b},${alpha})`;
+  function rgba(hex,a){
+    let h=(hex||"#000000").replace("#","");
+    if(h.length===3)h=h.split("").map(x=>x+x).join("");
+    const r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);
+    return `rgba(${r},${g},${b},${a})`;
   }
 
-  // ---------- HEADER ----------
-  c.fillStyle=P;c.fillRect(0,0,W,470);
-  c.fillStyle=A;c.fillRect(0,450,W,20);
+  // ---------- COMPACT, COLOR-BRANDED HEADER ----------
+  c.fillStyle=P;c.fillRect(0,0,W,390);
+  c.fillStyle=A;c.fillRect(0,0,18,390);
+  c.fillStyle=A;c.fillRect(W-18,0,18,390);
+  c.fillStyle=A;c.fillRect(0,370,W,20);
 
+  // Logo block
   if(S.team.logoData){
     try{
       const logo=await loadImg(S.team.logoData);
-      const box=122,x=48,y=38;
-      rect(x,y,box,box,24,"#ffffff");
-      const sc=Math.min((box-14)/logo.width,(box-14)/logo.height),dw=logo.width*sc,dh=logo.height*sc;
-      c.drawImage(logo,x+(box-dw)/2,y+(box-dh)/2,dw,dh);
+      rect(42,34,112,112,22,"#fff");
+      const sc=Math.min(96/logo.width,96/logo.height),dw=logo.width*sc,dh=logo.height*sc;
+      c.drawImage(logo,42+(112-dw)/2,34+(112-dh)/2,dw,dh);
     }catch(e){}
   }
 
-  text("SIDELINE STATS",W/2,52,31,850,"#ffffff","center");
-  text(S.team.name.toUpperCase(),W/2,125,67,950,"#ffffff","center");
+  text("SIDELINE STATS",W/2,52,34,900,A,"center");
+  text(S.team.name.toUpperCase(),W/2,120,62,950,"#fff","center");
 
   if(src.kind==="game"){
     const g=src.game;
-    text(String(displayedOurScore(g)),255,245,105,950,"#ffffff","center");
-    text(String(g.oppScore),915,245,105,950,"#ffffff","center");
-    text(S.team.name.toUpperCase(),255,300,30,900,"#ffffff","center");
-    text(g.opponent.toUpperCase(),915,300,30,900,"#ffffff","center");
-    text(g.status==="complete"?"FINAL":"LIVE",W/2,245,48,950,A,"center");
-    text(`${g.date} • ${g.location}`,W/2,315,30,800,"#ffffff","center");
-    text((g.gameType||"regular")==="playoff"?"PLAYOFF":"REGULAR SEASON",W/2,365,32,900,"#ffffff","center");
+    // Team/opponent score zones: less empty black space, more useful information.
+    rect(42,172,300,150,18,rgba(A,.18));
+    rect(W-342,172,300,150,18,rgba(A,.18));
+    rect(365,172,350,150,18,rgba(A,.10));
+
+    text(S.team.name.toUpperCase(),192,207,27,950,"#fff","center");
+    text(displayedOurScore(g),192,292,80,950,A,"center");
+
+    text(g.status==="complete"?"FINAL":"LIVE",W/2,218,39,950,A,"center");
+    text(`${g.location} • ${(g.gameType||"regular")==="playoff"?"PLAYOFF":"REGULAR"}`,W/2,263,25,900,"#fff","center");
+    text(g.date,W/2,302,25,800,"#fff","center");
+
+    text(g.opponent.toUpperCase(),W-192,207,27,950,"#fff","center");
+    text(g.oppScore,W-192,292,80,950,A,"center");
   }else{
-    text(src.title.toUpperCase(),W/2,235,50,950,A,"center");
-    text(`${S.team.season||""} • ${src.games.length} GAME${src.games.length===1?"":"S"}`,W/2,310,31,800,"#ffffff","center");
-    text(`RECORD ${recordFor(src.games)}`,W/2,375,47,950,"#ffffff","center");
+    rect(80,175,W-160,142,20,rgba(A,.15));
+    text(src.title.toUpperCase(),W/2,225,45,950,A,"center");
+    text(`${S.team.season||""} • ${src.games.length} GAME${src.games.length===1?"":"S"}`,W/2,270,28,850,"#fff","center");
+    text(`RECORD ${recordFor(src.games)}`,W/2,313,38,950,"#fff","center");
   }
 
   const s=agg({plays:src.plays});
+  let y=410;
 
-  // ---------- TOP PERFORMERS 2x2 ----------
-  let y=490;
-  rect(30,y,1110,76,18,A);
-  text("★  TOP PERFORMERS  ★",W/2,y+52,40,950,P,"center");
-  y+=96;
+  // ---------- TOP PERFORMERS ----------
+  rect(24,y,W-48,66,15,A);
+  text("★  TOP PERFORMERS  ★",W/2,y+46,37,950,P,"center");
+  y+=82;
 
   const pass=[...s].filter(x=>x.att).sort((a,b)=>b.py-a.py)[0];
   const rec=[...s].filter(x=>x.rec).sort((a,b)=>b.rey-a.rey)[0];
   const rush=[...s].filter(x=>x.car).sort((a,b)=>b.ry-a.ry)[0];
   const def=[...s].filter(x=>x.t+x.tfl+x.sack+x.int+x.ff+x.fr)
-      .sort((a,b)=>(b.t+b.tfl*2+b.sack*2+b.int*3+b.ff*2+b.fr*2)-(a.t+a.tfl*2+a.sack*2+a.int*3+a.ff*2+a.fr*2))[0];
+    .sort((a,b)=>(b.t+b.tfl*2+b.sack*2+b.int*3+b.ff*2+b.fr*2)-(a.t+a.tfl*2+a.sack*2+a.int*3+a.ff*2+a.fr*2))[0];
 
   const cards=[
-    {
-      cat:"PASSING", player:pass,
-      left:pass?`${pass.cmp}/${pass.att}`:"—", leftLab:"CMP/ATT",
-      right:pass?`${pass.py}`:"—", rightLab:"YDS",
-      bottom:pass&&pass.att?`${(pass.py/pass.att).toFixed(1)} AVG  |  ${pass.ptd} TD`:""
-    },
-    {
-      cat:"RECEIVING", player:rec,
-      left:rec?`${rec.rec}`:"—", leftLab:"REC",
-      right:rec?`${rec.rey}`:"—", rightLab:"YDS",
-      bottom:rec&&rec.rec?`${(rec.rey/rec.rec).toFixed(1)} AVG  |  ${rec.retd} TD`:""
-    },
-    {
-      cat:"RUSHING", player:rush,
-      left:rush?`${rush.ry}`:"—", leftLab:"YDS",
-      right:rush?`${rush.car}`:"—", rightLab:"CAR",
-      bottom:rush&&rush.car?`${(rush.ry/rush.car).toFixed(1)} AVG  |  ${rush.rtd} TD`:""
-    },
-    {
-      cat:"DEFENSE", player:def,
-      left:def?`${fmt(def.t)}`:"—", leftLab:"TKL",
-      right:def?`${fmt(def.tfl)}`:"—", rightLab:"TFL",
-      bottom:def?`${fmt(def.sack)} SACK  |  ${fmt(def.int)} INT`:""
-    }
+    ["PASSING",pass,pass?`${pass.cmp}/${pass.att}`:"—","CMP/ATT",pass?pass.py:"—","YDS",pass&&pass.att?`${(pass.py/pass.att).toFixed(1)} AVG • ${pass.ptd} TD`:"—"],
+    ["RECEIVING",rec,rec?rec.rec:"—","REC",rec?rec.rey:"—","YDS",rec&&rec.rec?`${(rec.rey/rec.rec).toFixed(1)} AVG • ${rec.retd} TD`:"—"],
+    ["RUSHING",rush,rush?rush.car:"—","CAR",rush?rush.ry:"—","YDS",rush&&rush.car?`${(rush.ry/rush.car).toFixed(1)} AVG • ${rush.rtd} TD`:"—"],
+    ["DEFENSE",def,def?fmt(def.t):"—","TKL",def?fmt(def.tfl):"—","TFL",def?`${fmt(def.sack)} SACK • ${fmt(def.int)} INT`:"—"]
   ];
 
-  const gap=18, cardW=(W-60-gap)/2, cardH=300;
+  const gap=14,cw=(W-48-gap)/2,ch=244;
   cards.forEach((d,i)=>{
-    const col=i%2,row=Math.floor(i/2);
-    const x=30+col*(cardW+gap), yy=y+row*(cardH+18);
-    rect(x,yy,cardW,cardH,20,"#ffffff");
-    c.strokeStyle=tint(P,.24);c.lineWidth=2;c.stroke();
-    text(d.cat,x+cardW/2,yy+48,33,950,P,"center");
-    text(d.player?pname(d.player.id):"—",x+cardW/2,yy+95,32,900,"#111111","center");
-
-    text(d.left,x+cardW*.28,yy+178,64,950,"#111111","center");
-    text(d.right,x+cardW*.72,yy+178,64,950,"#111111","center");
-    c.strokeStyle=A;c.lineWidth=3;c.beginPath();c.moveTo(x+cardW/2,yy+125);c.lineTo(x+cardW/2,yy+210);c.stroke();
-    text(d.leftLab,x+cardW*.28,yy+218,25,900,"#111111","center");
-    text(d.rightLab,x+cardW*.72,yy+218,25,900,"#111111","center");
-    rect(x+16,yy+244,cardW-32,42,10,tint(A,.16));
-    text(d.bottom||"—",x+cardW/2,yy+273,25,900,"#111111","center");
+    const x=24+(i%2)*(cw+gap),yy=y+Math.floor(i/2)*(ch+14);
+    rect(x,yy,cw,ch,18,"#fff");
+    c.strokeStyle=rgba(P,.22);c.lineWidth=2;c.stroke();
+    c.fillStyle=P;c.fillRect(x,yy,cw,50);
+    text(d[0],x+cw/2,yy+35,29,950,"#fff","center");
+    text(d[1]?pname(d[1].id):"—",x+cw/2,yy+88,30,950,"#111","center");
+    text(d[2],x+cw*.27,yy+153,54,950,P,"center");
+    text(d[4],x+cw*.73,yy+153,54,950,P,"center");
+    text(d[3],x+cw*.27,yy+184,20,950,"#333","center");
+    text(d[5],x+cw*.73,yy+184,20,950,"#333","center");
+    rect(x+12,yy+198,cw-24,34,8,rgba(A,.18));
+    text(d[6],x+cw/2,yy+223,22,950,"#111","center");
   });
-  y += cardH*2 + 54;
+  y+=ch*2+42;
 
-  // ---------- TABLE HELPERS ----------
+  // ---------- DENSE, LARGE-TYPE TABLES ----------
   function tableSection(title,headers,rows,total){
-    const x=30,w=1110;
-    const titleH=64, headH=48, rowH=66;
-    rect(x,y,w,titleH,16,P);
-    text(title,x+26,y+45,38,950,"#ffffff","left");
+    const x=24,w=W-48,titleH=54,headH=46,rowH=62;
+    rect(x,y,w,titleH,13,P);
+    text(title,x+20,y+38,34,950,"#fff");
     y+=titleH;
-
     c.fillStyle=A;c.fillRect(x,y,w,headH);
-    const cols=headers.length;
-    // Tighter columns with larger type.
-    const firstW=cols>=7?265:300;
-    const rem=(w-firstW)/(cols-1);
 
+    const cols=headers.length;
+    const firstW=cols>=7?235:260;
+    const rem=(w-firstW)/(cols-1);
     headers.forEach((h,i)=>{
-      const xx=i===0?x+22:x+firstW+rem*(i-1)+rem/2;
-      text(h,xx,y+33,22,950,P,i===0?"left":"center");
+      const xx=i===0?x+16:x+firstW+rem*(i-1)+rem/2;
+      text(h,xx,y+32,21,950,P,i===0?"left":"center");
     });
     y+=headH;
 
-    const drawRow=(r,isTotal=false)=>{
-      c.fillStyle=isTotal?tint(A,.16):"#ffffff";c.fillRect(x,y,w,rowH);
-      c.strokeStyle=tint(P,.12);c.lineWidth=1;c.beginPath();c.moveTo(x,y+rowH);c.lineTo(x+w,y+rowH);c.stroke();
+    function row(r,totalRow=false){
+      c.fillStyle=totalRow?rgba(A,.18):"#fff";c.fillRect(x,y,w,rowH);
+      c.strokeStyle=rgba(P,.13);c.beginPath();c.moveTo(x,y+rowH);c.lineTo(x+w,y+rowH);c.stroke();
       r.forEach((v,i)=>{
-        const xx=i===0?x+22:x+firstW+rem*(i-1)+rem/2;
-        text(v,xx,y+44,i===0?29:30,isTotal?950:(i===0?900:800),isTotal?P:"#111111",i===0?"left":"center");
+        const xx=i===0?x+16:x+firstW+rem*(i-1)+rem/2;
+        text(v,xx,y+42,i===0?28:29,totalRow?950:(i===0?900:800),totalRow?P:"#111",i===0?"left":"center");
       });
       y+=rowH;
-    };
-
-    rows.forEach(r=>drawRow(r,false));
-    drawRow(total,true);
-    y+=18;
+    }
+    rows.forEach(r=>row(r));
+    row(total,true);
+    y+=12;
   }
 
   let rows=s.filter(x=>x.car).map(x=>[pname(x.id),x.car,x.ry,(x.ry/x.car).toFixed(1),x.rfd,x.rtd]);
@@ -1457,21 +1435,21 @@ async function makeHybridShare(src){
   ]);
   if(rows.length){
     tableSection("DEFENSE",["PLAYER","TKL","TFL","SACK","INT","FF","FR"],rows,
-      ["TEAM TOTAL",
-       fmt(s.reduce((a,x)=>a+x.t,0)),
-       fmt(s.reduce((a,x)=>a+x.tfl,0)),
-       fmt(s.reduce((a,x)=>a+x.sack,0)),
-       fmt(s.reduce((a,x)=>a+x.int,0)),
-       fmt(s.reduce((a,x)=>a+x.ff,0)),
-       fmt(s.reduce((a,x)=>a+x.fr,0))]);
+      ["TEAM TOTAL",fmt(s.reduce((a,x)=>a+x.t,0)),fmt(s.reduce((a,x)=>a+x.tfl,0)),
+       fmt(s.reduce((a,x)=>a+x.sack,0)),fmt(s.reduce((a,x)=>a+x.int,0)),
+       fmt(s.reduce((a,x)=>a+x.ff,0)),fmt(s.reduce((a,x)=>a+x.fr,0))]);
   }
 
-  // Fill footer at whatever remains; keep it compact.
-  const footerH=70;
-  c.fillStyle=P;c.fillRect(0,H-footerH,W,footerH);
-  text(S.team.name.toUpperCase(),W/2,H-23,28,900,A,"center");
-
-  return cv;
+  // Crop unused vertical whitespace instead of sending a mostly-empty image.
+  const usedH=Math.min(H,Math.max(900,y+74));
+  const out=document.createElement("canvas");out.width=W;out.height=usedH;
+  const oc=out.getContext("2d");
+  oc.drawImage(cv,0,0,W,usedH,0,0,W,usedH);
+  oc.fillStyle=P;oc.fillRect(0,usedH-58,W,58);
+  text; // keep closure stable
+  oc.font=`900 24px -apple-system,BlinkMacSystemFont,Segoe UI,Arial`;
+  oc.fillStyle=A;oc.textAlign="center";oc.fillText(S.team.name.toUpperCase(),W/2,usedH-20);
+  return out;
 }
 async function canvasFile(cv,name){const blob=await new Promise(res=>cv.toBlob(res,"image/png"));return new File([blob],name,{type:"image/png"})}
 $("#shareStatsBtn").addEventListener("click",async()=>{
