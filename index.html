@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V1.6</title>
+<title>Sideline Stats V1.9</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -196,6 +196,33 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 .snap-summary{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
 .snap-pill{background:#eef5f0;color:var(--p);border-radius:999px;padding:5px 8px;font-size:12px;font-weight:900}
 
+
+.kickoff-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:12px;margin-bottom:12px}
+.kickoff-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.kickoff-head strong{font-size:17px}
+.kickoff-status{font-size:12px;font-weight:900;color:var(--p);background:#eef5f0;border-radius:999px;padding:5px 8px}
+.kickoff-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.kickoff-btn{border:2px solid var(--s);border-radius:11px;padding:11px 6px;font-size:14px;font-weight:950}
+.kickoff-btn.receive{background:var(--p);color:#fff}
+.kickoff-btn.kick{background:#fff;color:var(--p)}
+
+
+.snap-player{grid-template-columns:auto 1fr minmax(84px,120px)}
+.snap-player-main{min-width:0}
+.snap-progress-wrap{display:flex;flex-direction:column;gap:6px}
+.snap-progress-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.snap-progress-count{font-size:16px;font-weight:950;color:var(--p);white-space:nowrap}
+.snap-progress-status{font-size:10px;font-weight:950;border-radius:999px;padding:3px 6px;background:#fff4ed;color:#9b4300}
+.snap-progress-status.done{background:#eef5f0;color:var(--p)}
+.snap-bar{height:10px;border-radius:999px;background:#e9eeeb;overflow:hidden;border:1px solid var(--line)}
+.snap-bar-fill{height:100%;background:var(--s);border-radius:999px;transition:width .15s ease}
+.snap-bar-fill.done{background:var(--p)}
+.snap-player.needs-snaps{border-color:var(--s)}
+.snap-player.complete{border-color:#cfe2d5;background:#fbfdfb}
+.snap-alert-card{border:2px solid var(--s);background:#fffaf6}
+.snap-alert-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.snap-alert-num{font-size:28px;font-weight:950;color:var(--p)}
+
 </style>
 </head>
 <body>
@@ -207,7 +234,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V1.6 • SNAP TRACKER</div>
+      <div class="muted" style="color:#dfe9e2">V1.9 • TEST ROSTER</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -331,6 +358,18 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
         <button class="possession-toggle" id="togglePossession">Switch to Defense</button>
       </div>
 
+      <div class="kickoff-card">
+        <div class="kickoff-head">
+          <strong id="kickoffTitle">Start 1st Half / Kickoff</strong>
+          <span class="kickoff-status" id="halfStatus">Pre-game</span>
+        </div>
+        <div class="muted" style="margin-top:4px">Kickoff sets possession and 1st down, but does not count as a down.</div>
+        <div class="kickoff-actions">
+          <button class="kickoff-btn receive" id="weReceiveKickoff">WE RECEIVE</button>
+          <button class="kickoff-btn kick" id="weKickKickoff">WE KICK</button>
+        </div>
+      </div>
+
       <div class="down-card">
         <div class="down-title">
           <strong>Current Down</strong>
@@ -405,6 +444,15 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
         <span class="snap-pill" id="snapTotalCount">0 snaps recorded</span>
       </div>
     </div>
+    <div class="card snap-alert-card">
+      <div class="snap-alert-row">
+        <div>
+          <strong>10-Snap Minimum</strong>
+          <div class="muted">Players still below the league minimum</div>
+        </div>
+        <div class="snap-alert-num" id="playersUnderTen">0</div>
+      </div>
+    </div>
     <div class="card">
       <div id="snapRoster" class="snap-roster"></div>
       <button class="btn snap-record-btn" id="recordSnapBtn">Record Snap</button>
@@ -445,7 +493,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
 <script>
 (function(){
-const KEY="sidelineStatsV16", OLDKEY="sidelineStatsV15", OLDERKEY="sidelineStatsV14", OLDESTKEY="sidelineStatsV13", LEGACYKEY="sidelineStatsV12", LEGACYKEY2="sidelineStatsV11", LEGACYKEY3="sidelineStatsV10", LEGACYKEY4="sidelineStatsV09", LEGACYKEY5="sidelineStatsV08", LEGACYKEY6="sidelineStatsV07", LEGACYKEY7="sidelineStatsV06", LEGACYKEY8="sidelineStatsV05", LEGACYKEY9="sidelineStatsV04", LEGACYKEY10="sidelineStatsV03", LEGACYKEY11="sidelineStatsV02";
+const KEY="sidelineStatsV19", OLDKEY="sidelineStatsV18", OLDERKEY="sidelineStatsV17", OLDESTKEY="sidelineStatsV16", LEGACYKEY="sidelineStatsV15", LEGACYKEY2="sidelineStatsV14", LEGACYKEY3="sidelineStatsV13", LEGACYKEY4="sidelineStatsV12", LEGACYKEY5="sidelineStatsV11", LEGACYKEY6="sidelineStatsV10", LEGACYKEY7="sidelineStatsV09", LEGACYKEY8="sidelineStatsV08", LEGACYKEY9="sidelineStatsV07", LEGACYKEY10="sidelineStatsV06", LEGACYKEY11="sidelineStatsV05", LEGACYKEY12="sidelineStatsV04", LEGACYKEY13="sidelineStatsV03", LEGACYKEY14="sidelineStatsV02";
 const empty={team:null,roster:[],games:[],activeGameId:null,flow:{},editingPlayId:null};
 let S=load();
 let statsScope="game";
@@ -468,10 +516,27 @@ function load(){try{
       if(!raw)raw=localStorage.getItem(LEGACYKEY9);
       if(!raw)raw=localStorage.getItem(LEGACYKEY10);
       if(!raw)raw=localStorage.getItem(LEGACYKEY11);
+      if(!raw)raw=localStorage.getItem(LEGACYKEY12);
+      if(!raw)raw=localStorage.getItem(LEGACYKEY13);
+      if(!raw)raw=localStorage.getItem(LEGACYKEY14);
       if(raw)localStorage.setItem(KEY,raw);
       return raw?Object.assign({},empty,JSON.parse(raw)):JSON.parse(JSON.stringify(empty))
     }catch(e){return JSON.parse(JSON.stringify(empty))}}
 function persist(){localStorage.setItem(KEY,JSON.stringify(S))}
+
+function preloadTestRoster(){
+  if((S.roster||[]).length) return;
+  const testPlayers=[
+    [1,"Mason Carter"],[2,"Liam Brooks"],[3,"Noah Bennett"],[4,"Ethan Parker"],
+    [5,"Caleb Turner"],[6,"Owen Mitchell"],[7,"Jack Sullivan"],[8,"Luke Anderson"],
+    [9,"Henry Collins"],[10,"Wyatt Foster"],[11,"Levi Morgan"],[12,"Isaac Reed"],
+    [14,"Miles Cooper"],[15,"Nolan Hayes"],[17,"Gavin Price"],[20,"Hudson Bailey"],
+    [22,"Asher Ward"],[24,"Carter Evans"],[32,"Grayson Bell"],[44,"Easton Murphy"]
+  ];
+  S.roster=testPlayers.map(([jersey,name])=>({id:uid(),jersey,name,snaps:0}));
+  persist();
+}
+
 function normalizeRoster(){
   let changed=false;
   (S.roster||[]).forEach(p=>{if(typeof p.snaps!=="number"){p.snaps=0;changed=true}});
@@ -479,7 +544,7 @@ function normalizeRoster(){
 }
 function normalizeGames(){
   let changed=false;
-  (S.games||[]).forEach(g=>{if(!g.gameType){g.gameType="regular";changed=true} if(!g.down||g.down<1||g.down>4){g.down=1;changed=true} if(!g.possession){g.possession="ours";changed=true}if(!Array.isArray(g.snapRecords)){g.snapRecords=[];changed=true}});
+  (S.games||[]).forEach(g=>{if(!g.gameType){g.gameType="regular";changed=true} if(!g.down||g.down<1||g.down>4){g.down=1;changed=true} if(!g.possession){g.possession="ours";changed=true}if(!Array.isArray(g.snapRecords)){g.snapRecords=[];changed=true}if(typeof g.half!=="number"){g.half=0;changed=true}});
   if(changed)persist();
 }
 function toast(m){let t=$("#toast");t.textContent=m;t.style.display="block";setTimeout(()=>t.style.display="none",1500)}
@@ -513,7 +578,7 @@ $("#resetAllBtn").addEventListener("click",()=>{
   if(!first)return;
   const phrase=prompt('For safety, type RESET to confirm:');
   if(phrase!=="RESET")return toast("Reset cancelled");
-  localStorage.removeItem(KEY); localStorage.removeItem(OLDKEY); localStorage.removeItem(OLDERKEY); localStorage.removeItem(OLDESTKEY); localStorage.removeItem(LEGACYKEY); localStorage.removeItem(LEGACYKEY2); localStorage.removeItem(LEGACYKEY3); localStorage.removeItem(LEGACYKEY4); localStorage.removeItem(LEGACYKEY5); localStorage.removeItem(LEGACYKEY6); localStorage.removeItem(LEGACYKEY7); localStorage.removeItem(LEGACYKEY8); localStorage.removeItem(LEGACYKEY9); localStorage.removeItem(LEGACYKEY10); localStorage.removeItem(LEGACYKEY11);
+  localStorage.removeItem(KEY); localStorage.removeItem(OLDKEY); localStorage.removeItem(OLDERKEY); localStorage.removeItem(OLDESTKEY); localStorage.removeItem(LEGACYKEY); localStorage.removeItem(LEGACYKEY2); localStorage.removeItem(LEGACYKEY3); localStorage.removeItem(LEGACYKEY4); localStorage.removeItem(LEGACYKEY5); localStorage.removeItem(LEGACYKEY6); localStorage.removeItem(LEGACYKEY7); localStorage.removeItem(LEGACYKEY8); localStorage.removeItem(LEGACYKEY9); localStorage.removeItem(LEGACYKEY10); localStorage.removeItem(LEGACYKEY11); localStorage.removeItem(LEGACYKEY12); localStorage.removeItem(LEGACYKEY13); localStorage.removeItem(LEGACYKEY14);
   S=JSON.parse(JSON.stringify(empty));
   syncChrome();populateSetup();renderRoster();go("setup");toast("All data cleared");
 });
@@ -620,7 +685,7 @@ function renderGameList(){
 $("#newGameBtn").addEventListener("click",()=>{
   if(!S.roster.length)return toast("Add your roster first");
   const opp=$("#newOpponent").value.trim();if(!opp)return toast("Enter an opponent");
-  const g={id:uid(),opponent:opp,date:$("#newGameDate").value||today(),location:$("#newLocation").value,gameType:$("#newGameType").value||"regular",status:"live",ourScore:0,scoreAdjustment:0,oppScore:0,down:1,possession:"ours",plays:[]};
+  const g={id:uid(),opponent:opp,date:$("#newGameDate").value||today(),location:$("#newLocation").value,gameType:$("#newGameType").value||"regular",status:"live",ourScore:0,scoreAdjustment:0,oppScore:0,down:1,possession:"ours",half:0,plays:[]};
   S.games.push(g);S.activeGameId=g.id;selectedStatsGameId=g.id;persist();resetFlow();renderGameArea()
 });
 $("#endGameBtn").addEventListener("click",()=>{
@@ -686,6 +751,12 @@ function renderLiveGame(){
     : `${g.opponent} Ball — Defense`;
   $("#possessionSub").textContent=`${ordinal(g.down)} down`;
   $("#togglePossession").textContent=g.possession==="ours"?"Switch to Defense":"Switch to Offense";
+  if(typeof g.half!=="number")g.half=0;
+  $("#halfStatus").textContent=kickoffLabel(g);
+  const nh=nextHalfNumber(g);
+  $("#kickoffTitle").textContent=`Start ${nh===1?"1st":"2nd"} Half / Kickoff`;
+  $("#weReceiveKickoff").disabled=g.half>=2;
+  $("#weKickKickoff").disabled=g.half>=2;
   $$(".down-btn").forEach(b=>b.classList.toggle("active",Number(b.dataset.down)===Number(g.down)));
   persist();renderRecent();resetFlow();
 }
@@ -698,13 +769,61 @@ $("#togglePossession").addEventListener("click",()=>{
     g.possession=next;g.down=1;persist();renderLiveGame();toast(`${who} ball — 1st down`);
   }
 });
+
+function recordHalfKickoff(receivingSide){
+  const g=currentGame();if(!g)return;
+  if((Number(g.half)||0)>=2)return toast("Both half kickoffs are already recorded");
+  const half=nextHalfNumber(g);
+  const receiver=receivingSide==="ours"?S.team.name:g.opponent;
+  const label=half===1?"1st":"2nd";
+  if(!confirm(`${label} half kickoff — ${receiver} receives?`))return;
+
+  const p={
+    id:uid(),ts:Date.now(),type:"Kickoff",
+    half,receivingSide,
+    sub:`${label} Half Kickoff`,
+    extras:[]
+  };
+  g.plays.push(p);
+  g.half=half;
+  g.possession=receivingSide;
+  g.down=1;
+  persist();renderLiveGame();
+  toast(`${receiver} ball — 1st down`);
+}
+$("#weReceiveKickoff").addEventListener("click",()=>recordHalfKickoff("ours"));
+$("#weKickKickoff").addEventListener("click",()=>recordHalfKickoff("opp"));
+
 $$(".down-btn").forEach(b=>b.addEventListener("click",()=>{
   const g=currentGame();if(!g)return;
   g.down=Number(b.dataset.down);persist();renderLiveGame();toast(`${ordinal(g.down)} down`);
 }));
 function ordinal(n){return n===1?"1st":n===2?"2nd":n===3?"3rd":"4th"}
+function rebuildGameState(g){
+  g.down=1;g.possession="ours";g.half=0;
+  for(const p of (g.plays||[])){
+    if(p.type==="Kickoff"){
+      g.half=Number(p.half)||Math.min(2,(g.half||0)+1);
+      g.possession=p.receivingSide==="opp"?"opp":"ours";
+      g.down=1;
+    }else{
+      advanceDownAfterPlay(g,p);
+    }
+  }
+}
+function nextHalfNumber(g){return (Number(g.half)||0)<1?1:2}
+function kickoffLabel(g){
+  return (Number(g.half)||0)===0?"Pre-game":`${g.half===1?"1st":"2nd"} Half`;
+}
+
 function advanceDownAfterPlay(g,p){
   if(!g||!p)return;
+  if(p.type==="Kickoff"){
+    g.half=Number(p.half)||g.half||1;
+    g.possession=p.receivingSide==="opp"?"opp":"ours";
+    g.down=1;
+    return;
+  }
 
   if(g.possession==="ours"){
     if(p.type==="Defense"||p.type==="Special")return;
@@ -836,13 +955,17 @@ function recordNow(){
   else toast("Play recorded");
   resetFlow()
 }
-$("#undo").addEventListener("click",()=>{const g=currentGame();if(!g||!g.plays.length)return toast("Nothing to undo");g.plays.pop();g.down=1;g.possession="ours";for(const p of g.plays){advanceDownAfterPlay(g,p)}g.ourScore=displayedOurScore(g);persist();renderLiveGame();toast("Last play removed")});
+$("#undo").addEventListener("click",()=>{const g=currentGame();if(!g||!g.plays.length)return toast("Nothing to undo");g.plays.pop();rebuildGameState(g)g.ourScore=displayedOurScore(g);persist();renderLiveGame();toast("Last play removed")});
 
 function player(id){return S.roster.find(p=>p.id===id)}
 function pname(id){let p=player(id);return p?`#${p.jersey} ${p.name}`:"#?"}
 function sgn(v){return (+v>0?"+":"")+(v||0)}
 function ex(p){return p.extras&&p.extras.length?" · "+p.extras.join(", "):""}
 function ptext(p){
+  if(p.type==="Kickoff"){
+    const receiver=p.receivingSide==="ours"?S.team.name:(currentGame()?.opponent||"Opponent");
+    return `${p.sub} — ${receiver} receives`;
+  }
   if(p.type==="Rush")return `Rush ${pname(p.player)} ${sgn(p.yards)} yds${ex(p)}${p.extras?.includes("Fumble Lost")?" — LOST":""}`;
   if(p.type==="Pass"){if(p.sub==="Complete")return `Pass ${pname(p.player)} → ${pname(p.player2)} ${sgn(p.yards)} yds${ex(p)}${p.extras?.includes("Fumble Lost")?" — LOST":""}`;return `Pass ${pname(p.player)} — ${p.sub}`}
   if(p.type==="Punt")return `Punt — ${pname(p.player)} ${Math.abs(Number(p.yards)||0)} yds`;
@@ -853,7 +976,7 @@ function renderRecent(){
   const g=currentGame();if(!g){$("#recent").innerHTML='<span class="muted">No game open.</span>';return}
   const arr=[...g.plays].reverse();
   $("#recent").innerHTML=arr.length?arr.map(p=>`<div class="play"><div class="playtop"><div><strong>${esc(ptext(p))}</strong><div class="muted">${new Date(p.ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</div></div><div class="playactions"><button class="edit-play" data-id="${p.id}">Edit</button><button class="del delete-play" data-id="${p.id}">Delete</button></div></div></div>`).join(""):'<span class="muted">No plays yet.</span>';
-  $$(".delete-play").forEach(b=>b.addEventListener("click",()=>{g.plays=g.plays.filter(p=>p.id!==b.dataset.id);g.down=1;g.possession="ours";for(const p of g.plays){advanceDownAfterPlay(g,p)}g.ourScore=displayedOurScore(g);persist();renderLiveGame();toast("Play deleted")}));
+  $$(".delete-play").forEach(b=>b.addEventListener("click",()=>{g.plays=g.plays.filter(p=>p.id!==b.dataset.id);rebuildGameState(g)g.ourScore=displayedOurScore(g);persist();renderLiveGame();toast("Play deleted")}));
   $$(".edit-play").forEach(b=>b.addEventListener("click",()=>openEditor(b.dataset.id)))
 }
 function playerOptions(selected){return S.roster.map(p=>`<option value="${p.id}" ${p.id===selected?"selected":""}>#${p.jersey} ${esc(p.name)}</option>`).join("")}
@@ -971,17 +1094,31 @@ function renderSnaps(){
     $("#recordSnapBtn").disabled=true;
     $("#snapOnFieldCount").textContent="0 on field";
     $("#snapTotalCount").textContent="0 snaps recorded";
+    $("#playersUnderTen").textContent="0";
     return;
   }
   $("#recordSnapBtn").disabled=false;
 
   const ordered=[...S.roster].sort((a,b)=>a.jersey-b.jersey);
-  box.innerHTML=ordered.map(p=>`
-    <label class="snap-player">
+  box.innerHTML=ordered.map(p=>{
+    const snaps=currentGameSnapCount(p.id);
+    const pct=Math.min(100,(snaps/10)*100);
+    const done=snaps>=10;
+    return `
+    <label class="snap-player ${done?"complete":"needs-snaps"}">
       <input class="snap-check" type="checkbox" data-id="${p.id}" ${snapSelections[p.id]!==false?"checked":""}>
-      <div class="snap-player-name"><span class="num">#${p.jersey}</span>${esc(p.name)}</div>
-      <div class="snap-count">${currentGameSnapCount(p.id)}</div>
-    </label>`).join("");
+      <div class="snap-player-main">
+        <div class="snap-player-name"><span class="num">#${p.jersey}</span>${esc(p.name)}</div>
+      </div>
+      <div class="snap-progress-wrap">
+        <div class="snap-progress-top">
+          <span class="snap-progress-count">${snaps} / 10</span>
+          <span class="snap-progress-status ${done?"done":""}">${done?"MET":"NEEDS "+Math.max(0,10-snaps)}</span>
+        </div>
+        <div class="snap-bar"><div class="snap-bar-fill ${done?"done":""}" style="width:${pct}%"></div></div>
+      </div>
+    </label>`;
+  }).join("");
 
   $$(".snap-check").forEach(ch=>ch.addEventListener("change",()=>{
     snapSelections[ch.dataset.id]=ch.checked;
@@ -993,8 +1130,10 @@ function renderSnaps(){
 function updateSnapSummary(){
   const on=(S.roster||[]).filter(p=>snapSelections[p.id]!==false).length;
   const g=currentGame();const total=g&&Array.isArray(g.snapRecords)?g.snapRecords.reduce((a,r)=>a+(r.playerIds||[]).length,0):0;
+  const under=(S.roster||[]).filter(p=>currentGameSnapCount(p.id)<10).length;
   $("#snapOnFieldCount").textContent=`${on} on field`;
   $("#snapTotalCount").textContent=`${total} player-snaps`;
+  $("#playersUnderTen").textContent=under;
 }
 
 $("#checkAllSnaps").addEventListener("click",()=>{
@@ -1151,14 +1290,6 @@ function createSummaryCanvas(g){
   canvasText(c,`${S.team.name} • ${S.team.grade||""} • ${S.team.season||""}`,600,1450,22,700,"#68736b","center");
   return cv
 }
-$("#copyBtn").addEventListener("click",async()=>{const g=statGame();try{await navigator.clipboard.writeText(summaryText(g));toast("Summary copied")}catch(e){toast("Copy not supported here")}});
-
-
-
-$("#goShareStats").addEventListener("click",()=>go("stats"));
-
-
-
 const SHARE_W=1170, SHARE_H=2532, SHARE_MARGIN=42;
 function rr(c,x,y,w,h,r,fill){c.beginPath();c.roundRect(x,y,w,h,r);c.fillStyle=fill;c.fill()}
 function tx(c,t,x,y,size,weight,color,align="left"){c.font=`${weight} ${size}px -apple-system,BlinkMacSystemFont,Segoe UI,Arial`;c.fillStyle=color;c.textAlign=align;c.fillText(String(t),x,y)}
@@ -1371,7 +1502,7 @@ $("#shareStatsBtn").addEventListener("click",async()=>{
 
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]))}
 
-normalizeRoster();normalizeGames();populateSetup();syncChrome();renderRoster();initializeSnapSelections();
+preloadTestRoster();normalizeRoster();normalizeGames();populateSetup();syncChrome();renderRoster();initializeSnapSelections();
 if(teamExists())go("roster");else go("setup");
 })();
 </script>
