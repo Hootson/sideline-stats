@@ -1,13 +1,16 @@
-# Sideline Stats V1.9 — Preloaded Test Roster
+# Sideline Stats V2.0 — Test Roster Fix
 
-For faster iteration, V1.9 automatically creates a 20-player fake roster when the app has no roster.
+Fixes the first-time setup bug introduced in V1.9.
 
-- 20 fake player names
-- Jersey numbers already assigned
-- Works immediately with stats and Snap Tracker
-- Existing roster data is not overwritten if a roster is already present
+The fake 20-player test roster now loads only AFTER a team has been created.
 
-This is temporary development/test behavior and can be removed before release.
+Flow:
+1. Create team
+2. Save team
+3. Test roster is added automatically if roster is empty
+4. App moves to Roster screen normally
+
+Existing rosters are never overwritten.
 
 ## GitHub
 Replace `index.html` and `manifest.webmanifest` in the same repository and commit to `main`.
