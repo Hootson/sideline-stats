@@ -1,16 +1,21 @@
-# Sideline Stats V2.0 — Test Roster Fix
+# Sideline Stats V2.1 — Preloaded Roster Removed
 
-Fixes the first-time setup bug introduced in V1.9.
+The automatic fake roster has been removed completely.
 
-The fake 20-player test roster now loads only AFTER a team has been created.
-
-Flow:
+First-time flow is back to:
 1. Create team
 2. Save team
-3. Test roster is added automatically if roster is empty
-4. App moves to Roster screen normally
+3. Go to Roster
+4. Add players manually
 
-Existing rosters are never overwritten.
+All other recent features remain in place:
+- Snap tracker with 10-snap progress bars
+- Kickoff / half-start flow
+- Possession and turnover logic
+- Down tracking
+- Punt flow
+- Shareable stats images
+- Game / regular-season / playoff / season totals
 
 ## GitHub
 Replace `index.html` and `manifest.webmanifest` in the same repository and commit to `main`.

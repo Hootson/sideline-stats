@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V2.0</title>
+<title>Sideline Stats V2.1</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -234,7 +234,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V2.0 • TEST ROSTER FIX</div>
+      <div class="muted" style="color:#dfe9e2">V2.1 • ROSTER PRELOAD REMOVED</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -493,7 +493,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
 <script>
 (function(){
-const KEY="sidelineStatsV20", OLDKEY="sidelineStatsV19", OLDERKEY="sidelineStatsV18", OLDESTKEY="sidelineStatsV17", LEGACYKEY="sidelineStatsV16", LEGACYKEY2="sidelineStatsV15", LEGACYKEY3="sidelineStatsV14", LEGACYKEY4="sidelineStatsV13", LEGACYKEY5="sidelineStatsV12", LEGACYKEY6="sidelineStatsV11", LEGACYKEY7="sidelineStatsV10", LEGACYKEY8="sidelineStatsV09", LEGACYKEY9="sidelineStatsV08", LEGACYKEY10="sidelineStatsV07", LEGACYKEY11="sidelineStatsV06", LEGACYKEY12="sidelineStatsV05", LEGACYKEY13="sidelineStatsV04", LEGACYKEY14="sidelineStatsV03", LEGACYKEY15="sidelineStatsV02";
+const KEY="sidelineStatsV21", OLDKEY="sidelineStatsV20", OLDERKEY="sidelineStatsV19", OLDESTKEY="sidelineStatsV18", LEGACYKEY="sidelineStatsV17", LEGACYKEY2="sidelineStatsV16", LEGACYKEY3="sidelineStatsV15", LEGACYKEY4="sidelineStatsV14", LEGACYKEY5="sidelineStatsV13", LEGACYKEY6="sidelineStatsV12", LEGACYKEY7="sidelineStatsV11", LEGACYKEY8="sidelineStatsV10", LEGACYKEY9="sidelineStatsV09", LEGACYKEY10="sidelineStatsV08", LEGACYKEY11="sidelineStatsV07", LEGACYKEY12="sidelineStatsV06", LEGACYKEY13="sidelineStatsV05", LEGACYKEY14="sidelineStatsV04", LEGACYKEY15="sidelineStatsV03", LEGACYKEY16="sidelineStatsV02";
 const empty={team:null,roster:[],games:[],activeGameId:null,flow:{},editingPlayId:null};
 let S=load();
 let statsScope="game";
@@ -520,24 +520,12 @@ function load(){try{
       if(!raw)raw=localStorage.getItem(LEGACYKEY13);
       if(!raw)raw=localStorage.getItem(LEGACYKEY14);
       if(!raw)raw=localStorage.getItem(LEGACYKEY15);
+      if(!raw)raw=localStorage.getItem(LEGACYKEY16);
       if(raw)localStorage.setItem(KEY,raw);
       return raw?Object.assign({},empty,JSON.parse(raw)):JSON.parse(JSON.stringify(empty))
     }catch(e){return JSON.parse(JSON.stringify(empty))}}
 function persist(){localStorage.setItem(KEY,JSON.stringify(S))}
 
-function preloadTestRoster(){
-  if(!teamExists()) return;
-  if((S.roster||[]).length) return;
-  const testPlayers=[
-    [1,"Mason Carter"],[2,"Liam Brooks"],[3,"Noah Bennett"],[4,"Ethan Parker"],
-    [5,"Caleb Turner"],[6,"Owen Mitchell"],[7,"Jack Sullivan"],[8,"Luke Anderson"],
-    [9,"Henry Collins"],[10,"Wyatt Foster"],[11,"Levi Morgan"],[12,"Isaac Reed"],
-    [14,"Miles Cooper"],[15,"Nolan Hayes"],[17,"Gavin Price"],[20,"Hudson Bailey"],
-    [22,"Asher Ward"],[24,"Carter Evans"],[32,"Grayson Bell"],[44,"Easton Murphy"]
-  ];
-  S.roster=testPlayers.map(([jersey,name])=>({id:uid(),jersey,name,snaps:0}));
-  persist();
-}
 
 function normalizeRoster(){
   let changed=false;
@@ -580,7 +568,7 @@ $("#resetAllBtn").addEventListener("click",()=>{
   if(!first)return;
   const phrase=prompt('For safety, type RESET to confirm:');
   if(phrase!=="RESET")return toast("Reset cancelled");
-  localStorage.removeItem(KEY); localStorage.removeItem(OLDKEY); localStorage.removeItem(OLDERKEY); localStorage.removeItem(OLDESTKEY); localStorage.removeItem(LEGACYKEY); localStorage.removeItem(LEGACYKEY2); localStorage.removeItem(LEGACYKEY3); localStorage.removeItem(LEGACYKEY4); localStorage.removeItem(LEGACYKEY5); localStorage.removeItem(LEGACYKEY6); localStorage.removeItem(LEGACYKEY7); localStorage.removeItem(LEGACYKEY8); localStorage.removeItem(LEGACYKEY9); localStorage.removeItem(LEGACYKEY10); localStorage.removeItem(LEGACYKEY11); localStorage.removeItem(LEGACYKEY12); localStorage.removeItem(LEGACYKEY13); localStorage.removeItem(LEGACYKEY14); localStorage.removeItem(LEGACYKEY15);
+  localStorage.removeItem(KEY); localStorage.removeItem(OLDKEY); localStorage.removeItem(OLDERKEY); localStorage.removeItem(OLDESTKEY); localStorage.removeItem(LEGACYKEY); localStorage.removeItem(LEGACYKEY2); localStorage.removeItem(LEGACYKEY3); localStorage.removeItem(LEGACYKEY4); localStorage.removeItem(LEGACYKEY5); localStorage.removeItem(LEGACYKEY6); localStorage.removeItem(LEGACYKEY7); localStorage.removeItem(LEGACYKEY8); localStorage.removeItem(LEGACYKEY9); localStorage.removeItem(LEGACYKEY10); localStorage.removeItem(LEGACYKEY11); localStorage.removeItem(LEGACYKEY12); localStorage.removeItem(LEGACYKEY13); localStorage.removeItem(LEGACYKEY14); localStorage.removeItem(LEGACYKEY15); localStorage.removeItem(LEGACYKEY16);
   S=JSON.parse(JSON.stringify(empty));
   syncChrome();populateSetup();renderRoster();go("setup");toast("All data cleared");
 });
@@ -639,12 +627,7 @@ $("#removeLogoBtn").addEventListener("click",()=>{
 $("#saveTeam").addEventListener("click",()=>{
   const name=$("#teamName").value.trim();if(!name)return toast("Enter a team name");
   S.team={name,grade:$("#grade").value,season:$("#season").value.trim()||"2026",primary:$("#primary").value,secondary:$("#secondary").value,logoData:S.team?.logoData||null};
-  persist();syncChrome();
-  preloadTestRoster();
-  normalizeRoster();
-  initializeSnapSelections();
-  renderRoster();
-  toast("Team saved");
+  persist();syncChrome();normalizeRoster();initializeSnapSelections();renderRoster();toast("Team saved");
   go("roster");
 });
 
