@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V2.5</title>
+<title>Sideline Stats V3.0</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -215,7 +215,29 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 .snap-alert-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .snap-alert-num{font-size:28px;font-weight:950;color:var(--p)}
 
+
+/* V3.0 data + analytics */
+.data-tools{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.data-tools .btn{font-size:12px;padding:10px 7px}
+.analytics-summary{padding:14px}
+.metric-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.metric-card{border:1px solid var(--line);background:#fff;border-radius:13px;padding:11px}
+.metric-card strong{display:block;color:var(--p);font-size:12px;text-transform:uppercase;letter-spacing:.03em}
+.metric-main{font-size:25px;font-weight:950;margin-top:4px;color:var(--text)}
+.metric-sub{font-size:11px;color:var(--muted);font-weight:750;margin-top:3px}
+.metric-wide{grid-column:1/-1}
+.distance-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:12px;margin-bottom:12px}
+.distance-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
+.distance-display{font-size:22px;font-weight:950;color:var(--p)}
+.distance-controls{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center}
+.distance-btn{border:1px solid var(--line);background:#f7f9f8;border-radius:10px;padding:11px 14px;font-size:18px;font-weight:950;color:var(--p)}
+.distance-input{text-align:center;font-size:20px;font-weight:900;padding:10px!important}
+.export-card{margin-top:12px}
+.export-card h3{margin-top:0}
+.summary-note{font-size:11px;color:var(--muted);margin-top:8px}
+
 </style>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 <div class="app">
@@ -226,7 +248,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V2.5 • SPECIAL TEAMS FIX</div>
+      <div class="muted" style="color:#dfe9e2">V3.0 • ANALYTICS + DATA SAFETY</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -279,7 +301,16 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
       <div class="data-row">
         <div class="copy"><strong>Clear all test data</strong><span>Deletes this team, roster, every saved game and all stats from this device.</span></div>
       </div>
-      <button class="btn danger" id="resetAllBtn">Reset All Data</button>
+      <div class="data-tools">
+        <button class="btn ghost" id="backupDataBtn">Backup Team Data</button>
+        <button class="btn ghost" id="restoreDataBtn">Restore Backup</button>
+        <button class="btn ghost" id="exportRosterBtn">Export Roster</button>
+        <button class="btn ghost" id="importRosterBtn">Import Roster</button>
+      </div>
+      <input id="restoreDataInput" type="file" accept="application/json,.json" class="hidden">
+      <input id="importRosterInput" type="file" accept="application/json,.json" class="hidden">
+      <div class="inline-note" style="margin-top:10px">Your game data auto-saves after every action. Backup/restore is optional insurance.</div>
+      <button class="btn danger" id="resetAllBtn" style="margin-top:12px">Reset All Data</button>
     </div>
   </section>
 
@@ -361,6 +392,19 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
           <button class="down-btn" data-down="4">4TH</button>
         </div>
         <div class="turnover-note">Turnovers and punts automatically switch possession and reset the new team to 1st down.</div>
+      </div>
+
+      <div class="distance-card">
+        <div class="distance-head">
+          <strong>Down & Distance</strong>
+          <span class="distance-display" id="downDistanceDisplay">1st & 10</span>
+        </div>
+        <div class="distance-controls">
+          <button class="distance-btn" id="distanceMinus">−</button>
+          <input class="distance-input" id="distanceInput" type="number" inputmode="numeric" min="1" max="99" value="10" aria-label="Yards to go">
+          <button class="distance-btn" id="distancePlus">+</button>
+        </div>
+        <div class="muted" style="margin-top:7px">Yards-to-go updates automatically on our offensive plays. Tap to correct at any time.</div>
       </div>
 
       <div class="card" id="stepMain">
@@ -456,10 +500,20 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
         <div id="statsShareTitle" class="title">Team</div>
         <div id="statsGameLabel" class="sub"></div>
       </div>
+      <div id="teamMetricsBox" class="analytics-summary"></div>
       <div id="statsBox"></div>
     </div>
     <button class="btn" id="shareStatsBtn" style="margin-top:14px">Share Game Stats</button>
-    <div class="share-tip">Shares one slick iPhone-first box score with Top Performers, AVG metrics, player tables and team totals.</div>
+    <div class="share-tip">Shares a Team Summary image plus the detailed Player Box Score.</div>
+    <div class="card export-card">
+      <h3>Analytics Export</h3>
+      <div class="muted">Take the raw game, play and snap data to Excel, ChatGPT, Claude or your own dashboard.</div>
+      <div class="data-tools">
+        <button class="btn" id="exportExcelBtn">Export Excel Analytics</button>
+        <button class="btn ghost" id="exportRawBtn">Export Raw JSON</button>
+      </div>
+      <div class="summary-note">Excel includes Games, Plays, Player Game Stats, Team Game Stats, Snap Counts, Snap Records, Special Teams, Season Totals and a Data Dictionary.</div>
+    </div>
   </section>
 
   <nav id="bottomNav" class="hidden">
@@ -473,38 +527,37 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
 <script>
 (function(){
-const KEY="sidelineStatsV23", OLDKEY="sidelineStatsV20", OLDERKEY="sidelineStatsV19", OLDESTKEY="sidelineStatsV18", LEGACYKEY="sidelineStatsV17", LEGACYKEY2="sidelineStatsV16", LEGACYKEY3="sidelineStatsV15", LEGACYKEY4="sidelineStatsV14", LEGACYKEY5="sidelineStatsV13", LEGACYKEY6="sidelineStatsV12", LEGACYKEY7="sidelineStatsV11", LEGACYKEY8="sidelineStatsV10", LEGACYKEY9="sidelineStatsV09", LEGACYKEY10="sidelineStatsV08", LEGACYKEY11="sidelineStatsV07", LEGACYKEY12="sidelineStatsV06", LEGACYKEY13="sidelineStatsV05", LEGACYKEY14="sidelineStatsV04", LEGACYKEY15="sidelineStatsV03", LEGACYKEY16="sidelineStatsV02";
+const KEY="sidelineStatsData";
+const RECOVERY_KEY="sidelineStatsRecovery";
+const MIGRATION_KEYS=["sidelineStatsV23","sidelineStatsV20","sidelineStatsV19","sidelineStatsV18","sidelineStatsV17","sidelineStatsV16","sidelineStatsV15","sidelineStatsV14","sidelineStatsV13","sidelineStatsV12","sidelineStatsV11","sidelineStatsV10","sidelineStatsV09","sidelineStatsV08","sidelineStatsV07","sidelineStatsV06","sidelineStatsV05","sidelineStatsV04","sidelineStatsV03","sidelineStatsV02"];
 const empty={team:null,roster:[],games:[],activeGameId:null,flow:{},editingPlayId:null};
 let S=load();
 let statsScope="game";
 let selectedStatsGameId=null;
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 
-function load(){try{
-      let raw=localStorage.getItem(KEY);
-      if(!raw)raw=localStorage.getItem(OLDKEY);
-      if(!raw)raw=localStorage.getItem(OLDERKEY);
-      if(!raw)raw=localStorage.getItem(OLDESTKEY);
-      if(!raw)raw=localStorage.getItem(LEGACYKEY);
-      if(!raw)raw=localStorage.getItem(LEGACYKEY2);
-      if(!raw)raw=localStorage.getItem(LEGACYKEY3);
-      if(!raw)raw=localStorage.getItem(LEGACYKEY4);
-      if(!raw)raw=localStorage.getItem(LEGACYKEY5);
-      if(!raw)raw=localStorage.getItem(LEGACYKEY6);
-      if(!raw)raw=localStorage.getItem(LEGACYKEY7);
-      if(!raw)raw=localStorage.getItem(LEGACYKEY8);
-      if(!raw)raw=localStorage.getItem(LEGACYKEY9);
-      if(!raw)raw=localStorage.getItem(LEGACYKEY10);
-      if(!raw)raw=localStorage.getItem(LEGACYKEY11);
-      if(!raw)raw=localStorage.getItem(LEGACYKEY12);
-      if(!raw)raw=localStorage.getItem(LEGACYKEY13);
-      if(!raw)raw=localStorage.getItem(LEGACYKEY14);
-      if(!raw)raw=localStorage.getItem(LEGACYKEY15);
-      if(!raw)raw=localStorage.getItem(LEGACYKEY16);
+function load(){
+  try{
+    let raw=localStorage.getItem(KEY);
+    if(!raw){
+      for(const k of MIGRATION_KEYS){raw=localStorage.getItem(k);if(raw)break}
       if(raw)localStorage.setItem(KEY,raw);
-      return raw?Object.assign({},empty,JSON.parse(raw)):JSON.parse(JSON.stringify(empty))
-    }catch(e){return JSON.parse(JSON.stringify(empty))}}
-function persist(){localStorage.setItem(KEY,JSON.stringify(S))}
+    }
+    return raw?Object.assign({},empty,JSON.parse(raw)):JSON.parse(JSON.stringify(empty));
+  }catch(e){
+    try{
+      const recovery=localStorage.getItem(RECOVERY_KEY);
+      return recovery?Object.assign({},empty,JSON.parse(recovery)):JSON.parse(JSON.stringify(empty));
+    }catch(_){return JSON.parse(JSON.stringify(empty))}
+  }
+}
+function persist(){
+  try{
+    const current=localStorage.getItem(KEY);
+    if(current)localStorage.setItem(RECOVERY_KEY,current);
+    localStorage.setItem(KEY,JSON.stringify(S));
+  }catch(e){console.error("Save failed",e);toast("Could not save data")}
+}
 
 
 function normalizeRoster(){
@@ -514,7 +567,7 @@ function normalizeRoster(){
 }
 function normalizeGames(){
   let changed=false;
-  (S.games||[]).forEach(g=>{if(!g.gameType){g.gameType="regular";changed=true} if(!g.down||g.down<1||g.down>4){g.down=1;changed=true} if(!g.possession){g.possession="ours";changed=true}if(!Array.isArray(g.snapRecords)){g.snapRecords=[];changed=true}});
+  (S.games||[]).forEach(g=>{if(!g.gameType){g.gameType="regular";changed=true} if(!g.down||g.down<1||g.down>4){g.down=1;changed=true} if(!g.possession){g.possession="ours";changed=true}if(!Array.isArray(g.snapRecords)){g.snapRecords=[];changed=true}if(!g.distance||g.distance<1){g.distance=10;changed=true}});
   if(changed)persist();
 }
 function toast(m){let t=$("#toast");t.textContent=m;t.style.display="block";setTimeout(()=>t.style.display="none",1500)}
@@ -544,11 +597,11 @@ function syncChrome(){
 }
 $("#editTeamBtn").addEventListener("click",()=>{populateSetup();go("setup")});
 $("#resetAllBtn").addEventListener("click",()=>{
-  const first=confirm("Reset ALL Sideline Stats data on this device? This will permanently delete the team, roster, saved games and stats.");
+  const first=confirm("Reset ALL Sideline Stats data on this device? This permanently deletes the team, roster, games and stats.");
   if(!first)return;
   const phrase=prompt('For safety, type RESET to confirm:');
   if(phrase!=="RESET")return toast("Reset cancelled");
-  localStorage.removeItem(KEY); localStorage.removeItem(OLDKEY); localStorage.removeItem(OLDERKEY); localStorage.removeItem(OLDESTKEY); localStorage.removeItem(LEGACYKEY); localStorage.removeItem(LEGACYKEY2); localStorage.removeItem(LEGACYKEY3); localStorage.removeItem(LEGACYKEY4); localStorage.removeItem(LEGACYKEY5); localStorage.removeItem(LEGACYKEY6); localStorage.removeItem(LEGACYKEY7); localStorage.removeItem(LEGACYKEY8); localStorage.removeItem(LEGACYKEY9); localStorage.removeItem(LEGACYKEY10); localStorage.removeItem(LEGACYKEY11); localStorage.removeItem(LEGACYKEY12); localStorage.removeItem(LEGACYKEY13); localStorage.removeItem(LEGACYKEY14); localStorage.removeItem(LEGACYKEY15); localStorage.removeItem(LEGACYKEY16);
+  localStorage.removeItem(KEY);localStorage.removeItem(RECOVERY_KEY);
   S=JSON.parse(JSON.stringify(empty));
   syncChrome();populateSetup();renderRoster();go("setup");toast("All data cleared");
 });
@@ -606,9 +659,46 @@ $("#removeLogoBtn").addEventListener("click",()=>{
 
 $("#saveTeam").addEventListener("click",()=>{
   const name=$("#teamName").value.trim();if(!name)return toast("Enter a team name");
-  S.team={name,grade:$("#grade").value,season:$("#season").value.trim()||"2026",primary:$("#primary").value,secondary:$("#secondary").value,logoData:S.team?.logoData||null};
+  const nextSeason=$("#season").value.trim()||"2026";
+  if(teamExists()&&S.team.season&&S.team.season!==nextSeason){
+    const ok=confirm(`New season: ${nextSeason}. In the production app, starting a new season will require a new season purchase. Continue in test mode?`);
+    if(!ok)return;
+  }
+  S.team={name,grade:$("#grade").value,season:nextSeason,primary:$("#primary").value,secondary:$("#secondary").value,logoData:S.team?.logoData||null};
   persist();syncChrome();normalizeRoster();initializeSnapSelections();renderRoster();toast("Team saved");
   go("roster");
+});
+
+
+function downloadBlob(blob,name){
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
+}
+function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
+$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",version:"3.0",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
+$("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
+$("#restoreDataInput").addEventListener("change",async()=>{
+  const f=$("#restoreDataInput").files?.[0];if(!f)return;
+  try{
+    const obj=JSON.parse(await f.text()),data=obj.data||obj;
+    if(!data||!Array.isArray(data.roster)||!Array.isArray(data.games))throw new Error("Invalid backup");
+    if(!confirm("Restore this backup and replace the current local team data?"))return;
+    S=Object.assign({},empty,data);persist();normalizeRoster();normalizeGames();syncChrome();populateSetup();renderRoster();initializeSnapSelections();go(teamExists()?"roster":"setup");toast("Backup restored");
+  }catch(e){toast("That backup file could not be restored")}
+  $("#restoreDataInput").value="";
+});
+$("#exportRosterBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-roster",team:S.team?.name||"",roster:S.roster},`${(S.team?.name||"team").replace(/[^a-z0-9]/gi,"_")}_roster.json`));
+$("#importRosterBtn").addEventListener("click",()=>$("#importRosterInput").click());
+$("#importRosterInput").addEventListener("change",async()=>{
+  const f=$("#importRosterInput").files?.[0];if(!f)return;
+  try{
+    const obj=JSON.parse(await f.text()),r=obj.roster||obj;
+    if(!Array.isArray(r))throw new Error("Invalid roster");
+    const cleaned=r.slice(0,25).map(p=>({id:p.id||uid(),jersey:Number(p.jersey),name:String(p.name||"").trim(),snaps:0})).filter(p=>Number.isFinite(p.jersey)&&p.name);
+    if(!cleaned.length)throw new Error("No players");
+    if(!confirm(`Replace current roster with ${cleaned.length} imported players?`))return;
+    S.roster=cleaned;persist();initializeSnapSelections();renderRoster();toast("Roster imported");
+  }catch(e){toast("That roster file could not be imported")}
+  $("#importRosterInput").value="";
 });
 
 function renderRoster(){
@@ -655,7 +745,7 @@ function renderGameList(){
 $("#newGameBtn").addEventListener("click",()=>{
   if(!S.roster.length)return toast("Add your roster first");
   const opp=$("#newOpponent").value.trim();if(!opp)return toast("Enter an opponent");
-  const g={id:uid(),opponent:opp,date:$("#newGameDate").value||today(),location:$("#newLocation").value,gameType:$("#newGameType").value||"regular",status:"live",ourScore:0,scoreAdjustment:0,oppScore:0,down:1,possession:"ours",plays:[]};
+  const g={id:uid(),opponent:opp,date:$("#newGameDate").value||today(),location:$("#newLocation").value,gameType:$("#newGameType").value||"regular",status:"live",ourScore:0,scoreAdjustment:0,oppScore:0,down:1,distance:10,possession:"ours",plays:[]};
   S.games.push(g);S.activeGameId=g.id;selectedStatsGameId=g.id;persist();resetFlow();renderGameArea()
 });
 $("#endGameBtn").addEventListener("click",()=>{
@@ -719,7 +809,10 @@ function renderLiveGame(){
   $("#possessionMain").textContent=g.possession==="ours"
     ? `${S.team.name} Ball — Offense`
     : `${g.opponent} Ball — Defense`;
-  $("#possessionSub").textContent=`${ordinal(g.down)} down`;
+  if(!g.distance||g.distance<1)g.distance=10;
+  $("#possessionSub").textContent=`${ordinal(g.down)} & ${g.distance}`;
+  $("#distanceInput").value=g.distance;
+  $("#downDistanceDisplay").textContent=`${ordinal(g.down)} & ${g.distance}`;
   $("#togglePossession").textContent=g.possession==="ours"?"Switch to Defense":"Switch to Offense";
 $$(".down-btn").forEach(b=>b.classList.toggle("active",Number(b.dataset.down)===Number(g.down)));
   persist();renderRecent();resetFlow();
@@ -730,7 +823,7 @@ $("#togglePossession").addEventListener("click",()=>{
   const next=g.possession==="ours"?"opp":"ours";
   const who=next==="ours"?S.team.name:g.opponent;
   if(confirm(`Switch possession to ${who}? Down will reset to 1st.`)){
-    g.possession=next;g.down=1;persist();renderLiveGame();toast(`${who} ball — 1st down`);
+    g.possession=next;g.down=1;g.distance=10;persist();renderLiveGame();toast(`${who} ball — 1st down`);
   }
 });
 
@@ -739,87 +832,50 @@ $$(".down-btn").forEach(b=>b.addEventListener("click",()=>{
   const g=currentGame();if(!g)return;
   g.down=Number(b.dataset.down);persist();renderLiveGame();toast(`${ordinal(g.down)} down`);
 }));
+
+function setDistance(v){const g=currentGame();if(!g)return;g.distance=Math.max(1,Math.min(99,Number(v)||10));persist();renderLiveGame()}
+$("#distanceMinus").addEventListener("click",()=>{const g=currentGame();if(g)setDistance((g.distance||10)-1)});
+$("#distancePlus").addEventListener("click",()=>{const g=currentGame();if(g)setDistance((g.distance||10)+1)});
+$("#distanceInput").addEventListener("change",()=>setDistance($("#distanceInput").value));
+
 function ordinal(n){return n===1?"1st":n===2?"2nd":n===3?"3rd":"4th"}
 function rebuildGameState(g){
   g.down=1;
+  g.distance=10;
   g.possession="ours";
   for(const p of (g.plays||[]))advanceDownAfterPlay(g,p);
 }
 
 function advanceDownAfterPlay(g,p){
   if(!g||!p)return;
+  if(!g.distance||g.distance<1)g.distance=10;
 
-  // Kickoffs and kickoff returns never consume a down.
   if(p.type==="Kickoff"){
-    g.possession=p.receivingSide==="ours"?"ours":"opp";
-    g.down=1;
-    return;
+    g.possession=p.receivingSide==="ours"?"ours":"opp";g.down=1;g.distance=10;return;
   }
   if(p.type==="Kickoff Return"){
-    g.possession="ours";
-    g.down=1;
-    return;
+    g.possession="ours";g.down=1;g.distance=10;return;
   }
 
   if(g.possession==="ours"){
     if(p.type==="Defense"||p.type==="Special")return;
+    if(p.type==="Punt"){g.possession="opp";g.down=1;g.distance=10;return}
+    if(p.type==="Pass"&&p.sub==="Intercepted"){g.possession="opp";g.down=1;g.distance=10;return}
+    if(p.extras?.includes("Fumble Lost")){g.possession="opp";g.down=1;g.distance=10;return}
+    if(p.extras?.includes("TD")){g.down=1;g.distance=10;return}
+    if(p.extras?.includes("1st Down")){g.down=1;g.distance=10;return}
 
-    if(p.type==="Punt"){
-      g.possession="opp";
-      g.down=1;
-      return;
-    }
-
-    if(p.type==="Pass"&&p.sub==="Intercepted"){
-      g.possession="opp";
-      g.down=1;
-      return;
-    }
-
-    if(p.extras?.includes("Fumble Lost")){
-      g.possession="opp";
-      g.down=1;
-      return;
-    }
-
-    if(p.extras?.includes("TD")){
-      g.down=1;
-      return;
-    }
-
-    if(p.extras?.includes("1st Down")){
-      g.down=1;
-      return;
-    }
-
-    // Normal offensive play: 1st->2nd, 2nd->3rd, 3rd->4th.
-    if(Number(g.down) < 4){
-      g.down=Number(g.down)+1;
-      return;
-    }
-
-    // 4th-down play that does not gain a first down = turnover on downs.
-    g.possession="opp";
-    g.down=1;
-    return;
+    const gain=(p.type==="Rush"||(p.type==="Pass"&&p.sub==="Complete"))?(Number(p.yards)||0):0;
+    g.distance=Math.max(1,g.distance-gain);
+    if(Number(g.down)<4){g.down=Number(g.down)+1;return}
+    g.possession="opp";g.down=1;g.distance=10;return;
   }
 
   if(g.possession==="opp"){
     if(p.type!=="Defense")return;
-
-    if(p.sub==="INT"||p.sub==="Fumble Recovery"){
-      g.possession="ours";
-      g.down=1;
-      return;
-    }
-
-    if(Number(g.down) < 4){
-      g.down=Number(g.down)+1;
-      return;
-    }
-
-    g.possession="ours";
-    g.down=1;
+    if(p.sub==="INT"||p.sub==="Fumble Recovery"){g.possession="ours";g.down=1;g.distance=10;return}
+    if(Number(g.down)<4){g.down=Number(g.down)+1;return}
+    g.possession="ours";g.down=1;g.distance=10;
   }
 }
 
@@ -832,10 +888,10 @@ $("#quickKickoff").addEventListener("click",()=>{
   if(g.possession==="ours"){
     // We are kicking. No player/yards entry needed; simply give opponent the ball.
     if(confirm(`We kick off to ${g.opponent}?`)){
-      const p={id:uid(),ts:Date.now(),type:"Kickoff",sub:"Kickoff",receivingSide:"opp",extras:[]};
+      const p={id:uid(),ts:Date.now(),type:"Kickoff",sub:"Kickoff",receivingSide:"opp",extras:[],stateBefore:{possession:g.possession,down:g.down,distance:g.distance||10}};
       g.plays.push(p);
       g.possession="opp";
-      g.down=1;
+      g.down=1;g.distance=10;
       persist();renderLiveGame();toast(`${g.opponent} ball — 1st down`);
     }
     return;
@@ -864,7 +920,7 @@ function showSubs(title,items){
     let v=b.dataset.v;S.flow.sub=v;$("#stepSub").classList.add("hidden");
     if(S.flow.type==="Pass"){if(v==="Complete")showPlayers("Complete — select receiver","receiver");else recordNow()}
     else if(S.flow.type==="Defense")showDefenseCredits(v);
-    else if(v==="Punt"){S.flow.type="Punt";showPlayers("Select punter","punter")}else if(v==="Punt"){S.flow.type="Punt";showPlayers("Punt — select punter","punter")}else showPlayers(`${v} — select returner`,"special")
+    else if(v==="Punt"){S.flow.type="Punt";showPlayers("Punt — select punter","punter")}else showPlayers(`${v} — select returner`,"special")
   }))
 }
 function showDefenseCredits(stat){
@@ -881,7 +937,8 @@ function showDefenseCredits(stat){
 $("#recordDefenseCredits").addEventListener("click",()=>{
   const entries=Object.entries(S.flow.defCredits||{});if(!entries.length)return toast("Select at least one defender");
   const g=currentGame();if(!g)return;
-  const p={id:uid(),ts:Date.now(),type:"Defense",sub:S.flow.sub,defCredits:Object.fromEntries(entries.map(([id,v])=>[id,Number(v)])),extras:[]};
+  const p={id:uid(),ts:Date.now(),type:"Defense",sub:S.flow.sub,defCredits:Object.fromEntries(entries.map(([id,v])=>[id,Number(v)])),extras:[],stateBefore:{possession:g.possession,down:g.down,distance:g.distance||10}};
+  if((p.sub==="INT"||p.sub==="Fumble Recovery")&&confirm("Was this returned for a touchdown? Add 6 points?"))p.extras.push("TD");
   g.plays.push(p);
   advanceDownAfterPlay(g,p);
   g.ourScore=displayedOurScore(g);
@@ -921,11 +978,11 @@ function recordNow(){
     if(confirm("Was the fumble lost to the other team?"))S.flow.extras.push("Fumble Lost");
   }
 
-  const p={...JSON.parse(JSON.stringify(S.flow)),id:uid(),ts:Date.now()};
+  const p={...JSON.parse(JSON.stringify(S.flow)),id:uid(),ts:Date.now(),stateBefore:{possession:g.possession,down:g.down,distance:g.distance||10}};
   g.plays.push(p);
   if(p.type==="Kickoff Return"){
     g.possession="ours";
-    g.down=1;
+    g.down=1;g.distance=10;
   }else{
     advanceDownAfterPlay(g,p);
   }
@@ -987,11 +1044,15 @@ $("#saveEdit").addEventListener("click",()=>{
 });
 
 function agg(g){
-  let m={};S.roster.forEach(p=>m[p.id]={id:p.id,j:p.jersey,n:p.name,car:0,ry:0,rtd:0,att:0,cmp:0,py:0,ptd:0,pi:0,rec:0,rey:0,retd:0,t:0,tfl:0,sack:0,int:0,ff:0,fr:0,kr:0,kry:0,pr:0,pry:0,punt:0,punty:0,rfd:0,pfd:0,recfd:0});
+  let m={};S.roster.forEach(p=>m[p.id]={id:p.id,j:p.jersey,n:p.name,car:0,ry:0,rtd:0,att:0,cmp:0,py:0,ptd:0,pi:0,rec:0,rey:0,retd:0,t:0,tfl:0,sack:0,int:0,ff:0,fr:0,dtd:0,kr:0,kry:0,pr:0,pry:0,punt:0,punty:0,rfd:0,pfd:0,recfd:0});
   (g?.plays||[]).forEach(p=>{let a=m[p.player],b=m[p.player2];
     if(p.type==="Rush"&&a){a.car++;a.ry+=+p.yards||0;if(p.extras?.includes("TD"))a.rtd++;if(p.extras?.includes("1st Down"))a.rfd++}
     if(p.type==="Pass"&&a){a.att++;if(p.sub==="Complete"){a.cmp++;a.py+=+p.yards||0;if(p.extras?.includes("TD"))a.ptd++;if(p.extras?.includes("1st Down"))a.pfd++;if(b){b.rec++;b.rey+=+p.yards||0;if(p.extras?.includes("TD"))b.retd++;if(p.extras?.includes("1st Down"))b.recfd++}}if(p.sub==="Intercepted")a.pi++}
     if(p.type==="Defense"){if(p.defCredits){Object.entries(p.defCredits).forEach(([id,credit])=>{const d=m[id];if(!d)return;const v=Number(credit)||0;if(p.sub==="Tackle")d.t+=v;if(p.sub==="TFL")d.tfl+=v;if(p.sub==="Sack")d.sack+=v;if(p.sub==="INT")d.int+=v;if(p.sub==="Forced Fumble")d.ff+=v;if(p.sub==="Fumble Recovery")d.fr+=v;});}else if(a){if(p.sub==="Tackle")a.t++;if(p.sub==="TFL")a.tfl++;if(p.sub==="Sack")a.sack++;if(p.sub==="INT")a.int++;if(p.sub==="Forced Fumble")a.ff++;if(p.sub==="Fumble Recovery")a.fr++;}}
+    if(p.type==="Defense"&&p.extras?.includes("TD")){
+      if(p.defCredits){Object.keys(p.defCredits).forEach(id=>{if(m[id])m[id].dtd+=1})}
+      else if(a)a.dtd+=1;
+    }
     if(p.type==="Special"&&a){
       if(p.sub==="Kick Return"){a.kr++;a.kry+=+p.yards||0}
       else if(p.sub==="Punt Return"){a.pr++;a.pry+=+p.yards||0}
@@ -1044,6 +1105,60 @@ function recordFor(games){
   return t?`${w}-${l}-${t}`:`${w}-${l}`;
 }
 
+
+function calcTeamMetrics(plays,games=[]){
+  const p=plays||[];
+  const offense=p.filter(x=>x.type==="Rush"||x.type==="Pass");
+  const defense=p.filter(x=>x.type==="Defense");
+  const special=p.filter(x=>["Kickoff","Kickoff Return","Punt","Special"].includes(x.type));
+  const rush=p.filter(x=>x.type==="Rush"), passes=p.filter(x=>x.type==="Pass");
+  const rushY=rush.reduce((a,x)=>a+(Number(x.yards)||0),0);
+  const passComp=passes.filter(x=>x.sub==="Complete");
+  const passY=passComp.reduce((a,x)=>a+(Number(x.yards)||0),0);
+  const firstDowns=offense.filter(x=>x.extras?.includes("1st Down")).length;
+  const turnovers=passes.filter(x=>x.sub==="Intercepted").length+p.filter(x=>x.extras?.includes("Fumble Lost")).length;
+  const takeaways=defense.filter(x=>x.sub==="INT"||x.sub==="Fumble Recovery").length;
+  const tfl=defense.filter(x=>x.sub==="TFL").length,sacks=defense.filter(x=>x.sub==="Sack").length;
+  const explosive10=offense.filter(x=>Math.abs(Number(x.yards)||0)>=10 && (Number(x.yards)||0)>=10).length;
+  const explosive20=offense.filter(x=>(Number(x.yards)||0)>=20).length;
+  const longestRush=Math.max(0,...rush.map(x=>Number(x.yards)||0));
+  const longestPass=Math.max(0,...passComp.map(x=>Number(x.yards)||0));
+  const kr=p.filter(x=>x.type==="Kickoff Return"||(x.type==="Special"&&x.sub==="Kick Return"));
+  const longestKR=Math.max(0,...kr.map(x=>Number(x.yards)||0));
+  const completions=passComp.length,attempts=passes.length;
+  const passTD=passes.filter(x=>x.extras?.includes("TD")).length,ints=passes.filter(x=>x.sub==="Intercepted").length;
+  const snapRecords=(games||[]).flatMap(g=>g.snapRecords||[]);
+  const snapOpps=snapRecords.length;
+  const below10=(S.roster||[]).filter(pl=>snapRecords.reduce((a,r)=>a+((r.playerIds||[]).includes(pl.id)?1:0),0)<10).length;
+  return {
+    offensivePlays:offense.length,defensivePlays:defense.length,totalScrimmage:offense.length+defense.length,specialTeamsPlays:special.length,
+    rushAttempts:rush.length,passAttempts:attempts,rushPct:offense.length?rush.length/offense.length:0,passPct:offense.length?attempts/offense.length:0,
+    rushingYards:rushY,passingYards:passY,totalOffense:rushY+passY,yardsPerPlay:offense.length?(rushY+passY)/offense.length:0,
+    firstDowns,turnovers,takeaways,turnoverMargin:takeaways-turnovers,tfl,sacks,
+    explosive10,explosive20,longestRush,longestPass,longestKickReturn:longestKR,
+    completions,completionPct:attempts?completions/attempts:0,passingTD:passTD,interceptions:ints,tdIntRatio:ints?passTD/ints:(passTD?passTD:0),
+    tflRate:defense.length?tfl/defense.length:0,sackRate:defense.length?sacks/defense.length:0,takeawayRate:defense.length?takeaways/defense.length:0,
+    snapOpportunities:snapOpps,playersBelow10:below10
+  };
+}
+function pct(v){return `${(Number(v||0)*100).toFixed(0)}%`}
+function renderTeamMetrics(src){
+  const box=$("#teamMetricsBox");if(!box)return;
+  if(!src){box.innerHTML="";return}
+  const m=calcTeamMetrics(src.plays,src.games);
+  box.innerHTML=`<h3 style="margin:0 0 10px;color:var(--p)">Team Summary</h3><div class="metric-grid">
+    <div class="metric-card"><strong>Offensive plays</strong><div class="metric-main">${m.offensivePlays}</div><div class="metric-sub">${m.rushAttempts} rush • ${m.passAttempts} pass</div></div>
+    <div class="metric-card"><strong>Defense</strong><div class="metric-main">${m.defensivePlays}</div><div class="metric-sub">${m.tfl} TFL • ${m.sacks} sacks</div></div>
+    <div class="metric-card"><strong>Total offense</strong><div class="metric-main">${m.totalOffense}</div><div class="metric-sub">${m.yardsPerPlay.toFixed(1)} yards/play</div></div>
+    <div class="metric-card"><strong>Scrimmage plays</strong><div class="metric-main">${m.totalScrimmage}</div><div class="metric-sub">+ ${m.specialTeamsPlays} special teams</div></div>
+    <div class="metric-card"><strong>First downs</strong><div class="metric-main">${m.firstDowns}</div><div class="metric-sub">Explosive: ${m.explosive10} 10+ • ${m.explosive20} 20+</div></div>
+    <div class="metric-card"><strong>Turnover margin</strong><div class="metric-main">${m.turnoverMargin>0?"+":""}${m.turnoverMargin}</div><div class="metric-sub">${m.takeaways} takeaways • ${m.turnovers} giveaways</div></div>
+    <div class="metric-card"><strong>Passing</strong><div class="metric-main">${pct(m.completionPct)}</div><div class="metric-sub">${m.completions}/${m.passAttempts} • ${m.passingTD} TD • ${m.interceptions} INT</div></div>
+    <div class="metric-card"><strong>Longest plays</strong><div class="metric-main">${Math.max(m.longestRush,m.longestPass)}</div><div class="metric-sub">Rush ${m.longestRush} • Pass ${m.longestPass} • KR ${m.longestKickReturn}</div></div>
+    <div class="metric-card metric-wide"><strong>Snap compliance</strong><div class="metric-main">${m.playersBelow10} below 10</div><div class="metric-sub">${m.snapOpportunities} snap-tracker plays recorded in this view</div></div>
+  </div>`;
+}
+
 function teamSpecialCounts(plays){
   const list=plays||[];
   return {
@@ -1077,6 +1192,10 @@ function initializeSnapSelections(){
   snapSelections={};
   (S.roster||[]).forEach(p=>snapSelections[p.id]=true);
 }
+
+
+function snapRecordsForGames(games){return (games||[]).flatMap(g=>(g.snapRecords||[]).map((r,i)=>({...r,gameId:g.id,gameDate:g.date,opponent:g.opponent,gameType:g.gameType||"regular",snapSequence:i+1})))}
+function playerSnapCountForGames(playerId,games){return snapRecordsForGames(games).reduce((a,r)=>a+((r.playerIds||[]).includes(playerId)?1:0),0)}
 
 function currentGameSnapCount(playerId){
   const g=currentGame();
@@ -1180,10 +1299,12 @@ function renderStats(){
 
   if(!src){
     $("#statsGameLabel").textContent="";
+    $("#teamMetricsBox").innerHTML="";
     $("#statsBox").innerHTML=`<div class="stats-block"><span class="muted">No ${statsScope==="playoff"?"playoff":statsScope==="regular"?"regular season":"game"} stats yet.</span></div>`;
     return;
   }
   $("#statsGameLabel").textContent=src.label;
+  renderTeamMetrics(src);
   const s=agg({plays:src.plays});
 
   const rushRows=s.filter(x=>x.car).map(x=>[pname(x.id),x.car,x.ry,(x.ry/x.car).toFixed(1),x.rfd,x.rtd]);
@@ -1313,6 +1434,32 @@ function tx(c,t,x,y,size,weight,color,align="left"){c.font=`${weight} ${size}px 
 function fmt(v){return Number.isInteger(Number(v))?String(Number(v)):Number(v).toFixed(1)}
 
 
+
+
+async function makeTeamSummaryShare(src){
+  const W=1080,H=1600,cv=document.createElement("canvas");cv.width=W;cv.height=H;const c=cv.getContext("2d"),P=S.team.primary,A=S.team.secondary,m=calcTeamMetrics(src.plays,src.games);
+  const rr=(x,y,w,h,r,fill)=>{c.beginPath();c.roundRect(x,y,w,h,r);c.fillStyle=fill;c.fill()};
+  const tx=(t,x,y,sz,w,col,al="left")=>{c.font=`${w} ${sz}px -apple-system,BlinkMacSystemFont,Segoe UI,Arial`;c.fillStyle=col;c.textAlign=al;c.fillText(String(t),x,y)};
+  c.fillStyle="#fff";c.fillRect(0,0,W,H);c.fillStyle=P;c.fillRect(0,0,W,330);c.fillStyle=A;c.fillRect(0,310,W,20);
+  if(S.team.logoData){try{const im=await loadImg(S.team.logoData);rr(38,34,110,110,20,"#fff");const sc=Math.min(94/im.width,94/im.height),dw=im.width*sc,dh=im.height*sc;c.drawImage(im,38+(110-dw)/2,34+(110-dh)/2,dw,dh)}catch(e){}}
+  tx("SIDELINE STATS",W/2,55,32,900,A,"center");tx(S.team.name.toUpperCase(),W/2,125,60,950,"#fff","center");
+  if(src.kind==="game"){const g=src.game;tx(`${displayedOurScore(g)}  –  ${g.oppScore}`,W/2,230,78,950,"#fff","center");tx(`${g.opponent.toUpperCase()} • ${g.location} • ${(g.gameType||"regular")==="playoff"?"PLAYOFF":"REGULAR"}`,W/2,282,25,850,A,"center")}
+  else{tx(src.title.toUpperCase(),W/2,220,45,950,"#fff","center");tx(`${src.games.length} GAMES • RECORD ${recordFor(src.games)}`,W/2,275,30,900,A,"center")}
+  let y=360;tx("TEAM GAME SUMMARY",40,y+35,38,950,P);y+=65;
+  const cards=[
+    ["OFFENSE",`${m.offensivePlays} PLAYS`,`${m.totalOffense} YDS • ${m.yardsPerPlay.toFixed(1)} YDS/PLAY`],
+    ["RUSH / PASS",`${m.rushAttempts} / ${m.passAttempts}`,`${pct(m.rushPct)} RUSH • ${pct(m.passPct)} PASS`],
+    ["FIRST DOWNS",m.firstDowns,`${m.explosive10} plays 10+ • ${m.explosive20} plays 20+`],
+    ["TURNOVER MARGIN",`${m.turnoverMargin>0?"+":""}${m.turnoverMargin}`,`${m.takeaways} TAKEAWAYS • ${m.turnovers} GIVEAWAYS`],
+    ["DEFENSE",`${m.defensivePlays} PLAYS`,`${m.tfl} TFL • ${m.sacks} SACK • ${pct(m.takeawayRate)} TAKEAWAY RATE`],
+    ["PASSING",pct(m.completionPct),`${m.completions}/${m.passAttempts} • ${m.passingYards} YDS • ${m.passingTD} TD • ${m.interceptions} INT`],
+    ["TOTAL PLAYS",m.totalScrimmage,`${m.specialTeamsPlays} SPECIAL TEAMS PLAYS`],
+    ["LONGEST",Math.max(m.longestRush,m.longestPass),`RUSH ${m.longestRush} • PASS ${m.longestPass} • KR ${m.longestKickReturn}`]
+  ];
+  const gap=14,cw=(W-80-gap)/2,ch=185;cards.forEach((d,i)=>{const x=40+(i%2)*(cw+gap),yy=y+Math.floor(i/2)*(ch+14);rr(x,yy,cw,ch,18,"#fff");c.strokeStyle=P;c.lineWidth=2;c.stroke();c.fillStyle=A;c.fillRect(x,yy,cw,45);tx(d[0],x+18,yy+31,23,950,P);tx(d[1],x+18,yy+105,46,950,P);tx(d[2],x+18,yy+150,20,850,"#222")});
+  y+=4*(ch+14)+16;rr(40,y,W-80,135,18,P);tx("SNAP TRACKER",65,y+40,23,950,A);tx(`${m.playersBelow10} players below 10-snap minimum`,65,y+88,34,950,"#fff");tx(`${m.snapOpportunities} tracked team snaps in this view`,65,y+120,20,800,"#fff");
+  return cv;
+}
 
 async function makeHybridShare(src){
   // Narrower canvas + substantially larger type = much easier to read on an iPhone.
@@ -1506,15 +1653,48 @@ $("#shareStatsBtn").addEventListener("click",async()=>{
   try{
     const safe=S.team.name.replace(/[^a-z0-9]/gi,"_");
     const suffix={game:"game",regular:"regular_season",playoff:"playoffs",season:"season_totals"}[statsScope];
-    const file=await canvasFile(await makeHybridShare(src),`${safe}_${suffix}_stats.png`);
+    const files=[
+      await canvasFile(await makeTeamSummaryShare(src),`${safe}_${suffix}_01_team_summary.png`),
+      await canvasFile(await makeHybridShare(src),`${safe}_${suffix}_02_player_box_score.png`)
+    ];
     const shareTitle={game:"Game Stats",regular:"Regular Season Stats",playoff:"Playoff Stats",season:"Season Totals"}[statsScope];
-    if(navigator.canShare&&navigator.canShare({files:[file]})&&navigator.share){
-      await navigator.share({title:`${S.team.name} ${shareTitle}`,text:src.label,files:[file]});
-    }else{
-      const a=document.createElement("a");a.href=URL.createObjectURL(file);a.download=file.name;a.click();
-      setTimeout(()=>URL.revokeObjectURL(a.href),1600);toast(`${shareTitle} image saved`);
-    }
+    if(navigator.canShare&&navigator.canShare({files})&&navigator.share){await navigator.share({title:`${S.team.name} ${shareTitle}`,text:src.label,files})}
+    else{for(const f of files)downloadBlob(f,f.name);toast("Two stats images saved")}
   }catch(e){console.error(e);toast("Could not share stats on this browser")}
+});
+
+
+function playRows(){
+  const rows=[];
+  (S.games||[]).forEach(g=>(g.plays||[]).forEach((p,i)=>{
+    const credits=p.defCredits?Object.entries(p.defCredits).map(([id,v])=>`${pname(id)}:${v}`).join(" | "):"";
+    rows.push({GameID:g.id,Date:g.date,Opponent:g.opponent,GameType:g.gameType||"regular",Location:g.location,PlaySequence:i+1,Timestamp:p.ts?new Date(p.ts).toISOString():"",Possession:p.stateBefore?.possession||"",Down:p.stateBefore?.down||"",Distance:p.stateBefore?.distance||"",PlayType:p.type||"",Subtype:p.sub||"",Player1:p.player?pname(p.player):"",Player2:p.player2?pname(p.player2):"",Yards:Number(p.yards)||0,Extras:(p.extras||[]).join(" | "),DefensiveCredits:credits,Touchdown:(p.extras||[]).includes("TD")?1:0,FirstDown:(p.extras||[]).includes("1st Down")?1:0,FumbleLost:(p.extras||[]).includes("Fumble Lost")?1:0});
+  }));return rows;
+}
+function gameRows(){return (S.games||[]).map(g=>({GameID:g.id,Date:g.date,Opponent:g.opponent,GameType:g.gameType||"regular",Location:g.location,OurScore:displayedOurScore(g),OpponentScore:Number(g.oppScore||0),Result:displayedOurScore(g)>g.oppScore?"W":displayedOurScore(g)<g.oppScore?"L":"T",Status:g.status||"",PlayCount:(g.plays||[]).length,SnapTrackerPlays:(g.snapRecords||[]).length}))}
+function playerGameRows(){const out=[];(S.games||[]).forEach(g=>agg(g).forEach(x=>{const snaps=playerSnapCountForGames(x.id,[g]),opp=(g.snapRecords||[]).length;out.push({GameID:g.id,Date:g.date,Opponent:g.opponent,GameType:g.gameType||"regular",Jersey:x.j,Player:x.n,RushAtt:x.car,RushYds:x.ry,RushAvg:x.car?x.ry/x.car:0,Rush1D:x.rfd,RushTD:x.rtd,PassAtt:x.att,Completions:x.cmp,PassYds:x.py,PassAvg:x.att?x.py/x.att:0,Pass1D:x.pfd,PassTD:x.ptd,PassINT:x.pi,Receptions:x.rec,RecYds:x.rey,RecAvg:x.rec?x.rey/x.rec:0,Rec1D:x.recfd,RecTD:x.retd,Tackles:x.t,TFL:x.tfl,Sacks:x.sack,DefINT:x.int,ForcedFumbles:x.ff,FumbleRecoveries:x.fr,DefTD:x.dtd||0,KickReturns:x.kr,KickReturnYds:x.kry,PuntReturns:x.pr,PuntReturnYds:x.pry,Punts:x.punt,PuntYds:x.punty,Snaps:snaps,SnapOpportunities:opp,ParticipationPct:opp?snaps/opp:0,Met10SnapMinimum:snaps>=10?"Yes":"No"})}));return out}
+function teamGameRows(){return (S.games||[]).map(g=>{const m=calcTeamMetrics(g.plays||[],[g]);return {GameID:g.id,Date:g.date,Opponent:g.opponent,GameType:g.gameType||"regular",...m}})}
+function snapCountRows(){const out=[];(S.games||[]).forEach(g=>(S.roster||[]).forEach(p=>{const snaps=playerSnapCountForGames(p.id,[g]),opp=(g.snapRecords||[]).length;out.push({GameID:g.id,Date:g.date,Opponent:g.opponent,GameType:g.gameType||"regular",Jersey:p.jersey,Player:p.name,Snaps:snaps,SnapOpportunities:opp,ParticipationPct:opp?snaps/opp:0,Met10SnapMinimum:snaps>=10?"Yes":"No",SnapsNeeded:Math.max(0,10-snaps)})}));return out}
+function snapRecordRows(){const out=[];(S.games||[]).forEach(g=>(g.snapRecords||[]).forEach((r,i)=>{(r.playerIds||[]).forEach(id=>{const p=S.roster.find(x=>x.id===id);out.push({GameID:g.id,Date:g.date,Opponent:g.opponent,GameType:g.gameType||"regular",SnapSequence:i+1,Timestamp:r.ts?new Date(r.ts).toISOString():"",PlayerID:id,Jersey:p?.jersey||"",Player:p?.name||""})})}));return out}
+function specialRowsExport(){const out=[];(S.games||[]).forEach(g=>agg(g).filter(x=>x.kr+x.pr+x.punt).forEach(x=>out.push({GameID:g.id,Date:g.date,Opponent:g.opponent,Jersey:x.j,Player:x.n,KickReturns:x.kr,KickReturnYds:x.kry,PuntReturns:x.pr,PuntReturnYds:x.pry,Punts:x.punt,PuntYds:x.punty})));return out}
+function seasonRows(){return ["regular","playoff","season"].map(scope=>{const games=scopeGames(scope),plays=games.flatMap(g=>g.plays||[]),m=calcTeamMetrics(plays,games);return {Scope:scope,Games:games.length,Record:recordFor(games),...m}})}
+function dataDictionaryRows(){return [
+  {Field:"GameType",Meaning:"regular or playoff"},{Field:"Possession",Meaning:"ours = our offense; opp = opponent offense / our defense"},{Field:"Down",Meaning:"Down at the start of the recorded play"},{Field:"Distance",Meaning:"Yards to go at the start of the recorded play"},{Field:"Extras",Meaning:"TD, first down, fumble, PAT or 2PT tags"},{Field:"Player-snaps",Meaning:"Snap Tracker participation records; separate from team play count"},{Field:"ParticipationPct",Meaning:"Player tracked snaps divided by tracked team snap opportunities"},{Field:"OffensivePlays",Meaning:"Rush attempts plus pass attempts"},{Field:"DefensivePlays",Meaning:"Recorded opponent scrimmage plays via Defense entries"},{Field:"TotalScrimmage",Meaning:"Offensive plays plus defensive plays"},{Field:"SpecialTeamsPlays",Meaning:"Kickoff, kickoff return, punt and return events"},{Field:"Explosive10/20",Meaning:"Offensive plays gaining at least 10 / 20 yards"}
+]}
+function analyticsPayload(){return {exportedAt:new Date().toISOString(),team:S.team,games:gameRows(),plays:playRows(),playerGameStats:playerGameRows(),teamGameStats:teamGameRows(),snapCounts:snapCountRows(),snapRecords:snapRecordRows(),specialTeams:specialRowsExport(),seasonTotals:seasonRows(),dataDictionary:dataDictionaryRows()}}
+function csvEscape(v){const s=String(v??"");return /[",\n]/.test(s)?`"${s.replace(/"/g,'""')}"`:s}
+function rowsToCsv(rows){if(!rows.length)return "";const cols=Object.keys(rows[0]);return [cols.join(","),...rows.map(r=>cols.map(c=>csvEscape(r[c])).join(","))].join("\n")}
+$("#exportRawBtn").addEventListener("click",()=>downloadJson(analyticsPayload(),`${(S.team?.name||"team").replace(/[^a-z0-9]/gi,"_")}_raw_analytics.json`));
+$("#exportExcelBtn").addEventListener("click",()=>{
+  const data=analyticsPayload(),safe=(S.team?.name||"team").replace(/[^a-z0-9]/gi,"_");
+  if(window.XLSX){
+    const wb=XLSX.utils.book_new();
+    const sheets=[["Games",data.games],["Plays",data.plays],["Player Game Stats",data.playerGameStats],["Team Game Stats",data.teamGameStats],["Snap Counts",data.snapCounts],["Snap Records",data.snapRecords],["Special Teams",data.specialTeams],["Season Totals",data.seasonTotals],["Data Dictionary",data.dataDictionary]];
+    sheets.forEach(([name,rows])=>{const ws=XLSX.utils.json_to_sheet(rows);XLSX.utils.book_append_sheet(wb,ws,name.slice(0,31))});
+    XLSX.writeFile(wb,`${safe}_sideline_stats_analytics.xlsx`);
+  }else{
+    downloadBlob(new Blob([rowsToCsv(data.plays)],{type:"text/csv"}),`${safe}_plays_fallback.csv`);toast("Excel library unavailable; exported raw plays CSV instead");
+  }
 });
 
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]))}
