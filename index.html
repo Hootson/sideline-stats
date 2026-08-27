@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V3.1c</title>
+<title>Sideline Stats V3.1d</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -259,7 +259,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V3.1c • ANALYTICS + DATA SAFETY</div>
+      <div class="muted" style="color:#dfe9e2">V3.1d • ANALYTICS + DATA SAFETY</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -918,8 +918,8 @@ $("#togglePossession").addEventListener("click",()=>{
     g.possession=next;g.down=1;g.distance=10;persist();renderLiveGame();toast(`${who} ball — 1st down`);
   }
 });
-if(g)setDistance((g.distance||10)-1)});
-if(g)setDistance((g.distance||10)+1)});
+
+
 function ordinal(n){return n===1?"1st":n===2?"2nd":n===3?"3rd":"4th"}
 function rebuildGameState(g){
   syncDerivedGameState(g);

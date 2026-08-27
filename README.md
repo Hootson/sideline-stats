@@ -1,9 +1,5 @@
-# Sideline Stats V3.1c
+# Sideline Stats V3.1d
 
-Small cleanup patch.
+Stability fix. Removed all remaining JavaScript references to the deleted manual down/distance controls.
 
-Removed the leftover manual down/distance correction section from the Game tab completely.
-
-The Game tab now keeps only the derived Down & Distance display, calculated from the recorded plays.
-
-All V3.1b functionality remains unchanged.
+The Save Team / Add Roster flow now initializes normally again. The Game screen keeps only derived down & distance.
