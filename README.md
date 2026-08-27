@@ -1,12 +1,5 @@
-# Sideline Stats V3.1a
+# Sideline Stats V3.1b
 
-Visual patch to V3.1.
+Stability fix for V3.1a. The prior down/distance cleanup left orphaned JavaScript from the removed manual down/distance controls, which prevented the app script from parsing and made Save Team / Add Roster unresponsive.
 
-The first shared Team Summary image now has a clearer game header modeled after the second Player Box Score image:
-- your team name directly above your score
-- opponent name directly above opponent score
-- equal-width left/right score panels
-- VS, FINAL/LIVE, home/away and game type centered between them
-- team logo and primary/accent branding retained
-
-All V3.1 game, analytics, quarter, down/distance, defensive-yardage, storage and export functionality is unchanged.
+V3.1b removes those obsolete fragments while retaining the V3.1 features and the clearer V3.1a share header. The embedded JavaScript passed a full Node syntax check before packaging.
