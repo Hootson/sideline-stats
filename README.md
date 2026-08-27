@@ -1,5 +1,9 @@
-# Sideline Stats V3.1b
+# Sideline Stats V3.1c
 
-Stability fix for V3.1a. The prior down/distance cleanup left orphaned JavaScript from the removed manual down/distance controls, which prevented the app script from parsing and made Save Team / Add Roster unresponsive.
+Small cleanup patch.
 
-V3.1b removes those obsolete fragments while retaining the V3.1 features and the clearer V3.1a share header. The embedded JavaScript passed a full Node syntax check before packaging.
+Removed the leftover manual down/distance correction section from the Game tab completely.
+
+The Game tab now keeps only the derived Down & Distance display, calculated from the recorded plays.
+
+All V3.1b functionality remains unchanged.

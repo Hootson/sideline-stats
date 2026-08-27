@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V3.1b</title>
+<title>Sideline Stats V3.1c</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -259,7 +259,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V3.1b • ANALYTICS + DATA SAFETY</div>
+      <div class="muted" style="color:#dfe9e2">V3.1c • ANALYTICS + DATA SAFETY</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -403,7 +403,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
       </div>
 <div class="derived-dd">
         <div class="label">DOWN & DISTANCE</div>
-        <div class="value" id="derivedDownDistance">1st & 10</div>
+        
       </div>
 
       <div class="distance-card">
@@ -411,11 +411,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
           <strong>Down & Distance</strong>
           <span class="distance-display" id="downDistanceDisplay">1st & 10</span>
         </div>
-        <div class="distance-controls">
-          <button class="distance-btn" id="distanceMinus">−</button>
-          
-          <button class="distance-btn" id="distancePlus">+</button>
-        </div>
+        
         <div class="muted" style="margin-top:7px">Yards-to-go updates automatically on our offensive plays. Tap to correct at any time.</div>
       </div>
 
@@ -911,7 +907,7 @@ function renderLiveGame(){
   if(!g.distance||g.distance<1)g.distance=10;
   $("#possessionSub").textContent=`${ordinal(g.down)} & ${g.distance}`;
   $("#togglePossession").textContent=g.possession==="ours"?"Switch to Defense":"Switch to Offense";
-$$(".quarter-btn").forEach(b=>b.classList.toggle("active",Number(b.dataset.quarter)===Number(g.quarter||1)));if($("#derivedDownDistance"))$("#derivedDownDistance").textContent=`${ordinalLabel(g.down)} & ${g.distance}`;persist();renderRecent();resetFlow();
+$$(".quarter-btn").forEach(b=>b.classList.toggle("active",Number(b.dataset.quarter)===Number(g.quarter||1)));if($("#derivedDownDistance"))persist();renderRecent();resetFlow();
 }
 
 $("#togglePossession").addEventListener("click",()=>{
@@ -922,8 +918,8 @@ $("#togglePossession").addEventListener("click",()=>{
     g.possession=next;g.down=1;g.distance=10;persist();renderLiveGame();toast(`${who} ball — 1st down`);
   }
 });
-$("#distanceMinus").addEventListener("click",()=>{const g=currentGame();if(g)setDistance((g.distance||10)-1)});
-$("#distancePlus").addEventListener("click",()=>{const g=currentGame();if(g)setDistance((g.distance||10)+1)});
+if(g)setDistance((g.distance||10)-1)});
+if(g)setDistance((g.distance||10)+1)});
 function ordinal(n){return n===1?"1st":n===2?"2nd":n===3?"3rd":"4th"}
 function rebuildGameState(g){
   syncDerivedGameState(g);
