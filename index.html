@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V3.2</title>
+<title>Sideline Stats V3.3</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -268,7 +268,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V3.2 • ANALYTICS + DATA SAFETY</div>
+      <div class="muted" style="color:#dfe9e2">V3.3 • ANALYTICS + DATA SAFETY</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -350,7 +350,15 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
         <h2>Games</h2>
         <label>Opponent</label><input id="newOpponent" placeholder="Opponent name">
         <div class="row">
-          <div><label>Date</label><input id="newGameDate" type="date"></div>
+          <div><label>Week</label>
+      <select id="newGameWeek">
+        <option value="1">Week 1</option><option value="2">Week 2</option>
+        <option value="3">Week 3</option><option value="4">Week 4</option>
+        <option value="5">Week 5</option><option value="6">Week 6</option>
+        <option value="7">Week 7</option><option value="8">Week 8</option>
+        <option value="9">Week 9</option><option value="10">Week 10</option>
+      </select>
+    </div>
           <div><label>Location</label><select id="newLocation"><option>Home</option><option>Away</option><option>Neutral</option></select></div>
         </div>
         <label>Game type</label>
@@ -620,7 +628,7 @@ function normalizeRoster(){
 }
 function normalizeGames(){
   let changed=false;
-  (S.games||[]).forEach(g=>{if(!g.gameType){g.gameType="regular";changed=true} if(!g.down||g.down<1||g.down>4){g.down=1;changed=true} if(!g.possession){g.possession="ours";changed=true}if(!g.quarter||g.quarter<1||g.quarter>4){g.quarter=1;changed=true}if(!Array.isArray(g.snapRecords)){g.snapRecords=[];changed=true}if(!g.distance||g.distance<1){g.distance=10;changed=true}});
+  (S.games||[]).forEach(g=>{if(!g.gameType){g.gameType="regular";changed=true}if(!g.week){const w=Number(String(g.date||"").replace(/\D/g,""));if(w>=1&&w<=10){g.week=w;changed=true}} if(!g.down||g.down<1||g.down>4){g.down=1;changed=true} if(!g.possession){g.possession="ours";changed=true}if(!g.quarter||g.quarter<1||g.quarter>4){g.quarter=1;changed=true}if(!Array.isArray(g.snapRecords)){g.snapRecords=[];changed=true}if(!g.distance||g.distance<1){g.distance=10;changed=true}});
   if(changed)persist();
 }
 function toast(m){let t=$("#toast");t.textContent=m;t.style.display="block";setTimeout(()=>t.style.display="none",1500)}
@@ -781,7 +789,7 @@ function renderGameList(){
   if(!S.games.length){list.innerHTML='<span class="muted">No games yet.</span>';return}
   list.innerHTML=[...S.games].sort((a,b)=>b.date.localeCompare(a.date)).map(g=>`
     <div class="game-card">
-      <div class="game-info"><strong>${esc(S.team.name)} vs ${esc(g.opponent)} <span class="game-type-badge ${(g.gameType||"regular")==="playoff"?"playoff":"regular"}">${(g.gameType||"regular")==="playoff"?"PLAYOFF":"REGULAR"}</span></strong><span>${g.date} • ${g.location} • ${displayedOurScore(g)}-${g.oppScore}</span></div>
+      <div class="game-info"><strong>${esc(S.team.name)} vs ${esc(g.opponent)} <span class="game-type-badge ${(g.gameType||"regular")==="playoff"?"playoff":"regular"}">${(g.gameType||"regular")==="playoff"?"PLAYOFF":"REGULAR"}</span></strong><span>${(g.gameType||"regular")==="playoff"?"Playoff":"Regular Season"} • Week ${g.week||String(g.date||"").replace(/\D/g,"")||"?"} • ${g.location} • ${displayedOurScore(g)}-${g.oppScore}</span></div>
       <div style="display:flex;gap:6px">
         <button class="btn ghost small open-game" data-id="${g.id}">${g.status==="complete"?"View":"Open"}</button>
         <button class="btn danger small delete-game" data-id="${g.id}">Delete</button>
@@ -798,7 +806,7 @@ function renderGameList(){
 $("#newGameBtn").addEventListener("click",()=>{
   if(!S.roster.length)return toast("Add your roster first");
   const opp=$("#newOpponent").value.trim();if(!opp)return toast("Enter an opponent");
-  const g={id:uid(),opponent:opp,date:$("#newGameDate").value||today(),location:$("#newLocation").value,gameType:$("#newGameType").value||"regular",status:"live",ourScore:0,scoreAdjustment:0,oppScore:0,down:1,distance:10,possession:"ours",quarter:1,plays:[]};
+  const g={id:uid(),opponent:opp,week:Number($("#newGameWeek").value||1),date:`Week ${$("#newGameWeek").value||1}`,location:$("#newLocation").value,gameType:$("#newGameType").value||"regular",status:"live",ourScore:0,scoreAdjustment:0,oppScore:0,down:1,distance:10,possession:"ours",quarter:1,plays:[]};
   S.games.push(g);S.activeGameId=g.id;selectedStatsGameId=g.id;persist();resetFlow();renderGameArea()
 });
 $("#endGameBtn").addEventListener("click",()=>{
@@ -899,7 +907,7 @@ function renderLiveGame(){
   $("#oppGame").textContent=g.opponent;
   $("#ourScore").textContent=displayedOurScore(g);
   $("#oppScore").textContent=g.oppScore;
-  $("#gameDate").textContent=g.date||"";
+  $("#gameDate").textContent=`${(g.gameType||"regular")==="playoff"?"Playoff":"Regular Season"} • Week ${g.week||String(g.date||"").replace(/\D/g,"")||"?"}`;
   $("#gameLocation").textContent=g.location||"Home";
   $("#gameTypeText").textContent=(g.gameType||"regular")==="playoff"?"Playoff":"Regular Season";
   const initial=(g.opponent||"O").trim().charAt(0).toUpperCase()||"O";
@@ -1181,7 +1189,7 @@ function agg(g){
   });return Object.values(m)
 }
 
-function sortedGames(){return [...(S.games||[])].sort((a,b)=>(b.date||"").localeCompare(a.date||""))}
+function sortedGames(){return [...(S.games||[])].sort((a,b)=>(Number(b.week||0)-Number(a.week||0))||String(b.date||"").localeCompare(String(a.date||"")))}
 function latestGame(){return sortedGames()[0]||null}
 function selectedStatsGame(){
   const games=sortedGames();
@@ -1874,5 +1882,15 @@ normalizeRoster();normalizeGames();populateSetup();syncChrome();renderRoster();i
 if(teamExists())go("roster");else go("setup");
 })();
 </script>
+
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./service-worker.js")
+      .catch(err => console.warn("Offline cache registration failed", err));
+  });
+}
+</script>
+
 </body>
 </html>
