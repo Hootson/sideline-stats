@@ -1,14 +1,16 @@
-# Sideline Stats V3.3a
+# Sideline Stats V3.4
 
-Bug fix for V3.3.
+This V3.4 package includes:
+- Automatic first-down calculation from down, distance and yards gained
+- Fixed Reset All Data action
+- Offline PWA/service-worker support
+- Custom Sideline Stats — Gridiron Edition Home Screen icon
 
-The Week 1-10 update removed the calendar field from the New Game screen, but one old JavaScript line still attempted to access `newGameDate` whenever the Game screen rendered. That runtime error prevented Start New Game from working.
+Upload these five files to the same GitHub Pages repository:
+1. index.html
+2. manifest.webmanifest
+3. service-worker.js
+4. icon.png
+5. README.md (optional for the app, fine to upload)
 
-V3.3a:
-- removes the stale calendar reference
-- keeps Week 1-10 game setup
-- keeps Regular Season / Playoff week labeling
-- keeps offline PWA support
-- bumps the service-worker cache to force the fixed app onto the phone
-
-The finished JavaScript was syntax checked and static button listener targets were validated.
+After GitHub Pages updates, open the site in Safari while connected. If you already have Sideline Stats on your iPhone Home Screen, remove that old Home Screen shortcut and use Safari → Share → Add to Home Screen again so iOS picks up the custom icon.
