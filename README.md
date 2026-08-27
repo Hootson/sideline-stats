@@ -1,5 +1,8 @@
-# Sideline Stats V3.1d
+# Sideline Stats V3.2
 
-Stability fix. Removed all remaining JavaScript references to the deleted manual down/distance controls.
-
-The Save Team / Add Roster flow now initializes normally again. The Game screen keeps only derived down & distance.
+- Removed duplicate standalone Down & Distance sections. Down & distance now appears only in the possession box.
+- Added PENALTY workflow: type → player/Unknown Team → yardage → down result.
+- Penalties adjust distance without counting as offensive/defensive scrimmage plays.
+- Penalty analytics added to Stats and Team Summary sharing.
+- Penalties included in raw JSON, Excel Plays, Player Game Stats, Team/Season metrics, and a dedicated Penalties worksheet.
+- Existing V3.1d quarter, defensive yardage, snap tracker, backup/restore, sharing and analytics features remain.
