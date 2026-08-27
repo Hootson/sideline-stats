@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V3.3</title>
+<title>Sideline Stats V3.3aa</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -268,7 +268,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V3.3 • ANALYTICS + DATA SAFETY</div>
+      <div class="muted" style="color:#dfe9e2">V3.3a • ANALYTICS + DATA SAFETY</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -777,7 +777,6 @@ $("#addPlayer").addEventListener("click",()=>{
 $("#goGames").addEventListener("click",()=>go("game"));
 
 function renderGameArea(){
-  $("#newGameDate").value=$("#newGameDate").value||today();
   const g=currentGame();
   $("#gameManager").classList.toggle("hidden",!!g);
   $("#liveGame").classList.toggle("hidden",!g);

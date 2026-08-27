@@ -1,4 +1,4 @@
-const CACHE_NAME = "sideline-stats-v3-3";
+const CACHE_NAME = "sideline-stats-v3-3a";
 const APP_SHELL = ["./", "./index.html", "./manifest.webmanifest"];
 
 self.addEventListener("install", event => {

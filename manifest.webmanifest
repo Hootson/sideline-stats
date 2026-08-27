@@ -5,6 +5,6 @@
   "display": "standalone",
   "background_color": "#f4f6f5",
   "theme_color": "#177b46",
-  "description": "Sideline Stats V3.3 \u2014 weekly game setup and offline game-day cache",
+  "description": "Sideline Stats V3.3a \u2014 Start New Game fix and offline cache refresh",
   "scope": "./"
 }

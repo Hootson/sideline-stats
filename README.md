@@ -1,14 +1,14 @@
-# Sideline Stats V3.3
+# Sideline Stats V3.3a
 
-- Penalty Summary moved below Special Teams.
-- New Game now uses Week 1 through Week 10 instead of a calendar date.
-- Regular Season and Playoff games each use Week 1-10.
-- Added offline PWA caching for the core app shell.
+Bug fix for V3.3.
 
-For offline game day:
-1. Upload all three app files to GitHub: index.html, manifest.webmanifest, service-worker.js.
-2. Open the live site once while connected.
-3. Add it to your iPhone Home Screen.
-4. Open the Home Screen app once while still connected.
+The Week 1-10 update removed the calendar field from the New Game screen, but one old JavaScript line still attempted to access `newGameDate` whenever the Game screen rendered. That runtime error prevented Start New Game from working.
 
-Current multi-phone live syncing is not included yet; that requires a shared cloud backend.
+V3.3a:
+- removes the stale calendar reference
+- keeps Week 1-10 game setup
+- keeps Regular Season / Playoff week labeling
+- keeps offline PWA support
+- bumps the service-worker cache to force the fixed app onto the phone
+
+The finished JavaScript was syntax checked and static button listener targets were validated.
