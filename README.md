@@ -1,16 +1,20 @@
-# Sideline Stats V3.4
+# Sideline Stats V3.4b
 
-This V3.4 package includes:
-- Automatic first-down calculation from down, distance and yards gained
-- Fixed Reset All Data action
-- Offline PWA/service-worker support
-- Custom Sideline Stats — Gridiron Edition Home Screen icon
+Fix:
+- The manual possession button now works with the derived down-and-distance engine.
+- A manual possession change is stored as a game-state event instead of being overwritten during recalculation.
+- Switching possession resets the new offense to 1st & 10.
+- Undo can remove the possession-switch event just like another game event.
 
-Upload these five files to the same GitHub Pages repository:
-1. index.html
-2. manifest.webmanifest
-3. service-worker.js
-4. icon.png
-5. README.md (optional for the app, fine to upload)
+Retained:
+- Automatic first downs from down/distance + yards gained
+- Fixed Reset All Data
+- Offline PWA support
+- Custom Sideline Stats Home Screen icon
 
-After GitHub Pages updates, open the site in Safari while connected. If you already have Sideline Stats on your iPhone Home Screen, remove that old Home Screen shortcut and use Safari → Share → Add to Home Screen again so iOS picks up the custom icon.
+Upload:
+- index.html
+- manifest.webmanifest
+- service-worker.js
+- icon.png
+- README.md (optional)

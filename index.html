@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V3.4</title>
+<title>Sideline Stats V3.4b</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -270,7 +270,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V3.4 • ANALYTICS + DATA SAFETY</div>
+      <div class="muted" style="color:#dfe9e2">V3.4b • ANALYTICS + DATA SAFETY</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -878,6 +878,12 @@ function calcDriveState(g){
   let possession="ours", down=1, distance=10;
   for(const p of (g?.plays||[])){
     if(!Array.isArray(p.extras))p.extras=[];
+    if(p.type==="Possession Switch"){
+      possession=p.toPossession==="opp"?"opp":"ours";
+      down=1;
+      distance=10;
+      continue;
+    }
     if(p.type==="Kickoff"){possession=p.receivingSide==="ours"?"ours":"opp";down=1;distance=10;continue}
     if(p.type==="Kickoff Return"){possession="ours";down=1;distance=10;continue}
     if(p.type==="Punt"){possession="opp";down=1;distance=10;continue}
@@ -967,10 +973,24 @@ $$(".quarter-btn").forEach(b=>b.classList.toggle("active",Number(b.dataset.quart
 
 $("#togglePossession").addEventListener("click",()=>{
   const g=currentGame();if(!g)return;
+  syncDerivedGameState(g);
   const next=g.possession==="ours"?"opp":"ours";
   const who=next==="ours"?S.team.name:g.opponent;
-  if(confirm(`Switch possession to ${who}? Down will reset to 1st.`)){
-    g.possession=next;g.down=1;g.distance=10;persist();renderLiveGame();toast(`${who} ball — 1st down`);
+  if(confirm(`Switch possession to ${who}? Down will reset to 1st & 10.`)){
+    g.plays.push({
+      id:uid(),
+      ts:Date.now(),
+      type:"Possession Switch",
+      sub:"Manual",
+      toPossession:next,
+      quarter:Number(g.quarter||1),
+      extras:[],
+      stateBefore:{possession:g.possession,down:g.down,distance:g.distance||10}
+    });
+    syncDerivedGameState(g);
+    persist();
+    renderLiveGame();
+    toast(`${who} ball — 1st & 10`);
   }
 });
 
@@ -1158,6 +1178,9 @@ function pname(id){let p=player(id);return p?`#${p.jersey} ${p.name}`:"#?"}
 function sgn(v){return (+v>0?"+":"")+(v||0)}
 function ex(p){return p.extras&&p.extras.length?" · "+p.extras.join(", "):""}
 function ptext(p){
+  if(p.type==="Possession Switch"){
+    return p.toPossession==="ours"?`${S.team.name} takes possession`:`${currentGame()?.opponent||"Opponent"} takes possession`;
+  }
   if(p.type==="Penalty"){const y=Number(p.penaltyYards||0);return `Penalty — ${p.penaltyType||"Other"} — ${penaltyPlayerName(p)} — ${y>0?"+":""}${y} yds`}
   if(p.type==="Kickoff"){
     const receiver=p.receivingSide==="ours"?S.team.name:(currentGame()?.opponent||"Opponent");
