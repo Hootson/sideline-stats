@@ -1,31 +1,14 @@
-# Sideline Stats V3.7.2
+# Sideline Stats V3.7.3
 
-## Share-image pagination
-The Player Box Score no longer uses one fixed-height image that can clip long stat sheets.
+Share-image headers now follow the approved broadcast-style design.
 
-- The app calculates how many Player Box Score images are needed.
-- Tables split only between player rows.
-- Table headings repeat when a table continues onto the next page.
-- Every page has `PAGE X OF Y`.
-- The Share sheet receives the Team Summary plus every Player Box Score page.
-- Rushing, Passing, Receiving, Defense, Special Teams, and Penalty Summary are included.
-- Receiving now includes targets, drops, and catch percentage in the shared box score.
+The headers use the team and opponent logos uploaded in the app and display only:
+- Week
+- Home / Away / Neutral
+- Regular Season / Playoffs
 
-This is designed for full youth rosters and games where many players accumulate stats.
+The date and Erie, Colorado/location text have been removed.
 
-## Share-image header redesign
-Team Summary, Player Box Score, and Snap Participation Report now use the same
-broadcast-style visual system:
+Player Box Score pagination remains intact so all stats continue onto additional share images without clipping.
 
-- stronger team primary/accent color treatment
-- angled graphic layers
-- Sideline Stats / Gridiron Edition branding
-- clearer matchup/score hierarchy
-- team and opponent logos when available
-- compact repeated header on continuation pages
-
-## V3.7.1 fixes retained
-- Offensive stats-table rendering fix
-- Active-game stats source fix
-- Edit Game Details
-- Optional opponent logos
+Version cleanup was also completed: stale V3.6 and V3.1 labels were removed.

@@ -5,7 +5,7 @@
   "display": "standalone",
   "background_color": "#f4f6f5",
   "theme_color": "#177b46",
-  "description": "Sideline Stats V3.7.2 \u2014 paginated share images and polished broadcast-style headers",
+  "description": "Sideline Stats V3.7.3 \u2014 approved broadcast-style share headers",
   "scope": "./",
   "icons": [
     {
