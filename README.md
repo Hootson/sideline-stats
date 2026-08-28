@@ -1,23 +1,35 @@
-# Sideline Stats V3.7
+# Sideline Stats V3.7.1
 
-## Priority fixes
-- Active-game stats are automatically selected when recording plays and when opening Stats.
-- Verified pass aggregation: completions add QB completions/passing yards and receiver receptions/receiving yards.
-- Receiver targets and drops retained.
-- Opponent offensive penalty adjustments are excluded from team penalty analytics.
-- New plays retain stateBefore/stateAfter diagnostics.
+## Critical fix
+V3.7 had an undefined `fmt1()` formatting helper in the receiving-table render path.
+As soon as a receiving stat existed, the Stats screen threw a JavaScript ReferenceError
+before replacing the stat tables. This could leave an older Special Teams table visible
+while rushing, passing, and receiving appeared blank.
 
-## Sideline readability
-- Larger jersey numbers and player names on all three-column player selectors.
-- Taller player buttons while retaining three columns.
-- Penalty type buttons are substantially larger with larger text.
-- Penalty choices are two columns and vertically scrollable.
+V3.7.1 defines the missing formatter and keeps the active game selected when opening Stats
+or recording a play.
 
-## Penalty flow cleanup
-- Removed redundant Down Unchanged / Replay Down choices.
-- Choices are now Replay / Same Down, Next Down, Automatic 1st Down, Loss of Down.
-- Next Down advances the down while applying the entered distance adjustment.
+## Verified against the supplied Erie Tigers backup
+Expected current-game offense:
+- Bradyn: 1 carry, 6 yards
+- Bryce: 1 carry, 7 yards
+- Abe: 2 completions on 3 attempts, 22 passing yards
+- Cohen: 1 target, 1 reception, 7 yards
+- Easton: 1 target, 1 reception, 15 yards
+- Colter: 1 target, 0 receptions, 1 drop
+- Kallum: 1 kickoff return, 15 yards
 
-## Share images
-- Team Summary, Player Box Score, and Snap Participation headers have stronger team-color graphic accents.
-- Added Gridiron Edition branding and improved visual hierarchy.
+## Edit Game Details
+From an open game, tap **Edit Game Details** to change:
+- Team name (updates the team globally)
+- Opponent
+- Week
+- Home / Away / Neutral
+- Regular Season / Playoff
+- Optional opponent logo
+
+Saved games also have an **Edit** button. Existing plays, snaps, and scores are preserved.
+
+## Opponent logos
+Opponent logos can be added when starting a game or later from Edit Game Details.
+They display on the live scoreboard and on the two game-stat share images.

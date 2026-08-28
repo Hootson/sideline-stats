@@ -260,7 +260,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 .penalty-down-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 
 
-/* V3.7 sideline readability */
+/* V3.7.1 sideline readability */
 .player-grid{gap:12px}
 .player-select{
   min-height:92px !important;
@@ -295,6 +295,28 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
   font-size:20px !important;
   font-weight:850 !important;
 }
+
+/* V3.7.1 game editing + opponent logo */
+.game-opponent-badge img{
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  display:block;
+}
+.logo-preview{
+  min-height:0;
+}
+.logo-preview img{
+  width:72px;
+  height:72px;
+  object-fit:contain;
+  border:1px solid #d7ddd9;
+  border-radius:14px;
+  background:#fff;
+  padding:5px;
+}
+#editGameCard .row > *{min-width:0}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
@@ -405,6 +427,10 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
           <option value="regular">Regular Season</option>
           <option value="playoff">Playoff</option>
         </select>
+        <label>Opponent logo <span class="muted">(optional)</span></label>
+        <input id="newOpponentLogo" type="file" accept="image/png,image/jpeg,image/webp">
+        <div id="newOpponentLogoPreview" class="logo-preview" style="margin-top:10px"></div>
+        <button class="btn ghost hidden" id="removeNewOpponentLogoBtn" type="button" style="margin-top:8px">Remove Opponent Logo</button>
         <button class="btn" id="newGameBtn" style="margin-top:12px">Start New Game</button>
       </div>
       <div class="card"><h3 style="margin-top:0">Saved games</h3><div id="gameList"><span class="muted">No games yet.</span></div></div>
@@ -436,7 +462,54 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
           <div class="score-actions">
             <button class="score-action primary" id="setOurScore">Set / Correct Our Score</button>
             <button class="score-action" id="setOppScore">Set Opponent Score</button>
+            <button class="score-action" id="editGameBtn">Edit Game Details</button>
           </div>
+        </div>
+      </div>
+
+      <div class="card hidden" id="editGameCard">
+        <div class="muted">Game setup</div>
+        <h2 style="margin-top:4px">Edit Game Details</h2>
+
+        <label>Team name <span class="muted">(updates everywhere)</span></label>
+        <input id="editTeamName" placeholder="Team name">
+
+        <label>Opponent</label>
+        <input id="editOpponent" placeholder="Opponent name">
+
+        <div class="row">
+          <div>
+            <label>Week</label>
+            <select id="editGameWeek">
+              <option value="1">Week 1</option><option value="2">Week 2</option>
+              <option value="3">Week 3</option><option value="4">Week 4</option>
+              <option value="5">Week 5</option><option value="6">Week 6</option>
+              <option value="7">Week 7</option><option value="8">Week 8</option>
+              <option value="9">Week 9</option><option value="10">Week 10</option>
+            </select>
+          </div>
+          <div>
+            <label>Location</label>
+            <select id="editLocation">
+              <option>Home</option><option>Away</option><option>Neutral</option>
+            </select>
+          </div>
+        </div>
+
+        <label>Game type</label>
+        <select id="editGameType">
+          <option value="regular">Regular Season</option>
+          <option value="playoff">Playoff</option>
+        </select>
+
+        <label>Opponent logo <span class="muted">(optional)</span></label>
+        <input id="editOpponentLogo" type="file" accept="image/png,image/jpeg,image/webp">
+        <div id="opponentLogoPreview" class="logo-preview" style="margin-top:10px"></div>
+        <button class="btn ghost hidden" id="removeOpponentLogoBtn" type="button" style="margin-top:8px">Remove Opponent Logo</button>
+
+        <div class="row" style="margin-top:14px">
+          <button class="btn" id="saveGameDetailsBtn" type="button">Save Game Details</button>
+          <button class="btn ghost" id="cancelEditGameBtn" type="button">Cancel</button>
         </div>
       </div>
 
@@ -645,6 +718,8 @@ const empty={team:null,roster:[],games:[],activeGameId:null,flow:{},editingPlayI
 let S=load();
 let statsScope="game";
 let selectedStatsGameId=null;
+let pendingNewOpponentLogo=null;
+let pendingEditOpponentLogo=undefined;
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 
 function load(){
@@ -688,6 +763,19 @@ function teamExists(){return !!(S.team&&S.team.name)}
 function currentGame(){return S.games.find(g=>g.id===S.activeGameId)||null}
 function gameById(id){return S.games.find(g=>g.id===id)||null}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+function readImageFile(file,cb){
+  if(!file)return;
+  if(!/^image\//.test(file.type||""))return toast("Choose an image file");
+  const r=new FileReader();
+  r.onload=()=>cb(String(r.result||""));
+  r.onerror=()=>toast("Could not read that image");
+  r.readAsDataURL(file);
+}
+function renderLogoPreview(targetId,data){
+  const el=$("#"+targetId);if(!el)return;
+  el.innerHTML=data?`<img src="${data}" alt="Opponent logo preview">`:"";
+}
+
 
 function go(name){
   if(!teamExists() && name!=="setup"){toast("Create your team first");name="setup"}
@@ -695,7 +783,7 @@ function go(name){
   $("#topTitle").textContent={setup:"Sideline Stats",roster:"Roster",game:"Game",snaps:"Snaps",stats:"Team Stats",share:"Share"}[name];
   if(name==="game")renderGameArea();
   if(name==="snaps")renderSnaps();
-  if(name==="stats")renderStats();
+  if(name==="stats"){if(currentGame())selectedStatsGameId=currentGame().id;renderStats();}
   
 }
 $$("[data-go]").forEach(b=>b.addEventListener("click",()=>go(b.dataset.go)));
@@ -798,7 +886,7 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
-$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.7",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
+$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.7.1",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
 $("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
 $("#restoreDataInput").addEventListener("change",async()=>{
   const f=$("#restoreDataInput").files?.[0];if(!f)return;
@@ -854,10 +942,14 @@ function renderGameList(){
       <div class="game-info"><strong>${esc(S.team.name)} vs ${esc(g.opponent)} <span class="game-type-badge ${(g.gameType||"regular")==="playoff"?"playoff":"regular"}">${(g.gameType||"regular")==="playoff"?"PLAYOFF":"REGULAR"}</span></strong><span>${(g.gameType||"regular")==="playoff"?"Playoff":"Regular Season"} • Week ${g.week||String(g.date||"").replace(/\D/g,"")||"?"} • ${g.location} • ${displayedOurScore(g)}-${g.oppScore}</span></div>
       <div style="display:flex;gap:6px">
         <button class="btn ghost small open-game" data-id="${g.id}">${g.status==="complete"?"View":"Open"}</button>
+        <button class="btn ghost small edit-saved-game" data-id="${g.id}">Edit</button>
         <button class="btn danger small delete-game" data-id="${g.id}">Delete</button>
       </div>
     </div>`).join("");
   $$(".open-game").forEach(b=>b.addEventListener("click",()=>{S.activeGameId=b.dataset.id;selectedStatsGameId=b.dataset.id;persist();renderGameArea()}));
+  $$(".edit-saved-game").forEach(b=>b.addEventListener("click",()=>{
+    S.activeGameId=b.dataset.id;selectedStatsGameId=b.dataset.id;persist();renderGameArea();openEditGame();
+  }));
   $$(".delete-game").forEach(b=>b.addEventListener("click",()=>{
     const g=gameById(b.dataset.id); if(!g)return;
     if(!confirm(`Delete the game vs ${g.opponent}? This removes all plays and stats from this game.`))return;
@@ -865,12 +957,89 @@ function renderGameList(){
     persist();renderGameArea();toast("Game deleted");
   }))
 }
+$("#newOpponentLogo").addEventListener("change",e=>{
+  const file=e.target.files?.[0];if(!file)return;
+  readImageFile(file,data=>{
+    pendingNewOpponentLogo=data;
+    renderLogoPreview("newOpponentLogoPreview",data);
+    $("#removeNewOpponentLogoBtn").classList.remove("hidden");
+  });
+});
+$("#removeNewOpponentLogoBtn").addEventListener("click",()=>{
+  pendingNewOpponentLogo=null;
+  $("#newOpponentLogo").value="";
+  renderLogoPreview("newOpponentLogoPreview","");
+  $("#removeNewOpponentLogoBtn").classList.add("hidden");
+});
+
 $("#newGameBtn").addEventListener("click",()=>{
   if(!S.roster.length)return toast("Add your roster first");
   const opp=$("#newOpponent").value.trim();if(!opp)return toast("Enter an opponent");
-  const g={id:uid(),opponent:opp,week:Number($("#newGameWeek").value||1),date:`Week ${$("#newGameWeek").value||1}`,location:$("#newLocation").value,gameType:$("#newGameType").value||"regular",status:"live",ourScore:0,scoreAdjustment:0,oppScore:0,down:1,distance:10,possession:"ours",quarter:1,plays:[]};
-  S.games.push(g);S.activeGameId=g.id;selectedStatsGameId=g.id;persist();resetFlow();renderGameArea()
+  const g={id:uid(),opponent:opp,opponentLogoData:pendingNewOpponentLogo||null,week:Number($("#newGameWeek").value||1),date:`Week ${$("#newGameWeek").value||1}`,location:$("#newLocation").value,gameType:$("#newGameType").value||"regular",status:"live",ourScore:0,scoreAdjustment:0,oppScore:0,down:1,distance:10,possession:"ours",quarter:1,plays:[],snapRecords:[]};
+  S.games.push(g);S.activeGameId=g.id;selectedStatsGameId=g.id;
+  pendingNewOpponentLogo=null;
+  $("#newOpponentLogo").value="";
+  renderLogoPreview("newOpponentLogoPreview","");
+  $("#removeNewOpponentLogoBtn").classList.add("hidden");
+  persist();resetFlow();renderGameArea()
 });
+
+function openEditGame(){
+  const g=currentGame();if(!g)return;
+  $("#editTeamName").value=S.team?.name||"";
+  $("#editOpponent").value=g.opponent||"";
+  $("#editGameWeek").value=String(g.week||1);
+  $("#editLocation").value=g.location||"Home";
+  $("#editGameType").value=g.gameType||"regular";
+  pendingEditOpponentLogo=g.opponentLogoData||null;
+  renderLogoPreview("opponentLogoPreview",pendingEditOpponentLogo);
+  $("#removeOpponentLogoBtn").classList.toggle("hidden",!pendingEditOpponentLogo);
+  $("#editOpponentLogo").value="";
+  $("#editGameCard").classList.remove("hidden");
+  $("#editGameCard").scrollIntoView({behavior:"smooth",block:"start"});
+}
+function closeEditGame(){
+  $("#editGameCard").classList.add("hidden");
+  pendingEditOpponentLogo=undefined;
+  $("#editOpponentLogo").value="";
+}
+$("#editGameBtn").addEventListener("click",openEditGame);
+$("#cancelEditGameBtn").addEventListener("click",closeEditGame);
+$("#editOpponentLogo").addEventListener("change",e=>{
+  const file=e.target.files?.[0];if(!file)return;
+  readImageFile(file,data=>{
+    pendingEditOpponentLogo=data;
+    renderLogoPreview("opponentLogoPreview",data);
+    $("#removeOpponentLogoBtn").classList.remove("hidden");
+  });
+});
+$("#removeOpponentLogoBtn").addEventListener("click",()=>{
+  pendingEditOpponentLogo=null;
+  $("#editOpponentLogo").value="";
+  renderLogoPreview("opponentLogoPreview","");
+  $("#removeOpponentLogoBtn").classList.add("hidden");
+});
+$("#saveGameDetailsBtn").addEventListener("click",()=>{
+  const g=currentGame();if(!g)return;
+  const teamName=$("#editTeamName").value.trim();
+  const opponent=$("#editOpponent").value.trim();
+  if(!teamName)return toast("Enter a team name");
+  if(!opponent)return toast("Enter an opponent");
+  S.team.name=teamName;
+  g.opponent=opponent;
+  g.week=Number($("#editGameWeek").value||1);
+  g.date=`Week ${g.week}`;
+  g.location=$("#editLocation").value||"Home";
+  g.gameType=$("#editGameType").value||"regular";
+  if(pendingEditOpponentLogo!==undefined)g.opponentLogoData=pendingEditOpponentLogo;
+  selectedStatsGameId=g.id;
+  persist();
+  closeEditGame();
+  renderLiveGame();
+  renderGameList();
+  toast("Game details updated");
+});
+
 $("#endGameBtn").addEventListener("click",()=>{
   const g=currentGame();if(!g)return;
   g.status="complete";S.activeGameId=null;persist();toast("Game saved");renderGameArea()
@@ -1024,7 +1193,11 @@ function renderLiveGame(){
   $("#gameLocation").textContent=g.location||"Home";
   $("#gameTypeText").textContent=(g.gameType||"regular")==="playoff"?"Playoff":"Regular Season";
   const initial=(g.opponent||"O").trim().charAt(0).toUpperCase()||"O";
-  $("#oppBadge").textContent=initial;
+  if(g.opponentLogoData){
+    $("#oppBadge").innerHTML=`<img src="${g.opponentLogoData}" alt="${esc(g.opponent)} logo">`;
+  }else{
+    $("#oppBadge").textContent=initial;
+  }
   if(S.team?.logoData){
     $("#gameTeamLogo").innerHTML=`<img src="${S.team.logoData}" alt="${esc(S.team.name)} logo">`;
   }else{
@@ -1748,6 +1921,7 @@ const SHARE_W=1170, SHARE_H=2532, SHARE_MARGIN=42;
 function rr(c,x,y,w,h,r,fill){c.beginPath();c.roundRect(x,y,w,h,r);c.fillStyle=fill;c.fill()}
 function tx(c,t,x,y,size,weight,color,align="left"){c.font=`${weight} ${size}px -apple-system,BlinkMacSystemFont,Segoe UI,Arial`;c.fillStyle=color;c.textAlign=align;c.fillText(String(t),x,y)}
 function fmt(v){return Number.isInteger(Number(v))?String(Number(v)):Number(v).toFixed(1)}
+function fmt1(v){const n=Number(v);return Number.isFinite(n)?n.toFixed(1):"0.0"}
 
 
 
@@ -1793,6 +1967,14 @@ async function makeTeamSummaryShare(src){
     tx(g.status==="complete"?"FINAL":"LIVE",W/2,253,36,950,"#fff","center");
     tx(`${g.location} • ${(g.gameType||"regular")==="playoff"?"PLAYOFF":"REGULAR"}`,W/2,294,21,900,A,"center");
 
+    if(g.opponentLogoData){
+      try{
+        const oi=await loadImg(g.opponentLogoData);
+        rr(W-244,166,104,104,20,"#fff");
+        const osc=Math.min(88/oi.width,88/oi.height),odw=oi.width*osc,odh=oi.height*osc;
+        c.drawImage(oi,W-244+(104-odw)/2,166+(104-odh)/2,odw,odh);
+      }catch(e){}
+    }
     tx(g.opponent.toUpperCase(),W-192,199,27,950,"#fff","center");
     tx(g.oppScore,W-192,288,82,950,A,"center");
   }else{
@@ -1875,6 +2057,14 @@ async function makeHybridShare(src){
     text(`${g.location} • ${(g.gameType||"regular")==="playoff"?"PLAYOFF":"REGULAR"}`,W/2,263,25,900,"#fff","center");
     text(g.date,W/2,302,25,800,"#fff","center");
 
+    if(g.opponentLogoData){
+      try{
+        const oi=await loadImg(g.opponentLogoData);
+        rect(W-244,180,104,104,20,"#fff");
+        const osc=Math.min(88/oi.width,88/oi.height),odw=oi.width*osc,odh=oi.height*osc;
+        c.drawImage(oi,W-244+(104-odw)/2,180+(104-odh)/2,odw,odh);
+      }catch(e){}
+    }
     text(g.opponent.toUpperCase(),W-192,207,27,950,"#fff","center");
     text(g.oppScore,W-192,292,80,950,A,"center");
   }else{
