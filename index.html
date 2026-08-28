@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V3.7.5</title>
+<title>Sideline Stats V3.7.6</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -260,7 +260,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 .penalty-down-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 
 
-/* V3.7.5 sideline readability */
+/* V3.7.6 sideline readability */
 .player-grid{gap:12px}
 .player-select{
   min-height:92px !important;
@@ -296,7 +296,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
   font-weight:850 !important;
 }
 
-/* V3.7.5 game editing + opponent logo */
+/* V3.7.6 game editing + opponent logo */
 .game-opponent-badge img{
   width:100%;
   height:100%;
@@ -329,7 +329,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V3.7.5 • GRIDIRON EDITION</div>
+      <div class="muted" style="color:#dfe9e2">V3.7.6 • GRIDIRON EDITION</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -886,7 +886,7 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
-$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.7.5",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
+$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.7.6",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
 $("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
 $("#restoreDataInput").addEventListener("change",async()=>{
   const f=$("#restoreDataInput").files?.[0];if(!f)return;
@@ -1950,6 +1950,38 @@ function shareFitTX(c,t,x,y,maxWidth,startSize,minSize,weight,color,align="cente
   c.fillText(text,x,y);
   return size;
 }
+
+function splitTeamDisplayName(name){
+  const raw=String(name||"TEAM").trim().replace(/\s+/g," ");
+  const parts=raw.split(" ");
+  if(parts.length===1)return {place:"",mascot:parts[0]};
+  return {place:parts.slice(0,-1).join(" "),mascot:parts[parts.length-1]};
+}
+function fitTextSize(c,text,maxWidth,startSize,minSize,weight=950){
+  let size=startSize;
+  const t=String(text||"");
+  while(size>minSize){
+    c.font=`${weight} ${size}px -apple-system,BlinkMacSystemFont,Segoe UI,Arial`;
+    if(c.measureText(t).width<=maxWidth)break;
+    size-=1;
+  }
+  return size;
+}
+function drawTeamIdentity(c,name,x,y,w,side,accent){
+  const d=splitTeamDisplayName(name);
+  const place=d.place.toUpperCase();
+  const mascot=d.mascot.toUpperCase();
+
+  const placeSize=fitTextSize(c,place||mascot,w,26,16,900);
+  const mascotSize=fitTextSize(c,mascot,w,34,22,950);
+
+  if(place){
+    shareTX(c,place,x,y,placeSize,900,"#fff","center");
+    shareTX(c,mascot,x,y+34,mascotSize,950,accent,"center");
+  }else{
+    shareTX(c,mascot,x,y+17,mascotSize,950,accent,"center");
+  }
+}
 function shareTX(c,t,x,y,size,weight,color,align="left"){
   c.font=`${weight} ${size}px -apple-system,BlinkMacSystemFont,Segoe UI,Arial`;
   c.fillStyle=color;c.textAlign=align;c.fillText(String(t),x,y);
@@ -1978,84 +2010,85 @@ async function drawBroadcastHeader(c,W,src,opts={}){
   const A=S.team?.secondary||"#f26a00";
   const compact=!!opts.compact;
   const g=src?.kind==="game"?src.game:null;
-  const H=compact?350:410;
+  const H=compact?344:398;
 
+  // Background / brand strip
   c.fillStyle="#050607";
   c.fillRect(0,0,W,H);
 
   c.save();
-  c.globalAlpha=.08;
+  c.globalAlpha=.055;
   c.strokeStyle="#fff";
   c.lineWidth=1;
-  for(let x=-250;x<W+250;x+=52){
+  for(let x=-180;x<W+180;x+=58){
     c.beginPath();
     c.moveTo(x,0);
-    c.lineTo(x+180,H);
+    c.lineTo(x+170,H);
     c.stroke();
   }
   c.restore();
 
   const brandH=compact?78:92;
-  c.fillStyle="#0d1011";
+  c.fillStyle="#0c0f10";
   c.fillRect(0,0,W,brandH);
   c.fillStyle=A;
   c.fillRect(0,brandH-4,W,4);
 
-  c.fillStyle=shareRgba(A,.22);
+  // More branded top treatment
+  c.fillStyle=shareRgba(A,.18);
   c.beginPath();
-  c.moveTo(0,0); c.lineTo(210,0); c.lineTo(255,brandH); c.lineTo(0,brandH);
+  c.moveTo(0,0); c.lineTo(220,0); c.lineTo(265,brandH); c.lineTo(0,brandH);
   c.closePath(); c.fill();
   c.beginPath();
-  c.moveTo(W,0); c.lineTo(W-210,0); c.lineTo(W-255,brandH); c.lineTo(W,brandH);
+  c.moveTo(W,0); c.lineTo(W-220,0); c.lineTo(W-265,brandH); c.lineTo(W,brandH);
   c.closePath(); c.fill();
 
+  // Smaller, quieter stadium lights
   if(!compact){
     const drawLights=(cx)=>{
       c.save();
       c.shadowColor="#fff";
-      c.shadowBlur=20;
-      [[-27,0],[0,0],[27,0],[-14,22],[14,22]].forEach(([dx,dy])=>{
+      c.shadowBlur=12;
+      [[-22,0],[0,0],[22,0],[-11,19],[11,19]].forEach(([dx,dy])=>{
         c.beginPath();
-        c.arc(cx+dx,24+dy,7,0,Math.PI*2);
+        c.arc(cx+dx,24+dy,6.5,0,Math.PI*2);
         c.fillStyle="#fff";
         c.fill();
       });
       c.restore();
     };
-    drawLights(175);
-    drawLights(W-175);
+    drawLights(168);
+    drawLights(W-168);
   }
 
-  // More branded / athletic typography using broadly available system fonts.
-  c.save();
-  c.font=`900 ${compact?42:50}px Impact, Haettenschweiler, "Arial Narrow Bold", Arial, sans-serif`;
-  c.fillStyle="#fff";
-  c.textAlign="center";
-  c.fillText("SIDELINE STATS",W/2,compact?45:54);
-  c.restore();
-
-  c.save();
-  c.font=`900 ${compact?17:19}px "Arial Narrow", Arial, sans-serif`;
-  c.fontKerning="normal";
+  // Stronger brand hierarchy
+  shareTX(c,"SIDELINE STATS",W/2,compact?43:50,compact?42:48,950,"#fff","center");
   c.fillStyle=A;
-  c.textAlign="center";
-  c.fillText("G R I D I R O N   E D I T I O N",W/2,compact?69:81);
-  c.restore();
+  c.fillRect(W/2-116,compact?52:60,232,2);
+  shareTX(c,"GRIDIRON EDITION",W/2,compact?70:80,compact?16:18,900,A,"center");
 
   if(g){
+    const infoH=compact?56:62;
     const bodyY=brandH;
-    const infoH=compact?58:64;
     const bodyBottom=H-infoH;
     const bodyH=bodyBottom-bodyY;
 
-    const leftEdge=225;
-    const rightEdge=W-225;
+    // Protected zones:
+    // [logo 0-190][team 190-355][score 370-485][center 485-595][score 595-710][team 725-890][logo 890-1080]
+    const L_LOGO_X=22, L_LOGO_W=160;
+    const L_TEAM_X=270, TEAM_W=160;
+    const SCORE_W=112, CENTER_W=118;
+    const SCORE_BLOCK_W=SCORE_W*2+CENTER_W;
+    const SCORE_X=(W-SCORE_BLOCK_W)/2;
+    const R_TEAM_X=W-270;
+    const R_LOGO_W=160, R_LOGO_X=W-22-R_LOGO_W;
 
+    // Colored outside wedges
     c.fillStyle=A;
     c.beginPath();
     c.moveTo(0,bodyY);
-    c.lineTo(leftEdge,bodyY);
-    c.lineTo(leftEdge-42,bodyBottom);
+    c.lineTo(210,bodyY);
+    c.lineTo(176,bodyBottom);
     c.lineTo(0,bodyBottom);
     c.closePath();
     c.fill();
@@ -2063,136 +2096,117 @@ async function drawBroadcastHeader(c,W,src,opts={}){
     c.fillStyle=shareRgba(P,.95);
     c.beginPath();
     c.moveTo(W,bodyY);
-    c.lineTo(rightEdge,bodyY);
-    c.lineTo(rightEdge+42,bodyBottom);
+    c.lineTo(W-210,bodyY);
+    c.lineTo(W-176,bodyBottom);
     c.lineTo(W,bodyBottom);
     c.closePath();
     c.fill();
 
-    c.fillStyle="#080a0b";
+    // Central black body
+    c.fillStyle="#07090a";
     c.beginPath();
-    c.moveTo(leftEdge-4,bodyY);
-    c.lineTo(rightEdge+4,bodyY);
-    c.lineTo(rightEdge+44,bodyBottom);
-    c.lineTo(leftEdge-44,bodyBottom);
+    c.moveTo(205,bodyY);
+    c.lineTo(W-205,bodyY);
+    c.lineTo(W-174,bodyBottom);
+    c.lineTo(174,bodyBottom);
     c.closePath();
     c.fill();
 
-    c.strokeStyle="#d9dddc";
-    c.lineWidth=3;
-    c.beginPath();
-    c.moveTo(leftEdge-7,bodyY+4);c.lineTo(leftEdge-48,bodyBottom-4);c.stroke();
-    c.beginPath();
-    c.moveTo(rightEdge+7,bodyY+4);c.lineTo(rightEdge+48,bodyBottom-4);c.stroke();
+    // Accent rails
+    c.strokeStyle="#d7dbda";
+    c.lineWidth=2.5;
+    c.beginPath();c.moveTo(214,bodyY+5);c.lineTo(180,bodyBottom-5);c.stroke();
+    c.beginPath();c.moveTo(W-214,bodyY+5);c.lineTo(W-180,bodyBottom-5);c.stroke();
 
-    const logoSize=compact?135:155;
+    // Uploaded logos with contain behavior
+    const logoSize=compact?128:145;
     const logoY=bodyY+(bodyH-logoSize)/2;
-    const leftLogoX=26;
-    const rightLogoX=W-26-logoSize;
-
     if(S.team?.logoData){
-      await drawShareImage(c,S.team.logoData,leftLogoX,logoY,logoSize,logoSize,5);
+      await drawShareImage(c,S.team.logoData,L_LOGO_X,logoY,logoSize,logoSize,5);
     }
     if(g.opponentLogoData){
-      await drawShareImage(c,g.opponentLogoData,rightLogoX,logoY,logoSize,logoSize,5);
+      await drawShareImage(c,g.opponentLogoData,R_LOGO_X+(R_LOGO_W-logoSize),logoY,logoSize,logoSize,5);
     }
 
-    const teamNameX=305;
-    const oppNameX=W-305;
-    const homeName=splitTeamName(S.team?.name||"TEAM");
-    const oppName=splitTeamName(g.opponent||"OPPONENT");
+    // Team identities: split town / mascot into separate rows.
+    const nameY=bodyY+(compact?74:88);
+    drawTeamIdentity(c,S.team?.name||"TEAM",L_TEAM_X,nameY,TEAM_W,"left",A);
+    drawTeamIdentity(c,g.opponent||"OPPONENT",R_TEAM_X,nameY,TEAM_W,"right","#fff");
 
-    const townY=bodyY+(compact?67:78);
-    const mascotY=townY+(compact?31:35);
-
-    shareFitTX(c,homeName.town.toUpperCase(),teamNameX,townY,185,compact?24:27,18,850,"#fff","center");
-    shareFitTX(c,homeName.mascot.toUpperCase(),teamNameX,mascotY,185,compact?31:35,22,950,"#fff","center");
-
-    shareFitTX(c,oppName.town.toUpperCase(),oppNameX,townY,185,compact?24:27,18,850,"#fff","center");
-    shareFitTX(c,oppName.mascot.toUpperCase(),oppNameX,mascotY,185,compact?31:35,22,950,"#fff","center");
-
-    const scoreY=bodyY+(compact?28:34);
-    const scoreH=compact?126:144;
-    const scoreW=112;
-    const shieldW=128;
-    const totalW=scoreW*2+shieldW;
-    const sx=(W-totalW)/2;
+    // Scoreboard
+    const scoreTop=bodyY+(compact?25:31);
+    const scoreH=compact?126:142;
+    const ourX=SCORE_X;
+    const centerX=SCORE_X+SCORE_W;
+    const oppX=centerX+CENTER_W;
 
     c.fillStyle=A;
-    c.fillRect(sx,scoreY,scoreW,scoreH);
+    c.fillRect(ourX,scoreTop,SCORE_W,scoreH);
 
-    c.fillStyle=shareRgba(P,.98);
-    c.fillRect(sx+scoreW+shieldW,scoreY,scoreW,scoreH);
+    c.fillStyle="#020303";
+    c.fillRect(oppX,scoreTop,SCORE_W,scoreH);
 
-    const shx=sx+scoreW;
     c.beginPath();
-    c.moveTo(shx+16,scoreY);
-    c.lineTo(shx+shieldW-16,scoreY);
-    c.lineTo(shx+shieldW,scoreY+scoreH/2);
-    c.lineTo(shx+shieldW-16,scoreY+scoreH);
-    c.lineTo(shx+16,scoreY+scoreH);
-    c.lineTo(shx,scoreY+scoreH/2);
+    c.moveTo(centerX+15,scoreTop);
+    c.lineTo(centerX+CENTER_W-15,scoreTop);
+    c.lineTo(centerX+CENTER_W,scoreTop+scoreH/2);
+    c.lineTo(centerX+CENTER_W-15,scoreTop+scoreH);
+    c.lineTo(centerX+15,scoreTop+scoreH);
+    c.lineTo(centerX,scoreTop+scoreH/2);
     c.closePath();
     c.fillStyle="#0e1112";
     c.fill();
-    c.strokeStyle=shareRgba(A,.85);
+    c.strokeStyle=shareRgba(A,.9);
     c.lineWidth=2;
     c.stroke();
 
-    shareTX(c,displayedOurScore(g),sx+scoreW/2,scoreY+(compact?87:99),compact?66:76,950,"#fff","center");
-    shareTX(c,g.oppScore,sx+scoreW+shieldW+scoreW/2,scoreY+(compact?87:99),compact?66:76,950,"#fff","center");
-    shareTX(c,g.status==="complete"?"FINAL":"LIVE",W/2,scoreY+(compact?48:54),compact?24:27,950,A,"center");
+    shareTX(c,displayedOurScore(g),ourX+SCORE_W/2,scoreTop+(compact?87:98),compact?64:72,950,"#fff","center");
+    shareTX(c,g.oppScore,oppX+SCORE_W/2,scoreTop+(compact?87:98),compact?64:72,950,"#fff","center");
+    shareTX(c,g.status==="complete"?"FINAL":"LIVE",W/2,scoreTop+(compact?46:52),compact?23:26,950,A,"center");
 
+    // football glyph
     c.save();
-    c.translate(W/2,scoreY+(compact?76:84));
+    c.translate(W/2,scoreTop+(compact?72:80));
     c.strokeStyle="#fff";
-    c.lineWidth=3;
-    c.beginPath();
-    c.ellipse(0,0,20,11,0,0,Math.PI*2);
-    c.stroke();
-    c.beginPath();c.moveTo(-6,0);c.lineTo(6,0);c.stroke();
-    [-4,0,4].forEach(xx=>{
-      c.beginPath();c.moveTo(xx,-4);c.lineTo(xx,4);c.stroke();
-    });
+    c.lineWidth=2.5;
+    c.beginPath();c.ellipse(0,0,18,10,0,0,Math.PI*2);c.stroke();
+    c.beginPath();c.moveTo(-5,0);c.lineTo(5,0);c.stroke();
+    [-3,0,3].forEach(xx=>{c.beginPath();c.moveTo(xx,-3);c.lineTo(xx,3);c.stroke()});
     c.restore();
 
-    // Grade moved under LIVE/FINAL shield, as requested.
+    // Grade gets its own plate below LIVE, so it never crowds the team names.
     if(S.team?.grade){
-      shareFitTX(c,String(S.team.grade).toUpperCase(),W/2,scoreY+scoreH-12,shieldW-18,compact?15:17,12,900,"#d8dcda","center");
+      const gradeY=scoreTop+scoreH-23;
+      c.fillStyle="#171a1b";
+      c.fillRect(centerX+8,gradeY-18,CENTER_W-16,27);
+      shareFitTX(c,String(S.team.grade).toUpperCase(),W/2,gradeY+3,CENTER_W-24,15,11,900,"#fff","center");
     }
 
+    // Bottom metadata strip, slightly tighter
     c.fillStyle="#f4f4f2";
     c.fillRect(0,bodyBottom,W,infoH);
-
     const gameType=(g.gameType||"regular")==="playoff"?"PLAYOFFS":"REGULAR SEASON";
-    const labels=[
-      `WEEK ${g.week||1}`,
-      String(g.location||"Home").toUpperCase(),
-      gameType
-    ];
+    const labels=[`WEEK ${g.week||1}`,String(g.location||"Home").toUpperCase(),gameType];
     const xs=[W*.34,W*.50,W*.66];
     labels.forEach((t,i)=>{
-      shareTX(c,t,xs[i],bodyBottom+(compact?38:42),compact?19:21,950,"#111","center");
+      shareTX(c,t,xs[i],bodyBottom+(compact?36:40),compact?18:20,950,"#111","center");
     });
-
-    c.strokeStyle="#8b8b8b";
+    c.strokeStyle="#8a8a8a";
     c.lineWidth=2;
     [W*.42,W*.58].forEach(x=>{
       c.beginPath();
-      c.moveTo(x,bodyBottom+10);
-      c.lineTo(x,bodyBottom+infoH-10);
+      c.moveTo(x,bodyBottom+9);
+      c.lineTo(x,bodyBottom+infoH-9);
       c.stroke();
     });
-
   }else{
-    shareFitTX(c,(S.team?.name||"TEAM").toUpperCase(),W/2,compact?153:176,W-160,compact?42:48,28,950,"#fff","center");
-    shareRR(c,W*.22,compact?184:208,W*.56,compact?64:72,12,shareRgba(A,.20));
-    shareFitTX(c,(src?.title||"SEASON STATS").toUpperCase(),W/2,compact?226:254,W*.50,compact?29:34,22,950,A,"center");
+    shareFitTX(c,(S.team?.name||"TEAM").toUpperCase(),W/2,compact?152:176,W-180,compact?40:46,28,950,"#fff","center");
+    shareRR(c,W*.24,compact?181:208,W*.52,compact?62:70,12,shareRgba(A,.18));
+    shareFitTX(c,(src?.title||"SEASON STATS").toUpperCase(),W/2,compact?222:252,W*.48,compact?28:33,22,950,A,"center");
     if(src?.games){
-      shareTX(c,`${src.games.length} GAME${src.games.length===1?"":"S"} • RECORD ${recordFor(src.games)}`,W/2,compact?265:296,compact?21:24,900,"#fff","center");
+      shareTX(c,`${src.games.length} GAME${src.games.length===1?"":"S"} • RECORD ${recordFor(src.games)}`,W/2,compact?260:291,compact?20:23,900,"#fff","center");
     }
   }
-
   return H;
 }
 

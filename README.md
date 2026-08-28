@@ -1,13 +1,26 @@
-# Sideline Stats V3.7.5
+# Sideline Stats V3.7.6
 
-Share-image header refinements:
-- stronger branded typography for SIDELINE STATS
-- more stylized GRIDIRON EDITION treatment
-- team names split into Town + Mascot on separate centered lines when possible
-- long names dynamically shrink to avoid overlapping the scoreboard
-- 5th Grade / team grade moved under the LIVE/FINAL shield
-- uploaded team and opponent logos retained
-- Week / Home-Away / Regular Season-Playoffs bar retained
-- Player Box Score pagination retained
+## Responsive share-header layout
+The game share header now uses protected layout zones:
 
-No image mockups were generated for this build; these are code-only changes.
+Logo + team identity | our score | LIVE/FINAL + grade | opponent score | opponent identity + logo
+
+### Team-name behavior
+- The final word is treated as the mascot by default.
+- Everything before it is treated as the town/team prefix.
+- Example: Erie Tigers -> ERIE / TIGERS
+- Example: Broomfield Blast -> BROOMFIELD / BLAST
+- Example: Colorado Springs Bears -> COLORADO SPRINGS / BEARS
+- Text is measured and automatically reduced to fit its zone.
+- Team names cannot overlap the score area.
+
+### Other visual changes
+- Mascot line has stronger emphasis.
+- 5th Grade is centered in its own plate beneath LIVE/FINAL.
+- Scoreboard is slightly narrower.
+- Logos remain contained and undistorted.
+- Stadium lights are quieter.
+- SIDELINE STATS / GRIDIRON EDITION branding has stronger hierarchy.
+- Bottom Week / Home-Away / Regular-Playoffs strip is slightly tighter.
+
+Existing pagination, stats fixes, game editing, opponent logos, and backup compatibility are retained.
