@@ -1,24 +1,23 @@
-# Sideline Stats V3.6
+# Sideline Stats V3.7
 
-## New
-- Down/distance engine hardened around each play's actual before-state and after-state.
-- 1st & 10 + 8-yard rush now resolves to 2nd & 2.
-- Negative offensive plays correctly increase distance-to-go.
-- Opponent offensive penalties can adjust their down/distance while you are on defense.
-- Those opponent offensive penalty adjustments are excluded from your team penalty analytics.
-- Every thrown pass identifies an intended receiver.
-- Complete passes add a target and reception.
-- Incomplete passes ask Drop / No Drop after selecting the intended receiver.
-- Drops are tracked by receiver.
-- Interceptions also record the intended receiver and target.
-- Sacks do not create targets.
-- Receiving stats now include TGT, DROP, and CATCH%.
-- Targets/drops are included in exported player stats.
-- Backup metadata updated to appVersion 3.6.
+## Priority fixes
+- Active-game stats are automatically selected when recording plays and when opening Stats.
+- Verified pass aggregation: completions add QB completions/passing yards and receiver receptions/receiving yards.
+- Receiver targets and drops retained.
+- Opponent offensive penalty adjustments are excluded from team penalty analytics.
+- New plays retain stateBefore/stateAfter diagnostics.
 
-## Retained
-- Shareable Snap Participation Report
-- Three-column player selectors
-- Special Teams FF / FR
-- Offline PWA support
-- Backward-compatible backup restore
+## Sideline readability
+- Larger jersey numbers and player names on all three-column player selectors.
+- Taller player buttons while retaining three columns.
+- Penalty type buttons are substantially larger with larger text.
+- Penalty choices are two columns and vertically scrollable.
+
+## Penalty flow cleanup
+- Removed redundant Down Unchanged / Replay Down choices.
+- Choices are now Replay / Same Down, Next Down, Automatic 1st Down, Loss of Down.
+- Next Down advances the down while applying the entered distance adjustment.
+
+## Share images
+- Team Summary, Player Box Score, and Snap Participation headers have stronger team-color graphic accents.
+- Added Gridiron Edition branding and improved visual hierarchy.

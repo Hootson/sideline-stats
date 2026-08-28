@@ -259,6 +259,42 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 .penalty-yard.selected{background:var(--p);color:#fff;border-color:var(--p)}
 .penalty-down-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 
+
+/* V3.7 sideline readability */
+.player-grid{gap:12px}
+.player-select{
+  min-height:92px !important;
+  padding:12px 7px !important;
+  line-height:1.12 !important;
+}
+.player-select strong{
+  font-size:26px !important;
+  font-weight:950 !important;
+  display:block;
+  margin-bottom:4px;
+}
+.player-select span{
+  font-size:18px !important;
+  font-weight:800 !important;
+  line-height:1.15 !important;
+  color:#1b241f !important;
+}
+#penaltyTypeGrid{
+  grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+  gap:12px !important;
+}
+.penalty-choice{
+  min-height:82px !important;
+  padding:14px 10px !important;
+  font-size:20px !important;
+  line-height:1.15 !important;
+  font-weight:850 !important;
+}
+#stepPenaltyDown .choice,#stepPenaltyYards .choice{
+  min-height:72px !important;
+  font-size:20px !important;
+  font-weight:850 !important;
+}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
@@ -460,9 +496,9 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
       <div class="card hidden" id="stepPenaltyDown">
         <div class="muted">Down result</div><h2>What happens to the down?</h2>
         <div class="penalty-down-grid">
-          <button class="penalty-choice penalty-down selected" data-result="unchanged">Down Unchanged</button>
-          <button class="penalty-choice penalty-down" data-result="automatic1st">Automatic 1st</button>
-          <button class="penalty-choice penalty-down" data-result="replay">Replay Down</button>
+          <button class="penalty-choice penalty-down selected" data-result="replay">Replay / Same Down</button>
+          <button class="penalty-choice penalty-down" data-result="next">Next Down</button>
+          <button class="penalty-choice penalty-down" data-result="automatic1st">Automatic 1st Down</button>
           <button class="penalty-choice penalty-down" data-result="loss">Loss of Down</button>
         </div>
         <button class="btn" id="recordPenaltyBtn" style="margin-top:12px">Record Penalty</button>
@@ -762,7 +798,7 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
-$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.6",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
+$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.7",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
 $("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
 $("#restoreDataInput").addEventListener("change",async()=>{
   const f=$("#restoreDataInput").files?.[0];if(!f)return;
@@ -922,7 +958,8 @@ function applyPlayToState(state,p){
     st.distance=Math.max(1,st.distance-y);
     const r=p.penaltyDownResult||"unchanged";
     if(r==="automatic1st"){st.down=1;st.distance=10}
-    else if(r==="replay"){}
+    else if(r==="replay"||r==="unchanged"){}
+    else if(r==="next"){if(st.down<4)st.down+=1;else st={possession:st.possession==="ours"?"opp":"ours",down:1,distance:10}}
     else if(r==="loss"){
       if(st.down<4)st.down+=1;
       else st={possession:st.possession==="ours"?"opp":"ours",down:1,distance:10};
@@ -1143,8 +1180,7 @@ $("#recordDefenseWithYards").addEventListener("click",()=>{
 
 const PENALTY_TYPES=["Holding","False Start","Offsides","Encroachment / Neutral Zone","Pass Interference","Facemask","Personal Foul / Unnecessary Roughness","Illegal Formation","Illegal Motion / Shift","Delay of Game","Block in the Back","Illegal Use of Hands","Roughing the Passer","Unsportsmanlike Conduct","Too Many Players","Other"];
 function startPenalty(){
-  S.flow.opponentOffenseAdjustment=currentGame()?.possession==="opp";
-  S.flow={type:"Penalty",penaltyType:null,penaltyPlayer:"UNKNOWN",penaltyYards:0,penaltyDownResult:"unchanged",extras:[]};
+  S.flow={type:"Penalty",penaltyType:null,penaltyPlayer:"UNKNOWN",penaltyYards:0,penaltyDownResult:"replay",opponentOffenseAdjustment:currentGame()?.possession==="opp",extras:[]};
   $("#penaltyTypeGrid").innerHTML=PENALTY_TYPES.map(x=>`<button class="penalty-choice penalty-type" data-v="${esc(x)}">${esc(x)}</button>`).join("");
   $("#stepPenaltyType").classList.remove("hidden");
   $$(".penalty-type").forEach(b=>b.addEventListener("click",()=>{S.flow.penaltyType=b.dataset.v;$("#stepPenaltyType").classList.add("hidden");showPenaltyPlayers()}));
@@ -1158,7 +1194,7 @@ function showPenaltyPlayers(){
   $$(".penalty-player").forEach(b=>b.addEventListener("click",()=>{S.flow.penaltyPlayer=b.dataset.id;$("#stepPenaltyPlayer").classList.add("hidden");$("#stepPenaltyYards").classList.remove("hidden");$("#penaltyCustomYards").value="";S.flow.penaltyYards=0; $$(".penalty-yard").forEach(x=>x.classList.remove("selected"))}));
 }
 $$(".penalty-yard").forEach(b=>b.addEventListener("click",()=>{S.flow.penaltyYards=Number(b.dataset.y);$("#penaltyCustomYards").value=String(S.flow.penaltyYards);$$(".penalty-yard").forEach(x=>x.classList.toggle("selected",x===b))}));
-$("#penaltyYardsNext").addEventListener("click",()=>{const raw=$("#penaltyCustomYards").value;S.flow.penaltyYards=raw===""?Number(S.flow.penaltyYards||0):Number(raw);if(Number.isNaN(S.flow.penaltyYards))return toast("Enter valid penalty yards");S.flow.penaltyDownResult="unchanged";$("#stepPenaltyYards").classList.add("hidden");$("#stepPenaltyDown").classList.remove("hidden");$$(".penalty-down").forEach(x=>x.classList.toggle("selected",x.dataset.result==="unchanged"))});
+$("#penaltyYardsNext").addEventListener("click",()=>{const raw=$("#penaltyCustomYards").value;S.flow.penaltyYards=raw===""?Number(S.flow.penaltyYards||0):Number(raw);if(Number.isNaN(S.flow.penaltyYards))return toast("Enter valid penalty yards");S.flow.penaltyDownResult="replay";$("#stepPenaltyYards").classList.add("hidden");$("#stepPenaltyDown").classList.remove("hidden");$$(".penalty-down").forEach(x=>x.classList.toggle("selected",x.dataset.result==="unchanged"))});
 $$(".penalty-down").forEach(b=>b.addEventListener("click",()=>{S.flow.penaltyDownResult=b.dataset.result;$$(".penalty-down").forEach(x=>x.classList.toggle("selected",x===b))}));
 function penaltyPlayerName(p){return !p||!p.penaltyPlayer||p.penaltyPlayer==="UNKNOWN"?"Unknown / Team":pname(p.penaltyPlayer)}
 $("#recordPenaltyBtn").addEventListener("click",()=>{const g=currentGame();if(!g)return;const p={id:uid(),ts:Date.now(),type:"Penalty",penaltyType:S.flow.penaltyType||"Other",penaltyPlayer:S.flow.penaltyPlayer||"UNKNOWN",penaltyYards:Number(S.flow.penaltyYards||0),penaltyDownResult:S.flow.penaltyDownResult||"unchanged",quarter:Number(g.quarter||1),stateBefore:{possession:g.possession,down:g.down,distance:g.distance||10},extras:[]};g.plays.push(p);rebuildGameState(g);persist();renderLiveGame();toast("Penalty recorded");resetFlow()});
@@ -1231,6 +1267,7 @@ function recordNow(){
   g.plays.push(p);
   g.possession=after.possession;g.down=after.down;g.distance=after.distance;
   g.ourScore=displayedOurScore(g);
+  selectedStatsGameId=g.id;
   persist();renderLiveGame();
 
   if(p.type==="Pass"&&p.sub==="Intercepted")toast(`${g.opponent} ball — 1st down`);
@@ -1361,7 +1398,7 @@ function recordFor(games){
 
 
 function penaltyMetrics(plays){
-  const ps=(plays||[]).filter(p=>p.type==="Penalty"),byType={},byPlayer={},byQuarter={1:0,2:0,3:0,4:0};
+  const ps=(plays||[]).filter(p=>p.type==="Penalty"&&!p.opponentOffenseAdjustment),byType={},byPlayer={},byQuarter={1:0,2:0,3:0,4:0};
   ps.forEach(p=>{byType[p.penaltyType||"Other"]=(byType[p.penaltyType||"Other"]||0)+1;const n=penaltyPlayerName(p);byPlayer[n]=(byPlayer[n]||0)+1;const q=Number(p.quarter||1);byQuarter[q]=(byQuarter[q]||0)+1});
   const off=ps.filter(p=>p.stateBefore?.possession==="ours"),def=ps.filter(p=>p.stateBefore?.possession==="opp");
   return {penalties:ps.length,penaltyYards:ps.reduce((a,p)=>a+Math.abs(Number(p.penaltyYards||0)),0),offensivePenalties:off.length,offensivePenaltyYards:off.reduce((a,p)=>a+Math.abs(Number(p.penaltyYards||0)),0),defensivePenalties:def.length,defensivePenaltyYards:def.reduce((a,p)=>a+Math.abs(Number(p.penaltyYards||0)),0),unknownPenalties:ps.filter(p=>!p.penaltyPlayer||p.penaltyPlayer==="UNKNOWN").length,byType,byPlayer,byQuarter};
@@ -1724,6 +1761,10 @@ async function makeTeamSummaryShare(src){
   c.fillStyle=P;c.fillRect(0,0,W,390);
   c.fillStyle=A;c.fillRect(0,0,18,390);
   c.fillStyle=A;c.fillRect(W-18,0,18,390);
+  c.globalAlpha=.13;c.fillStyle=A;
+  c.beginPath();c.moveTo(0,285);c.lineTo(420,120);c.lineTo(650,120);c.lineTo(230,390);c.lineTo(0,390);c.closePath();c.fill();
+  c.beginPath();c.moveTo(W,80);c.lineTo(W-350,220);c.lineTo(W-610,220);c.lineTo(W-250,0);c.lineTo(W,0);c.closePath();c.fill();
+  c.globalAlpha=1;
   c.fillStyle=A;c.fillRect(0,370,W,20);
 
   if(S.team.logoData){
@@ -1736,7 +1777,8 @@ async function makeTeamSummaryShare(src){
   }
 
   tx("SIDELINE STATS",W/2,48,30,900,A,"center");
-  tx(S.team.name.toUpperCase(),W/2,112,56,950,"#fff","center");
+  tx("GRIDIRON EDITION",W/2,78,17,900,"#ffffffcc","center");
+  tx(S.team.name.toUpperCase(),W/2,132,54,950,"#fff","center");
 
   if(src.kind==="game"){
     const g=src.game;
@@ -1799,6 +1841,10 @@ async function makeHybridShare(src){
   c.fillStyle=P;c.fillRect(0,0,W,390);
   c.fillStyle=A;c.fillRect(0,0,18,390);
   c.fillStyle=A;c.fillRect(W-18,0,18,390);
+  c.globalAlpha=.13;c.fillStyle=A;
+  c.beginPath();c.moveTo(0,285);c.lineTo(420,120);c.lineTo(650,120);c.lineTo(230,390);c.lineTo(0,390);c.closePath();c.fill();
+  c.beginPath();c.moveTo(W,80);c.lineTo(W-350,220);c.lineTo(W-610,220);c.lineTo(W-250,0);c.lineTo(W,0);c.closePath();c.fill();
+  c.globalAlpha=1;
   c.fillStyle=A;c.fillRect(0,370,W,20);
 
   // Logo block
@@ -1812,7 +1858,8 @@ async function makeHybridShare(src){
   }
 
   text("SIDELINE STATS",W/2,52,34,900,A,"center");
-  text(S.team.name.toUpperCase(),W/2,120,62,950,"#fff","center");
+  text("GRIDIRON EDITION",W/2,84,18,900,"#ffffffcc","center");
+  text(S.team.name.toUpperCase(),W/2,140,58,950,"#fff","center");
 
   if(src.kind==="game"){
     const g=src.game;
@@ -1980,6 +2027,10 @@ async function makeSnapParticipationShare(g){
 
   c.fillStyle="#f5f7f6";c.fillRect(0,0,W,H);
   c.fillStyle=P;c.fillRect(0,0,W,360);
+  c.globalAlpha=.13;c.fillStyle=A;
+  c.beginPath();c.moveTo(0,270);c.lineTo(410,90);c.lineTo(640,90);c.lineTo(250,360);c.lineTo(0,360);c.closePath();c.fill();
+  c.beginPath();c.moveTo(W,45);c.lineTo(W-360,200);c.lineTo(W-610,200);c.lineTo(W-280,0);c.lineTo(W,0);c.closePath();c.fill();
+  c.globalAlpha=1;
   c.fillStyle=A;c.fillRect(0,340,W,20);
 
   if(S.team?.logoData){
@@ -2064,7 +2115,7 @@ function playRows(){
   const rows=[];
   (S.games||[]).forEach(g=>(g.plays||[]).forEach((p,i)=>{
     const credits=p.defCredits?Object.entries(p.defCredits).map(([id,v])=>`${pname(id)}:${v}`).join(" | "):"";
-    rows.push({GameID:g.id,Date:g.date,Opponent:g.opponent,GameType:g.gameType||"regular",Location:g.location,PlaySequence:i+1,Timestamp:p.ts?new Date(p.ts).toISOString():"",Possession:p.stateBefore?.possession||"",Down:p.stateBefore?.down||"",Distance:p.stateBefore?.distance||"",PlayType:p.type||"",Subtype:p.sub||"",Player1:p.player?pname(p.player):"",Player2:p.player2?pname(p.player2):"",Yards:Number(p.yards)||0,PenaltyType:p.penaltyType||"",PenaltyPlayer:p.type==="Penalty"?penaltyPlayerName(p):"",PenaltyYards:p.type==="Penalty"?Number(p.penaltyYards||0):0,PenaltyDownResult:p.penaltyDownResult||"",Quarter:Number(p.quarter||1),Extras:(p.extras||[]).join(" | "),DefensiveCredits:credits,Touchdown:(p.extras||[]).includes("TD")?1:0,FirstDown:(p.extras||[]).includes("1st Down")?1:0,FumbleLost:(p.extras||[]).includes("Fumble Lost")?1:0});
+    rows.push({GameID:g.id,Date:g.date,Opponent:g.opponent,GameType:g.gameType||"regular",Location:g.location,PlaySequence:i+1,Timestamp:p.ts?new Date(p.ts).toISOString():"",Possession:p.stateBefore?.possession||"",Down:p.stateBefore?.down||"",Distance:p.stateBefore?.distance||"",AfterPossession:p.stateAfter?.possession||"",AfterDown:p.stateAfter?.down||"",AfterDistance:p.stateAfter?.distance||"",PlayType:p.type||"",Subtype:p.sub||"",Player1:p.player?pname(p.player):"",Player2:p.player2?pname(p.player2):"",Target:(p.type==="Pass"&&p.player2&&["Complete","Incomplete","Intercepted"].includes(p.sub))?1:0,Drop:p.drop?1:0,Yards:Number(p.yards)||0,PenaltyType:p.penaltyType||"",PenaltyPlayer:p.type==="Penalty"?penaltyPlayerName(p):"",PenaltyYards:p.type==="Penalty"?Number(p.penaltyYards||0):0,PenaltyDownResult:p.penaltyDownResult||"",Quarter:Number(p.quarter||1),Extras:(p.extras||[]).join(" | "),DefensiveCredits:credits,Touchdown:(p.extras||[]).includes("TD")?1:0,FirstDown:(p.extras||[]).includes("1st Down")?1:0,FumbleLost:(p.extras||[]).includes("Fumble Lost")?1:0});
   }));return rows;
 }
 function gameRows(){return (S.games||[]).map(g=>({GameID:g.id,Date:g.date,Opponent:g.opponent,GameType:g.gameType||"regular",Location:g.location,OurScore:displayedOurScore(g),OpponentScore:Number(g.oppScore||0),Result:displayedOurScore(g)>g.oppScore?"W":displayedOurScore(g)<g.oppScore?"L":"T",Status:g.status||"",PlayCount:(g.plays||[]).length,SnapTrackerPlays:(g.snapRecords||[]).length}))}
