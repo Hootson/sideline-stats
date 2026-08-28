@@ -1,19 +1,7 @@
-# Sideline Stats V3.7.10
+# Sideline Stats V3.7.11
 
-Receiving on the Stats screen has been returned to the original table format.
+Shareable stats header polish:
+- Team names moved down to align visually with the score row.
+- The small inner triangular slice on the far-left team panel now uses the accent color instead of exposing the primary/dark fill.
 
-The on-screen Receiving columns are now:
-- Player
-- TGT
-- REC
-- YDS
-- AVG
-- 1D
-- TD
-- CATCH%
-
-DROP has been removed from the on-screen Receiving table.
-
-The card-based Receiving layout from V3.7.9 has been removed.
-
-Underlying receiving/drop data and share-image calculations are not changed.
+Receiving table remains the simplified V3.7.10 layout.
