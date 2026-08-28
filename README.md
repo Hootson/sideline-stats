@@ -1,7 +1,20 @@
-# Sideline Stats V3.7.7
+# Sideline Stats V3.7.8
 
-- Refined shareable stats header with cleaner spacing and stronger branding.
-- Receiving and other stats tables use a fixed, mobile-first layout.
-- On narrow phones, Receiving hides AVG and TD only, keeping TGT / REC / YDS / 1D / DROP / CATCH% visible without horizontal overflow.
-- Full columns remain on wider screens and in shared images.
-- No stat calculations changed.
+## Important update-delivery fix
+Previous service workers used cache-first behavior for index.html/navigation.
+On iPhone Safari/PWA this could cause a newly deployed version to look completely unchanged.
+
+V3.7.8 changes the service worker so:
+- app HTML/navigation is NETWORK-FIRST
+- latest deployed index.html is requested with no-store
+- cached HTML is used only as an offline fallback
+- static assets remain cached for offline use
+- old version caches are deleted on activation
+
+This keeps offline capability while making future deployments reliably visible.
+
+## UI included from V3.7.7
+- Refined shareable stats header
+- Mobile-first receiving table
+- No horizontal receiving-table overflow on narrow phones
+- Full data retained on wider screens and share images

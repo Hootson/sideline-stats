@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V3.7.7</title>
+<title>Sideline Stats V3.7.8</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -260,7 +260,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 .penalty-down-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 
 
-/* V3.7.7 sideline readability */
+/* V3.7.8 sideline readability */
 .player-grid{gap:12px}
 .player-select{
   min-height:92px !important;
@@ -296,7 +296,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
   font-weight:850 !important;
 }
 
-/* V3.7.7 game editing + opponent logo */
+/* V3.7.8 game editing + opponent logo */
 .game-opponent-badge img{
   width:100%;
   height:100%;
@@ -318,7 +318,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 #editGameCard .row > *{min-width:0}
 
 
-/* V3.7.7 mobile-first Stats tables */
+/* V3.7.8 mobile-first Stats tables */
 .stats-table-wrap{width:100%;overflow-x:hidden}
 .stats-table{width:100%;border-collapse:collapse;table-layout:fixed}
 .stats-table th,.stats-table td{
@@ -353,7 +353,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V3.7.7 • GRIDIRON EDITION</div>
+      <div class="muted" style="color:#dfe9e2">V3.7.8 • GRIDIRON EDITION</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -910,7 +910,7 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
-$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.7.7",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
+$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.7.8",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
 $("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
 $("#restoreDataInput").addEventListener("change",async()=>{
   const f=$("#restoreDataInput").files?.[0];if(!f)return;
