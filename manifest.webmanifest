@@ -5,7 +5,7 @@
   "display": "standalone",
   "background_color": "#f4f6f5",
   "theme_color": "#177b46",
-  "description": "Sideline Stats V3.7.4 \u2014 corrected logo rendering and approved share-header geometry",
+  "description": "Sideline Stats V3.7.5 \u2014 branded share typography and split town/mascot names",
   "scope": "./",
   "icons": [
     {

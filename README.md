@@ -1,22 +1,13 @@
-# Sideline Stats V3.7.4
+# Sideline Stats V3.7.5
 
-## Critical logo fix
-V3.7.3 called `loadImg()` in the share-image renderer but never defined that function.
-The error was caught silently, which meant uploaded team and opponent logos could not render.
+Share-image header refinements:
+- stronger branded typography for SIDELINE STATS
+- more stylized GRIDIRON EDITION treatment
+- team names split into Town + Mascot on separate centered lines when possible
+- long names dynamically shrink to avoid overlapping the scoreboard
+- 5th Grade / team grade moved under the LIVE/FINAL shield
+- uploaded team and opponent logos retained
+- Week / Home-Away / Regular Season-Playoffs bar retained
+- Player Box Score pagination retained
 
-V3.7.4 adds a real image loader and preserves the saved `logoData` / `opponentLogoData`.
-
-## Share header rebuild
-The share-image header was rebuilt to much more closely follow the approved mockup:
-- large uploaded team logo in the left side panel
-- large uploaded opponent logo in the right side panel
-- team and opponent names separated from the scoreboard
-- dynamically shrinking long team names to prevent collisions
-- centered score / FINAL-LIVE shield
-- black broadcast-style background and angled team-color panels
-- Sideline Stats / Gridiron Edition branding
-- bottom info strip shows only Week, Home/Away/Neutral, Regular Season/Playoffs
-
-Date and city/location remain removed.
-
-Player Box Score pagination remains intact.
+No image mockups were generated for this build; these are code-only changes.

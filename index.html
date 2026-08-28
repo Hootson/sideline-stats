@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V3.7.4</title>
+<title>Sideline Stats V3.7.5</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -260,7 +260,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 .penalty-down-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 
 
-/* V3.7.4 sideline readability */
+/* V3.7.5 sideline readability */
 .player-grid{gap:12px}
 .player-select{
   min-height:92px !important;
@@ -296,7 +296,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
   font-weight:850 !important;
 }
 
-/* V3.7.4 game editing + opponent logo */
+/* V3.7.5 game editing + opponent logo */
 .game-opponent-badge img{
   width:100%;
   height:100%;
@@ -329,7 +329,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V3.7.4 • GRIDIRON EDITION</div>
+      <div class="muted" style="color:#dfe9e2">V3.7.5 • GRIDIRON EDITION</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -886,7 +886,7 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
-$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.7.4",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
+$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.7.5",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
 $("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
 $("#restoreDataInput").addEventListener("change",async()=>{
   const f=$("#restoreDataInput").files?.[0];if(!f)return;
@@ -1932,6 +1932,11 @@ function shareRgba(hex,a){
 function shareRR(c,x,y,w,h,r,fill){
   c.beginPath();c.roundRect(x,y,w,h,r);c.fillStyle=fill;c.fill();
 }
+function splitTeamName(name){
+  const parts=String(name||"").trim().split(/\s+/).filter(Boolean);
+  if(parts.length<=1)return {town:parts[0]||"TEAM",mascot:""};
+  return {town:parts.slice(0,-1).join(" "),mascot:parts[parts.length-1]};
+}
 function shareFitTX(c,t,x,y,maxWidth,startSize,minSize,weight,color,align="center"){
   let size=startSize;
   const text=String(t||"");
@@ -1975,11 +1980,9 @@ async function drawBroadcastHeader(c,W,src,opts={}){
   const g=src?.kind==="game"?src.game:null;
   const H=compact?350:410;
 
-  // Overall black sports graphic.
   c.fillStyle="#050607";
   c.fillRect(0,0,W,H);
 
-  // Subtle diagonal texture.
   c.save();
   c.globalAlpha=.08;
   c.strokeStyle="#fff";
@@ -1992,14 +1995,12 @@ async function drawBroadcastHeader(c,W,src,opts={}){
   }
   c.restore();
 
-  // Brand strip.
   const brandH=compact?78:92;
   c.fillStyle="#0d1011";
   c.fillRect(0,0,W,brandH);
   c.fillStyle=A;
   c.fillRect(0,brandH-4,W,4);
 
-  // Decorative angled accents, matching approved direction.
   c.fillStyle=shareRgba(A,.22);
   c.beginPath();
   c.moveTo(0,0); c.lineTo(210,0); c.lineTo(255,brandH); c.lineTo(0,brandH);
@@ -2008,7 +2009,6 @@ async function drawBroadcastHeader(c,W,src,opts={}){
   c.moveTo(W,0); c.lineTo(W-210,0); c.lineTo(W-255,brandH); c.lineTo(W,brandH);
   c.closePath(); c.fill();
 
-  // Stadium lights.
   if(!compact){
     const drawLights=(cx)=>{
       c.save();
@@ -2026,8 +2026,21 @@ async function drawBroadcastHeader(c,W,src,opts={}){
     drawLights(W-175);
   }
 
-  shareTX(c,"SIDELINE STATS",W/2,compact?44:52,compact?39:46,950,"#fff","center");
-  shareTX(c,"GRIDIRON EDITION",W/2,compact?69:80,compact?17:19,950,A,"center");
+  // More branded / athletic typography using broadly available system fonts.
+  c.save();
+  c.font=`900 ${compact?42:50}px Impact, Haettenschweiler, "Arial Narrow Bold", Arial, sans-serif`;
+  c.fillStyle="#fff";
+  c.textAlign="center";
+  c.fillText("SIDELINE STATS",W/2,compact?45:54);
+  c.restore();
+
+  c.save();
+  c.font=`900 ${compact?17:19}px "Arial Narrow", Arial, sans-serif`;
+  c.fontKerning="normal";
+  c.fillStyle=A;
+  c.textAlign="center";
+  c.fillText("G R I D I R O N   E D I T I O N",W/2,compact?69:81);
+  c.restore();
 
   if(g){
     const bodyY=brandH;
@@ -2035,7 +2048,6 @@ async function drawBroadcastHeader(c,W,src,opts={}){
     const bodyBottom=H-infoH;
     const bodyH=bodyBottom-bodyY;
 
-    // Large side logo wedges.
     const leftEdge=225;
     const rightEdge=W-225;
 
@@ -2057,7 +2069,6 @@ async function drawBroadcastHeader(c,W,src,opts={}){
     c.closePath();
     c.fill();
 
-    // Dark central panel.
     c.fillStyle="#080a0b";
     c.beginPath();
     c.moveTo(leftEdge-4,bodyY);
@@ -2067,7 +2078,6 @@ async function drawBroadcastHeader(c,W,src,opts={}){
     c.closePath();
     c.fill();
 
-    // Thin white/gray accent rails.
     c.strokeStyle="#d9dddc";
     c.lineWidth=3;
     c.beginPath();
@@ -2075,7 +2085,6 @@ async function drawBroadcastHeader(c,W,src,opts={}){
     c.beginPath();
     c.moveTo(rightEdge+7,bodyY+4);c.lineTo(rightEdge+48,bodyBottom-4);c.stroke();
 
-    // Uploaded logos: large and visually dominant.
     const logoSize=compact?135:155;
     const logoY=bodyY+(bodyH-logoSize)/2;
     const leftLogoX=26;
@@ -2088,20 +2097,20 @@ async function drawBroadcastHeader(c,W,src,opts={}){
       await drawShareImage(c,g.opponentLogoData,rightLogoX,logoY,logoSize,logoSize,5);
     }
 
-    // Team names are deliberately separated from the score.
     const teamNameX=305;
     const oppNameX=W-305;
-    const nameY=bodyY+(compact?78:92);
-    const subY=nameY+(compact?27:31);
+    const homeName=splitTeamName(S.team?.name||"TEAM");
+    const oppName=splitTeamName(g.opponent||"OPPONENT");
 
-    shareFitTX(c,(S.team?.name||"TEAM").toUpperCase(),teamNameX,nameY,185,compact?29:33,21,950,"#fff","center");
-    shareFitTX(c,(g.opponent||"OPPONENT").toUpperCase(),oppNameX,nameY,185,compact?29:33,21,950,"#fff","center");
+    const townY=bodyY+(compact?67:78);
+    const mascotY=townY+(compact?31:35);
 
-    if(S.team?.grade){
-      shareFitTX(c,String(S.team.grade).toUpperCase(),teamNameX,subY,160,compact?17:19,13,900,A,"center");
-    }
+    shareFitTX(c,homeName.town.toUpperCase(),teamNameX,townY,185,compact?24:27,18,850,"#fff","center");
+    shareFitTX(c,homeName.mascot.toUpperCase(),teamNameX,mascotY,185,compact?31:35,22,950,"#fff","center");
 
-    // Central scoreboard: our score / shield / opponent score.
+    shareFitTX(c,oppName.town.toUpperCase(),oppNameX,townY,185,compact?24:27,18,850,"#fff","center");
+    shareFitTX(c,oppName.mascot.toUpperCase(),oppNameX,mascotY,185,compact?31:35,22,950,"#fff","center");
+
     const scoreY=bodyY+(compact?28:34);
     const scoreH=compact?126:144;
     const scoreW=112;
@@ -2115,7 +2124,6 @@ async function drawBroadcastHeader(c,W,src,opts={}){
     c.fillStyle=shareRgba(P,.98);
     c.fillRect(sx+scoreW+shieldW,scoreY,scoreW,scoreH);
 
-    // Shield.
     const shx=sx+scoreW;
     c.beginPath();
     c.moveTo(shx+16,scoreY);
@@ -2133,11 +2141,10 @@ async function drawBroadcastHeader(c,W,src,opts={}){
 
     shareTX(c,displayedOurScore(g),sx+scoreW/2,scoreY+(compact?87:99),compact?66:76,950,"#fff","center");
     shareTX(c,g.oppScore,sx+scoreW+shieldW+scoreW/2,scoreY+(compact?87:99),compact?66:76,950,"#fff","center");
-    shareTX(c,g.status==="complete"?"FINAL":"LIVE",W/2,scoreY+(compact?52:58),compact?24:27,950,A,"center");
+    shareTX(c,g.status==="complete"?"FINAL":"LIVE",W/2,scoreY+(compact?48:54),compact?24:27,950,A,"center");
 
-    // Simple football glyph.
     c.save();
-    c.translate(W/2,scoreY+(compact?82:94));
+    c.translate(W/2,scoreY+(compact?76:84));
     c.strokeStyle="#fff";
     c.lineWidth=3;
     c.beginPath();
@@ -2149,7 +2156,11 @@ async function drawBroadcastHeader(c,W,src,opts={}){
     });
     c.restore();
 
-    // Approved info strip: week + home/away + regular/playoffs only.
+    // Grade moved under LIVE/FINAL shield, as requested.
+    if(S.team?.grade){
+      shareFitTX(c,String(S.team.grade).toUpperCase(),W/2,scoreY+scoreH-12,shieldW-18,compact?15:17,12,900,"#d8dcda","center");
+    }
+
     c.fillStyle="#f4f4f2";
     c.fillRect(0,bodyBottom,W,infoH);
 
@@ -2174,7 +2185,6 @@ async function drawBroadcastHeader(c,W,src,opts={}){
     });
 
   }else{
-    // Aggregate/season views still use the same brand system.
     shareFitTX(c,(S.team?.name||"TEAM").toUpperCase(),W/2,compact?153:176,W-160,compact?42:48,28,950,"#fff","center");
     shareRR(c,W*.22,compact?184:208,W*.56,compact?64:72,12,shareRgba(A,.20));
     shareFitTX(c,(src?.title||"SEASON STATS").toUpperCase(),W/2,compact?226:254,W*.50,compact?29:34,22,950,A,"center");
