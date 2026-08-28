@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V3.7.8</title>
+<title>Sideline Stats V3.7.9</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -260,7 +260,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 .penalty-down-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 
 
-/* V3.7.8 sideline readability */
+/* V3.7.9 sideline readability */
 .player-grid{gap:12px}
 .player-select{
   min-height:92px !important;
@@ -296,7 +296,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
   font-weight:850 !important;
 }
 
-/* V3.7.8 game editing + opponent logo */
+/* V3.7.9 game editing + opponent logo */
 .game-opponent-badge img{
   width:100%;
   height:100%;
@@ -318,7 +318,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 #editGameCard .row > *{min-width:0}
 
 
-/* V3.7.8 mobile-first Stats tables */
+/* V3.7.9 mobile-first Stats tables */
 .stats-table-wrap{width:100%;overflow-x:hidden}
 .stats-table{width:100%;border-collapse:collapse;table-layout:fixed}
 .stats-table th,.stats-table td{
@@ -341,6 +341,146 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
   .receiving-table .stat-catch{font-size:12px}
 }
 
+
+/* V3.7.9 real Stats rendering update */
+.stats-table-scroll{
+  width:100%;
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+}
+.stats-data-table{
+  width:100%;
+  border-collapse:collapse;
+}
+.stats-data-table th{
+  font-size:13px;
+  font-weight:900;
+  letter-spacing:.01em;
+  white-space:nowrap;
+}
+.stats-data-table td{
+  font-size:15px;
+}
+.receiving-mobile{display:none}
+
+@media (max-width:560px){
+  .receiving-desktop{display:none}
+  .receiving-mobile{
+    display:grid;
+    gap:10px;
+    width:100%;
+  }
+  .receiving-block{
+    padding-left:12px!important;
+    padding-right:12px!important;
+  }
+  .receiving-player-card{
+    background:#fff;
+    border:1px solid #d9dfdb;
+    border-radius:14px;
+    overflow:hidden;
+    box-shadow:0 1px 2px rgba(0,0,0,.04);
+  }
+  .receiving-player-top{
+    display:flex;
+    align-items:stretch;
+    justify-content:space-between;
+    min-height:58px;
+    background:#f7f9f8;
+    border-bottom:1px solid #e2e6e3;
+  }
+  .receiving-player-name{
+    display:flex;
+    align-items:center;
+    padding:10px 14px;
+    font-size:18px;
+    line-height:1.1;
+    font-weight:850;
+    min-width:0;
+  }
+  .receiving-yard-badge{
+    min-width:76px;
+    padding:8px 12px;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    background:#111;
+    color:#fff;
+  }
+  .receiving-yard-badge strong{
+    font-size:24px;
+    line-height:1;
+  }
+  .receiving-yard-badge span{
+    font-size:10px;
+    font-weight:900;
+    letter-spacing:.08em;
+    margin-top:3px;
+    opacity:.72;
+  }
+  .receiving-stat-grid{
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    padding:8px 7px 10px;
+  }
+  .receiving-stat-grid>div{
+    min-width:0;
+    padding:7px 3px;
+    text-align:center;
+    border-right:1px solid #edf0ee;
+  }
+  .receiving-stat-grid>div:nth-child(4n){border-right:0}
+  .receiving-stat-grid strong{
+    display:block;
+    font-size:18px;
+    line-height:1;
+    font-weight:900;
+  }
+  .receiving-stat-grid span{
+    display:block;
+    margin-top:5px;
+    font-size:9px;
+    line-height:1;
+    font-weight:850;
+    letter-spacing:.04em;
+    color:#6d756f;
+  }
+  .receiving-stat-grid .catch-cell{
+    grid-column:span 2;
+    border-right:0;
+    background:#f4f7f5;
+    border-radius:8px;
+    margin:3px 4px 0;
+  }
+  .receiving-total-card{
+    border-radius:14px;
+    overflow:hidden;
+    background:#eef4f0;
+    border:1px solid #cbd8cf;
+  }
+  .receiving-total-title{
+    padding:10px 13px 8px;
+    font-size:14px;
+    font-weight:950;
+    letter-spacing:.04em;
+  }
+  .receiving-total-stats{
+    display:flex;
+    flex-wrap:wrap;
+    gap:7px;
+    padding:0 10px 11px;
+  }
+  .receiving-total-stats span{
+    background:#fff;
+    border-radius:999px;
+    padding:6px 9px;
+    font-size:11px;
+    font-weight:750;
+  }
+  .receiving-total-stats strong{font-weight:950}
+}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
@@ -353,7 +493,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V3.7.8 • GRIDIRON EDITION</div>
+      <div class="muted" style="color:#dfe9e2">V3.7.9 • GRIDIRON EDITION</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -910,7 +1050,7 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
-$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.7.8",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
+$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.7.9",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
 $("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
 $("#restoreDataInput").addEventListener("change",async()=>{
   const f=$("#restoreDataInput").files?.[0];if(!f)return;
@@ -1682,7 +1822,45 @@ function statsSource(scope=statsScope){
 }
 function tbl(h,rows,totalRow=null){
   if(!rows.length&&!totalRow)return'<div class="muted">No stats yet.</div>';
-  return `<table><tr>${h.map(x=>`<th>${x}</th>`).join("")}</tr>${rows.map(r=>`<tr>${r.map(x=>`<td>${esc(String(x))}</td>`).join("")}</tr>`).join("")}${totalRow?`<tr class="stat-total-row">${totalRow.map(x=>`<td>${esc(String(x))}</td>`).join("")}</tr>`:""}</table>`
+  return `<div class="stats-table-scroll"><table class="stats-data-table"><tr>${h.map(x=>`<th>${x}</th>`).join("")}</tr>${rows.map(r=>`<tr>${r.map(x=>`<td>${esc(String(x))}</td>`).join("")}</tr>`).join("")}${totalRow?`<tr class="stat-total-row">${totalRow.map(x=>`<td>${esc(String(x))}</td>`).join("")}</tr>`:""}</table></div>`
+}
+function receivingView(rows,totalRow){
+  if(!rows.length&&!totalRow)return'<div class="muted">No stats yet.</div>';
+
+  const desktop=tbl(["Player","TGT","REC","YDS","AVG","1D","TD","DROP","CATCH%"],rows,totalRow);
+
+  const cards=rows.map(r=>`
+    <div class="receiving-player-card">
+      <div class="receiving-player-top">
+        <div class="receiving-player-name">${esc(String(r[0]))}</div>
+        <div class="receiving-yard-badge"><strong>${esc(String(r[3]))}</strong><span>YDS</span></div>
+      </div>
+      <div class="receiving-stat-grid">
+        <div><strong>${esc(String(r[1]))}</strong><span>TGT</span></div>
+        <div><strong>${esc(String(r[2]))}</strong><span>REC</span></div>
+        <div><strong>${esc(String(r[4]))}</strong><span>AVG</span></div>
+        <div><strong>${esc(String(r[5]))}</strong><span>1D</span></div>
+        <div><strong>${esc(String(r[6]))}</strong><span>TD</span></div>
+        <div><strong>${esc(String(r[7]))}</strong><span>DROP</span></div>
+        <div class="catch-cell"><strong>${esc(String(r[8]))}</strong><span>CATCH</span></div>
+      </div>
+    </div>`).join("");
+
+  const total=totalRow?`
+    <div class="receiving-total-card">
+      <div class="receiving-total-title">TEAM TOTAL</div>
+      <div class="receiving-total-stats">
+        <span><strong>${esc(String(totalRow[1]))}</strong> TGT</span>
+        <span><strong>${esc(String(totalRow[2]))}</strong> REC</span>
+        <span><strong>${esc(String(totalRow[3]))}</strong> YDS</span>
+        <span><strong>${esc(String(totalRow[5]))}</strong> 1D</span>
+        <span><strong>${esc(String(totalRow[6]))}</strong> TD</span>
+        <span><strong>${esc(String(totalRow[7]))}</strong> DROP</span>
+        <span><strong>${esc(String(totalRow[8]))}</strong> CATCH</span>
+      </div>
+    </div>`:"";
+
+  return `<div class="receiving-desktop">${desktop}</div><div class="receiving-mobile">${cards}${total}</div>`;
 }
 
 let snapSelections={};
@@ -1850,7 +2028,7 @@ function renderStats(){
   $("#statsBox").innerHTML=
     `<div class="stats-block"><h3>Rushing</h3>${tbl(["Player","CAR","YDS","AVG","1D","TD"],rushRows,rushRows.length?rushTot:null)}</div>`+
     `<div class="stats-block"><h3>Passing</h3>${tbl(["Player","CMP/ATT","YDS","AVG","1D","TD","INT"],passRows,passRows.length?passTot:null)}</div>`+
-    `<div class="stats-block"><h3>Receiving</h3>${tbl(["Player","TGT","REC","YDS","AVG","1D","TD","DROP","CATCH%"],recRows,recRows.length?recTot:null)}</div>`+
+    `<div class="stats-block receiving-block"><h3>Receiving</h3>${receivingView(recRows,recRows.length?recTot:null)}</div>`+
     `<div class="stats-block"><h3>Defense</h3>${tbl(["Player","TKL","TFL","SACK","INT","FF","FR"],defRows,defRows.length?defTot:null)}</div>`+
     `<div class="stats-block"><h3>Special Teams</h3>
       <div class="scope-summary" style="margin-bottom:8px">
@@ -2006,6 +2184,12 @@ function drawTeamIdentity(c,name,x,y,w,side,accent){
     shareTX(c,mascot,x,y+17,mascotSize,950,accent,"center");
   }
 }
+function shareSportTX(c,t,x,y,size,color,align="center"){
+  c.font=`italic 900 ${size}px "Arial Narrow","Helvetica Neue Condensed",Arial,sans-serif`;
+  c.fillStyle=color;
+  c.textAlign=align;
+  c.fillText(String(t),x,y);
+}
 function shareTX(c,t,x,y,size,weight,color,align="left"){
   c.font=`${weight} ${size}px -apple-system,BlinkMacSystemFont,Segoe UI,Arial`;
   c.fillStyle=color;c.textAlign=align;c.fillText(String(t),x,y);
@@ -2034,109 +2218,121 @@ async function drawBroadcastHeader(c,W,src,opts={}){
   const A=S.team?.secondary||"#f26a00";
   const compact=!!opts.compact;
   const g=src?.kind==="game"?src.game:null;
-  const H=compact?330:382;
+  const H=compact?342:398;
 
-  c.fillStyle="#050607";c.fillRect(0,0,W,H);
+  c.fillStyle="#030405";c.fillRect(0,0,W,H);
 
-  c.save();
-  c.globalAlpha=.045;
-  c.strokeStyle="#fff";
-  c.lineWidth=1;
-  for(let x=-180;x<W+180;x+=66){
-    c.beginPath();c.moveTo(x,0);c.lineTo(x+175,H);c.stroke();
-  }
-  c.restore();
+  // top brand band
+  const brandH=compact?76:88;
+  c.fillStyle="#0b0d0e";c.fillRect(0,0,W,brandH);
+  c.fillStyle=A;c.fillRect(0,brandH-4,W,4);
 
-  const brandH=compact?72:84;
-  c.fillStyle="#0b0e0f";c.fillRect(0,0,W,brandH);
-
+  // angular shoulders
   c.fillStyle=shareRgba(A,.18);
-  c.beginPath();c.moveTo(0,0);c.lineTo(205,0);c.lineTo(245,brandH);c.lineTo(0,brandH);c.closePath();c.fill();
-  c.beginPath();c.moveTo(W,0);c.lineTo(W-205,0);c.lineTo(W-245,brandH);c.lineTo(W,brandH);c.closePath();c.fill();
+  c.beginPath();c.moveTo(0,0);c.lineTo(230,0);c.lineTo(270,brandH);c.lineTo(0,brandH);c.closePath();c.fill();
+  c.beginPath();c.moveTo(W,0);c.lineTo(W-230,0);c.lineTo(W-270,brandH);c.lineTo(W,brandH);c.closePath();c.fill();
 
-  shareTX(c,"SIDELINE STATS",W/2,compact?39:46,compact?40:46,950,"#fff","center");
-  c.fillStyle=A;c.fillRect(W/2-108,compact?49:56,216,2);
-  shareTX(c,"GRIDIRON EDITION",W/2,compact?65:75,compact?15:17,900,A,"center");
+  // branded wordmark: SIDELINE + accent STATS
+  const brandY=compact?47:54;
+  shareSportTX(c,"SIDELINE",W/2-6,brandY,compact?40:46,"#fff","right");
+  shareSportTX(c,"STATS",W/2+6,brandY,compact?40:46,A,"left");
+  shareRR(c,W/2-96,compact?55:63,192,compact?17:18,9,A);
+  shareTX(c,"GRIDIRON EDITION",W/2,compact?68:77,compact?10:11,950,"#090a0a","center");
 
   if(g){
-    const infoH=compact?52:58;
+    const metaH=compact?52:58;
     const bodyY=brandH;
-    const bodyBottom=H-infoH;
+    const bodyBottom=H-metaH;
     const bodyH=bodyBottom-bodyY;
 
+    // side logo plates
     c.fillStyle=A;
-    c.beginPath();c.moveTo(0,bodyY);c.lineTo(205,bodyY);c.lineTo(173,bodyBottom);c.lineTo(0,bodyBottom);c.closePath();c.fill();
-
+    c.beginPath();c.moveTo(0,bodyY);c.lineTo(178,bodyY);c.lineTo(150,bodyBottom);c.lineTo(0,bodyBottom);c.closePath();c.fill();
     c.fillStyle=shareRgba(P,.96);
-    c.beginPath();c.moveTo(W,bodyY);c.lineTo(W-205,bodyY);c.lineTo(W-173,bodyBottom);c.lineTo(W,bodyBottom);c.closePath();c.fill();
+    c.beginPath();c.moveTo(W,bodyY);c.lineTo(W-178,bodyY);c.lineTo(W-150,bodyBottom);c.lineTo(W,bodyBottom);c.closePath();c.fill();
 
-    c.fillStyle="#07090a";
-    c.beginPath();c.moveTo(200,bodyY);c.lineTo(W-200,bodyY);c.lineTo(W-172,bodyBottom);c.lineTo(172,bodyBottom);c.closePath();c.fill();
+    // subtle center body
+    c.fillStyle="#080a0b";c.fillRect(150,bodyY,W-300,bodyH);
 
-    c.strokeStyle="#d7dbda";c.lineWidth=2.5;
-    c.beginPath();c.moveTo(210,bodyY+4);c.lineTo(178,bodyBottom-4);c.stroke();
-    c.beginPath();c.moveTo(W-210,bodyY+4);c.lineTo(W-178,bodyBottom-4);c.stroke();
+    // accent diagonals
+    c.strokeStyle="#d7dbda";c.lineWidth=2;
+    c.beginPath();c.moveTo(183,bodyY+5);c.lineTo(155,bodyBottom-5);c.stroke();
+    c.beginPath();c.moveTo(W-183,bodyY+5);c.lineTo(W-155,bodyBottom-5);c.stroke();
 
-    const logoSize=compact?122:140;
+    const logoSize=compact?118:136;
     const logoY=bodyY+(bodyH-logoSize)/2;
-    if(S.team?.logoData)await drawShareImage(c,S.team.logoData,22,logoY,logoSize,logoSize,5);
-    if(g.opponentLogoData)await drawShareImage(c,g.opponentLogoData,W-22-logoSize,logoY,logoSize,logoSize,5);
+    if(S.team?.logoData)await drawShareImage(c,S.team.logoData,18,logoY,logoSize,logoSize,4);
+    if(g.opponentLogoData)await drawShareImage(c,g.opponentLogoData,W-18-logoSize,logoY,logoSize,logoSize,4);
 
-    const scoreW=105,centerW=112,scoreBlockW=scoreW*2+centerW;
-    const scoreX=(W-scoreBlockW)/2;
-    const teamLeftCenter=283,teamRightCenter=W-283,teamWidth=170;
+    // protected team identity zones
+    const leftNameX=278,rightNameX=W-278,nameW=174;
+    const left=splitTeamDisplayName(S.team?.name||"TEAM");
+    const right=splitTeamDisplayName(g.opponent||"OPPONENT");
+    const nameTop=bodyY+(compact?52:61);
 
-    const nameY=bodyY+(compact?67:78);
-    drawTeamIdentity(c,S.team?.name||"TEAM",teamLeftCenter,nameY,teamWidth,"left",A);
-    drawTeamIdentity(c,g.opponent||"OPPONENT",teamRightCenter,nameY,teamWidth,"right","#fff");
+    if(left.place){
+      shareFitTX(c,left.place.toUpperCase(),leftNameX,nameTop,nameW,compact?22:25,14,900,"#fff","center");
+      shareSportTX(c,left.mascot.toUpperCase(),leftNameX,nameTop+(compact?31:35),fitTextSize(c,left.mascot.toUpperCase(),nameW,compact?32:36,21,900),A,"center");
+    }else{
+      shareSportTX(c,left.mascot.toUpperCase(),leftNameX,nameTop+16,fitTextSize(c,left.mascot.toUpperCase(),nameW,compact?32:36,21,900),A,"center");
+    }
 
-    const scoreTop=bodyY+(compact?23:28),scoreH=compact?119:134;
-    const ourX=scoreX,centerX=scoreX+scoreW,oppX=centerX+centerW;
+    if(right.place){
+      shareFitTX(c,right.place.toUpperCase(),rightNameX,nameTop,nameW,compact?22:25,14,900,"#fff","center");
+      shareSportTX(c,right.mascot.toUpperCase(),rightNameX,nameTop+(compact?31:35),fitTextSize(c,right.mascot.toUpperCase(),nameW,compact?32:36,21,900),"#fff","center");
+    }else{
+      shareSportTX(c,right.mascot.toUpperCase(),rightNameX,nameTop+16,fitTextSize(c,right.mascot.toUpperCase(),nameW,compact?32:36,21,900),"#fff","center");
+    }
 
-    c.fillStyle=A;c.fillRect(ourX,scoreTop,scoreW,scoreH);
-    c.fillStyle="#020303";c.fillRect(oppX,scoreTop,scoreW,scoreH);
+    // score cluster
+    const scoreW=100,centerW=118,totalW=scoreW*2+centerW;
+    const sx=(W-totalW)/2;
+    const sy=bodyY+(compact?24:29);
+    const sh=compact?121:138;
+
+    shareRR(c,sx,sy,scoreW,sh,0,A);
+    shareRR(c,sx+scoreW+centerW,sy,scoreW,sh,0,"#020303");
 
     c.beginPath();
-    c.moveTo(centerX+14,scoreTop);c.lineTo(centerX+centerW-14,scoreTop);
-    c.lineTo(centerX+centerW,scoreTop+scoreH/2);
-    c.lineTo(centerX+centerW-14,scoreTop+scoreH);
-    c.lineTo(centerX+14,scoreTop+scoreH);
-    c.lineTo(centerX,scoreTop+scoreH/2);
+    c.moveTo(sx+scoreW+14,sy);
+    c.lineTo(sx+scoreW+centerW-14,sy);
+    c.lineTo(sx+scoreW+centerW,sy+sh/2);
+    c.lineTo(sx+scoreW+centerW-14,sy+sh);
+    c.lineTo(sx+scoreW+14,sy+sh);
+    c.lineTo(sx+scoreW,sy+sh/2);
     c.closePath();
-    c.fillStyle="#0f1213";c.fill();
-    c.strokeStyle=shareRgba(A,.9);c.lineWidth=2;c.stroke();
+    c.fillStyle="#101314";c.fill();
+    c.strokeStyle=A;c.lineWidth=2;c.stroke();
 
-    shareTX(c,displayedOurScore(g),ourX+scoreW/2,scoreTop+(compact?82:92),compact?61:69,950,"#fff","center");
-    shareTX(c,g.oppScore,oppX+scoreW/2,scoreTop+(compact?82:92),compact?61:69,950,"#fff","center");
-    shareTX(c,g.status==="complete"?"FINAL":"LIVE",W/2,scoreTop+(compact?42:47),compact?22:24,950,A,"center");
+    shareSportTX(c,displayedOurScore(g),sx+scoreW/2,sy+(compact?84:95),compact?66:75,"#fff","center");
+    shareSportTX(c,g.oppScore,sx+scoreW+centerW+scoreW/2,sy+(compact?84:95),compact?66:75,"#fff","center");
+    shareSportTX(c,g.status==="complete"?"FINAL":"LIVE",W/2,sy+(compact?43:49),compact?21:23,A,"center");
 
-    c.save();c.translate(W/2,scoreTop+(compact?67:74));
-    c.strokeStyle="#fff";c.lineWidth=2.3;
+    // football icon
+    c.save();c.translate(W/2,sy+(compact?67:74));c.strokeStyle="#fff";c.lineWidth=2.2;
     c.beginPath();c.ellipse(0,0,17,9,0,0,Math.PI*2);c.stroke();
     c.beginPath();c.moveTo(-5,0);c.lineTo(5,0);c.stroke();
     [-3,0,3].forEach(xx=>{c.beginPath();c.moveTo(xx,-3);c.lineTo(xx,3);c.stroke()});
     c.restore();
 
+    // grade is a distinct centered bar under scoreboard
     if(S.team?.grade){
-      const gradeY=scoreTop+scoreH-21;
-      c.fillStyle="#181b1c";c.fillRect(centerX+9,gradeY-17,centerW-18,25);
-      shareFitTX(c,String(S.team.grade).toUpperCase(),W/2,gradeY+2,centerW-24,14,10,900,"#fff","center");
+      shareRR(c,W/2-58,sy+sh-25,116,23,6,A);
+      shareFitTX(c,String(S.team.grade).toUpperCase(),W/2,sy+sh-8,104,13,9,950,"#0a0b0b","center");
     }
 
-    c.fillStyle="#f5f5f3";c.fillRect(0,bodyBottom,W,infoH);
+    // bottom metadata strip
+    c.fillStyle="#f4f4f2";c.fillRect(0,bodyBottom,W,metaH);
     const gameType=(g.gameType||"regular")==="playoff"?"PLAYOFFS":"REGULAR SEASON";
     const labels=[`WEEK ${g.week||1}`,String(g.location||"Home").toUpperCase(),gameType];
     const xs=[W*.34,W*.50,W*.66];
     labels.forEach((t,i)=>shareTX(c,t,xs[i],bodyBottom+(compact?34:38),compact?17:19,950,"#111","center"));
-    c.strokeStyle="#8b8b8b";c.lineWidth=1.8;
-    [W*.42,W*.58].forEach(x=>{c.beginPath();c.moveTo(x,bodyBottom+8);c.lineTo(x,bodyBottom+infoH-8);c.stroke()});
+    c.strokeStyle="#8a8a8a";c.lineWidth=1.6;
+    [W*.42,W*.58].forEach(x=>{c.beginPath();c.moveTo(x,bodyBottom+8);c.lineTo(x,bodyBottom+metaH-8);c.stroke()});
   }else{
-    shareFitTX(c,(S.team?.name||"TEAM").toUpperCase(),W/2,compact?145:166,W-180,compact?39:45,28,950,"#fff","center");
-    shareRR(c,W*.25,compact?174:198,W*.50,compact?60:68,12,shareRgba(A,.18));
-    shareFitTX(c,(src?.title||"SEASON STATS").toUpperCase(),W/2,compact?214:240,W*.46,compact?27:32,22,950,A,"center");
-    if(src?.games){
-      shareTX(c,`${src.games.length} GAME${src.games.length===1?"":"S"} • RECORD ${recordFor(src.games)}`,W/2,compact?250:278,compact?19:22,900,"#fff","center");
-    }
+    shareSportTX(c,(S.team?.name||"TEAM").toUpperCase(),W/2,compact?152:174,compact?40:46,"#fff","center");
+    shareRR(c,W*.25,compact?180:205,W*.50,compact?58:66,12,shareRgba(A,.18));
+    shareSportTX(c,(src?.title||"SEASON STATS").toUpperCase(),W/2,compact?218:247,compact?27:31,A,"center");
   }
   return H;
 }

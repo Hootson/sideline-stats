@@ -1,20 +1,26 @@
-# Sideline Stats V3.7.8
+# Sideline Stats V3.7.9
 
-## Important update-delivery fix
-Previous service workers used cache-first behavior for index.html/navigation.
-On iPhone Safari/PWA this could cause a newly deployed version to look completely unchanged.
+This build corrects the rendering mistake in V3.7.7/V3.7.8.
 
-V3.7.8 changes the service worker so:
-- app HTML/navigation is NETWORK-FIRST
-- latest deployed index.html is requested with no-store
-- cached HTML is used only as an offline fallback
-- static assets remain cached for offline use
-- old version caches are deleted on activation
+## Receiving
+The Stats screen now calls a dedicated receivingView() renderer.
+On iPhone, Receiving is presented as player cards rather than a nine-column table:
+- Player + receiving yards header
+- TGT, REC, AVG, 1D, TD, DROP, CATCH
+- Team Total card below the players
+- no horizontal clipping
 
-This keeps offline capability while making future deployments reliably visible.
+Desktop/tablet still receives the full table.
 
-## UI included from V3.7.7
-- Refined shareable stats header
-- Mobile-first receiving table
-- No horizontal receiving-table overflow on narrow phones
-- Full data retained on wider screens and share images
+## Share header
+The header is substantially redesigned:
+- split SIDELINE / STATS wordmark with accent-colored STATS
+- Gridiron Edition badge
+- larger protected logo panels
+- town and mascot typography separated
+- italic sports-style mascot and score typography
+- tighter central scoreboard
+- dedicated grade badge
+- simplified metadata strip
+
+Stat calculations and pagination are unchanged.
