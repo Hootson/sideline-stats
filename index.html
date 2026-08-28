@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V3.7.3</title>
+<title>Sideline Stats V3.7.4</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -260,7 +260,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 .penalty-down-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 
 
-/* V3.7.3 sideline readability */
+/* V3.7.4 sideline readability */
 .player-grid{gap:12px}
 .player-select{
   min-height:92px !important;
@@ -296,7 +296,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
   font-weight:850 !important;
 }
 
-/* V3.7.3 game editing + opponent logo */
+/* V3.7.4 game editing + opponent logo */
 .game-opponent-badge img{
   width:100%;
   height:100%;
@@ -329,7 +329,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V3.7.3 • GRIDIRON EDITION</div>
+      <div class="muted" style="color:#dfe9e2">V3.7.4 • GRIDIRON EDITION</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -886,7 +886,7 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
-$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.7.3",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
+$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.7.4",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
 $("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
 $("#restoreDataInput").addEventListener("change",async()=>{
   const f=$("#restoreDataInput").files?.[0];if(!f)return;
@@ -1932,9 +1932,31 @@ function shareRgba(hex,a){
 function shareRR(c,x,y,w,h,r,fill){
   c.beginPath();c.roundRect(x,y,w,h,r);c.fillStyle=fill;c.fill();
 }
+function shareFitTX(c,t,x,y,maxWidth,startSize,minSize,weight,color,align="center"){
+  let size=startSize;
+  const text=String(t||"");
+  while(size>minSize){
+    c.font=`${weight} ${size}px -apple-system,BlinkMacSystemFont,Segoe UI,Arial`;
+    if(c.measureText(text).width<=maxWidth)break;
+    size-=2;
+  }
+  c.fillStyle=color;
+  c.textAlign=align;
+  c.fillText(text,x,y);
+  return size;
+}
 function shareTX(c,t,x,y,size,weight,color,align="left"){
   c.font=`${weight} ${size}px -apple-system,BlinkMacSystemFont,Segoe UI,Arial`;
   c.fillStyle=color;c.textAlign=align;c.fillText(String(t),x,y);
+}
+function loadImg(src){
+  return new Promise((resolve,reject)=>{
+    if(!src)return reject(new Error("Missing image source"));
+    const im=new Image();
+    im.onload=()=>resolve(im);
+    im.onerror=()=>reject(new Error("Image failed to load"));
+    im.src=src;
+  });
 }
 async function drawShareImage(c,data,x,y,w,h,pad=10){
   if(!data)return false;
@@ -1947,186 +1969,220 @@ async function drawShareImage(c,data,x,y,w,h,pad=10){
   }catch(e){return false}
 }
 async function drawBroadcastHeader(c,W,src,opts={}){
-  const P=S.team?.primary||"#111111",A=S.team?.secondary||"#f0b33b";
+  const P=S.team?.primary||"#111111";
+  const A=S.team?.secondary||"#f26a00";
   const compact=!!opts.compact;
   const g=src?.kind==="game"?src.game:null;
-  const H=compact?338:390;
+  const H=compact?350:410;
 
-  c.fillStyle="#070909";
+  // Overall black sports graphic.
+  c.fillStyle="#050607";
   c.fillRect(0,0,W,H);
 
+  // Subtle diagonal texture.
+  c.save();
   c.globalAlpha=.08;
-  c.strokeStyle="#ffffff";
+  c.strokeStyle="#fff";
   c.lineWidth=1;
-  for(let x=-180;x<W+180;x+=64){
+  for(let x=-250;x<W+250;x+=52){
     c.beginPath();
     c.moveTo(x,0);
-    c.lineTo(x+170,H);
+    c.lineTo(x+180,H);
     c.stroke();
   }
-  c.globalAlpha=1;
+  c.restore();
 
-  function lights(cx,cy){
-    c.save();
-    c.shadowColor="#ffffff";
-    c.shadowBlur=24;
-    [[-30,0],[0,0],[30,0],[-15,25],[15,25]].forEach(pt=>{
-      c.beginPath();
-      c.arc(cx+pt[0],cy+pt[1],8,0,Math.PI*2);
-      c.fillStyle="#fff";
-      c.fill();
-    });
-    c.restore();
-  }
-  if(!compact){
-    lights(190,38);
-    lights(W-190,38);
-  }
-
-  const brandH=compact?88:102;
-  c.fillStyle="#101314";
+  // Brand strip.
+  const brandH=compact?78:92;
+  c.fillStyle="#0d1011";
   c.fillRect(0,0,W,brandH);
   c.fillStyle=A;
   c.fillRect(0,brandH-4,W,4);
 
-  c.fillStyle=shareRgba(A,.12);
+  // Decorative angled accents, matching approved direction.
+  c.fillStyle=shareRgba(A,.22);
   c.beginPath();
-  c.moveTo(0,0);
-  c.lineTo(W*.19,0);
-  c.lineTo(W*.24,brandH);
-  c.lineTo(0,brandH);
-  c.closePath();
-  c.fill();
-
+  c.moveTo(0,0); c.lineTo(210,0); c.lineTo(255,brandH); c.lineTo(0,brandH);
+  c.closePath(); c.fill();
   c.beginPath();
-  c.moveTo(W,0);
-  c.lineTo(W*.81,0);
-  c.lineTo(W*.76,brandH);
-  c.lineTo(W,brandH);
-  c.closePath();
-  c.fill();
+  c.moveTo(W,0); c.lineTo(W-210,0); c.lineTo(W-255,brandH); c.lineTo(W,brandH);
+  c.closePath(); c.fill();
 
-  shareTX(c,"SIDELINE STATS",W/2,compact?50:58,compact?42:48,950,"#fff","center");
-  shareTX(c,"GRIDIRON EDITION",W/2,compact?78:90,compact?19:21,950,A,"center");
+  // Stadium lights.
+  if(!compact){
+    const drawLights=(cx)=>{
+      c.save();
+      c.shadowColor="#fff";
+      c.shadowBlur=20;
+      [[-27,0],[0,0],[27,0],[-14,22],[14,22]].forEach(([dx,dy])=>{
+        c.beginPath();
+        c.arc(cx+dx,24+dy,7,0,Math.PI*2);
+        c.fillStyle="#fff";
+        c.fill();
+      });
+      c.restore();
+    };
+    drawLights(175);
+    drawLights(W-175);
+  }
+
+  shareTX(c,"SIDELINE STATS",W/2,compact?44:52,compact?39:46,950,"#fff","center");
+  shareTX(c,"GRIDIRON EDITION",W/2,compact?69:80,compact?17:19,950,A,"center");
 
   if(g){
     const bodyY=brandH;
-    const bodyH=compact?185:213;
+    const infoH=compact?58:64;
+    const bodyBottom=H-infoH;
+    const bodyH=bodyBottom-bodyY;
 
+    // Large side logo wedges.
+    const leftEdge=225;
+    const rightEdge=W-225;
+
+    c.fillStyle=A;
     c.beginPath();
     c.moveTo(0,bodyY);
-    c.lineTo(W*.23,bodyY);
-    c.lineTo(W*.19,bodyY+bodyH);
-    c.lineTo(0,bodyY+bodyH);
+    c.lineTo(leftEdge,bodyY);
+    c.lineTo(leftEdge-42,bodyBottom);
+    c.lineTo(0,bodyBottom);
     c.closePath();
-    c.fillStyle=A;
     c.fill();
 
+    c.fillStyle=shareRgba(P,.95);
     c.beginPath();
     c.moveTo(W,bodyY);
-    c.lineTo(W*.77,bodyY);
-    c.lineTo(W*.81,bodyY+bodyH);
-    c.lineTo(W,bodyY+bodyH);
+    c.lineTo(rightEdge,bodyY);
+    c.lineTo(rightEdge+42,bodyBottom);
+    c.lineTo(W,bodyBottom);
     c.closePath();
-    c.fillStyle=shareRgba(P,.92);
     c.fill();
 
+    // Dark central panel.
+    c.fillStyle="#080a0b";
     c.beginPath();
-    c.moveTo(W*.19,bodyY);
-    c.lineTo(W*.81,bodyY);
-    c.lineTo(W*.77,bodyY+bodyH);
-    c.lineTo(W*.23,bodyY+bodyH);
+    c.moveTo(leftEdge-4,bodyY);
+    c.lineTo(rightEdge+4,bodyY);
+    c.lineTo(rightEdge+44,bodyBottom);
+    c.lineTo(leftEdge-44,bodyBottom);
     c.closePath();
-    c.fillStyle="#0b0d0f";
     c.fill();
 
-    const logoSize=compact?118:136;
+    // Thin white/gray accent rails.
+    c.strokeStyle="#d9dddc";
+    c.lineWidth=3;
+    c.beginPath();
+    c.moveTo(leftEdge-7,bodyY+4);c.lineTo(leftEdge-48,bodyBottom-4);c.stroke();
+    c.beginPath();
+    c.moveTo(rightEdge+7,bodyY+4);c.lineTo(rightEdge+48,bodyBottom-4);c.stroke();
+
+    // Uploaded logos: large and visually dominant.
+    const logoSize=compact?135:155;
     const logoY=bodyY+(bodyH-logoSize)/2;
+    const leftLogoX=26;
+    const rightLogoX=W-26-logoSize;
+
     if(S.team?.logoData){
-      await drawShareImage(c,S.team.logoData,28,logoY,logoSize,logoSize,8);
+      await drawShareImage(c,S.team.logoData,leftLogoX,logoY,logoSize,logoSize,5);
     }
     if(g.opponentLogoData){
-      await drawShareImage(c,g.opponentLogoData,W-28-logoSize,logoY,logoSize,logoSize,8);
+      await drawShareImage(c,g.opponentLogoData,rightLogoX,logoY,logoSize,logoSize,5);
     }
 
-    const teamX=W*.31;
-    const oppX=W*.69;
-    shareTX(c,(S.team?.name||"TEAM").toUpperCase(),teamX,bodyY+(compact?78:92),compact?30:34,950,"#fff","center");
-    shareTX(c,(g.opponent||"OPPONENT").toUpperCase(),oppX,bodyY+(compact?78:92),compact?30:34,950,"#fff","center");
+    // Team names are deliberately separated from the score.
+    const teamNameX=305;
+    const oppNameX=W-305;
+    const nameY=bodyY+(compact?78:92);
+    const subY=nameY+(compact?27:31);
+
+    shareFitTX(c,(S.team?.name||"TEAM").toUpperCase(),teamNameX,nameY,185,compact?29:33,21,950,"#fff","center");
+    shareFitTX(c,(g.opponent||"OPPONENT").toUpperCase(),oppNameX,nameY,185,compact?29:33,21,950,"#fff","center");
+
     if(S.team?.grade){
-      shareTX(c,String(S.team.grade).toUpperCase(),teamX,bodyY+(compact?108:125),compact?18:20,900,A,"center");
+      shareFitTX(c,String(S.team.grade).toUpperCase(),teamNameX,subY,160,compact?17:19,13,900,A,"center");
     }
 
-    const scoreTop=bodyY+(compact?32:39);
-    const scoreH=compact?117:132;
-    const scoreW=116;
-    const leftX=W/2-174;
-    const rightX=W/2+58;
-    shareRR(c,leftX,scoreTop,scoreW,scoreH,0,A);
-    shareRR(c,rightX,scoreTop,scoreW,scoreH,0,shareRgba(P,.95));
-    shareTX(c,displayedOurScore(g),leftX+scoreW/2,scoreTop+(compact?83:94),compact?63:72,950,"#fff","center");
-    shareTX(c,g.oppScore,rightX+scoreW/2,scoreTop+(compact?83:94),compact?63:72,950,"#fff","center");
+    // Central scoreboard: our score / shield / opponent score.
+    const scoreY=bodyY+(compact?28:34);
+    const scoreH=compact?126:144;
+    const scoreW=112;
+    const shieldW=128;
+    const totalW=scoreW*2+shieldW;
+    const sx=(W-totalW)/2;
 
+    c.fillStyle=A;
+    c.fillRect(sx,scoreY,scoreW,scoreH);
+
+    c.fillStyle=shareRgba(P,.98);
+    c.fillRect(sx+scoreW+shieldW,scoreY,scoreW,scoreH);
+
+    // Shield.
+    const shx=sx+scoreW;
     c.beginPath();
-    c.moveTo(W/2-58,scoreTop);
-    c.lineTo(W/2+58,scoreTop);
-    c.lineTo(W/2+82,scoreTop+scoreH/2);
-    c.lineTo(W/2+58,scoreTop+scoreH);
-    c.lineTo(W/2-58,scoreTop+scoreH);
-    c.lineTo(W/2-82,scoreTop+scoreH/2);
+    c.moveTo(shx+16,scoreY);
+    c.lineTo(shx+shieldW-16,scoreY);
+    c.lineTo(shx+shieldW,scoreY+scoreH/2);
+    c.lineTo(shx+shieldW-16,scoreY+scoreH);
+    c.lineTo(shx+16,scoreY+scoreH);
+    c.lineTo(shx,scoreY+scoreH/2);
     c.closePath();
-    c.fillStyle="#111416";
+    c.fillStyle="#0e1112";
     c.fill();
-    c.strokeStyle=shareRgba(A,.75);
+    c.strokeStyle=shareRgba(A,.85);
     c.lineWidth=2;
     c.stroke();
-    shareTX(c,g.status==="complete"?"FINAL":"LIVE",W/2,scoreTop+(compact?51:58),compact?25:28,950,A,"center");
 
+    shareTX(c,displayedOurScore(g),sx+scoreW/2,scoreY+(compact?87:99),compact?66:76,950,"#fff","center");
+    shareTX(c,g.oppScore,sx+scoreW+shieldW+scoreW/2,scoreY+(compact?87:99),compact?66:76,950,"#fff","center");
+    shareTX(c,g.status==="complete"?"FINAL":"LIVE",W/2,scoreY+(compact?52:58),compact?24:27,950,A,"center");
+
+    // Simple football glyph.
     c.save();
-    c.translate(W/2,scoreTop+(compact?78:88));
-    c.rotate(-.08);
+    c.translate(W/2,scoreY+(compact?82:94));
     c.strokeStyle="#fff";
     c.lineWidth=3;
     c.beginPath();
-    c.ellipse(0,0,22,12,0,0,Math.PI*2);
+    c.ellipse(0,0,20,11,0,0,Math.PI*2);
     c.stroke();
-    c.beginPath();
-    c.moveTo(-7,0);
-    c.lineTo(7,0);
-    c.stroke();
+    c.beginPath();c.moveTo(-6,0);c.lineTo(6,0);c.stroke();
     [-4,0,4].forEach(xx=>{
-      c.beginPath();
-      c.moveTo(xx,-4);
-      c.lineTo(xx,4);
-      c.stroke();
+      c.beginPath();c.moveTo(xx,-4);c.lineTo(xx,4);c.stroke();
     });
     c.restore();
 
-    const infoY=bodyY+bodyH;
+    // Approved info strip: week + home/away + regular/playoffs only.
     c.fillStyle="#f4f4f2";
-    c.fillRect(0,infoY,W,H-infoY);
+    c.fillRect(0,bodyBottom,W,infoH);
+
     const gameType=(g.gameType||"regular")==="playoff"?"PLAYOFFS":"REGULAR SEASON";
-    const items=[`WEEK ${g.week||1}`,String(g.location||"Home").toUpperCase(),gameType];
-    const centers=[W*.30,W*.50,W*.70];
-    items.forEach((t,i)=>{
-      shareTX(c,t,centers[i],infoY+(compact?42:46),compact?20:22,950,"#111","center");
+    const labels=[
+      `WEEK ${g.week||1}`,
+      String(g.location||"Home").toUpperCase(),
+      gameType
+    ];
+    const xs=[W*.34,W*.50,W*.66];
+    labels.forEach((t,i)=>{
+      shareTX(c,t,xs[i],bodyBottom+(compact?38:42),compact?19:21,950,"#111","center");
     });
-    c.strokeStyle="#888";
+
+    c.strokeStyle="#8b8b8b";
     c.lineWidth=2;
-    [W*.40,W*.60].forEach(x=>{
+    [W*.42,W*.58].forEach(x=>{
       c.beginPath();
-      c.moveTo(x,infoY+12);
-      c.lineTo(x,infoY+(compact?52:58));
+      c.moveTo(x,bodyBottom+10);
+      c.lineTo(x,bodyBottom+infoH-10);
       c.stroke();
     });
+
   }else{
-    shareTX(c,(S.team?.name||"TEAM").toUpperCase(),W/2,compact?160:185,compact?42:50,950,"#fff","center");
-    shareRR(c,W*.24,compact?190:220,W*.52,compact?64:74,14,shareRgba(A,.18));
-    shareTX(c,(src?.title||"SEASON STATS").toUpperCase(),W/2,compact?232:268,compact?30:36,950,A,"center");
+    // Aggregate/season views still use the same brand system.
+    shareFitTX(c,(S.team?.name||"TEAM").toUpperCase(),W/2,compact?153:176,W-160,compact?42:48,28,950,"#fff","center");
+    shareRR(c,W*.22,compact?184:208,W*.56,compact?64:72,12,shareRgba(A,.20));
+    shareFitTX(c,(src?.title||"SEASON STATS").toUpperCase(),W/2,compact?226:254,W*.50,compact?29:34,22,950,A,"center");
     if(src?.games){
-      shareTX(c,`${src.games.length} GAME${src.games.length===1?"":"S"} • RECORD ${recordFor(src.games)}`,W/2,compact?268:310,compact?22:26,900,"#fff","center");
+      shareTX(c,`${src.games.length} GAME${src.games.length===1?"":"S"} • RECORD ${recordFor(src.games)}`,W/2,compact?265:296,compact?21:24,900,"#fff","center");
     }
   }
+
   return H;
 }
 
@@ -2256,9 +2312,9 @@ async function makeHybridSharePages(src){
     const hh=await drawBroadcastHeader(page.c,W,src,{compact:!first});
     page.y=hh+24;
     page.c.fillStyle=A;page.c.fillRect(24,page.y,W-48,60);
-    page.c.fillStyle="#101314";page.c.fillRect(W-250,page.y,226,60);
-    shareTX(page.c,first?"PLAYER BOX SCORE":"PLAYER BOX SCORE • CONTINUED",W*.48,page.y+42,33,950,"#111","center");
-    shareTX(page.c,"BOX SCORE",W-137,page.y+40,19,950,"#fff","center");
+    page.c.fillStyle="#101314";page.c.fillRect(W-278,page.y,254,60);
+    shareTX(page.c,first?"PLAYER BOX SCORE":"PLAYER BOX SCORE • CONTINUED",W*.46,page.y+42,33,950,"#111","center");
+    shareTX(page.c,"PLAYER STATS",W-151,page.y+40,18,950,"#fff","center");
     page.y+=78;
   }
 
