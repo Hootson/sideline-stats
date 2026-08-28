@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V3.7.9</title>
+<title>Sideline Stats V3.7.10</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -260,7 +260,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 .penalty-down-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 
 
-/* V3.7.9 sideline readability */
+/* V3.7.10 sideline readability */
 .player-grid{gap:12px}
 .player-select{
   min-height:92px !important;
@@ -296,7 +296,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
   font-weight:850 !important;
 }
 
-/* V3.7.9 game editing + opponent logo */
+/* V3.7.10 game editing + opponent logo */
 .game-opponent-badge img{
   width:100%;
   height:100%;
@@ -318,7 +318,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 #editGameCard .row > *{min-width:0}
 
 
-/* V3.7.9 mobile-first Stats tables */
+/* V3.7.10 mobile-first Stats tables */
 .stats-table-wrap{width:100%;overflow-x:hidden}
 .stats-table{width:100%;border-collapse:collapse;table-layout:fixed}
 .stats-table th,.stats-table td{
@@ -342,7 +342,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 }
 
 
-/* V3.7.9 real Stats rendering update */
+/* V3.7.10 real Stats rendering update */
 .stats-table-scroll{
   width:100%;
   overflow-x:auto;
@@ -493,7 +493,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V3.7.9 • GRIDIRON EDITION</div>
+      <div class="muted" style="color:#dfe9e2">V3.7.10 • GRIDIRON EDITION</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -1050,7 +1050,7 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
-$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.7.9",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
+$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.7.10",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
 $("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
 $("#restoreDataInput").addEventListener("change",async()=>{
   const f=$("#restoreDataInput").files?.[0];if(!f)return;
@@ -1824,44 +1824,7 @@ function tbl(h,rows,totalRow=null){
   if(!rows.length&&!totalRow)return'<div class="muted">No stats yet.</div>';
   return `<div class="stats-table-scroll"><table class="stats-data-table"><tr>${h.map(x=>`<th>${x}</th>`).join("")}</tr>${rows.map(r=>`<tr>${r.map(x=>`<td>${esc(String(x))}</td>`).join("")}</tr>`).join("")}${totalRow?`<tr class="stat-total-row">${totalRow.map(x=>`<td>${esc(String(x))}</td>`).join("")}</tr>`:""}</table></div>`
 }
-function receivingView(rows,totalRow){
-  if(!rows.length&&!totalRow)return'<div class="muted">No stats yet.</div>';
 
-  const desktop=tbl(["Player","TGT","REC","YDS","AVG","1D","TD","DROP","CATCH%"],rows,totalRow);
-
-  const cards=rows.map(r=>`
-    <div class="receiving-player-card">
-      <div class="receiving-player-top">
-        <div class="receiving-player-name">${esc(String(r[0]))}</div>
-        <div class="receiving-yard-badge"><strong>${esc(String(r[3]))}</strong><span>YDS</span></div>
-      </div>
-      <div class="receiving-stat-grid">
-        <div><strong>${esc(String(r[1]))}</strong><span>TGT</span></div>
-        <div><strong>${esc(String(r[2]))}</strong><span>REC</span></div>
-        <div><strong>${esc(String(r[4]))}</strong><span>AVG</span></div>
-        <div><strong>${esc(String(r[5]))}</strong><span>1D</span></div>
-        <div><strong>${esc(String(r[6]))}</strong><span>TD</span></div>
-        <div><strong>${esc(String(r[7]))}</strong><span>DROP</span></div>
-        <div class="catch-cell"><strong>${esc(String(r[8]))}</strong><span>CATCH</span></div>
-      </div>
-    </div>`).join("");
-
-  const total=totalRow?`
-    <div class="receiving-total-card">
-      <div class="receiving-total-title">TEAM TOTAL</div>
-      <div class="receiving-total-stats">
-        <span><strong>${esc(String(totalRow[1]))}</strong> TGT</span>
-        <span><strong>${esc(String(totalRow[2]))}</strong> REC</span>
-        <span><strong>${esc(String(totalRow[3]))}</strong> YDS</span>
-        <span><strong>${esc(String(totalRow[5]))}</strong> 1D</span>
-        <span><strong>${esc(String(totalRow[6]))}</strong> TD</span>
-        <span><strong>${esc(String(totalRow[7]))}</strong> DROP</span>
-        <span><strong>${esc(String(totalRow[8]))}</strong> CATCH</span>
-      </div>
-    </div>`:"";
-
-  return `<div class="receiving-desktop">${desktop}</div><div class="receiving-mobile">${cards}${total}</div>`;
-}
 
 let snapSelections={};
 
@@ -2028,7 +1991,7 @@ function renderStats(){
   $("#statsBox").innerHTML=
     `<div class="stats-block"><h3>Rushing</h3>${tbl(["Player","CAR","YDS","AVG","1D","TD"],rushRows,rushRows.length?rushTot:null)}</div>`+
     `<div class="stats-block"><h3>Passing</h3>${tbl(["Player","CMP/ATT","YDS","AVG","1D","TD","INT"],passRows,passRows.length?passTot:null)}</div>`+
-    `<div class="stats-block receiving-block"><h3>Receiving</h3>${receivingView(recRows,recRows.length?recTot:null)}</div>`+
+    `<div class="stats-block"><h3>Receiving</h3>${tbl(["Player","TGT","REC","YDS","AVG","1D","TD","CATCH%"],recRows.map(r=>[r[0],r[1],r[2],r[3],r[4],r[5],r[6],r[8]]),recRows.length?[recTot[0],recTot[1],recTot[2],recTot[3],recTot[4],recTot[5],recTot[6],recTot[8]]:null)}</div>`+
     `<div class="stats-block"><h3>Defense</h3>${tbl(["Player","TKL","TFL","SACK","INT","FF","FR"],defRows,defRows.length?defTot:null)}</div>`+
     `<div class="stats-block"><h3>Special Teams</h3>
       <div class="scope-summary" style="margin-bottom:8px">

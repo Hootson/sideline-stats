@@ -1,26 +1,19 @@
-# Sideline Stats V3.7.9
+# Sideline Stats V3.7.10
 
-This build corrects the rendering mistake in V3.7.7/V3.7.8.
+Receiving on the Stats screen has been returned to the original table format.
 
-## Receiving
-The Stats screen now calls a dedicated receivingView() renderer.
-On iPhone, Receiving is presented as player cards rather than a nine-column table:
-- Player + receiving yards header
-- TGT, REC, AVG, 1D, TD, DROP, CATCH
-- Team Total card below the players
-- no horizontal clipping
+The on-screen Receiving columns are now:
+- Player
+- TGT
+- REC
+- YDS
+- AVG
+- 1D
+- TD
+- CATCH%
 
-Desktop/tablet still receives the full table.
+DROP has been removed from the on-screen Receiving table.
 
-## Share header
-The header is substantially redesigned:
-- split SIDELINE / STATS wordmark with accent-colored STATS
-- Gridiron Edition badge
-- larger protected logo panels
-- town and mascot typography separated
-- italic sports-style mascot and score typography
-- tighter central scoreboard
-- dedicated grade badge
-- simplified metadata strip
+The card-based Receiving layout from V3.7.9 has been removed.
 
-Stat calculations and pagination are unchanged.
+Underlying receiving/drop data and share-image calculations are not changed.
