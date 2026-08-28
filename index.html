@@ -260,7 +260,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 .penalty-down-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 
 
-/* V3.7.1 sideline readability */
+/* V3.7.2 sideline readability */
 .player-grid{gap:12px}
 .player-select{
   min-height:92px !important;
@@ -296,7 +296,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
   font-weight:850 !important;
 }
 
-/* V3.7.1 game editing + opponent logo */
+/* V3.7.2 game editing + opponent logo */
 .game-opponent-badge img{
   width:100%;
   height:100%;
@@ -688,7 +688,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
       <div id="statsBox"></div>
     </div>
     <button class="btn" id="shareStatsBtn" style="margin-top:14px">Share Game Stats</button>
-    <div class="share-tip">Shares a Team Summary image plus the detailed Player Box Score.</div>
+    <div class="share-tip">Shares a Team Summary plus every Player Box Score page. Long stat sheets automatically continue onto additional images.</div>
     <div class="card export-card">
       <h3>Analytics Export</h3>
       <div class="muted">Take the raw game, play and snap data to Excel, ChatGPT, Claude or your own dashboard.</div>
@@ -886,7 +886,7 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
-$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.7.1",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
+$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.7.2",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
 $("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
 $("#restoreDataInput").addEventListener("change",async()=>{
   const f=$("#restoreDataInput").files?.[0];if(!f)return;
@@ -1923,67 +1923,103 @@ function tx(c,t,x,y,size,weight,color,align="left"){c.font=`${weight} ${size}px 
 function fmt(v){return Number.isInteger(Number(v))?String(Number(v)):Number(v).toFixed(1)}
 function fmt1(v){const n=Number(v);return Number.isFinite(n)?n.toFixed(1):"0.0"}
 
+function shareRgba(hex,a){
+  let h=(hex||"#000000").replace("#","");
+  if(h.length===3)h=h.split("").map(x=>x+x).join("");
+  const r=parseInt(h.slice(0,2),16)||0,g=parseInt(h.slice(2,4),16)||0,b=parseInt(h.slice(4,6),16)||0;
+  return `rgba(${r},${g},${b},${a})`;
+}
+function shareRR(c,x,y,w,h,r,fill){
+  c.beginPath();c.roundRect(x,y,w,h,r);c.fillStyle=fill;c.fill();
+}
+function shareTX(c,t,x,y,size,weight,color,align="left"){
+  c.font=`${weight} ${size}px -apple-system,BlinkMacSystemFont,Segoe UI,Arial`;
+  c.fillStyle=color;c.textAlign=align;c.fillText(String(t),x,y);
+}
+async function drawShareImage(c,data,x,y,w,h,pad=10){
+  if(!data)return false;
+  try{
+    const im=await loadImg(data);
+    shareRR(c,x,y,w,h,Math.min(22,h*.2),"#fff");
+    const sc=Math.min((w-pad*2)/im.width,(h-pad*2)/im.height),dw=im.width*sc,dh=im.height*sc;
+    c.drawImage(im,x+(w-dw)/2,y+(h-dh)/2,dw,dh);
+    return true;
+  }catch(e){return false}
+}
+async function drawBroadcastHeader(c,W,src,opts={}){
+  const P=S.team?.primary||"#111111",A=S.team?.secondary||"#f0b33b";
+  const compact=!!opts.compact;
+  const H=compact?315:390;
+  c.fillStyle=P;c.fillRect(0,0,W,H);
+  c.fillStyle=A;c.fillRect(0,0,16,H);c.fillRect(W-16,0,16,H);
+  c.fillStyle=A;c.fillRect(0,H-18,W,18);
+
+  // Broadcast-style geometric layers.
+  c.globalAlpha=.12;c.fillStyle=A;
+  c.beginPath();c.moveTo(0,H*.78);c.lineTo(W*.39,H*.25);c.lineTo(W*.61,H*.25);c.lineTo(W*.25,H);c.lineTo(0,H);c.closePath();c.fill();
+  c.beginPath();c.moveTo(W,H*.10);c.lineTo(W*.67,H*.55);c.lineTo(W*.43,H*.55);c.lineTo(W*.77,0);c.lineTo(W,0);c.closePath();c.fill();
+  c.globalAlpha=1;
+
+  // Thin "yard-line" accents.
+  c.strokeStyle=shareRgba(A,.30);c.lineWidth=3;
+  [W*.08,W*.92].forEach(x=>{
+    c.beginPath();c.moveTo(x,0);c.lineTo(x,H-18);c.stroke();
+  });
+
+  const brandY=compact?42:48;
+  shareTX(c,"SIDELINE STATS",W/2,brandY,compact?28:31,950,A,"center");
+  shareTX(c,"GRIDIRON EDITION",W/2,brandY+29,16,900,"#ffffffcc","center");
+
+  if(src?.kind==="game" && src.game){
+    const g=src.game;
+    const teamLogoSize=compact?76:94;
+    const oppLogoSize=compact?76:94;
+    const scoreY=compact?205:268;
+    const nameY=compact?142:190;
+    const logoY=compact?95:130;
+
+    await drawShareImage(c,S.team?.logoData,44,logoY,teamLogoSize,teamLogoSize,8);
+    await drawShareImage(c,g.opponentLogoData,W-44-oppLogoSize,logoY,oppLogoSize,oppLogoSize,8);
+
+    // Matchup ribbon.
+    shareRR(c,W/2-170,compact?96:130,340,compact?64:76,18,shareRgba(A,.15));
+    shareTX(c,g.status==="complete"?"FINAL":"LIVE",W/2,compact?127:164,compact?27:31,950,A,"center");
+    shareTX(c,`${g.location} • ${(g.gameType||"regular")==="playoff"?"PLAYOFF":"REGULAR"} • ${g.date}`,W/2,compact?151:190,compact?17:19,850,"#fff","center");
+
+    const leftName=(S.team?.name||"TEAM").toUpperCase();
+    const rightName=(g.opponent||"OPPONENT").toUpperCase();
+    shareTX(c,leftName,W*.24,nameY,compact?25:29,950,"#fff","center");
+    shareTX(c,rightName,W*.76,nameY,compact?25:29,950,"#fff","center");
+    shareTX(c,displayedOurScore(g),W*.24,scoreY,compact?72:88,950,A,"center");
+    shareTX(c,g.oppScore,W*.76,scoreY,compact?72:88,950,A,"center");
+    shareTX(c,"—",W/2,scoreY-9,compact?43:50,950,"#fff","center");
+  }else{
+    const title=(src?.title||"SEASON STATS").toUpperCase();
+    shareTX(c,(S.team?.name||"TEAM").toUpperCase(),W/2,compact?130:150,compact?40:50,950,"#fff","center");
+    shareRR(c,W*.18,compact?164:190,W*.64,compact?68:82,18,shareRgba(A,.15));
+    shareTX(c,title,W/2,compact?200:229,compact?31:38,950,A,"center");
+    if(src?.games){
+      shareTX(c,`${src.games.length} GAME${src.games.length===1?"":"S"} • RECORD ${recordFor(src.games)}`,W/2,compact?235:274,compact?23:27,900,"#fff","center");
+    }
+  }
+  return H;
+}
+
+
 
 
 
 async function makeTeamSummaryShare(src){
-  const W=1080,H=1720,cv=document.createElement("canvas");cv.width=W;cv.height=H;const c=cv.getContext("2d"),P=S.team.primary,A=S.team.secondary,m=calcTeamMetrics(src.plays,src.games);
-  const rr=(x,y,w,h,r,fill)=>{c.beginPath();c.roundRect(x,y,w,h,r);c.fillStyle=fill;c.fill()};
-  const tx=(t,x,y,sz,w,col,al="left")=>{c.font=`${w} ${sz}px -apple-system,BlinkMacSystemFont,Segoe UI,Arial`;c.fillStyle=col;c.textAlign=al;c.fillText(String(t),x,y)};
+  const W=1080,H=1740,cv=document.createElement("canvas");cv.width=W;cv.height=H;
+  const c=cv.getContext("2d"),P=S.team.primary,A=S.team.secondary,m=calcTeamMetrics(src.plays,src.games);
+  c.fillStyle="#f5f7f6";c.fillRect(0,0,W,H);
+  await drawBroadcastHeader(c,W,src,{compact:false});
 
-  c.fillStyle="#fff";c.fillRect(0,0,W,H);
-  c.fillStyle=P;c.fillRect(0,0,W,390);
-  c.fillStyle=A;c.fillRect(0,0,18,390);
-  c.fillStyle=A;c.fillRect(W-18,0,18,390);
-  c.globalAlpha=.13;c.fillStyle=A;
-  c.beginPath();c.moveTo(0,285);c.lineTo(420,120);c.lineTo(650,120);c.lineTo(230,390);c.lineTo(0,390);c.closePath();c.fill();
-  c.beginPath();c.moveTo(W,80);c.lineTo(W-350,220);c.lineTo(W-610,220);c.lineTo(W-250,0);c.lineTo(W,0);c.closePath();c.fill();
-  c.globalAlpha=1;
-  c.fillStyle=A;c.fillRect(0,370,W,20);
+  let y=420;
+  shareRR(c,34,y,W-68,66,15,A);
+  shareTX(c,"TEAM GAME SUMMARY",W/2,y+45,36,950,P,"center");
+  y+=88;
 
-  if(S.team.logoData){
-    try{
-      const im=await loadImg(S.team.logoData);
-      rr(38,30,104,104,20,"#fff");
-      const sc=Math.min(88/im.width,88/im.height),dw=im.width*sc,dh=im.height*sc;
-      c.drawImage(im,38+(104-dw)/2,30+(104-dh)/2,dw,dh);
-    }catch(e){}
-  }
-
-  tx("SIDELINE STATS",W/2,48,30,900,A,"center");
-  tx("GRIDIRON EDITION",W/2,78,17,900,"#ffffffcc","center");
-  tx(S.team.name.toUpperCase(),W/2,132,54,950,"#fff","center");
-
-  if(src.kind==="game"){
-    const g=src.game;
-    rr(42,158,300,164,18,"rgba(255,255,255,.10)");
-    rr(369,158,342,164,18,"rgba(255,255,255,.06)");
-    rr(W-342,158,300,164,18,"rgba(255,255,255,.10)");
-
-    tx(S.team.name.toUpperCase(),192,199,27,950,"#fff","center");
-    tx(displayedOurScore(g),192,288,82,950,A,"center");
-
-    tx("VS",W/2,205,30,950,A,"center");
-    tx(g.status==="complete"?"FINAL":"LIVE",W/2,253,36,950,"#fff","center");
-    tx(`${g.location} • ${(g.gameType||"regular")==="playoff"?"PLAYOFF":"REGULAR"}`,W/2,294,21,900,A,"center");
-
-    if(g.opponentLogoData){
-      try{
-        const oi=await loadImg(g.opponentLogoData);
-        rr(W-244,166,104,104,20,"#fff");
-        const osc=Math.min(88/oi.width,88/oi.height),odw=oi.width*osc,odh=oi.height*osc;
-        c.drawImage(oi,W-244+(104-odw)/2,166+(104-odh)/2,odw,odh);
-      }catch(e){}
-    }
-    tx(g.opponent.toUpperCase(),W-192,199,27,950,"#fff","center");
-    tx(g.oppScore,W-192,288,82,950,A,"center");
-  }else{
-    rr(80,165,W-160,145,20,"rgba(255,255,255,.08)");
-    tx(src.title.toUpperCase(),W/2,220,45,950,A,"center");
-    tx(`${src.games.length} GAMES • RECORD ${recordFor(src.games)}`,W/2,276,30,900,"#fff","center");
-  }
-
-  let y=420;tx("TEAM GAME SUMMARY",40,y+35,38,950,P);y+=65;
   const pm=penaltyMetrics(src.plays);
   const cards=[
     ["OFFENSE",`${m.offensivePlays} PLAYS`,`${m.totalOffense} YDS • ${m.yardsPerPlay.toFixed(1)} YDS/PLAY`],
@@ -1995,92 +2031,33 @@ async function makeTeamSummaryShare(src){
     ["TOTAL PLAYS",m.totalScrimmage,`${m.specialTeamsPlays} SPECIAL TEAMS PLAYS`],
     ["PENALTIES",`${pm.penalties} / ${pm.penaltyYards} YDS`,`OFF ${pm.offensivePenalties} • DEF ${pm.defensivePenalties} • UNKNOWN ${pm.unknownPenalties}`]
   ];
-  const gap=14,cw=(W-80-gap)/2,ch=185;cards.forEach((d,i)=>{const x=40+(i%2)*(cw+gap),yy=y+Math.floor(i/2)*(ch+14);rr(x,yy,cw,ch,18,"#fff");c.strokeStyle=P;c.lineWidth=2;c.stroke();c.fillStyle=A;c.fillRect(x,yy,cw,45);tx(d[0],x+18,yy+31,23,950,P);tx(d[1],x+18,yy+105,46,950,P);tx(d[2],x+18,yy+150,20,850,"#222")});
-  y+=4*(ch+14)+16;rr(40,y,W-80,135,18,P);tx("SNAP TRACKER",65,y+40,23,950,A);tx(`${m.playersBelow10} players below 10-snap minimum`,65,y+88,34,950,"#fff");tx(`${m.snapOpportunities} tracked team snaps in this view`,65,y+120,20,800,"#fff");
+
+  const gap=14,cw=(W-80-gap)/2,ch=185;
+  cards.forEach((d,i)=>{
+    const x=40+(i%2)*(cw+gap),yy=y+Math.floor(i/2)*(ch+14);
+    shareRR(c,x,yy,cw,ch,18,"#fff");
+    c.strokeStyle=shareRgba(P,.20);c.lineWidth=2;c.stroke();
+    c.fillStyle=A;c.fillRect(x,yy,cw,44);
+    shareTX(c,d[0],x+18,yy+31,23,950,P);
+    shareTX(c,d[1],x+18,yy+105,46,950,P);
+    shareTX(c,d[2],x+18,yy+150,20,850,"#222");
+  });
+
+  y+=4*(ch+14)+18;
+  shareRR(c,40,y,W-80,138,18,P);
+  shareTX(c,"SNAP TRACKER",65,y+40,23,950,A);
+  shareTX(c,`${m.playersBelow10} players below 10-snap minimum`,65,y+88,34,950,"#fff");
+  shareTX(c,`${m.snapOpportunities} tracked team snaps in this view`,65,y+120,20,800,"#fff");
+
+  shareTX(c,"SIDELINE STATS • GRIDIRON EDITION",W/2,H-28,18,850,P,"center");
   return cv;
 }
 
 
-async function makeHybridShare(src){
-  // Narrower canvas + substantially larger type = much easier to read on an iPhone.
-  const W=1080,H=2400,cv=document.createElement("canvas");cv.width=W;cv.height=H;const c=cv.getContext("2d");
-  const P=S.team.primary,A=S.team.secondary;
-  c.fillStyle="#fff";c.fillRect(0,0,W,H);
-
-  function rect(x,y,w,h,r,fill){c.beginPath();c.roundRect(x,y,w,h,r);c.fillStyle=fill;c.fill()}
-  function text(t,x,y,size,weight,color,align="left"){
-    c.font=`${weight} ${size}px -apple-system,BlinkMacSystemFont,Segoe UI,Arial`;
-    c.fillStyle=color;c.textAlign=align;c.fillText(String(t),x,y);
-  }
-  function rgba(hex,a){
-    let h=(hex||"#000000").replace("#","");
-    if(h.length===3)h=h.split("").map(x=>x+x).join("");
-    const r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);
-    return `rgba(${r},${g},${b},${a})`;
-  }
-
-  // ---------- COMPACT, COLOR-BRANDED HEADER ----------
-  c.fillStyle=P;c.fillRect(0,0,W,390);
-  c.fillStyle=A;c.fillRect(0,0,18,390);
-  c.fillStyle=A;c.fillRect(W-18,0,18,390);
-  c.globalAlpha=.13;c.fillStyle=A;
-  c.beginPath();c.moveTo(0,285);c.lineTo(420,120);c.lineTo(650,120);c.lineTo(230,390);c.lineTo(0,390);c.closePath();c.fill();
-  c.beginPath();c.moveTo(W,80);c.lineTo(W-350,220);c.lineTo(W-610,220);c.lineTo(W-250,0);c.lineTo(W,0);c.closePath();c.fill();
-  c.globalAlpha=1;
-  c.fillStyle=A;c.fillRect(0,370,W,20);
-
-  // Logo block
-  if(S.team.logoData){
-    try{
-      const logo=await loadImg(S.team.logoData);
-      rect(42,34,112,112,22,"#fff");
-      const sc=Math.min(96/logo.width,96/logo.height),dw=logo.width*sc,dh=logo.height*sc;
-      c.drawImage(logo,42+(112-dw)/2,34+(112-dh)/2,dw,dh);
-    }catch(e){}
-  }
-
-  text("SIDELINE STATS",W/2,52,34,900,A,"center");
-  text("GRIDIRON EDITION",W/2,84,18,900,"#ffffffcc","center");
-  text(S.team.name.toUpperCase(),W/2,140,58,950,"#fff","center");
-
-  if(src.kind==="game"){
-    const g=src.game;
-    // Team/opponent score zones: less empty black space, more useful information.
-    rect(42,172,300,150,18,rgba(A,.18));
-    rect(W-342,172,300,150,18,rgba(A,.18));
-    rect(365,172,350,150,18,rgba(A,.10));
-
-    text(S.team.name.toUpperCase(),192,207,27,950,"#fff","center");
-    text(displayedOurScore(g),192,292,80,950,A,"center");
-
-    text(g.status==="complete"?"FINAL":"LIVE",W/2,218,39,950,A,"center");
-    text(`${g.location} • ${(g.gameType||"regular")==="playoff"?"PLAYOFF":"REGULAR"}`,W/2,263,25,900,"#fff","center");
-    text(g.date,W/2,302,25,800,"#fff","center");
-
-    if(g.opponentLogoData){
-      try{
-        const oi=await loadImg(g.opponentLogoData);
-        rect(W-244,180,104,104,20,"#fff");
-        const osc=Math.min(88/oi.width,88/oi.height),odw=oi.width*osc,odh=oi.height*osc;
-        c.drawImage(oi,W-244+(104-odw)/2,180+(104-odh)/2,odw,odh);
-      }catch(e){}
-    }
-    text(g.opponent.toUpperCase(),W-192,207,27,950,"#fff","center");
-    text(g.oppScore,W-192,292,80,950,A,"center");
-  }else{
-    rect(80,175,W-160,142,20,rgba(A,.15));
-    text(src.title.toUpperCase(),W/2,225,45,950,A,"center");
-    text(`${S.team.season||""} • ${src.games.length} GAME${src.games.length===1?"":"S"}`,W/2,270,28,850,"#fff","center");
-    text(`RECORD ${recordFor(src.games)}`,W/2,313,38,950,"#fff","center");
-  }
-
+async function makeHybridSharePages(src){
+  const W=1080,H=2532,P=S.team.primary,A=S.team.secondary;
   const s=agg({plays:src.plays});
-  let y=410;
-
-  // ---------- TOP PERFORMERS ----------
-  rect(24,y,W-48,66,15,A);
-  text("★  TOP PERFORMERS  ★",W/2,y+46,37,950,P,"center");
-  y+=82;
+  const pm=penaltyMetrics(src.plays);
 
   const pass=[...s].filter(x=>x.att).sort((a,b)=>b.py-a.py)[0];
   const rec=[...s].filter(x=>x.rec).sort((a,b)=>b.rey-a.rey)[0];
@@ -2088,117 +2065,214 @@ async function makeHybridShare(src){
   const def=[...s].filter(x=>x.t+x.tfl+x.sack+x.int+x.ff+x.fr)
     .sort((a,b)=>(b.t+b.tfl*2+b.sack*2+b.int*3+b.ff*2+b.fr*2)-(a.t+a.tfl*2+a.sack*2+a.int*3+a.ff*2+a.fr*2))[0];
 
-  const cards=[
-    ["PASSING",pass,pass?`${pass.cmp}/${pass.att}`:"—","CMP/ATT",pass?pass.py:"—","YDS",pass&&pass.att?`${(pass.py/pass.att).toFixed(1)} AVG • ${pass.ptd} TD`:"—"],
-    ["RECEIVING",rec,rec?rec.rec:"—","REC",rec?rec.rey:"—","YDS",rec&&rec.rec?`${(rec.rey/rec.rec).toFixed(1)} AVG • ${rec.retd} TD`:"—"],
-    ["RUSHING",rush,rush?rush.car:"—","CAR",rush?rush.ry:"—","YDS",rush&&rush.car?`${(rush.ry/rush.car).toFixed(1)} AVG • ${rush.rtd} TD`:"—"],
-    ["DEFENSE",def,def?fmt(def.t):"—","TKL",def?fmt(def.tfl):"—","TFL",def?`${fmt(def.sack)} SACK • ${fmt(def.int)} INT`:"—"]
-  ];
-
-  const gap=14,cw=(W-48-gap)/2,ch=244;
-  cards.forEach((d,i)=>{
-    const x=24+(i%2)*(cw+gap),yy=y+Math.floor(i/2)*(ch+14);
-    rect(x,yy,cw,ch,18,"#fff");
-    c.strokeStyle=rgba(P,.22);c.lineWidth=2;c.stroke();
-    c.fillStyle=P;c.fillRect(x,yy,cw,50);
-    text(d[0],x+cw/2,yy+35,29,950,"#fff","center");
-    text(d[1]?pname(d[1].id):"—",x+cw/2,yy+88,30,950,"#111","center");
-    text(d[2],x+cw*.27,yy+153,54,950,P,"center");
-    text(d[4],x+cw*.73,yy+153,54,950,P,"center");
-    text(d[3],x+cw*.27,yy+184,20,950,"#333","center");
-    text(d[5],x+cw*.73,yy+184,20,950,"#333","center");
-    rect(x+12,yy+198,cw-24,34,8,rgba(A,.18));
-    text(d[6],x+cw/2,yy+223,22,950,"#111","center");
-  });
-  y+=ch*2+42;
-
-  // ---------- DENSE, LARGE-TYPE TABLES ----------
-  function tableSection(title,headers,rows,total){
-    const x=24,w=W-48,titleH=54,headH=46,rowH=62;
-    rect(x,y,w,titleH,13,P);
-    text(title,x+20,y+38,34,950,"#fff");
-    y+=titleH;
-    c.fillStyle=A;c.fillRect(x,y,w,headH);
-
-    const cols=headers.length;
-    const firstW=cols>=7?235:260;
-    const rem=(w-firstW)/(cols-1);
-    headers.forEach((h,i)=>{
-      const xx=i===0?x+16:x+firstW+rem*(i-1)+rem/2;
-      text(h,xx,y+32,21,950,P,i===0?"left":"center");
-    });
-    y+=headH;
-
-    function row(r,totalRow=false){
-      c.fillStyle=totalRow?rgba(A,.18):"#fff";c.fillRect(x,y,w,rowH);
-      c.strokeStyle=rgba(P,.13);c.beginPath();c.moveTo(x,y+rowH);c.lineTo(x+w,y+rowH);c.stroke();
-      r.forEach((v,i)=>{
-        const xx=i===0?x+16:x+firstW+rem*(i-1)+rem/2;
-        text(v,xx,y+42,i===0?28:29,totalRow?950:(i===0?900:800),totalRow?P:"#111",i===0?"left":"center");
-      });
-      y+=rowH;
-    }
-    rows.forEach(r=>row(r));
-    row(total,true);
-    y+=12;
+  const sections=[];
+  function addTable(title,headers,rows,total){
+    if(rows.length)sections.push({kind:"table",title,headers,rows,total});
   }
 
   let rows=s.filter(x=>x.car).map(x=>[pname(x.id),x.car,x.ry,(x.ry/x.car).toFixed(1),x.rfd,x.rtd]);
   if(rows.length){
     const car=s.reduce((a,x)=>a+x.car,0),yd=s.reduce((a,x)=>a+x.ry,0);
-    tableSection("RUSHING",["PLAYER","CAR","YDS","AVG","1D","TD"],rows,
+    addTable("RUSHING",["PLAYER","CAR","YDS","AVG","1D","TD"],rows,
       ["TEAM TOTAL",car,yd,car?(yd/car).toFixed(1):"0.0",s.reduce((a,x)=>a+x.rfd,0),s.reduce((a,x)=>a+x.rtd,0)]);
   }
 
   rows=s.filter(x=>x.att).map(x=>[pname(x.id),`${x.cmp}/${x.att}`,x.py,(x.py/x.att).toFixed(1),x.pfd,x.ptd,x.pi]);
   if(rows.length){
     const att=s.reduce((a,x)=>a+x.att,0),cmp=s.reduce((a,x)=>a+x.cmp,0),yd=s.reduce((a,x)=>a+x.py,0);
-    tableSection("PASSING",["PLAYER","CMP/ATT","YDS","AVG","1D","TD","INT"],rows,
+    addTable("PASSING",["PLAYER","CMP/ATT","YDS","AVG","1D","TD","INT"],rows,
       ["TEAM TOTAL",`${cmp}/${att}`,yd,att?(yd/att).toFixed(1):"0.0",s.reduce((a,x)=>a+x.pfd,0),s.reduce((a,x)=>a+x.ptd,0),s.reduce((a,x)=>a+x.pi,0)]);
   }
 
-  rows=s.filter(x=>x.rec).map(x=>[pname(x.id),x.rec,x.rey,(x.rey/x.rec).toFixed(1),x.recfd,x.retd]);
+  rows=s.filter(x=>x.tgt||x.rec).map(x=>[
+    pname(x.id),x.tgt,x.rec,x.rey,x.rec?(x.rey/x.rec).toFixed(1):"0.0",
+    x.recfd,x.retd,x.drop,x.tgt?`${Math.round((x.rec/x.tgt)*100)}%`:"0%"
+  ]);
   if(rows.length){
-    const rc=s.reduce((a,x)=>a+x.rec,0),yd=s.reduce((a,x)=>a+x.rey,0);
-    tableSection("RECEIVING",["PLAYER","REC","YDS","AVG","1D","TD"],rows,
-      ["TEAM TOTAL",rc,yd,rc?(yd/rc).toFixed(1):"0.0",s.reduce((a,x)=>a+x.recfd,0),s.reduce((a,x)=>a+x.retd,0)]);
+    const tgt=s.reduce((a,x)=>a+x.tgt,0),rc=s.reduce((a,x)=>a+x.rec,0),yd=s.reduce((a,x)=>a+x.rey,0);
+    addTable("RECEIVING",["PLAYER","TGT","REC","YDS","AVG","1D","TD","DROP","CATCH%"],rows,
+      ["TEAM TOTAL",tgt,rc,yd,rc?(yd/rc).toFixed(1):"0.0",s.reduce((a,x)=>a+x.recfd,0),
+       s.reduce((a,x)=>a+x.retd,0),s.reduce((a,x)=>a+x.drop,0),tgt?`${Math.round((rc/tgt)*100)}%`:"0%"]);
   }
 
   rows=s.filter(x=>x.t+x.tfl+x.sack+x.int+x.ff+x.fr).map(x=>[
     pname(x.id),fmt(x.t),fmt(x.tfl),fmt(x.sack),fmt(x.int),fmt(x.ff),fmt(x.fr)
   ]);
   if(rows.length){
-    tableSection("DEFENSE",["PLAYER","TKL","TFL","SACK","INT","FF","FR"],rows,
+    addTable("DEFENSE",["PLAYER","TKL","TFL","SACK","INT","FF","FR"],rows,
       ["TEAM TOTAL",fmt(s.reduce((a,x)=>a+x.t,0)),fmt(s.reduce((a,x)=>a+x.tfl,0)),
        fmt(s.reduce((a,x)=>a+x.sack,0)),fmt(s.reduce((a,x)=>a+x.int,0)),
        fmt(s.reduce((a,x)=>a+x.ff,0)),fmt(s.reduce((a,x)=>a+x.fr,0))]);
   }
 
-  rows=s.filter(x=>x.kr+x.pr+x.punt).map(x=>[
-    pname(x.id),x.kr,x.kry,x.pr,x.pry,x.punt,x.punty
+  rows=s.filter(x=>x.kr+x.pr+x.punt+x.stff+x.stfr).map(x=>[
+    pname(x.id),x.kr,x.kry,x.pr,x.pry,x.punt,x.punty,x.stff,x.stfr
   ]);
   if(rows.length){
-    tableSection("SPECIAL TEAMS",["PLAYER","KR","KR YDS","PR","PR YDS","PUNT","PUNT YDS"],rows,
-      ["TEAM TOTAL",
-       s.reduce((a,x)=>a+x.kr,0),
-       s.reduce((a,x)=>a+x.kry,0),
-       s.reduce((a,x)=>a+x.pr,0),
-       s.reduce((a,x)=>a+x.pry,0),
-       s.reduce((a,x)=>a+x.punt,0),
-       s.reduce((a,x)=>a+x.punty,0)
-      ]);
+    addTable("SPECIAL TEAMS",["PLAYER","KR","KR YDS","PR","PR YDS","PUNT","PUNT YDS","FF","FR"],rows,
+      ["TEAM TOTAL",s.reduce((a,x)=>a+x.kr,0),s.reduce((a,x)=>a+x.kry,0),
+       s.reduce((a,x)=>a+x.pr,0),s.reduce((a,x)=>a+x.pry,0),
+       s.reduce((a,x)=>a+x.punt,0),s.reduce((a,x)=>a+x.punty,0),
+       s.reduce((a,x)=>a+x.stff,0),s.reduce((a,x)=>a+x.stfr,0)]);
   }
 
-  // Crop unused vertical whitespace instead of sending a mostly-empty image.
-  const usedH=Math.min(H,Math.max(900,y+74));
-  const out=document.createElement("canvas");out.width=W;out.height=usedH;
-  const oc=out.getContext("2d");
-  oc.drawImage(cv,0,0,W,usedH,0,0,W,usedH);
-  oc.fillStyle=P;oc.fillRect(0,usedH-58,W,58);
-  text; // keep closure stable
-  oc.font=`900 24px -apple-system,BlinkMacSystemFont,Segoe UI,Arial`;
-  oc.fillStyle=A;oc.textAlign="center";oc.fillText(S.team.name.toUpperCase(),W/2,usedH-20);
-  return out;
+  sections.push({kind:"penalties",title:"PENALTIES",pm});
+
+  const pages=[];
+  function newPage(){
+    const cv=document.createElement("canvas");cv.width=W;cv.height=H;
+    const c=cv.getContext("2d");c.fillStyle="#f5f7f6";c.fillRect(0,0,W,H);
+    pages.push({cv,c,y:0});
+    return pages[pages.length-1];
+  }
+
+  async function header(page,first){
+    const hh=await drawBroadcastHeader(page.c,W,src,{compact:!first});
+    page.y=hh+24;
+    shareRR(page.c,24,page.y,W-48,60,15,A);
+    shareTX(page.c,first?"PLAYER BOX SCORE":"PLAYER BOX SCORE • CONTINUED",W/2,page.y+42,33,950,P,"center");
+    page.y+=78;
+  }
+
+  const page1=newPage();
+  await header(page1,true);
+
+  // Top performers are kept together on page 1.
+  const cards=[
+    ["PASSING",pass,pass?`${pass.cmp}/${pass.att}`:"—","CMP/ATT",pass?pass.py:"—","YDS",pass&&pass.att?`${(pass.py/pass.att).toFixed(1)} AVG • ${pass.ptd} TD`:"—"],
+    ["RECEIVING",rec,rec?rec.rec:"—","REC",rec?rec.rey:"—","YDS",rec&&rec.rec?`${(rec.rey/rec.rec).toFixed(1)} AVG • ${rec.retd} TD`:"—"],
+    ["RUSHING",rush,rush?rush.car:"—","CAR",rush?rush.ry:"—","YDS",rush&&rush.car?`${(rush.ry/rush.car).toFixed(1)} AVG • ${rush.rtd} TD`:"—"],
+    ["DEFENSE",def,def?fmt(def.t):"—","TKL",def?fmt(def.tfl):"—","TFL",def?`${fmt(def.sack)} SACK • ${fmt(def.int)} INT`:"—"]
+  ];
+  let page=page1, y=page.y;
+  shareTX(page.c,"TOP PERFORMERS",W/2,y+31,27,950,P,"center");y+=48;
+  const gap=14,cw=(W-48-gap)/2,ch=218;
+  cards.forEach((d,i)=>{
+    const x=24+(i%2)*(cw+gap),yy=y+Math.floor(i/2)*(ch+14);
+    shareRR(page.c,x,yy,cw,ch,18,"#fff");
+    page.c.strokeStyle=shareRgba(P,.20);page.c.lineWidth=2;page.c.stroke();
+    page.c.fillStyle=P;page.c.fillRect(x,yy,cw,44);
+    shareTX(page.c,d[0],x+cw/2,yy+31,26,950,"#fff","center");
+    shareTX(page.c,d[1]?pname(d[1].id):"—",x+cw/2,yy+78,26,950,"#111","center");
+    shareTX(page.c,d[2],x+cw*.27,yy+137,47,950,P,"center");
+    shareTX(page.c,d[4],x+cw*.73,yy+137,47,950,P,"center");
+    shareTX(page.c,d[3],x+cw*.27,yy+165,18,950,"#333","center");
+    shareTX(page.c,d[5],x+cw*.73,yy+165,18,950,"#333","center");
+    shareRR(page.c,x+12,yy+178,cw-24,30,8,shareRgba(A,.18));
+    shareTX(page.c,d[6],x+cw/2,yy+201,19,950,"#111","center");
+  });
+  page.y=y+ch*2+42;
+
+  const BOTTOM=H-94;
+  const titleH=54,headH=46,rowH=62,gapAfter=16;
+
+  async function ensureSpace(needed){
+    if(page.y+needed<=BOTTOM)return;
+    page=newPage();
+    await header(page,false);
+  }
+
+  function columnLayout(headers,w){
+    const cols=headers.length;
+    let firstW=250;
+    if(cols>=9)firstW=205;
+    else if(cols>=7)firstW=225;
+    const rem=(w-firstW)/(cols-1);
+    return {cols,firstW,rem};
+  }
+
+  async function drawTableSection(sec){
+    const x=24,w=W-48;
+    // Repeat table title/header after a page break and split only at row boundaries.
+    let remaining=[...sec.rows];
+    let firstChunk=true;
+    while(remaining.length){
+      const fixed=titleH+headH+rowH+gapAfter; // includes TEAM TOTAL
+      const available=BOTTOM-page.y-fixed;
+      let fit=Math.floor(available/rowH);
+      if(fit<1){
+        page=newPage();await header(page,false);
+        fit=Math.floor((BOTTOM-page.y-fixed)/rowH);
+      }
+      fit=Math.max(1,fit);
+      const chunk=remaining.splice(0,fit);
+
+      shareRR(page.c,x,page.y,w,titleH,13,P);
+      shareTX(page.c,firstChunk?sec.title:`${sec.title} • CONTINUED`,x+20,page.y+38,32,950,"#fff");
+      page.y+=titleH;
+      page.c.fillStyle=A;page.c.fillRect(x,page.y,w,headH);
+
+      const lay=columnLayout(sec.headers,w);
+      sec.headers.forEach((h,i)=>{
+        const xx=i===0?x+14:x+lay.firstW+lay.rem*(i-1)+lay.rem/2;
+        shareTX(page.c,h,xx,page.y+31,lay.cols>=9?17:20,950,P,i===0?"left":"center");
+      });
+      page.y+=headH;
+
+      function row(r,totalRow=false){
+        page.c.fillStyle=totalRow?shareRgba(A,.18):"#fff";page.c.fillRect(x,page.y,w,rowH);
+        page.c.strokeStyle=shareRgba(P,.13);page.c.beginPath();page.c.moveTo(x,page.y+rowH);page.c.lineTo(x+w,page.y+rowH);page.c.stroke();
+        r.forEach((v,i)=>{
+          const xx=i===0?x+14:x+lay.firstW+lay.rem*(i-1)+lay.rem/2;
+          const sz=i===0?25:(lay.cols>=9?21:27);
+          shareTX(page.c,v,xx,page.y+41,sz,totalRow?950:(i===0?900:800),totalRow?P:"#111",i===0?"left":"center");
+        });
+        page.y+=rowH;
+      }
+      chunk.forEach(r=>row(r));
+      if(!remaining.length)row(sec.total,true);
+      page.y+=gapAfter;
+      firstChunk=false;
+
+      if(remaining.length){
+        page=newPage();await header(page,false);
+      }
+    }
+  }
+
+  for(const sec of sections){
+    if(sec.kind==="table"){
+      await drawTableSection(sec);
+    }else if(sec.kind==="penalties"){
+      const needed=190;
+      await ensureSpace(needed);
+      shareRR(page.c,24,page.y,W-48,54,13,P);
+      shareTX(page.c,"PENALTIES",44,page.y+38,32,950,"#fff");
+      page.y+=66;
+      const labels=[
+        ["TOTAL",sec.pm.penalties],
+        ["YARDS",sec.pm.penaltyYards],
+        ["OFFENSE",sec.pm.offensivePenalties],
+        ["DEFENSE",sec.pm.defensivePenalties],
+        ["UNKNOWN",sec.pm.unknownPenalties]
+      ];
+      const gw=(W-48-4*10)/5;
+      labels.forEach((d,i)=>{
+        const x=24+i*(gw+10);
+        shareRR(page.c,x,page.y,gw,92,14,"#fff");
+        page.c.strokeStyle=shareRgba(P,.16);page.c.lineWidth=2;page.c.stroke();
+        shareTX(page.c,d[0],x+gw/2,page.y+30,16,950,P,"center");
+        shareTX(page.c,d[1],x+gw/2,page.y+70,30,950,"#111","center");
+      });
+      page.y+=112;
+    }
+  }
+
+  // Add page numbers after total count is known.
+  const totalPages=pages.length;
+  pages.forEach((p,i)=>{
+    shareRR(p.c,0,H-68,W,68,0,P);
+    shareTX(p.c,`${S.team.name.toUpperCase()}  •  PLAYER BOX SCORE`,36,H-27,18,900,A);
+    shareTX(p.c,`PAGE ${i+1} OF ${totalPages}`,W-36,H-27,18,950,"#fff","right");
+  });
+
+  return pages.map(p=>p.cv);
+}
+
+// Backward-compatible wrapper for any old internal call.
+async function makeHybridShare(src){
+  const pages=await makeHybridSharePages(src);
+  return pages[0];
 }
 
 function gameLabel(g){
@@ -2206,66 +2280,48 @@ function gameLabel(g){
 }
 async function makeSnapParticipationShare(g){
   const roster=[...(S.roster||[])].sort((a,b)=>Number(a.jersey)-Number(b.jersey));
-  const W=1080,rowH=68,headerH=455,footerH=245,H=Math.max(1450,headerH+(roster.length*rowH)+footerH);
+  const W=1080,rowH=68,headerH=405,footerH=245,H=Math.max(1450,headerH+(roster.length*rowH)+footerH);
   const cv=document.createElement("canvas");cv.width=W;cv.height=H;const c=cv.getContext("2d");
   const P=S.team?.primary||"#177b46",A=S.team?.secondary||"#f0b33b";
-  const rr=(x,y,w,h,r,fill)=>{c.beginPath();c.roundRect(x,y,w,h,r);c.fillStyle=fill;c.fill()};
-  const tx=(t,x,y,sz,w,col,al="left")=>{c.font=`${w} ${sz}px -apple-system,BlinkMacSystemFont,Segoe UI,Arial`;c.fillStyle=col;c.textAlign=al;c.fillText(String(t),x,y)};
   const counts=roster.map(p=>({p,snaps:currentGameSnapCount(p.id)}));
   const met=counts.filter(x=>x.snaps>=10).length;
   const allMet=roster.length>0&&met===roster.length;
 
   c.fillStyle="#f5f7f6";c.fillRect(0,0,W,H);
-  c.fillStyle=P;c.fillRect(0,0,W,360);
-  c.globalAlpha=.13;c.fillStyle=A;
-  c.beginPath();c.moveTo(0,270);c.lineTo(410,90);c.lineTo(640,90);c.lineTo(250,360);c.lineTo(0,360);c.closePath();c.fill();
-  c.beginPath();c.moveTo(W,45);c.lineTo(W-360,200);c.lineTo(W-610,200);c.lineTo(W-280,0);c.lineTo(W,0);c.closePath();c.fill();
-  c.globalAlpha=1;
-  c.fillStyle=A;c.fillRect(0,340,W,20);
+  await drawBroadcastHeader(c,W,{kind:"game",game:g},{compact:true});
 
-  if(S.team?.logoData){
-    try{
-      const im=await loadImg(S.team.logoData);
-      rr(48,42,112,112,22,"#ffffff");
-      const scale=Math.min(88/im.width,88/im.height),dw=im.width*scale,dh=im.height*scale;
-      c.drawImage(im,48+(112-dw)/2,42+(112-dh)/2,dw,dh);
-    }catch(e){}
-  }
-  tx("SIDELINE STATS • PARTICIPATION REPORT",190,80,24,850,"#ffffff");
-  tx((S.team?.name||"TEAM").toUpperCase(),190,137,48,950,"#ffffff");
-  tx(`vs ${g.opponent}`,54,220,34,800,"#ffffff");
-  tx(gameLabel(g),54,267,24,700,"#ffffffdd");
-  tx("LEAGUE MINIMUM: 10 SNAPS PER PLAYER",54,318,23,900,A);
+  let y=335;
+  shareRR(c,38,y,W-76,58,12,A);
+  shareTX(c,"PARTICIPATION REPORT • 10-SNAP MINIMUM",W/2,y+40,27,950,P,"center");
+  y+=76;
 
-  let y=405;
-  rr(38,y,W-76,54,12,P);
-  tx("PLAYER",58,y+36,20,900,"#ffffff");
-  tx("REQUIREMENT",650,y+36,18,900,"#ffffff","center");
-  tx("TOTAL SNAPS",850,y+36,18,900,"#ffffff","center");
-  tx("STATUS",1010,y+36,18,900,"#ffffff","right");
+  shareRR(c,38,y,W-76,54,12,P);
+  shareTX(c,"PLAYER",58,y+36,20,900,"#ffffff");
+  shareTX(c,"REQUIREMENT",650,y+36,18,900,"#ffffff","center");
+  shareTX(c,"TOTAL SNAPS",850,y+36,18,900,"#ffffff","center");
+  shareTX(c,"STATUS",1010,y+36,18,900,"#ffffff","right");
   y+=54;
 
   counts.forEach((x,i)=>{
-    const fill=i%2===0?"#ffffff":"#f0f3f1";
-    c.fillStyle=fill;c.fillRect(38,y,W-76,rowH);
+    c.fillStyle=i%2===0?"#ffffff":"#f0f3f1";c.fillRect(38,y,W-76,rowH);
     c.strokeStyle="#d8dedb";c.lineWidth=1;c.beginPath();c.moveTo(38,y+rowH);c.lineTo(W-38,y+rowH);c.stroke();
-    tx(`#${x.p.jersey}`,58,y+43,24,950,P);
-    tx(x.p.name,135,y+43,23,800,"#142019");
-    tx(x.snaps>=10?"10 / 10 ✓":`${x.snaps} / 10`,650,y+43,22,900,x.snaps>=10?P:"#9b4300","center");
-    tx(x.snaps,850,y+43,25,950,"#142019","center");
-    tx(x.snaps>=10?"MET":`NEEDS ${10-x.snaps}`,1010,y+43,19,950,x.snaps>=10?P:"#9b4300","right");
+    shareTX(c,`#${x.p.jersey}`,58,y+43,24,950,P);
+    shareTX(c,x.p.name,135,y+43,23,800,"#142019");
+    shareTX(c,x.snaps>=10?"10 / 10 ✓":`${x.snaps} / 10`,650,y+43,22,900,x.snaps>=10?P:"#9b4300","center");
+    shareTX(c,x.snaps,850,y+43,25,950,"#142019","center");
+    shareTX(c,x.snaps>=10?"MET":`NEEDS ${10-x.snaps}`,1010,y+43,19,950,x.snaps>=10?P:"#9b4300","right");
     y+=rowH;
   });
 
   y+=30;
-  rr(38,y,W-76,150,22,"#ffffff");
+  shareRR(c,38,y,W-76,150,22,"#ffffff");
   c.fillStyle=A;c.fillRect(38,y,12,150);
-  tx(allMet?"COMPLIANCE ACHIEVED":"MINIMUM NOT YET MET",78,y+48,28,950,P);
-  tx(`${met} of ${roster.length} players have reached the 10-snap minimum`,78,y+91,23,800,"#142019");
-  tx(`Team snap opportunities recorded: ${(g.snapRecords||[]).length}`,78,y+126,20,700,"#65716a");
+  shareTX(c,allMet?"COMPLIANCE ACHIEVED":"MINIMUM NOT YET MET",78,y+48,28,950,P);
+  shareTX(c,`${met} of ${roster.length} players have reached the 10-snap minimum`,78,y+91,23,800,"#142019");
+  shareTX(c,`Team snap opportunities recorded: ${(g.snapRecords||[]).length}`,78,y+126,20,700,"#65716a");
   y+=190;
-  tx("Sideline Stats • Gridiron Edition",W/2,y,20,800,P,"center");
-  tx("Participation totals generated from the game Snap Tracker",W/2,y+34,17,650,"#65716a","center");
+  shareTX(c,"SIDELINE STATS • GRIDIRON EDITION",W/2,y,20,850,P,"center");
+  shareTX(c,"Participation totals generated from the game Snap Tracker",W/2,y+34,17,650,"#65716a","center");
   return cv;
 }
 
@@ -2290,13 +2346,18 @@ $("#shareStatsBtn").addEventListener("click",async()=>{
   try{
     const safe=S.team.name.replace(/[^a-z0-9]/gi,"_");
     const suffix={game:"game",regular:"regular_season",playoff:"playoffs",season:"season_totals"}[statsScope];
-    const files=[
-      await canvasFile(await makeTeamSummaryShare(src),`${safe}_${suffix}_01_team_summary.png`),
-      await canvasFile(await makeHybridShare(src),`${safe}_${suffix}_02_player_box_score.png`)
-    ];
+    const files=[await canvasFile(await makeTeamSummaryShare(src),`${safe}_${suffix}_01_team_summary.png`)];
+    const boxPages=await makeHybridSharePages(src);
+    for(let i=0;i<boxPages.length;i++){
+      files.push(await canvasFile(boxPages[i],`${safe}_${suffix}_${String(i+2).padStart(2,"0")}_player_box_score_page_${i+1}_of_${boxPages.length}.png`));
+    }
     const shareTitle={game:"Game Stats",regular:"Regular Season Stats",playoff:"Playoff Stats",season:"Season Totals"}[statsScope];
-    if(navigator.canShare&&navigator.canShare({files})&&navigator.share){await navigator.share({title:`${S.team.name} ${shareTitle}`,text:src.label,files})}
-    else{for(const f of files)downloadBlob(f,f.name);toast("Two stats images saved")}
+    if(navigator.canShare&&navigator.canShare({files})&&navigator.share){
+      await navigator.share({title:`${S.team.name} ${shareTitle}`,text:`${src.label} • ${boxPages.length} player box score page${boxPages.length===1?"":"s"}`,files});
+    }else{
+      for(const f of files)downloadBlob(f,f.name);
+      toast(`${files.length} stats image${files.length===1?"":"s"} saved`);
+    }
   }catch(e){console.error(e);toast("Could not share stats on this browser")}
 });
 

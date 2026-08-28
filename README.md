@@ -1,35 +1,31 @@
-# Sideline Stats V3.7.1
+# Sideline Stats V3.7.2
 
-## Critical fix
-V3.7 had an undefined `fmt1()` formatting helper in the receiving-table render path.
-As soon as a receiving stat existed, the Stats screen threw a JavaScript ReferenceError
-before replacing the stat tables. This could leave an older Special Teams table visible
-while rushing, passing, and receiving appeared blank.
+## Share-image pagination
+The Player Box Score no longer uses one fixed-height image that can clip long stat sheets.
 
-V3.7.1 defines the missing formatter and keeps the active game selected when opening Stats
-or recording a play.
+- The app calculates how many Player Box Score images are needed.
+- Tables split only between player rows.
+- Table headings repeat when a table continues onto the next page.
+- Every page has `PAGE X OF Y`.
+- The Share sheet receives the Team Summary plus every Player Box Score page.
+- Rushing, Passing, Receiving, Defense, Special Teams, and Penalty Summary are included.
+- Receiving now includes targets, drops, and catch percentage in the shared box score.
 
-## Verified against the supplied Erie Tigers backup
-Expected current-game offense:
-- Bradyn: 1 carry, 6 yards
-- Bryce: 1 carry, 7 yards
-- Abe: 2 completions on 3 attempts, 22 passing yards
-- Cohen: 1 target, 1 reception, 7 yards
-- Easton: 1 target, 1 reception, 15 yards
-- Colter: 1 target, 0 receptions, 1 drop
-- Kallum: 1 kickoff return, 15 yards
+This is designed for full youth rosters and games where many players accumulate stats.
 
-## Edit Game Details
-From an open game, tap **Edit Game Details** to change:
-- Team name (updates the team globally)
-- Opponent
-- Week
-- Home / Away / Neutral
-- Regular Season / Playoff
-- Optional opponent logo
+## Share-image header redesign
+Team Summary, Player Box Score, and Snap Participation Report now use the same
+broadcast-style visual system:
 
-Saved games also have an **Edit** button. Existing plays, snaps, and scores are preserved.
+- stronger team primary/accent color treatment
+- angled graphic layers
+- Sideline Stats / Gridiron Edition branding
+- clearer matchup/score hierarchy
+- team and opponent logos when available
+- compact repeated header on continuation pages
 
-## Opponent logos
-Opponent logos can be added when starting a game or later from Edit Game Details.
-They display on the live scoreboard and on the two game-stat share images.
+## V3.7.1 fixes retained
+- Offensive stats-table rendering fix
+- Active-game stats source fix
+- Edit Game Details
+- Optional opponent logos
