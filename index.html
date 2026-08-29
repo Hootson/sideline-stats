@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V3.7.12</title>
+<title>Sideline Stats V3.7.13</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -260,7 +260,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 .penalty-down-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 
 
-/* V3.7.12 sideline readability */
+/* V3.7.13 sideline readability */
 .player-grid{gap:12px}
 .player-select{
   min-height:92px !important;
@@ -296,7 +296,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
   font-weight:850 !important;
 }
 
-/* V3.7.12 game editing + opponent logo */
+/* V3.7.13 game editing + opponent logo */
 .game-opponent-badge img{
   width:100%;
   height:100%;
@@ -318,7 +318,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 #editGameCard .row > *{min-width:0}
 
 
-/* V3.7.12 mobile-first Stats tables */
+/* V3.7.13 mobile-first Stats tables */
 .stats-table-wrap{width:100%;overflow-x:hidden}
 .stats-table{width:100%;border-collapse:collapse;table-layout:fixed}
 .stats-table th,.stats-table td{
@@ -342,7 +342,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 }
 
 
-/* V3.7.12 real Stats rendering update */
+/* V3.7.13 real Stats rendering update */
 .stats-table-scroll{
   width:100%;
   overflow-x:auto;
@@ -481,6 +481,11 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
   .receiving-total-stats strong{font-weight:950}
 }
 
+
+/* V3.7.13 branded Stats section headers */
+#statsContent .stats-block{overflow:hidden;border-radius:12px;border:1px solid #d9dfdb;background:#fff;margin-bottom:14px}
+#statsContent .stats-block>h3{margin:0 0 10px!important;padding:12px 14px 10px;background:var(--team-primary,#111);color:#fff;font-size:17px;font-weight:950;letter-spacing:.025em;text-transform:uppercase;border-bottom:4px solid var(--team-accent,#f26a00)}
+#statsContent .stats-block>.stats-table-scroll,#statsContent .stats-block>.muted{margin-left:10px;margin-right:10px;margin-bottom:10px}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
@@ -493,7 +498,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V3.7.12 • GRIDIRON EDITION</div>
+      <div class="muted" style="color:#dfe9e2">V3.7.13 • GRIDIRON EDITION</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -1050,7 +1055,7 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
-$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.7.12",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
+$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.7.13",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
 $("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
 $("#restoreDataInput").addEventListener("change",async()=>{
   const f=$("#restoreDataInput").files?.[0];if(!f)return;
@@ -1925,7 +1930,7 @@ $("#recordSnapBtn").addEventListener("click",()=>{
 });
 
 
-function renderStats(){
+function renderStats(){document.documentElement.style.setProperty("--team-primary",S.team?.primary||"#111111");document.documentElement.style.setProperty("--team-accent",S.team?.secondary||"#f26a00");
   renderGameHistoryPicker();
   const src=statsSource(statsScope);
   $$(".scope-btn").forEach(b=>b.classList.toggle("active",b.dataset.scope===statsScope));
@@ -2166,6 +2171,12 @@ function loadImg(src){
     im.src=src;
   });
 }
+async function drawRoundedShareImage(c,src,x,y,w,h,r=18){
+  const im=await loadImg(src);
+  const iw=im.naturalWidth||im.width,ih=im.naturalHeight||im.height;
+  const scale=Math.min(w/iw,h/ih),dw=iw*scale,dh=ih*scale,dx=x+(w-dw)/2,dy=y+(h-dh)/2;
+  c.save();c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();c.clip();c.drawImage(im,dx,dy,dw,dh);c.restore();
+}
 async function drawShareImage(c,data,x,y,w,h,pad=10){
   if(!data)return false;
   try{
@@ -2177,163 +2188,31 @@ async function drawShareImage(c,data,x,y,w,h,pad=10){
   }catch(e){return false}
 }
 async function drawBroadcastHeader(c,W,src,opts={}){
-  const P=S.team?.primary||"#111111";
-  const A=S.team?.secondary||"#f26a00";
-  const compact=!!opts.compact;
-  const g=src?.kind==="game"?src.game:null;
-  const H=compact?342:398;
-
-  c.fillStyle=P;c.fillRect(0,0,W,H);
-
-  // Top brand band: primary structure with accent details.
-  const brandH=compact?76:88;
-  c.fillStyle=P;c.fillRect(0,0,W,brandH);
+  const P=S.team?.primary||"#111111",A=S.team?.secondary||"#f26a00",compact=!!opts.compact,g=src?.kind==="game"?src.game:null;
+  const H=compact?352:410,brandH=compact?86:102;
+  c.fillStyle="#071019";c.fillRect(0,0,W,H);
+  const grad=c.createLinearGradient(0,0,0,brandH);grad.addColorStop(0,"#172536");grad.addColorStop(.55,"#0b141e");grad.addColorStop(1,"#05090d");c.fillStyle=grad;c.fillRect(0,0,W,brandH);
+  c.save();c.globalAlpha=.14;c.strokeStyle="#fff";c.lineWidth=1.1;for(let x=60;x<W;x+=120){c.beginPath();c.moveTo(x,0);c.lineTo(x-42,brandH);c.stroke()}c.restore();
+  c.save();c.fillStyle="#fff";c.shadowColor="#fff";c.shadowBlur=9;[[74,18],[96,18],[118,18],[W-118,18],[W-96,18],[W-74,18]].forEach(([x,y])=>{c.beginPath();c.arc(x,y,4.2,0,Math.PI*2);c.fill()});c.restore();
+  c.save();c.translate(W/2,compact?18:21);c.strokeStyle="#fff";c.lineWidth=2.2;c.beginPath();c.ellipse(0,0,31,12,0,0,Math.PI*2);c.stroke();c.beginPath();c.moveTo(-9,0);c.lineTo(9,0);c.stroke();[-6,-2,2,6].forEach(xx=>{c.beginPath();c.moveTo(xx,-4);c.lineTo(xx,4);c.stroke()});c.restore();
+  const wordY=compact?59:70;c.save();c.shadowColor="rgba(0,0,0,.85)";c.shadowBlur=3;c.shadowOffsetY=2;c.font=`950 ${compact?37:44}px "Arial Black","Helvetica Neue",Arial,sans-serif`;const l="SIDELINE",r="STATS",gap=14,lw=c.measureText(l).width,rw=c.measureText(r).width,start=(W-lw-rw-gap)/2;c.textAlign="left";c.fillStyle="#fff";c.fillText(l,start,wordY);c.fillStyle="#65b946";c.fillText(r,start+lw+gap,wordY);c.restore();
+  const plateW=compact?178:202,plateH=compact?17:19,plateY=compact?65:77;shareRR(c,W/2-plateW/2,plateY,plateW,plateH,4,"#65b946");shareTX(c,"GRIDIRON EDITION",W/2,plateY+plateH-4,compact?10:11,950,"#071019","center");
   c.fillStyle=A;c.fillRect(0,brandH-4,W,4);
-
-  // Angular shoulders use a darker/lighter tint of the primary structure.
-  c.fillStyle=shareRgba("#000000",.18);
-  c.beginPath();c.moveTo(0,0);c.lineTo(230,0);c.lineTo(270,brandH);c.lineTo(0,brandH);c.closePath();c.fill();
-  c.beginPath();c.moveTo(W,0);c.lineTo(W-230,0);c.lineTo(W-270,brandH);c.lineTo(W,brandH);c.closePath();c.fill();
-
-  // Stronger app-theme inspired wordmark.
-  const brandY=compact?47:54;
-  shareSportTX(c,"SIDELINE",W/2-6,brandY,compact?42:49,"#fff","right");
-  shareSportTX(c,"STATS",W/2+6,brandY,compact?42:49,A,"left");
-  shareRR(c,W/2-96,compact?55:63,192,compact?17:18,9,A);
-  shareTX(c,"GRIDIRON EDITION",W/2,compact?68:77,compact?10:11,950,P,"center");
-
   if(g){
-    const metaH=compact?52:58;
-    const bodyY=brandH;
-    const bodyBottom=H-metaH;
-    const bodyH=bodyBottom-bodyY;
-
-    // LEFT TEAM SIDE: accent-color wedge all the way through the inner angled slice.
-    c.fillStyle=A;
-    c.beginPath();
-    c.moveTo(0,bodyY);
-    c.lineTo(205,bodyY);
-    c.lineTo(150,bodyBottom);
-    c.lineTo(0,bodyBottom);
-    c.closePath();
-    c.fill();
-
-    // RIGHT TEAM SIDE: primary-color wedge.
-    c.fillStyle=P;
-    c.beginPath();
-    c.moveTo(W,bodyY);
-    c.lineTo(W-178,bodyY);
-    c.lineTo(W-150,bodyBottom);
-    c.lineTo(W,bodyBottom);
-    c.closePath();
-    c.fill();
-
-    // Main center body remains primary.
-    c.fillStyle=P;
-    c.fillRect(150,bodyY,W-300,bodyH);
-
-    // Clean divider lines.
-    c.strokeStyle="#d7dbda";c.lineWidth=2;
-    c.beginPath();c.moveTo(205,bodyY+5);c.lineTo(155,bodyBottom-5);c.stroke();
-    c.beginPath();c.moveTo(W-183,bodyY+5);c.lineTo(W-155,bodyBottom-5);c.stroke();
-
-    // Logos sit on clean PRIMARY-color backing plates with NO white outline.
-    const logoSize=compact?118:136;
-    const platePad=5;
-    const logoY=bodyY+(bodyH-logoSize)/2;
-    const leftLogoX=18;
-    const rightLogoX=W-18-logoSize;
-
-    c.fillStyle=P;
-    c.fillRect(leftLogoX-platePad,logoY-platePad,logoSize+platePad*2,logoSize+platePad*2);
-    c.fillRect(rightLogoX-platePad,logoY-platePad,logoSize+platePad*2,logoSize+platePad*2);
-
-    if(S.team?.logoData)await drawShareImage(c,S.team.logoData,leftLogoX,logoY,logoSize,logoSize,0);
-    if(g.opponentLogoData)await drawShareImage(c,g.opponentLogoData,rightLogoX,logoY,logoSize,logoSize,0);
-
-    // Team identities centered on same visual row as score cluster.
-    const leftNameX=278,rightNameX=W-278,nameW=174;
-    const left=splitTeamDisplayName(S.team?.name||"TEAM");
-    const right=splitTeamDisplayName(g.opponent||"OPPONENT");
-    const nameTop=bodyY+(compact?68:78);
-
-    if(left.place){
-      shareFitTX(c,left.place.toUpperCase(),leftNameX,nameTop,nameW,compact?22:25,14,900,"#fff","center");
-      shareSportTX(c,left.mascot.toUpperCase(),leftNameX,nameTop+(compact?31:35),fitTextSize(c,left.mascot.toUpperCase(),nameW,compact?32:36,21,900),A,"center");
-    }else{
-      shareSportTX(c,left.mascot.toUpperCase(),leftNameX,nameTop+16,fitTextSize(c,left.mascot.toUpperCase(),nameW,compact?32:36,21,900),A,"center");
-    }
-
-    if(right.place){
-      shareFitTX(c,right.place.toUpperCase(),rightNameX,nameTop,nameW,compact?22:25,14,900,"#fff","center");
-      shareSportTX(c,right.mascot.toUpperCase(),rightNameX,nameTop+(compact?31:35),fitTextSize(c,right.mascot.toUpperCase(),nameW,compact?32:36,21,900),"#fff","center");
-    }else{
-      shareSportTX(c,right.mascot.toUpperCase(),rightNameX,nameTop+16,fitTextSize(c,right.mascot.toUpperCase(),nameW,compact?32:36,21,900),"#fff","center");
-    }
-
-    // Score cluster.
-    const scoreW=100,centerW=118,totalW=scoreW*2+centerW;
-    const sx=(W-totalW)/2;
-    const sy=bodyY+(compact?24:29);
-    const sh=compact?121:138;
-
-    shareRR(c,sx,sy,scoreW,sh,0,A);
-
-    // Opponent score box: primary fill with white outline.
-    c.fillStyle=P;c.fillRect(sx+scoreW+centerW,sy,scoreW,sh);
-    c.strokeStyle="#fff";c.lineWidth=3;
-    c.strokeRect(sx+scoreW+centerW+1.5,sy+1.5,scoreW-3,sh-3);
-
-    // Center status shield.
-    c.beginPath();
-    c.moveTo(sx+scoreW+14,sy);
-    c.lineTo(sx+scoreW+centerW-14,sy);
-    c.lineTo(sx+scoreW+centerW,sy+sh/2);
-    c.lineTo(sx+scoreW+centerW-14,sy+sh);
-    c.lineTo(sx+scoreW+14,sy+sh);
-    c.lineTo(sx+scoreW,sy+sh/2);
-    c.closePath();
-    c.fillStyle=P;c.fill();
-    c.strokeStyle=A;c.lineWidth=2;c.stroke();
-
-    shareSportTX(c,displayedOurScore(g),sx+scoreW/2,sy+(compact?84:95),compact?66:75,"#fff","center");
-    shareSportTX(c,g.oppScore,sx+scoreW+centerW+scoreW/2,sy+(compact?84:95),compact?66:75,"#fff","center");
-
-    // Shareable stat graphic uses FINAL.
-    shareSportTX(c,"FINAL",W/2,sy+(compact?43:49),compact?21:23,A,"center");
-
-    // Football icon.
-    c.save();c.translate(W/2,sy+(compact?67:74));c.strokeStyle="#fff";c.lineWidth=2.2;
-    c.beginPath();c.ellipse(0,0,17,9,0,0,Math.PI*2);c.stroke();
-    c.beginPath();c.moveTo(-5,0);c.lineTo(5,0);c.stroke();
-    [-3,0,3].forEach(xx=>{c.beginPath();c.moveTo(xx,-3);c.lineTo(xx,3);c.stroke()});
-    c.restore();
-
-    if(S.team?.grade){
-      shareRR(c,W/2-58,sy+sh-25,116,23,6,A);
-      shareFitTX(c,String(S.team.grade).toUpperCase(),W/2,sy+sh-8,104,13,9,950,P,"center");
-    }
-
-    // Bottom metadata strip with improved spacing.
-    c.fillStyle="#f4f4f2";c.fillRect(0,bodyBottom,W,metaH);
-    const gameType=(g.gameType||"regular")==="playoff"?"PLAYOFFS":"REGULAR SEASON";
-    const labels=[`WEEK ${g.week||1}`,String(g.location||"Home").toUpperCase(),gameType];
-
-    // Shift REGULAR SEASON right for more even breathing room.
-    const xs=[W*.35,W*.50,W*.69];
-    labels.forEach((t,i)=>shareTX(c,t,xs[i],bodyBottom+(compact?34:38),compact?17:19,950,"#111","center"));
-
-    c.strokeStyle="#8a8a8a";c.lineWidth=1.6;
-    [W*.44,W*.60].forEach(x=>{
-      c.beginPath();
-      c.moveTo(x,bodyBottom+8);
-      c.lineTo(x,bodyBottom+metaH-8);
-      c.stroke();
-    });
-  }else{
-    shareSportTX(c,(S.team?.name||"TEAM").toUpperCase(),W/2,compact?152:174,compact?40:46,"#fff","center");
-    shareRR(c,W*.25,compact?180:205,W*.50,compact?58:66,12,shareRgba(A,.18));
-    shareSportTX(c,(src?.title||"SEASON STATS").toUpperCase(),W/2,compact?218:247,compact?27:31,A,"center");
+    const metaH=compact?54:62,bodyY=brandH,bodyBottom=H-metaH,bodyH=bodyBottom-bodyY;
+    c.fillStyle=P;c.fillRect(0,bodyY,W,bodyH);
+    const edgeTop=compact?205:220,edgeBottom=compact?162:176;c.fillStyle=A;c.beginPath();c.moveTo(0,bodyY);c.lineTo(edgeTop,bodyY);c.lineTo(edgeBottom,bodyBottom);c.lineTo(0,bodyBottom);c.closePath();c.fill();
+    c.strokeStyle="#e9eeee";c.lineWidth=2;c.beginPath();c.moveTo(edgeTop+1,bodyY+6);c.lineTo(edgeBottom+1,bodyBottom-6);c.stroke();const rt=W-(compact?184:196),rb=W-(compact?154:166);c.beginPath();c.moveTo(rt,bodyY+6);c.lineTo(rb,bodyBottom-6);c.stroke();
+    const ls=compact?116:132,ly=bodyY+(bodyH-ls)/2,lx=compact?22:26,rx=W-(compact?22:26)-ls,pad=6,rad=compact?16:19;shareRR(c,lx-pad,ly-pad,ls+pad*2,ls+pad*2,rad+3,P);shareRR(c,rx-pad,ly-pad,ls+pad*2,ls+pad*2,rad+3,P);if(S.team?.logoData)await drawRoundedShareImage(c,S.team.logoData,lx,ly,ls,ls,rad);if(g.opponentLogoData)await drawRoundedShareImage(c,g.opponentLogoData,rx,ly,ls,ls,rad);
+    const lcx=compact?280:292,rcx=W-lcx,nw=compact?170:184,L=splitTeamDisplayName(S.team?.name||"TEAM"),R=splitTeamDisplayName(g.opponent||"OPPONENT"),ny=bodyY+(compact?76:87);
+    if(L.place){shareFitTX(c,L.place.toUpperCase(),lcx,ny,nw,compact?21:24,14,950,"#fff","center");shareSportTX(c,L.mascot.toUpperCase(),lcx,ny+(compact?30:34),fitTextSize(c,L.mascot.toUpperCase(),nw,compact?31:35,20,900),A,"center")}else shareSportTX(c,L.mascot.toUpperCase(),lcx,ny+15,30,A,"center");
+    if(R.place){shareFitTX(c,R.place.toUpperCase(),rcx,ny,nw,compact?21:24,14,950,"#fff","center");shareSportTX(c,R.mascot.toUpperCase(),rcx,ny+(compact?30:34),fitTextSize(c,R.mascot.toUpperCase(),nw,compact?31:35,20,900),"#fff","center")}else shareSportTX(c,R.mascot.toUpperCase(),rcx,ny+15,30,"#fff","center");
+    const sw=100,cw=118,sx=(W-(sw*2+cw))/2,sy=bodyY+(compact?27:31),sh=compact?121:138;c.fillStyle=A;c.fillRect(sx,sy,sw,sh);c.fillStyle=P;c.fillRect(sx+sw+cw,sy,sw,sh);c.strokeStyle="#fff";c.lineWidth=3;c.strokeRect(sx+sw+cw+1.5,sy+1.5,sw-3,sh-3);
+    c.beginPath();c.moveTo(sx+sw+14,sy);c.lineTo(sx+sw+cw-14,sy);c.lineTo(sx+sw+cw,sy+sh/2);c.lineTo(sx+sw+cw-14,sy+sh);c.lineTo(sx+sw+14,sy+sh);c.lineTo(sx+sw,sy+sh/2);c.closePath();c.fillStyle=P;c.fill();c.strokeStyle=A;c.lineWidth=2;c.stroke();
+    shareSportTX(c,displayedOurScore(g),sx+sw/2,sy+(compact?84:95),compact?66:75,"#fff","center");shareSportTX(c,g.oppScore,sx+sw+cw+sw/2,sy+(compact?84:95),compact?66:75,"#fff","center");shareSportTX(c,"FINAL",W/2,sy+(compact?43:49),compact?21:23,A,"center");
+    c.save();c.translate(W/2,sy+(compact?67:74));c.strokeStyle="#fff";c.lineWidth=2.2;c.beginPath();c.ellipse(0,0,17,9,0,0,Math.PI*2);c.stroke();c.beginPath();c.moveTo(-5,0);c.lineTo(5,0);c.stroke();[-3,0,3].forEach(xx=>{c.beginPath();c.moveTo(xx,-3);c.lineTo(xx,3);c.stroke()});c.restore();
+    if(S.team?.grade){shareRR(c,W/2-58,sy+sh-25,116,23,6,A);shareFitTX(c,String(S.team.grade).toUpperCase(),W/2,sy+sh-8,104,13,9,950,P,"center")}
+    c.fillStyle="#f4f4f2";c.fillRect(0,bodyBottom,W,metaH);const gt=(g.gameType||"regular")==="playoff"?"PLAYOFFS":"REGULAR SEASON",labs=[`WEEK ${g.week||1}`,String(g.location||"Home").toUpperCase(),gt],centers=[W/6,W/2,5*W/6];labs.forEach((t,i)=>shareTX(c,t,centers[i],bodyBottom+(compact?35:40),compact?17:19,950,"#111","center"));c.strokeStyle="#929292";c.lineWidth=1.5;[W/3,2*W/3].forEach(x=>{c.beginPath();c.moveTo(x,bodyBottom+9);c.lineTo(x,bodyBottom+metaH-9);c.stroke()});
   }
   return H;
 }

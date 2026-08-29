@@ -5,7 +5,7 @@
   "display": "standalone",
   "background_color": "#f4f6f5",
   "theme_color": "#177b46",
-  "description": "Sideline Stats V3.7.12 \u2014 share header color-role and logo polish",
+  "description": "Sideline Stats V3.7.13 \u2014 premium share header and branded Stats sections",
   "scope": "./",
   "icons": [
     {
