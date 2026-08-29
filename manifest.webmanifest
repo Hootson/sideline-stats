@@ -5,7 +5,7 @@
   "display": "standalone",
   "background_color": "#f4f6f5",
   "theme_color": "#177b46",
-  "description": "Sideline Stats V3.7.11 \u2014 share header alignment polish",
+  "description": "Sideline Stats V3.7.12 \u2014 share header color-role and logo polish",
   "scope": "./",
   "icons": [
     {
