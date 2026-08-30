@@ -1,7 +1,16 @@
-# Sideline Stats V3.8.2
+# Sideline Stats V3.9.0
 
-Snap Tracker workflow improvement:
-- Recording a snap no longer resets every player to checked.
-- The exact checked/unchecked lineup remains in place after Record Snap.
-- Personnel changes only happen when the statkeeper changes a checkbox or taps Check All.
-- Existing snap counts, game-state logic, share graphics, and stats behavior are unchanged.
+Defensive entry redesign:
+- Defense now opens to Run / Pass / Penalty / Punt.
+- Run: enter yards, select tackler(s), then optional TD / Forced Fumble / Fumble Recovery.
+- Pass: Complete / Incomplete / Sack / Interception.
+- Incomplete is one tap and advances the down automatically.
+- Complete: enter yards, select tackler(s), then optional outcomes.
+- Sack: enter yards lost, select tackler(s), then optional outcomes.
+- Interception: select interceptor and possession flips automatically.
+- Group tackles automatically split 1.0 tackle credit equally across all selected defenders.
+- Positive/zero yards with tacklers auto-credit a tackle.
+- Negative yards with tacklers auto-credit a TFL.
+- Punt and penalty are part of the defensive flow.
+- Snap lineup persistence from V3.8.2 is retained.
+- Third-quarter kickoff logic and automatic down/distance/possession are retained.
