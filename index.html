@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V3.9.4</title>
+<title>Sideline Stats V3.9.5</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -260,7 +260,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 .penalty-down-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 
 
-/* V3.9.4 sideline readability */
+/* V3.9.5 sideline readability */
 .player-grid{gap:12px}
 .player-select{
   min-height:92px !important;
@@ -296,7 +296,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
   font-weight:850 !important;
 }
 
-/* V3.9.4 game editing + opponent logo */
+/* V3.9.5 game editing + opponent logo */
 .game-opponent-badge img{
   width:100%;
   height:100%;
@@ -318,7 +318,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 #editGameCard .row > *{min-width:0}
 
 
-/* V3.9.4 mobile-first Stats tables */
+/* V3.9.5 mobile-first Stats tables */
 .stats-table-wrap{width:100%;overflow-x:hidden}
 .stats-table{width:100%;border-collapse:collapse;table-layout:fixed}
 .stats-table th,.stats-table td{
@@ -342,7 +342,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 }
 
 
-/* V3.9.4 real Stats rendering update */
+/* V3.9.5 real Stats rendering update */
 .stats-table-scroll{
   width:100%;
   overflow-x:auto;
@@ -482,12 +482,12 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 }
 
 
-/* V3.9.4 branded Stats section headers */
+/* V3.9.5 branded Stats section headers */
 #statsContent .stats-block{overflow:hidden;border-radius:12px;border:1px solid #d9dfdb;background:#fff;margin-bottom:14px}
 #statsContent .stats-block>h3{margin:0 0 10px!important;padding:12px 14px 10px;background:var(--team-primary,#111);color:#fff;font-size:17px;font-weight:950;letter-spacing:.025em;text-transform:uppercase;border-bottom:4px solid var(--team-accent,#f26a00)}
 #statsContent .stats-block>.stats-table-scroll,#statsContent .stats-block>.muted{margin-left:10px;margin-right:10px;margin-bottom:10px}
 
-/* V3.9.4 automatic possession UI */
+/* V3.9.5 automatic possession UI */
 #togglePossession{opacity:.72;font-size:12px;padding:8px 10px}
 #stepMain .choice.hidden{display:none!important}
 
@@ -495,7 +495,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 .def-tackler.selected{transform:translateY(-1px)}
 #stepDefensePlay .choice,#stepDefensePass .choice{min-height:72px;font-weight:900}
 
-/* V3.9.4 clearer tap confirmation + defensive readability */
+/* V3.9.5 clearer tap confirmation + defensive readability */
 .choice.selected,
 .player-select.selected,
 .def-tackler.selected,
@@ -535,6 +535,20 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
   font-size:18px !important;
 }
 
+
+.signed-yard-picker{
+  width:100%;
+  min-height:54px;
+  border:2px solid var(--line);
+  border-radius:12px;
+  background:#fff;
+  color:var(--text);
+  font-size:20px;
+  font-weight:900;
+  padding:10px 38px 10px 12px;
+}
+.signed-yard-picker:focus{border-color:var(--p);outline:none}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
@@ -547,7 +561,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V3.9.4 • GRIDIRON EDITION</div>
+      <div class="muted" style="color:#dfe9e2">V3.9.5 • GRIDIRON EDITION</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -786,7 +800,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
           <button class="penalty-yard" data-y="-15">-15</button><button class="penalty-yard" data-y="-10">-10</button><button class="penalty-yard" data-y="-5">-5</button>
           <button class="penalty-yard" data-y="5">+5</button><button class="penalty-yard" data-y="10">+10</button><button class="penalty-yard" data-y="15">+15</button>
         </div>
-        <label>Custom yards</label><input id="penaltyCustomYards" type="number" inputmode="numeric" placeholder="e.g. -10 or 5">
+        <label>Exact yards — tap to scroll</label><select id="penaltyCustomYards" class="signed-yard-picker"></select>
         <button class="btn" id="penaltyYardsNext" style="margin-top:10px">Next</button>
         <button class="btn ghost cancel" style="margin-top:8px">Cancel</button>
       </div>
@@ -821,8 +835,8 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
           <button class="choice def-yard" data-y="5">+5</button>
           <button class="choice def-yard" data-y="10">+10</button>
         </div>
-        <label>Or enter exact opponent yards</label>
-        <input id="defYardsExact" type="number" inputmode="numeric" placeholder="e.g. 7 or -3">
+        <label>Exact opponent yards — tap to scroll</label>
+        <select id="defYardsExact" class="signed-yard-picker"></select>
         <button class="btn" id="recordDefenseWithYards" style="margin-top:10px">Record Defensive Play</button>
         <button class="btn ghost cancel" style="margin-top:8px">Cancel</button>
       </div>
@@ -863,9 +877,9 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
           <button class="choice def-simple-yard" data-y="5">+5</button>
           <button class="choice def-simple-yard" data-y="10">+10</button>
         </div>
-        <label>Or exact yards</label>
+        <label>Exact yards — tap to scroll</label>
         <div class="row">
-          <input id="defSimpleYardsExact" type="number" inputmode="numeric" placeholder="e.g. 7 or -3">
+          <select id="defSimpleYardsExact" class="signed-yard-picker"></select>
           <button class="btn" id="defSimpleYardsUse">Use</button>
         </div>
         <button class="btn ghost cancel" style="margin-top:12px">Cancel</button>
@@ -910,7 +924,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
         <button class="btn ghost cancel" style="margin-top:12px">Cancel</button>
       </div>
 
-      <div class="card hidden" id="stepYards"><h2>How many yards?</h2><div id="yardGrid" class="grid"></div><label>Custom</label><div class="row"><input id="customYards" inputmode="numeric" placeholder="23 or -4"><button class="btn" id="customBtn">Use</button></div></div>
+      <div class="card hidden" id="stepYards"><h2>How many yards?</h2><div id="yardGrid" class="grid"></div><label>Exact yards — tap to scroll</label><div class="row"><select id="customYards" class="signed-yard-picker"></select><button class="btn" id="customBtn">Use</button></div></div>
       <div class="card hidden" id="stepExtras"><h2>Anything else?</h2><div class="grid2">
         <button class="choice extra" data-extra="TD">TD +6</button>
         <button class="choice extra" data-extra="Fumble">FUMBLE</button>
@@ -1183,7 +1197,7 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
-$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.9.4",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
+$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.9.5",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
 $("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
 $("#restoreDataInput").addEventListener("change",async()=>{
   const f=$("#restoreDataInput").files?.[0];if(!f)return;
@@ -1274,7 +1288,7 @@ $("#newGameBtn").addEventListener("click",()=>{
   const opp=$("#newOpponent").value.trim();if(!opp)return toast("Enter an opponent");
   const openingKickoff=$("#newOpeningKickoff")?.value||"receive";
   const initialPossession=openingKickoff==="kick"?"opp":"ours";
-  const g={id:uid(),opponent:opp,opponentLogoData:pendingNewOpponentLogo||null,week:Number($("#newGameWeek").value||1),date:`Week ${$("#newGameWeek").value||1}`,location:$("#newLocation").value,gameType:$("#newGameType").value||"regular",status:"live",ourScore:0,scoreAdjustment:0,oppScore:0,openingKickoff,initialPossession,initialDown:1,initialDistance:10,down:1,distance:10,possession:initialPossession,quarter:1,plays:[],snapRecords:[]};
+  const g={id:uid(),opponent:opp,opponentLogoData:pendingNewOpponentLogo||null,week:Number($("#newGameWeek").value||1),date:`Week ${$("#newGameWeek").value||1}`,location:$("#newLocation").value,gameType:$("#newGameType").value||"regular",status:"live",ourScore:0,scoreAdjustment:0,scoreModelVersion:2,oppScore:0,openingKickoff,initialPossession,initialDown:1,initialDistance:10,down:1,distance:10,possession:initialPossession,quarter:1,plays:[],snapRecords:[]};
   S.games.push(g);S.activeGameId=g.id;selectedStatsGameId=g.id;
   pendingNewOpponentLogo=null;
   $("#newOpponentLogo").value="";
@@ -1357,7 +1371,7 @@ $("#setOppScore").addEventListener("click",()=>{
   g.oppScore=n;persist();renderLiveGame();toast("Opponent score updated");
 });
 
-function pointsFromPlay(p){
+function legacyPointsFromPlay(p){
   if(!p||!p.extras)return 0;
   let pts=0;
   if(p.extras.includes("TD"))pts+=6;
@@ -1365,14 +1379,35 @@ function pointsFromPlay(p){
   if(p.extras.includes("2PT"))pts+=2;
   return pts;
 }
+function pointsFromPlay(p){
+  if(!p)return 0;
+  let pts=legacyPointsFromPlay(p);
+  if(p.type==="Defense"&&p.defensiveTouchdownPlayerId)pts+=6;
+  return pts;
+}
+function legacyAutoPoints(g){return (g?.plays||[]).reduce((sum,p)=>sum+legacyPointsFromPlay(p),0)}
 function autoPoints(g){return (g?.plays||[]).reduce((sum,p)=>sum+pointsFromPlay(p),0)}
 function ensureScoreModel(g){
   if(!g)return;
+
+  // V2 adds defensive return touchdowns to automatic scoring.
+  // Preserve the score the statkeeper was already seeing so a TD that was
+  // manually corrected in an older build does not suddenly get counted twice.
+  if(Number(g.scoreModelVersion||0)<2){
+    const oldAuto=legacyAutoPoints(g);
+    const oldDisplayed=(typeof g.scoreAdjustment==="number")
+      ? oldAuto+Number(g.scoreAdjustment||0)
+      : Number(g.ourScore||0);
+    const newAuto=autoPoints(g);
+    g.scoreAdjustment=oldDisplayed-newAuto;
+    g.scoreModelVersion=2;
+    g.ourScore=oldDisplayed;
+    return;
+  }
+
   if(typeof g.scoreAdjustment!=="number"){
     const auto=autoPoints(g);
     const old=Number(g.ourScore||0);
-    // Smart migration: if old score was zero but plays already contain scoring,
-    // treat the zero as the old prototype bug and allow auto-scoring to correct it.
     g.scoreAdjustment=(old===0 && auto>0)?0:(old-auto);
   }
 }
@@ -1619,6 +1654,17 @@ function advanceDownAfterPlay(g,p){
   syncDerivedGameState(g);
 }
 
+function populateSignedYardPicker(id,min=-99,max=99){
+  const el=$("#"+id);if(!el)return;
+  const current=el.value;
+  let out='<option value="">Scroll to exact yards…</option>';
+  for(let v=min;v<=max;v++)out+=`<option value="${v}">${v>0?"+":""}${v} yards</option>`;
+  el.innerHTML=out;
+  if(current!==""&&Number(current)>=min&&Number(current)<=max)el.value=current;
+}
+function resetSignedYardPicker(id){populateSignedYardPicker(id);const el=$("#"+id);if(el)el.value=""}
+["customYards","defSimpleYardsExact","defYardsExact","penaltyCustomYards"].forEach(id=>populateSignedYardPicker(id));
+
 function resetFlow(){S.flow={};["#stepSub","#stepPenaltyType","#stepPenaltyPlayer","#stepPenaltyYards","#stepPenaltyDown","#stepPlayer","#stepDefenseCredits","#stepDefenseYards","#stepDefensePlay","#stepDefensePass","#stepDefenseSimpleYards","#stepDefenseTacklers","#stepDefenseOutcome","#stepDefenseTurnoverPlayer","#stepYards","#stepExtras"].forEach(id=>$(id).classList.add("hidden"));$("#stepMain").classList.remove("hidden");$$(".extra").forEach(b=>b.classList.remove("sel"));$$(".def-tackler").forEach(b=>b.classList.remove("selected"))}
 $$(".cancel").forEach(b=>b.addEventListener("click",resetFlow));
 $$(".action").forEach(b=>b.addEventListener("click",()=>start(b.dataset.action)));
@@ -1746,7 +1792,7 @@ function showSubs(title,items){
         S.flow.noDefCredit=true;S.flow.defCredits={};
         $("#defCreditLabel").textContent=v;
         $("#stepDefenseYards").classList.remove("hidden");
-        S.flow.defYards=0;$("#defYardsExact").value="";
+        S.flow.defYards=0;resetSignedYardPicker("defYardsExact");
       }else showDefenseCredits(v);
     }
     else if(S.flow.type==="Special"&&(v==="Forced Fumble"||v==="Fumble Recovery"))showPlayers(`${v} — select player`,"specialTurnover");
@@ -1765,7 +1811,7 @@ function showDefenseSimpleYards(label){
   $("#stepDefensePlay").classList.add("hidden");
   $("#stepDefensePass").classList.add("hidden");
   $("#defSimpleYardsLabel").textContent=label||"Opponent yards";
-  $("#defSimpleYardsExact").value="";
+  resetSignedYardPicker("defSimpleYardsExact");
   $("#stepDefenseSimpleYards").classList.remove("hidden");
 }
 function setDefenseYardsAndContinue(y){
@@ -1836,8 +1882,8 @@ function finishSimpleDefensePlay(){
   const after=applyPlayToState(before,p);p.stateAfter={...after};
   g.plays.push(p);
   g.possession=after.possession;g.down=after.down;g.distance=after.distance;
-  if(p.defensiveTouchdownPlayerId)g.ourScore=Number(g.ourScore||0)+6;
-  else if(p.extras.includes("TD"))g.oppScore=Number(g.oppScore||0)+6;
+  if(p.extras.includes("TD"))g.oppScore=Number(g.oppScore||0)+6;
+  g.ourScore=displayedOurScore(g);
   persist();renderLiveGame();
   toast(`${g.possession==="ours"?S.team.name:g.opponent} ball — ${ordinal(g.down)} & ${g.distance}`);
   resetFlow();
@@ -1936,9 +1982,9 @@ function showPenaltyPlayers(){
   $("#penaltyPlayerGrid").innerHTML=`<button class="choice player-select penalty-player" data-id="UNKNOWN"><strong>TEAM</strong><br><span class="muted">Unknown / Team</span></button>`+
     roster.map(p=>playerSelectButton(p,"penalty-player")).join("");
   $("#stepPenaltyPlayer").classList.remove("hidden");
-  $$(".penalty-player").forEach(b=>b.addEventListener("click",()=>{S.flow.penaltyPlayer=b.dataset.id;$("#stepPenaltyPlayer").classList.add("hidden");$("#stepPenaltyYards").classList.remove("hidden");$("#penaltyCustomYards").value="";S.flow.penaltyYards=0; $$(".penalty-yard").forEach(x=>x.classList.remove("selected"))}));
+  $$(".penalty-player").forEach(b=>b.addEventListener("click",()=>{S.flow.penaltyPlayer=b.dataset.id;$("#stepPenaltyPlayer").classList.add("hidden");$("#stepPenaltyYards").classList.remove("hidden");resetSignedYardPicker("penaltyCustomYards");S.flow.penaltyYards=0; $$(".penalty-yard").forEach(x=>x.classList.remove("selected"))}));
 }
-$$(".penalty-yard").forEach(b=>b.addEventListener("click",()=>{S.flow.penaltyYards=Number(b.dataset.y);$("#penaltyCustomYards").value=String(S.flow.penaltyYards);$$(".penalty-yard").forEach(x=>x.classList.toggle("selected",x===b))}));
+$$(".penalty-yard").forEach(b=>b.addEventListener("click",()=>{S.flow.penaltyYards=Number(b.dataset.y);populateSignedYardPicker("penaltyCustomYards");$("#penaltyCustomYards").value=String(S.flow.penaltyYards);$$(".penalty-yard").forEach(x=>x.classList.toggle("selected",x===b))}));
 $("#penaltyYardsNext").addEventListener("click",()=>{const raw=$("#penaltyCustomYards").value;S.flow.penaltyYards=raw===""?Number(S.flow.penaltyYards||0):Number(raw);if(Number.isNaN(S.flow.penaltyYards))return toast("Enter valid penalty yards");S.flow.penaltyDownResult="replay";$("#stepPenaltyYards").classList.add("hidden");$("#stepPenaltyDown").classList.remove("hidden");$$(".penalty-down").forEach(x=>x.classList.toggle("selected",x.dataset.result==="unchanged"))});
 $$(".penalty-down").forEach(b=>b.addEventListener("click",()=>{S.flow.penaltyDownResult=b.dataset.result;$$(".penalty-down").forEach(x=>x.classList.toggle("selected",x===b))}));
 function penaltyPlayerName(p){return !p||!p.penaltyPlayer||p.penaltyPlayer==="UNKNOWN"?"Unknown / Team":pname(p.penaltyPlayer)}
@@ -1985,6 +2031,7 @@ function pick(id,mode){
 function showYards(){
   let vals=[-10,-5,-3,-2,-1,0,1,2,3,4,5,6,7,10,15];
   $("#yardGrid").innerHTML=vals.map(v=>`<button class="choice yard" data-v="${v}">${v>0?"+":""}${v}</button>`).join("");
+  resetSignedYardPicker("customYards");
   $("#stepYards").classList.remove("hidden");
   $$(".yard").forEach(b=>b.addEventListener("click",()=>{
     $$(".yard").forEach(x=>x.classList.remove("selected"));
@@ -2194,7 +2241,12 @@ function calcTeamMetrics(plays,games=[]){
   const passY=passComp.reduce((a,x)=>a+(Number(x.yards)||0),0);
   const firstDowns=offense.filter(offensivePlayEarnedFirstDown).length;
   const turnovers=passes.filter(x=>x.sub==="Intercepted").length+p.filter(x=>x.extras?.includes("Fumble Lost")).length;
-  const takeaways=defense.filter(x=>x.sub==="INT"||x.sub==="Fumble Recovery").length;
+  const takeaways=defense.filter(x=>
+    !!x.interceptionPlayerId||
+    !!x.fumbleRecoveryPlayerId||
+    x.sub==="INT"||
+    x.sub==="Fumble Recovery"
+  ).length;
   const tfl=defense.filter(x=>x.sub==="TFL").length,sacks=defense.filter(x=>x.sub==="Sack").length;
   const explosive10=offense.filter(x=>Math.abs(Number(x.yards)||0)>=10 && (Number(x.yards)||0)>=10).length;
   const explosive20=offense.filter(x=>(Number(x.yards)||0)>=20).length;
@@ -2462,7 +2514,7 @@ function renderShare(){
     $("#shareOppLabel").textContent="Opponent";$("#shareOppScore").textContent="0";$("#shareMeta").textContent="";
     $("#shareLeaders").innerHTML='<div class="muted">Record a game first.</div>';$("#shareOffense").innerHTML="";$("#shareDefense").innerHTML="";return
   }
-  $("#shareOurLabel").textContent=S.team.name;$("#shareOurScore").textContent=g.ourScore;
+  $("#shareOurLabel").textContent=S.team.name;$("#shareOurScore").textContent=displayedOurScore(g);
   $("#shareOppLabel").textContent=g.opponent;$("#shareOppScore").textContent=g.oppScore;
   $("#shareMeta").textContent=`${g.date} • ${g.location} • ${g.status==="complete"?"FINAL":"LIVE"}`;
 
@@ -2498,7 +2550,7 @@ function createSummaryCanvas(g){
   c.fillStyle=S.team.primary;c.fillRect(0,0,W,410);c.fillStyle=S.team.secondary;c.fillRect(0,390,W,20);
   canvasText(c,"SIDELINE STATS • GAME SUMMARY",70,72,28,800,"#ffffff");
   canvasText(c,S.team.name.toUpperCase(),70,135,58,900,"#ffffff");
-  canvasText(c,S.team.name,260,235,28,800,"#ffffff","center");canvasText(c,String(g.ourScore),260,330,100,900,"#ffffff","center");
+  canvasText(c,S.team.name,260,235,28,800,"#ffffff","center");canvasText(c,String(displayedOurScore(g)),260,330,100,900,"#ffffff","center");
   canvasText(c,"VS",600,265,30,900,"#ffffffaa","center");
   canvasText(c,g.opponent,940,235,28,800,"#ffffff","center");canvasText(c,String(g.oppScore),940,330,100,900,"#ffffff","center");
   canvasText(c,`${g.date}  •  ${g.location}  •  ${g.status==="complete"?"FINAL":"LIVE"}`,600,370,24,700,"#ffffffdd","center");
