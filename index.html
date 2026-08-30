@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V3.7.13</title>
+<title>Sideline Stats V3.8.2</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -260,7 +260,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 .penalty-down-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 
 
-/* V3.7.13 sideline readability */
+/* V3.8.2 sideline readability */
 .player-grid{gap:12px}
 .player-select{
   min-height:92px !important;
@@ -296,7 +296,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
   font-weight:850 !important;
 }
 
-/* V3.7.13 game editing + opponent logo */
+/* V3.8.2 game editing + opponent logo */
 .game-opponent-badge img{
   width:100%;
   height:100%;
@@ -318,7 +318,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 #editGameCard .row > *{min-width:0}
 
 
-/* V3.7.13 mobile-first Stats tables */
+/* V3.8.2 mobile-first Stats tables */
 .stats-table-wrap{width:100%;overflow-x:hidden}
 .stats-table{width:100%;border-collapse:collapse;table-layout:fixed}
 .stats-table th,.stats-table td{
@@ -342,7 +342,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 }
 
 
-/* V3.7.13 real Stats rendering update */
+/* V3.8.2 real Stats rendering update */
 .stats-table-scroll{
   width:100%;
   overflow-x:auto;
@@ -482,10 +482,14 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 }
 
 
-/* V3.7.13 branded Stats section headers */
+/* V3.8.2 branded Stats section headers */
 #statsContent .stats-block{overflow:hidden;border-radius:12px;border:1px solid #d9dfdb;background:#fff;margin-bottom:14px}
 #statsContent .stats-block>h3{margin:0 0 10px!important;padding:12px 14px 10px;background:var(--team-primary,#111);color:#fff;font-size:17px;font-weight:950;letter-spacing:.025em;text-transform:uppercase;border-bottom:4px solid var(--team-accent,#f26a00)}
 #statsContent .stats-block>.stats-table-scroll,#statsContent .stats-block>.muted{margin-left:10px;margin-right:10px;margin-bottom:10px}
+
+/* V3.8.2 automatic possession UI */
+#togglePossession{opacity:.72;font-size:12px;padding:8px 10px}
+#stepMain .choice.hidden{display:none!important}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
@@ -498,7 +502,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V3.7.13 • GRIDIRON EDITION</div>
+      <div class="muted" style="color:#dfe9e2">V3.8.2 • GRIDIRON EDITION</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -596,6 +600,12 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
           <option value="regular">Regular Season</option>
           <option value="playoff">Playoff</option>
         </select>
+        <label>Opening kickoff</label>
+        <select id="newOpeningKickoff">
+          <option value="receive">We receive</option>
+          <option value="kick">We kick</option>
+        </select>
+        <div class="inline-note" style="margin-top:6px">Choose this once. Possession will track itself from here.</div>
         <label>Opponent logo <span class="muted">(optional)</span></label>
         <input id="newOpponentLogo" type="file" accept="image/png,image/jpeg,image/webp">
         <div id="newOpponentLogoPreview" class="logo-preview" style="margin-top:10px"></div>
@@ -697,16 +707,16 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
           <div class="possession-main" id="possessionMain">Our Ball — Offense</div>
           <div class="possession-sub" id="possessionSub">1st down</div>
         </div>
-        <button class="possession-toggle" id="togglePossession">Switch to Defense</button>
+        <button class="possession-toggle" id="togglePossession">Correct Possession</button>
       </div>
 <div class="card" id="stepMain">
         <h2>What happened?</h2>
         <div class="grid2">
-          <button class="choice action" data-action="Rush">🏃<br>RUSH</button>
-          <button class="choice action" data-action="Pass">🏈<br>PASS</button>
-          <button class="choice action" data-action="Defense">🛡️<br>DEFENSE</button>
-          <button class="choice action" data-action="Special">⭐<br>SPECIAL</button>
-          <button class="choice action" data-action="Penalty">🚩<br>PENALTY</button>
+          <button class="choice action" id="actionRush" data-action="Rush">🏃<br>RUSH</button>
+          <button class="choice action" id="actionPass" data-action="Pass">🏈<br>PASS</button>
+          <button class="choice action" id="actionDefense" data-action="Defense">🛡️<br>DEFENSE</button>
+          <button class="choice action" id="actionSpecial" data-action="Special">⭐<br>SPECIAL</button>
+          <button class="choice action" id="actionPenalty" data-action="Penalty">🚩<br>PENALTY</button>
         </div>
         <button class="btn punt-btn" id="quickKickoff">🦵 KICKOFF</button>
         <button class="btn punt-btn" id="quickPunt">🏈 PUNT</button>
@@ -810,7 +820,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
       <div class="snap-toolbar">
         <div>
           <h2 style="margin:0">Snap Tracker</h2>
-          <div class="muted">Everyone starts checked. Uncheck only the players on the sideline.</div>
+          <div class="muted">Set the players on the field once. Your lineup stays the same after each recorded snap until you change it.</div>
         </div>
         <button class="btn ghost small" id="checkAllSnaps">Check All</button>
       </div>
@@ -1055,7 +1065,7 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
-$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.7.13",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
+$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.8.2",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
 $("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
 $("#restoreDataInput").addEventListener("change",async()=>{
   const f=$("#restoreDataInput").files?.[0];if(!f)return;
@@ -1144,7 +1154,9 @@ $("#removeNewOpponentLogoBtn").addEventListener("click",()=>{
 $("#newGameBtn").addEventListener("click",()=>{
   if(!S.roster.length)return toast("Add your roster first");
   const opp=$("#newOpponent").value.trim();if(!opp)return toast("Enter an opponent");
-  const g={id:uid(),opponent:opp,opponentLogoData:pendingNewOpponentLogo||null,week:Number($("#newGameWeek").value||1),date:`Week ${$("#newGameWeek").value||1}`,location:$("#newLocation").value,gameType:$("#newGameType").value||"regular",status:"live",ourScore:0,scoreAdjustment:0,oppScore:0,down:1,distance:10,possession:"ours",quarter:1,plays:[],snapRecords:[]};
+  const openingKickoff=$("#newOpeningKickoff")?.value||"receive";
+  const initialPossession=openingKickoff==="kick"?"opp":"ours";
+  const g={id:uid(),opponent:opp,opponentLogoData:pendingNewOpponentLogo||null,week:Number($("#newGameWeek").value||1),date:`Week ${$("#newGameWeek").value||1}`,location:$("#newLocation").value,gameType:$("#newGameType").value||"regular",status:"live",ourScore:0,scoreAdjustment:0,oppScore:0,openingKickoff,initialPossession,initialDown:1,initialDistance:10,down:1,distance:10,possession:initialPossession,quarter:1,plays:[],snapRecords:[]};
   S.games.push(g);S.activeGameId=g.id;selectedStatsGameId=g.id;
   pendingNewOpponentLogo=null;
   $("#newOpponentLogo").value="";
@@ -1251,7 +1263,15 @@ function displayedOurScore(g){ensureScoreModel(g);return autoPoints(g)+Number(g.
 
 $$(".quarter-btn").forEach(b=>b.addEventListener("click",()=>{
   const g=currentGame();if(!g)return;
-  g.quarter=Number(b.dataset.quarter);
+  const nextQ=Number(b.dataset.quarter);
+  if(nextQ===3&&Number(g.quarter||1)<3&&!g.halftimeKickoffApplied){
+    const next=secondHalfPossessionForGame(g);
+    const who=next==="ours"?S.team.name:g.opponent;
+    if(!confirm(`Start 3rd quarter: ${who} receives the second-half kickoff and starts 1st & 10?`))return;
+    g.quarter=3;applyHalftimeKickoff(g);
+    persist();renderLiveGame();toast(`${who} ball — 1st & 10`);return;
+  }
+  g.quarter=nextQ;
   persist();renderLiveGame();toast(`Quarter ${g.quarter}`);
 }));
 
@@ -1268,14 +1288,25 @@ function normalizeGameState(st){
     distance:Math.max(1,Number(st?.distance)||10)
   };
 }
+function oppositePossession(possession){return possession==="ours"?"opp":"ours"}
+function ensureInitialGameState(g){
+  if(!g)return {possession:"ours",down:1,distance:10};
+  if(!g.initialPossession){
+    const first=g.plays?.[0];
+    const seed=first?.stateBefore||{possession:g.possession,down:g.down,distance:g.distance};
+    const st=normalizeGameState(seed);
+    g.initialPossession=st.possession;g.initialDown=st.down;g.initialDistance=st.distance;
+  }
+  return normalizeGameState({possession:g.initialPossession,down:g.initialDown||1,distance:g.initialDistance||10});
+}
 function nextScrimmageState(possession,down,distance,yards){
   const st=normalizeGameState({possession,down,distance});
   const gain=Number(yards);
   const y=Number.isFinite(gain)?gain:0;
-  if(y>=st.distance)return {possession:st.possession,down:1,distance:10,firstDown:true};
+  if(y>=st.distance)return {possession:st.possession,down:1,distance:10,firstDown:true,turnoverOnDowns:false};
   const nextDistance=Math.max(1,st.distance-y);
-  if(st.down<4)return {possession:st.possession,down:st.down+1,distance:nextDistance,firstDown:false};
-  return {possession:st.possession==="ours"?"opp":"ours",down:1,distance:10,firstDown:false};
+  if(st.down<4)return {possession:st.possession,down:st.down+1,distance:nextDistance,firstDown:false,turnoverOnDowns:false};
+  return {possession:oppositePossession(st.possession),down:1,distance:10,firstDown:false,turnoverOnDowns:true};
 }
 function applyPlayToState(state,p){
   let st=normalizeGameState(state);
@@ -1287,9 +1318,14 @@ function applyPlayToState(state,p){
     down:p.correctedDown??st.down,
     distance:p.correctedDistance??st.distance
   });
+
+  if(p.type==="Halftime Kickoff")return normalizeGameState(p.stateAfter||{possession:st.possession,down:1,distance:10});
   if(p.type==="Kickoff")return {possession:p.receivingSide==="ours"?"ours":"opp",down:1,distance:10};
   if(p.type==="Kickoff Return")return {possession:"ours",down:1,distance:10};
-  if(p.type==="Punt")return {possession:"opp",down:1,distance:10};
+  if(p.type==="Opponent Kickoff Return")return {possession:"opp",down:1,distance:10};
+
+  // Punt always hands the ball to the other side.
+  if(p.type==="Punt")return {possession:oppositePossession(st.possession),down:1,distance:10};
 
   if(p.type==="Penalty"){
     const y=Number(p.penaltyYards||0);
@@ -1297,10 +1333,9 @@ function applyPlayToState(state,p){
     const r=p.penaltyDownResult||"unchanged";
     if(r==="automatic1st"){st.down=1;st.distance=10}
     else if(r==="replay"||r==="unchanged"){}
-    else if(r==="next"){if(st.down<4)st.down+=1;else st={possession:st.possession==="ours"?"opp":"ours",down:1,distance:10}}
-    else if(r==="loss"){
+    else if(r==="next"||r==="loss"){
       if(st.down<4)st.down+=1;
-      else st={possession:st.possession==="ours"?"opp":"ours",down:1,distance:10};
+      else st={possession:oppositePossession(st.possession),down:1,distance:10};
     }
     return st;
   }
@@ -1323,32 +1358,58 @@ function applyPlayToState(state,p){
       const n=nextScrimmageState(st.possession,st.down,st.distance,0);
       return {possession:n.possession,down:n.down,distance:n.distance};
     }
-  } else if(p.type==="Defense"){
-    if(p.sub==="INT"||p.sub==="Fumble Recovery")return {possession:"ours",down:1,distance:10};
-    const n=nextScrimmageState(st.possession,st.down,st.distance,p.yards);
-    return {possession:n.possession,down:n.down,distance:n.distance};
+  }else{
+    // Defensive entry represents the opponent's offensive play.
+    if(p.type==="Defense"){
+      if(p.sub==="INT"||p.sub==="Fumble Recovery")return {possession:"ours",down:1,distance:10};
+      if(p.sub==="Incomplete Pass"){
+        const n=nextScrimmageState(st.possession,st.down,st.distance,0);
+        return {possession:n.possession,down:n.down,distance:n.distance};
+      }
+      if(p.sub==="Sack"){
+        const loss=Math.abs(Number(p.yards||0));
+        const n=nextScrimmageState(st.possession,st.down,st.distance,-loss);
+        return {possession:n.possession,down:n.down,distance:n.distance};
+      }
+      if(p.sub==="Opponent Run"||p.sub==="Complete Pass"||p.sub==="Tackle"||p.sub==="TFL"){
+        const n=nextScrimmageState(st.possession,st.down,st.distance,p.yards);
+        return {possession:n.possession,down:n.down,distance:n.distance};
+      }
+      return st;
+    }
   }
 
   if(p.type==="Special"&&p.sub==="Fumble Recovery")return {possession:"ours",down:1,distance:10};
   return st;
 }
 function calcDriveState(g){
-  let st={possession:"ours",down:1,distance:10};
+  let st=ensureInitialGameState(g);
   const plays=g?.plays||[];
+  g.halftimeKickoffApplied=plays.some(p=>p.type==="Halftime Kickoff");
   for(let i=0;i<plays.length;i++){
     const p=plays[i];
-    if(i===0&&p.stateBefore)st=normalizeGameState(p.stateBefore);
+    if(i===0&&p.stateBefore&&!g.initialPossession)st=normalizeGameState(p.stateBefore);
     st=applyPlayToState(st,p);
     p.stateAfter={...st};
   }
-  if(!plays.length)st=normalizeGameState({possession:g?.possession,down:g?.down,distance:g?.distance});
   return st;
 }
 function syncDerivedGameState(g){
   const st=calcDriveState(g);
-  g.possession=st.possession;
-  g.down=st.down;
-  g.distance=st.distance;
+  g.possession=st.possession;g.down=st.down;g.distance=st.distance;
+}
+
+function secondHalfPossessionForGame(g){
+  return (g?.openingKickoff||"receive")==="receive"?"opp":"ours";
+}
+function applyHalftimeKickoff(g){
+  if(!g||g.halftimeKickoffApplied)return false;
+  const next=secondHalfPossessionForGame(g);
+  const before=normalizeGameState({possession:g.possession,down:g.down,distance:g.distance});
+  const after={possession:next,down:1,distance:10};
+  g.plays.push({id:uid(),ts:Date.now(),type:"Halftime Kickoff",sub:next==="ours"?"We Receive":"We Kick",quarter:3,extras:[],stateBefore:{...before},stateAfter:{...after}});
+  g.possession=next;g.down=1;g.distance=10;g.halftimeKickoffApplied=true;
+  return true;
 }
 
 function renderLiveGame(){
@@ -1375,11 +1436,21 @@ function renderLiveGame(){
   if(!g.down||g.down<1||g.down>4)g.down=1;
   if(!g.possession)g.possession="ours";
   $("#possessionMain").textContent=g.possession==="ours"
-    ? `${S.team.name} Ball — Offense`
-    : `${g.opponent} Ball — Defense`;
+    ? `${S.team.name} Ball — OUR OFFENSE`
+    : `${g.opponent} Ball — OUR DEFENSE`;
   if(!g.distance||g.distance<1)g.distance=10;
   $("#possessionSub").textContent=`${ordinal(g.down)} & ${g.distance||10}`;
-  $("#togglePossession").textContent=g.possession==="ours"?"Switch to Defense":"Switch to Offense";
+  $("#togglePossession").textContent="Correct Possession";
+
+  // Only show play-entry choices that make sense for the current possession.
+  $("#actionRush")?.classList.toggle("hidden",g.possession!=="ours");
+  $("#actionPass")?.classList.toggle("hidden",g.possession!=="ours");
+  $("#actionDefense")?.classList.toggle("hidden",g.possession!=="opp");
+  $("#actionPenalty")?.classList.remove("hidden");
+  $("#actionSpecial")?.classList.remove("hidden");
+  $("#quickPunt").textContent=g.possession==="ours"?"🏈 OUR PUNT":`🏈 ${g.opponent.toUpperCase()} PUNT`;
+  $("#quickKickoff").textContent=g.possession==="ours"?"🦵 KICK / RECEIVE":"🦵 KICK / RECEIVE";
+
 $$(".quarter-btn").forEach(b=>b.classList.toggle("active",Number(b.dataset.quarter)===Number(g.quarter||1)));renderRecent();resetFlow();
 }
 
@@ -1388,7 +1459,7 @@ $("#togglePossession").addEventListener("click",()=>{
   syncDerivedGameState(g);
   const next=g.possession==="ours"?"opp":"ours";
   const who=next==="ours"?S.team.name:g.opponent;
-  if(confirm(`Switch possession to ${who}? Down will reset to 1st & 10.`)){
+  if(confirm(`Correct possession to ${who}? Use this only if the game state got out of sync. Down will reset to 1st & 10.`)){
     g.plays.push({
       id:uid(),
       ts:Date.now(),
@@ -1442,6 +1513,18 @@ $("#quickKickoff").addEventListener("click",()=>{
   $("#stepIncompleteDrop").classList.add("hidden");
 });
 $("#quickPunt").addEventListener("click",()=>{
+  const g=currentGame();if(!g)return;
+  syncDerivedGameState(g);
+  if(g.possession==="opp"){
+    if(confirm(`${g.opponent} punts. Change possession to ${S.team.name}?`)){
+      const before=normalizeGameState({possession:g.possession,down:g.down,distance:g.distance});
+      const p={id:uid(),ts:Date.now(),type:"Punt",sub:"Opponent Punt",player:null,yards:0,quarter:Number(g.quarter||1),extras:[],stateBefore:{...before}};
+      const after=applyPlayToState(before,p);p.stateAfter={...after};g.plays.push(p);
+      g.possession=after.possession;g.down=after.down;g.distance=after.distance;
+      persist();renderLiveGame();toast(`${S.team.name} ball — 1st & 10`);
+    }
+    return;
+  }
   S.flow={type:"Punt",sub:"Punt",extras:[]};
   $("#stepMain").classList.add("hidden");
   showPlayers("Select punter","punter");
@@ -1451,7 +1534,7 @@ function start(type){
   if(type==="Penalty"){startPenalty();return}
   if(type==="Rush")showPlayers("Who had the ball?","runner");
   else if(type==="Pass")showPlayers("Select QB","qb");
-  else if(type==="Defense")showSubs("Defensive stat",["Tackle","TFL","Sack","INT","Forced Fumble","Fumble Recovery"]);
+  else if(type==="Defense")showSubs("Opponent play / defensive stat",["Opponent Run","Complete Pass","Incomplete Pass","Tackle","TFL","Sack","INT","Forced Fumble","Fumble Recovery"]);
   else showSubs("Special teams",["Kick Return","Punt Return","Punt","Forced Fumble","Fumble Recovery"])
 }
 function showSubs(title,items){
@@ -1464,7 +1547,16 @@ function showSubs(title,items){
       else if(v==="Intercepted")showPlayers("Intercepted — select intended receiver","intendedIntercepted");
       else recordNow();
     }
-    else if(S.flow.type==="Defense")showDefenseCredits(v);
+    else if(S.flow.type==="Defense"){
+      if(v==="Incomplete Pass"){
+        S.flow.yards=0;recordNow();
+      }else if(v==="Opponent Run"||v==="Complete Pass"){
+        S.flow.noDefCredit=true;S.flow.defCredits={};
+        $("#defCreditLabel").textContent=v;
+        $("#stepDefenseYards").classList.remove("hidden");
+        S.flow.defYards=0;$("#defYardsExact").value="";
+      }else showDefenseCredits(v);
+    }
     else if(S.flow.type==="Special"&&(v==="Forced Fumble"||v==="Fumble Recovery"))showPlayers(`${v} — select player`,"specialTurnover");
     else if(v==="Punt"){S.flow.type="Punt";showPlayers("Punt — select punter","punter")}else showPlayers(`${v} — select returner`,"special")
   }))
@@ -1497,13 +1589,13 @@ $$(".def-yard").forEach(b=>b.addEventListener("click",()=>{
 }));
 $("#recordDefenseWithYards").addEventListener("click",()=>{
   const entries=Object.entries(S.flow.defCredits||{});
-  if(!entries.length)return toast("Select at least one defender");
+  if(!S.flow.noDefCredit&&!entries.length)return toast("Select at least one defender");
   const g=currentGame();if(!g)return;
   const exact=$("#defYardsExact").value;
   const y=exact===""?Number(S.flow.defYards||0):Number(exact);
   const p={
     id:uid(),ts:Date.now(),type:"Defense",sub:S.flow.sub,
-    defCredits:Object.fromEntries(entries.map(([id,v])=>[id,Number(v)])),
+    defCredits:S.flow.noDefCredit?null:Object.fromEntries(entries.map(([id,v])=>[id,Number(v)])),
     yards:y, quarter:Number(g.quarter||1),
     downAtStart:Number(g.down||1), distanceAtStart:Number(g.distance||10),
     possessionAtStart:g.possession,
@@ -1602,6 +1694,7 @@ function recordNow(){
     if(confirm("Was the fumble lost to the other team?"))S.flow.extras.push("Fumble Lost");
   }
 
+  ensureInitialGameState(g);
   const before=normalizeGameState({possession:g.possession,down:g.down,distance:g.distance||10});
   const p={...JSON.parse(JSON.stringify(S.flow)),id:uid(),ts:Date.now(),stateBefore:{...before}};
   const after=applyPlayToState(before,p);
@@ -1614,7 +1707,7 @@ function recordNow(){
 
   if(p.type==="Pass"&&p.sub==="Intercepted")toast(`${g.opponent} ball — 1st down`);
   else if(p.extras?.includes("Fumble Lost"))toast(`${g.opponent} ball — 1st down`);
-  else if(p.type==="Punt")toast(`${g.opponent} ball — 1st down`);
+  else if(p.type==="Punt")toast(`${g.possession==="ours"?S.team.name:g.opponent} ball — 1st & 10`);
   else toast(`Play recorded — ${ordinal(g.down)} & ${g.distance}`);
   resetFlow()
 }
@@ -1924,8 +2017,8 @@ $("#recordSnapBtn").addEventListener("click",()=>{
   persist();
   toast(`Snap recorded for ${onField.length} players`);
 
-  // Reset EVERYONE to checked for the next play.
-  initializeSnapSelections();
+  // Keep the current on-field lineup exactly as selected for the next play.
+  // The user changes personnel manually or taps Check All when needed.
   renderSnaps();
 });
 

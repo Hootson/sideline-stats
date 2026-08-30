@@ -1,3 +1,7 @@
-Sideline Stats V3.7.13
+# Sideline Stats V3.8.2
 
-Premium branded share masthead, continuous accent wedge, rounded logos, equal three-column metadata, and team-color Stats section headers.
+Snap Tracker workflow improvement:
+- Recording a snap no longer resets every player to checked.
+- The exact checked/unchecked lineup remains in place after Record Snap.
+- Personnel changes only happen when the statkeeper changes a checkbox or taps Check All.
+- Existing snap counts, game-state logic, share graphics, and stats behavior are unchanged.
