@@ -1,16 +1,10 @@
-# Sideline Stats V3.9.0
+# Sideline Stats V3.9.1
 
-Defensive entry redesign:
-- Defense now opens to Run / Pass / Penalty / Punt.
-- Run: enter yards, select tackler(s), then optional TD / Forced Fumble / Fumble Recovery.
-- Pass: Complete / Incomplete / Sack / Interception.
-- Incomplete is one tap and advances the down automatically.
-- Complete: enter yards, select tackler(s), then optional outcomes.
-- Sack: enter yards lost, select tackler(s), then optional outcomes.
-- Interception: select interceptor and possession flips automatically.
-- Group tackles automatically split 1.0 tackle credit equally across all selected defenders.
-- Positive/zero yards with tacklers auto-credit a tackle.
-- Negative yards with tacklers auto-credit a TFL.
-- Punt and penalty are part of the defensive flow.
-- Snap lineup persistence from V3.8.2 is retained.
-- Third-quarter kickoff logic and automatic down/distance/possession are retained.
+Compound defensive play support:
+- One defensive play can now keep multiple outcomes together.
+- Example: PASS → SACK → yards lost → sack player(s) → Forced Fumble → select player → Fumble Recovery → select different player.
+- The underlying Sack remains a Sack even when a recovery is added.
+- Sack credit, forced-fumble credit, and recovery credit can all go to different defenders.
+- A defensive fumble recovery automatically changes possession to our team.
+- If the defense forces a fumble but does not recover it, choose Nothing Else and normal down/distance logic applies.
+- V3.9.0 defensive simplification, V3.8.2 snap-lineup persistence, halftime possession logic, stats, sharing, and backup compatibility remain intact.

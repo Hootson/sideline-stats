@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V3.9.0</title>
+<title>Sideline Stats V3.9.1</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -260,7 +260,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 .penalty-down-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 
 
-/* V3.9.0 sideline readability */
+/* V3.9.1 sideline readability */
 .player-grid{gap:12px}
 .player-select{
   min-height:92px !important;
@@ -296,7 +296,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
   font-weight:850 !important;
 }
 
-/* V3.9.0 game editing + opponent logo */
+/* V3.9.1 game editing + opponent logo */
 .game-opponent-badge img{
   width:100%;
   height:100%;
@@ -318,7 +318,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 #editGameCard .row > *{min-width:0}
 
 
-/* V3.9.0 mobile-first Stats tables */
+/* V3.9.1 mobile-first Stats tables */
 .stats-table-wrap{width:100%;overflow-x:hidden}
 .stats-table{width:100%;border-collapse:collapse;table-layout:fixed}
 .stats-table th,.stats-table td{
@@ -342,7 +342,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 }
 
 
-/* V3.9.0 real Stats rendering update */
+/* V3.9.1 real Stats rendering update */
 .stats-table-scroll{
   width:100%;
   overflow-x:auto;
@@ -482,12 +482,12 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 }
 
 
-/* V3.9.0 branded Stats section headers */
+/* V3.9.1 branded Stats section headers */
 #statsContent .stats-block{overflow:hidden;border-radius:12px;border:1px solid #d9dfdb;background:#fff;margin-bottom:14px}
 #statsContent .stats-block>h3{margin:0 0 10px!important;padding:12px 14px 10px;background:var(--team-primary,#111);color:#fff;font-size:17px;font-weight:950;letter-spacing:.025em;text-transform:uppercase;border-bottom:4px solid var(--team-accent,#f26a00)}
 #statsContent .stats-block>.stats-table-scroll,#statsContent .stats-block>.muted{margin-left:10px;margin-right:10px;margin-bottom:10px}
 
-/* V3.9.0 automatic possession UI */
+/* V3.9.1 automatic possession UI */
 #togglePossession{opacity:.72;font-size:12px;padding:8px 10px}
 #stepMain .choice.hidden{display:none!important}
 
@@ -506,7 +506,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V3.9.0 • GRIDIRON EDITION</div>
+      <div class="muted" style="color:#dfe9e2">V3.9.1 • GRIDIRON EDITION</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -841,7 +841,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
       </div>
 
       <div class="card hidden" id="stepDefenseOutcome">
-        <div class="muted">Anything else?</div>
+        <div class="muted">Add every result from this same play before saving.</div>
         <h2 id="defOutcomeTitle">Play outcome</h2>
         <div class="grid2">
           <button class="choice def-outcome" data-defout="TD">TD +6</button>
@@ -1142,7 +1142,7 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
-$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.9.0",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
+$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.9.1",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
 $("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
 $("#restoreDataInput").addEventListener("change",async()=>{
   const f=$("#restoreDataInput").files?.[0];if(!f)return;
@@ -1438,7 +1438,7 @@ function applyPlayToState(state,p){
   }else{
     // Defensive entry represents the opponent's offensive play.
     if(p.type==="Defense"){
-      if(p.sub==="INT"||p.sub==="Fumble Recovery")return {possession:"ours",down:1,distance:10};
+      if(p.sub==="INT"||p.sub==="Fumble Recovery"||p.fumbleRecoveryPlayerId)return {possession:"ours",down:1,distance:10};
       if(p.extras?.includes("TD"))return {possession:"opp",down:1,distance:10};
       if(p.sub==="Incomplete Pass"){
         const n=nextScrimmageState(st.possession,st.down,st.distance,0);
@@ -1734,8 +1734,18 @@ function defenseSplitCredits(ids){
 }
 function showDefenseOutcome(){
   $("#stepDefenseTacklers").classList.add("hidden");
-  $("#defOutcomeTitle").textContent=(S.flow.sub==="Sack"?"Sack outcome":"Play outcome");
+  const parts=[];
+  if(S.flow.sub==="Sack")parts.push("Sack");
+  if(S.flow.forcedFumblePlayerId)parts.push("Forced Fumble");
+  $("#defOutcomeTitle").textContent=parts.length?`${parts.join(" + ")} — anything else?`:"Play outcome";
   $("#stepDefenseOutcome").classList.remove("hidden");
+  $$(".def-outcome").forEach(b=>{
+    const v=b.dataset.defout;
+    b.classList.toggle("selected",
+      (v==="Forced Fumble"&&!!S.flow.forcedFumblePlayerId)||
+      (v==="Fumble Recovery"&&!!S.flow.fumbleRecoveryPlayerId)
+    );
+  });
 }
 function finishSimpleDefensePlay(){
   const g=currentGame();if(!g)return;
@@ -1775,7 +1785,6 @@ function showDefenseTurnoverPlayer(kind){
       showDefenseOutcome();
     }else if(S.flow.pendingTurnoverCredit==="Fumble Recovery"){
       S.flow.fumbleRecoveryPlayerId=id;
-      S.flow.sub="Fumble Recovery";
       $("#stepDefenseTurnoverPlayer").classList.add("hidden");
       finishSimpleDefensePlay();
     }else{

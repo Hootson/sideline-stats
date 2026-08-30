@@ -5,7 +5,7 @@
   "display": "standalone",
   "background_color": "#f4f6f5",
   "theme_color": "#177b46",
-  "description": "Sideline Stats V3.9.0 \u2014 simplified defensive play entry with automatic tackle/TFL credit",
+  "description": "Sideline Stats V3.9.1 \u2014 compound defensive plays support sack + forced fumble + recovery",
   "scope": "./",
   "icons": [
     {
