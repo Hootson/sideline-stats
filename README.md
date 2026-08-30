@@ -1,15 +1,26 @@
-# Sideline Stats V3.9.5
+# Sideline Stats V3.9.6
 
-This build includes the next-game fixes requested after live testing:
+Excel/raw analytics export alignment release.
 
-- Defensive fumble-recovery and interception return touchdowns automatically add +6 to our scoreboard.
-- Score-model migration preserves an already manually corrected score, preventing an older defensive TD from suddenly adding another +6 after update.
-- Turnover margin now counts structured `fumbleRecoveryPlayerId` and `interceptionPlayerId` takeaways used by the newer compound defensive workflow.
-- Legacy `INT` and `Fumble Recovery` plays remain compatible.
-- Defensive TD attribution remains tied to the actual returner and appears in the Defense TD column.
-- Fumble recoveries and interceptions can continue to Return TD +6 / Nothing Else.
-- Exact yardage entry now uses native iPhone-friendly signed scroll pickers (-99 through +99) instead of requiring a keyboard minus sign.
-- Quick yardage buttons remain available for fast entry.
-- Share-score surfaces use the same calculated score as the live scoreboard.
+## Plays sheet
+The Plays sheet now exports the structured defensive events that drive the current in-app stats:
+- ForcedFumble + ForcedFumblePlayer
+- FumbleRecovery + FumbleRecoveryPlayer
+- DefensiveInterception + InterceptionPlayer
+- DefensiveTD + DefensiveTDPlayer
+- Takeaway
+- Giveaway
+- TurnoverMarginImpact
+- TackleKind
+- DefensiveCredits
 
-Core rule remains: You enter the play. Sideline Stats derives the stats.
+Column O remains `Subtype`. For a compound defensive play it now includes all meaningful defensive events (for example `Opponent Run + Forced Fumble + Fumble Recovery + Defensive TD`) so Fumble Recovery is once again directly visible in the same column used by older exports. `RawSubtype` preserves the original stored subtype.
+
+## Stat alignment
+- `FirstDown` uses the same derived first-down function as the Rushing, Passing, Receiving and Team Summary stats.
+- `Touchdown` includes defensive return touchdowns.
+- `Takeaway` uses the same fumble-recovery/interception logic as Team Summary turnover margin.
+- Summing `TurnoverMarginImpact` by game matches Team Game Stats `turnoverMargin`.
+- Player Game Stats remain generated from the same `agg()` function used by the on-screen player stat tables.
+
+The Data Dictionary sheet documents the new fields for dashboard/AI consumers.

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V3.9.5</title>
+<title>Sideline Stats V3.9.6</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -260,7 +260,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 .penalty-down-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 
 
-/* V3.9.5 sideline readability */
+/* V3.9.6 sideline readability */
 .player-grid{gap:12px}
 .player-select{
   min-height:92px !important;
@@ -296,7 +296,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
   font-weight:850 !important;
 }
 
-/* V3.9.5 game editing + opponent logo */
+/* V3.9.6 game editing + opponent logo */
 .game-opponent-badge img{
   width:100%;
   height:100%;
@@ -318,7 +318,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 #editGameCard .row > *{min-width:0}
 
 
-/* V3.9.5 mobile-first Stats tables */
+/* V3.9.6 mobile-first Stats tables */
 .stats-table-wrap{width:100%;overflow-x:hidden}
 .stats-table{width:100%;border-collapse:collapse;table-layout:fixed}
 .stats-table th,.stats-table td{
@@ -342,7 +342,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 }
 
 
-/* V3.9.5 real Stats rendering update */
+/* V3.9.6 real Stats rendering update */
 .stats-table-scroll{
   width:100%;
   overflow-x:auto;
@@ -482,12 +482,12 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 }
 
 
-/* V3.9.5 branded Stats section headers */
+/* V3.9.6 branded Stats section headers */
 #statsContent .stats-block{overflow:hidden;border-radius:12px;border:1px solid #d9dfdb;background:#fff;margin-bottom:14px}
 #statsContent .stats-block>h3{margin:0 0 10px!important;padding:12px 14px 10px;background:var(--team-primary,#111);color:#fff;font-size:17px;font-weight:950;letter-spacing:.025em;text-transform:uppercase;border-bottom:4px solid var(--team-accent,#f26a00)}
 #statsContent .stats-block>.stats-table-scroll,#statsContent .stats-block>.muted{margin-left:10px;margin-right:10px;margin-bottom:10px}
 
-/* V3.9.5 automatic possession UI */
+/* V3.9.6 automatic possession UI */
 #togglePossession{opacity:.72;font-size:12px;padding:8px 10px}
 #stepMain .choice.hidden{display:none!important}
 
@@ -495,7 +495,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 .def-tackler.selected{transform:translateY(-1px)}
 #stepDefensePlay .choice,#stepDefensePass .choice{min-height:72px;font-weight:900}
 
-/* V3.9.5 clearer tap confirmation + defensive readability */
+/* V3.9.6 clearer tap confirmation + defensive readability */
 .choice.selected,
 .player-select.selected,
 .def-tackler.selected,
@@ -561,7 +561,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V3.9.5 • GRIDIRON EDITION</div>
+      <div class="muted" style="color:#dfe9e2">V3.9.6 • GRIDIRON EDITION</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -1197,7 +1197,7 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
-$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.9.5",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
+$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.9.6",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
 $("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
 $("#restoreDataInput").addEventListener("change",async()=>{
   const f=$("#restoreDataInput").files?.[0];if(!f)return;
@@ -3066,11 +3066,77 @@ $("#shareStatsBtn").addEventListener("click",async()=>{
 });
 
 
+function defensiveExportEvents(p){
+  const events=[];
+  if(p.type==="Defense"&&p.sub)events.push(p.sub);
+  if(p.forcedFumblePlayerId&&!events.includes("Forced Fumble"))events.push("Forced Fumble");
+  if(p.fumbleRecoveryPlayerId&&!events.includes("Fumble Recovery"))events.push("Fumble Recovery");
+  if(p.interceptionPlayerId&&!events.includes("Interception"))events.push("Interception");
+  if(p.defensiveTouchdownPlayerId&&!events.includes("Defensive TD"))events.push("Defensive TD");
+  return events;
+}
+function exportedSubtype(p){
+  if(p.type!=="Defense")return p.sub||"";
+  const events=defensiveExportEvents(p);
+  return events.length?events.join(" + "):(p.sub||"");
+}
 function playRows(){
   const rows=[];
   (S.games||[]).forEach(g=>(g.plays||[]).forEach((p,i)=>{
     const credits=p.defCredits?Object.entries(p.defCredits).map(([id,v])=>`${pname(id)}:${v}`).join(" | "):"";
-    rows.push({GameID:g.id,Date:g.date,Opponent:g.opponent,GameType:g.gameType||"regular",Location:g.location,PlaySequence:i+1,Timestamp:p.ts?new Date(p.ts).toISOString():"",Possession:p.stateBefore?.possession||"",Down:p.stateBefore?.down||"",Distance:p.stateBefore?.distance||"",AfterPossession:p.stateAfter?.possession||"",AfterDown:p.stateAfter?.down||"",AfterDistance:p.stateAfter?.distance||"",PlayType:p.type||"",Subtype:p.sub||"",Player1:p.player?pname(p.player):"",Player2:p.player2?pname(p.player2):"",Target:(p.type==="Pass"&&p.player2&&["Complete","Incomplete","Intercepted"].includes(p.sub))?1:0,Drop:p.drop?1:0,Yards:Number(p.yards)||0,PenaltyType:p.penaltyType||"",PenaltyPlayer:p.type==="Penalty"?penaltyPlayerName(p):"",PenaltyYards:p.type==="Penalty"?Number(p.penaltyYards||0):0,PenaltyDownResult:p.penaltyDownResult||"",Quarter:Number(p.quarter||1),Extras:(p.extras||[]).join(" | "),DefensiveCredits:credits,Touchdown:(p.extras||[]).includes("TD")?1:0,FirstDown:(p.extras||[]).includes("1st Down")?1:0,FumbleLost:(p.extras||[]).includes("Fumble Lost")?1:0});
+    const isDefInt=!!p.interceptionPlayerId||p.sub==="INT";
+    const isDefFR=!!p.fumbleRecoveryPlayerId||p.sub==="Fumble Recovery";
+    const isDefFF=!!p.forcedFumblePlayerId||p.sub==="Forced Fumble";
+    const isDefTD=!!p.defensiveTouchdownPlayerId||p.extras?.includes("Defensive TD");
+    const takeaway=p.type==="Defense"&&(isDefInt||isDefFR);
+    const giveaway=(p.type==="Pass"&&p.sub==="Intercepted")||p.extras?.includes("Fumble Lost");
+    const touchdown=(p.extras||[]).includes("TD")||isDefTD;
+    const firstDown=offensivePlayEarnedFirstDown(p);
+    rows.push({
+      GameID:g.id,
+      Date:g.date,
+      Opponent:g.opponent,
+      GameType:g.gameType||"regular",
+      Location:g.location,
+      PlaySequence:i+1,
+      Timestamp:p.ts?new Date(p.ts).toISOString():"",
+      Possession:p.stateBefore?.possession||"",
+      Down:p.stateBefore?.down||"",
+      Distance:p.stateBefore?.distance||"",
+      AfterPossession:p.stateAfter?.possession||"",
+      AfterDown:p.stateAfter?.down||"",
+      AfterDistance:p.stateAfter?.distance||"",
+      PlayType:p.type||"",
+      Subtype:exportedSubtype(p),
+      RawSubtype:p.sub||"",
+      Player1:p.player?pname(p.player):"",
+      Player2:p.player2?pname(p.player2):"",
+      Target:(p.type==="Pass"&&p.player2&&["Complete","Incomplete","Intercepted"].includes(p.sub))?1:0,
+      Drop:p.drop?1:0,
+      Yards:Number(p.yards)||0,
+      PenaltyType:p.penaltyType||"",
+      PenaltyPlayer:p.type==="Penalty"?penaltyPlayerName(p):"",
+      PenaltyYards:p.type==="Penalty"?Number(p.penaltyYards||0):0,
+      PenaltyDownResult:p.penaltyDownResult||"",
+      Quarter:Number(p.quarter||1),
+      Extras:(p.extras||[]).join(" | "),
+      DefensiveCredits:credits,
+      TackleKind:p.tackleKind||"",
+      ForcedFumble:isDefFF?1:0,
+      ForcedFumblePlayer:p.forcedFumblePlayerId?pname(p.forcedFumblePlayerId):(p.sub==="Forced Fumble"&&p.player?pname(p.player):""),
+      FumbleRecovery:isDefFR?1:0,
+      FumbleRecoveryPlayer:p.fumbleRecoveryPlayerId?pname(p.fumbleRecoveryPlayerId):(p.sub==="Fumble Recovery"&&p.player?pname(p.player):""),
+      DefensiveInterception:isDefInt?1:0,
+      InterceptionPlayer:p.interceptionPlayerId?pname(p.interceptionPlayerId):(p.sub==="INT"&&p.player?pname(p.player):""),
+      DefensiveTD:isDefTD?1:0,
+      DefensiveTDPlayer:p.defensiveTouchdownPlayerId?pname(p.defensiveTouchdownPlayerId):((p.extras||[]).includes("Defensive TD")?pname(p.fumbleRecoveryPlayerId||p.interceptionPlayerId||p.player):""),
+      Takeaway:takeaway?1:0,
+      Giveaway:giveaway?1:0,
+      TurnoverMarginImpact:(takeaway?1:0)-(giveaway?1:0),
+      Touchdown:touchdown?1:0,
+      FirstDown:firstDown?1:0,
+      FumbleLost:(p.extras||[]).includes("Fumble Lost")?1:0
+    });
   }));return rows;
 }
 function gameRows(){return (S.games||[]).map(g=>({GameID:g.id,Date:g.date,Opponent:g.opponent,GameType:g.gameType||"regular",Location:g.location,OurScore:displayedOurScore(g),OpponentScore:Number(g.oppScore||0),Result:displayedOurScore(g)>g.oppScore?"W":displayedOurScore(g)<g.oppScore?"L":"T",Status:g.status||"",PlayCount:(g.plays||[]).length,SnapTrackerPlays:(g.snapRecords||[]).length}))}
@@ -3083,7 +3149,38 @@ function penaltyRowsExport(){const out=[];(S.games||[]).forEach(g=>(g.plays||[])
 
 function seasonRows(){return ["regular","playoff","season"].map(scope=>{const games=scopeGames(scope),plays=games.flatMap(g=>g.plays||[]),m=calcTeamMetrics(plays,games);return {Scope:scope,Games:games.length,Record:recordFor(games),...m}})}
 function dataDictionaryRows(){return [
-  {Field:"GameType",Meaning:"regular or playoff"},{Field:"Possession",Meaning:"ours = our offense; opp = opponent offense / our defense"},{Field:"Down",Meaning:"Down at the start of the recorded play"},{Field:"Distance",Meaning:"Yards to go at the start of the recorded play"},{Field:"Extras",Meaning:"TD, automatic first down, fumble, PAT or 2PT tags"},{Field:"Player-snaps",Meaning:"Snap Tracker participation records; separate from team play count"},{Field:"ParticipationPct",Meaning:"Player tracked snaps divided by tracked team snap opportunities"},{Field:"OffensivePlays",Meaning:"Rush attempts plus pass attempts"},{Field:"DefensivePlays",Meaning:"Recorded opponent scrimmage plays via Defense entries"},{Field:"TotalScrimmage",Meaning:"Offensive plays plus defensive plays"},{Field:"SpecialTeamsPlays",Meaning:"Kickoff, kickoff return, punt and return events"},{Field:"Explosive10/20",Meaning:"Offensive plays gaining at least 10 / 20 yards"},{Field:"PenaltyYards",Meaning:"Signed yardage applied to the offense; negative hurts the team with possession, positive helps it"},{Field:"PenaltyDownResult",Meaning:"unchanged, automatic1st, replay, or loss"},{Field:"PenaltyPlayer",Meaning:"Roster player ID or Unknown / Team"}
+  {Field:"GameType",Meaning:"regular or playoff"},
+  {Field:"Possession",Meaning:"ours = our offense; opp = opponent offense / our defense"},
+  {Field:"Down",Meaning:"Down at the start of the recorded play"},
+  {Field:"Distance",Meaning:"Yards to go at the start of the recorded play"},
+  {Field:"Subtype",Meaning:"Human-readable play event. Compound defensive plays include Forced Fumble, Fumble Recovery, Interception and/or Defensive TD so dashboard tools can see the full event in one field."},
+  {Field:"RawSubtype",Meaning:"Original stored subtype before compound defensive event labels are added for export."},
+  {Field:"DefensiveCredits",Meaning:"Tackle/TFL/sack credit by player. Fractional values are shared tackle credit."},
+  {Field:"TackleKind",Meaning:"Tackle or TFL classification used by current defensive player stats."},
+  {Field:"ForcedFumble",Meaning:"1 when this play credits a defensive forced fumble."},
+  {Field:"ForcedFumblePlayer",Meaning:"Player receiving the forced-fumble credit in current Defense stats."},
+  {Field:"FumbleRecovery",Meaning:"1 when this play credits a defensive fumble recovery. Included in Takeaway and current Defense FR stats."},
+  {Field:"FumbleRecoveryPlayer",Meaning:"Player receiving the fumble-recovery credit in current Defense stats."},
+  {Field:"DefensiveInterception",Meaning:"1 when this play credits a defensive interception. Included in Takeaway and current Defense INT stats."},
+  {Field:"InterceptionPlayer",Meaning:"Player receiving the defensive interception credit in current Defense stats."},
+  {Field:"DefensiveTD",Meaning:"1 when this play credits a defensive return touchdown."},
+  {Field:"DefensiveTDPlayer",Meaning:"Player receiving the defensive TD credit in current Defense stats."},
+  {Field:"Takeaway",Meaning:"1 for a defensive fumble recovery or defensive interception; same event logic used by Team Summary takeaways and turnover margin."},
+  {Field:"Giveaway",Meaning:"1 for our offensive interception or fumble lost; same event logic used by Team Summary turnovers."},
+  {Field:"TurnoverMarginImpact",Meaning:"+1 takeaway, -1 giveaway, 0 otherwise. Summing this field by game equals Team Game Stats turnoverMargin."},
+  {Field:"Touchdown",Meaning:"1 for any recorded touchdown, including defensive return touchdowns."},
+  {Field:"FirstDown",Meaning:"Derived first down using the same offensive first-down logic used by current Rushing/Passing/Receiving and Team Summary stats."},
+  {Field:"Extras",Meaning:"Legacy/additional tags such as TD, first down, fumble, PAT or 2PT."},
+  {Field:"Player-snaps",Meaning:"Snap Tracker participation records; separate from team play count"},
+  {Field:"ParticipationPct",Meaning:"Player tracked snaps divided by tracked team snap opportunities"},
+  {Field:"OffensivePlays",Meaning:"Rush attempts plus pass attempts"},
+  {Field:"DefensivePlays",Meaning:"Recorded opponent scrimmage plays via Defense entries"},
+  {Field:"TotalScrimmage",Meaning:"Offensive plays plus defensive plays"},
+  {Field:"SpecialTeamsPlays",Meaning:"Kickoff, kickoff return, punt and return events"},
+  {Field:"Explosive10/20",Meaning:"Offensive plays gaining at least 10 / 20 yards"},
+  {Field:"PenaltyYards",Meaning:"Signed yardage applied to the offense; negative hurts the team with possession, positive helps it"},
+  {Field:"PenaltyDownResult",Meaning:"unchanged, automatic1st, replay, or loss"},
+  {Field:"PenaltyPlayer",Meaning:"Roster player ID or Unknown / Team"}
 ]}
 function analyticsPayload(){return {exportedAt:new Date().toISOString(),team:S.team,games:gameRows(),plays:playRows(),playerGameStats:playerGameRows(),teamGameStats:teamGameRows(),snapCounts:snapCountRows(),snapRecords:snapRecordRows(),specialTeams:specialRowsExport(),penalties:penaltyRowsExport(),seasonTotals:seasonRows(),dataDictionary:dataDictionaryRows()}}
 function csvEscape(v){const s=String(v??"");return /[",\n]/.test(s)?`"${s.replace(/"/g,'""')}"`:s}
