@@ -1,9 +1,11 @@
-# Sideline Stats V3.9.3
+# Sideline Stats V3.9.4
 
-First-down stat fix:
-- Offensive first downs are now derived from the actual play state: yards gained >= distance needed.
-- Touchdown plays can also receive first-down credit when they reached/passed the line to gain.
-- Rushing 1D, passing 1D, receiving 1D, and Team First Downs all use the same derived logic.
-- Existing saved plays are fixed retroactively at stats-calculation time; they do not need to be re-entered.
-- The play state engine now also preserves/adds "1st Down" on qualifying TD plays instead of stripping it.
-- V3.9.2 selection highlighting, V3.9.1 compound defense, snap persistence, share/export, and backup compatibility remain intact.
+Defensive turnover-return update:
+- Fumble Recovery no longer saves the play immediately.
+- After selecting the recovering defender, the app asks for the return result.
+- Selecting Return TD +6 credits the defensive touchdown to the recovering player.
+- Interceptions use the same return-result step and can also be credited as defensive touchdowns.
+- Tackler, forced-fumble player, recovery/interception player, and touchdown scorer remain separate structured credits on the same play.
+- Defensive TDs add 6 to our score, not the opponent's score.
+- Defense stats and shared defense stats now include a TD column.
+- Existing V3.9.3 first-down logic and recent defense/snap/share improvements remain intact.
