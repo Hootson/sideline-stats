@@ -1,4 +1,4 @@
-# Sideline Stats V3.9.8
+# Sideline Stats V3.9.9
 
 Excel/raw analytics export alignment release.
 
@@ -24,3 +24,6 @@ Column O remains `Subtype`. For a compound defensive play it now includes all me
 - Player Game Stats remain generated from the same `agg()` function used by the on-screen player stat tables.
 
 The Data Dictionary sheet documents the new fields for dashboard/AI consumers.
+
+
+V3.9.9: unified accepted Friday Night Lights stadium masthead across the app and share images; dynamic edit-team button remains live in-app.
