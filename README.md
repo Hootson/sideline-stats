@@ -1,29 +1,14 @@
-# Sideline Stats V3.9.9
+# Sideline Stats V3.10.0
 
-Excel/raw analytics export alignment release.
+Sideline workflow expansion focused on branching from the event that happened while keeping entry simple.
 
-## Plays sheet
-The Plays sheet now exports the structured defensive events that drive the current in-app stats:
-- ForcedFumble + ForcedFumblePlayer
-- FumbleRecovery + FumbleRecoveryPlayer
-- DefensiveInterception + InterceptionPlayer
-- DefensiveTD + DefensiveTDPlayer
-- Takeaway
-- Giveaway
-- TurnoverMarginImpact
-- TackleKind
-- DefensiveCredits
+## New tracking
+- Post-touchdown point-after workflow: 2-point kick, run, pass, or no try; player attribution and good/no-good result.
+- Pass defended credit after opponent incomplete passes.
+- Defensive interception/fumble-recovery return yards before return TD/no-TD outcome.
+- Our kickoff now records kicker, result (touchback/returned/out of bounds/onside), and kick yards when applicable.
+- Prominent next-quarter control; all generic recorded plays now explicitly store the active quarter.
+- Excel Plays/Player Game Stats/Special Teams exports include the new structured fields.
+- Defense stats include PD.
 
-Column O remains `Subtype`. For a compound defensive play it now includes all meaningful defensive events (for example `Opponent Run + Forced Fumble + Fumble Recovery + Defensive TD`) so Fumble Recovery is once again directly visible in the same column used by older exports. `RawSubtype` preserves the original stored subtype.
-
-## Stat alignment
-- `FirstDown` uses the same derived first-down function as the Rushing, Passing, Receiving and Team Summary stats.
-- `Touchdown` includes defensive return touchdowns.
-- `Takeaway` uses the same fumble-recovery/interception logic as Team Summary turnover margin.
-- Summing `TurnoverMarginImpact` by game matches Team Game Stats `turnoverMargin`.
-- Player Game Stats remain generated from the same `agg()` function used by the on-screen player stat tables.
-
-The Data Dictionary sheet documents the new fields for dashboard/AI consumers.
-
-
-V3.9.9: unified accepted Friday Night Lights stadium masthead across the app and share images; dynamic edit-team button remains live in-app.
+Existing backups remain compatible. Legacy 1PT/2PT extras remain readable/scored.
