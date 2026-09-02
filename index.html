@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V3.9.7</title>
+<title>Sideline Stats V3.9.8</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -550,14 +550,16 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 .signed-yard-picker:focus{border-color:var(--p);outline:none}
 
 
-/* V3.9.7 Friday Night Lights product masthead */
-.top{position:sticky;top:0;z-index:20;min-height:104px;padding:11px 16px 25px;display:flex;align-items:flex-start;justify-content:space-between;overflow:hidden;background:linear-gradient(180deg,#05080d 0%,#0a121c 57%,#0d1a17 100%);color:#fff;box-shadow:0 3px 14px #0008;border-bottom:1px solid #ffffff18}
-.top:before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 7% 5%,#ffffff55 0 1px,#ffffff22 2px 5px,transparent 15%),radial-gradient(ellipse at 93% 5%,#ffffff55 0 1px,#ffffff22 2px 5px,transparent 15%),radial-gradient(ellipse at 50% -18%,#b9d8ff18,transparent 52%)}
-.fnl-lights{position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 3% 15%,#fff 0 1px,#e9f4ff99 2px 3px,transparent 8px),radial-gradient(circle at 8% 10%,#fff 0 1px,#e9f4ff88 2px 3px,transparent 8px),radial-gradient(circle at 97% 15%,#fff 0 1px,#e9f4ff99 2px 3px,transparent 8px),radial-gradient(circle at 92% 10%,#fff 0 1px,#e9f4ff88 2px 3px,transparent 8px);filter:drop-shadow(0 0 8px #d9ecff)}
-.brand-lockup{position:relative;z-index:2;text-shadow:0 2px 5px #000}
-.product-mark{font-family:"Arial Black","Helvetica Neue",Arial,sans-serif;font-size:20px;font-weight:950;line-height:1;letter-spacing:-.035em;font-style:italic}.product-mark b{color:#65b946}.edition-mark{display:inline-block;margin-top:5px;padding:2px 7px 1px;border-radius:2px;background:#65b946;color:#071009;font-size:8px;line-height:1.25;font-weight:950;letter-spacing:.13em;text-shadow:none}.screen-title{margin-top:7px;font-size:12px;font-weight:850;letter-spacing:.04em;color:#eef3ef}.team-edit{position:relative;z-index:3}
-.field-stripe{position:absolute;z-index:1;left:-7%;right:-7%;bottom:-25px;height:51px;transform:perspective(150px) rotateX(54deg);transform-origin:bottom;background-color:#1f672f;background-image:repeating-linear-gradient(90deg,transparent 0 11.8%,#ffffff42 12% 12.35%,transparent 12.55% 24.7%),linear-gradient(90deg,transparent 49.7%,#fff9 49.8% 50.2%,transparent 50.3%),repeating-linear-gradient(0deg,transparent 0 13px,#ffffff30 14px 15px,transparent 16px 27px);border-top:2px solid #ffffff8c;box-shadow:0 -4px 14px #49a55a22}
-.field-stripe span{position:absolute;left:50%;top:7px;transform:translateX(-50%);font:950 13px Arial,sans-serif;color:#ffffffbb;letter-spacing:2px}
+/* V3.9.8 unified Friday Night Lights brand masthead */
+.top{position:sticky;top:0;z-index:20;min-height:152px;padding:12px 16px 50px;display:flex;align-items:flex-start;justify-content:center;overflow:hidden;background:linear-gradient(180deg,#020509 0%,#08121d 50%,#0b1716 100%);color:#fff;box-shadow:0 4px 18px #0009;border-bottom:2px solid #ffffff18}
+.top:before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% -18%,#c7e5ff20 0%,transparent 52%),linear-gradient(112deg,transparent 0 14%,#ffffff08 14.3% 14.7%,transparent 15% 34%,#ffffff06 34.3% 34.6%,transparent 35% 64%,#ffffff06 64.3% 64.6%,transparent 65% 84%,#ffffff08 84.3% 84.7%,transparent 85%)}
+.fnl-lights{position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 5% 14%,#fff 0 2px,#e9f4ffcc 3px 5px,transparent 13px),radial-gradient(circle at 9% 10%,#fff 0 2px,#e9f4ffb8 3px 5px,transparent 13px),radial-gradient(circle at 13% 15%,#fff 0 2px,#e9f4ff9e 3px 5px,transparent 13px),radial-gradient(circle at 95% 14%,#fff 0 2px,#e9f4ffcc 3px 5px,transparent 13px),radial-gradient(circle at 91% 10%,#fff 0 2px,#e9f4ffb8 3px 5px,transparent 13px),radial-gradient(circle at 87% 15%,#fff 0 2px,#e9f4ff9e 3px 5px,transparent 13px);filter:drop-shadow(0 0 11px #d9ecff)}
+.brand-lockup{position:relative;z-index:3;width:100%;text-align:center;text-shadow:0 3px 8px #000;display:flex;flex-direction:column;align-items:center}
+.football-mark{width:52px;height:23px;border:2px solid #fff;border-radius:50%;margin:0 auto 3px;position:relative;box-shadow:0 0 10px #d7edff33}.football-mark:before{content:"";position:absolute;left:14px;right:14px;top:10px;border-top:2px solid #fff}.football-mark:after{content:"|||";position:absolute;left:0;right:0;top:3px;font:900 9px/1 Arial,sans-serif;letter-spacing:0;color:#fff}
+.product-mark{font-family:"Arial Black","Helvetica Neue",Arial,sans-serif;font-size:25px;font-weight:950;line-height:.98;letter-spacing:-.045em;font-style:italic;white-space:nowrap}.product-mark b{color:#65b946}.edition-mark{display:inline-block;margin-top:6px;padding:3px 13px 2px;border-radius:3px;background:#65b946;color:#071009;font-size:9px;line-height:1.2;font-weight:950;letter-spacing:.16em;text-shadow:none;box-shadow:0 2px 8px #0007}.screen-title{margin-top:9px;font-size:13px;font-weight:900;letter-spacing:.09em;color:#fff;text-transform:uppercase}.team-edit{position:absolute;z-index:5;right:11px;top:12px;background:#081019cc;border-color:#ffffff66;backdrop-filter:blur(2px)}
+.field-stripe{position:absolute;z-index:1;left:0;right:0;bottom:0;height:54px;background:#184f27 url("brand-field.png") center bottom/100% 100% no-repeat;border-top:1px solid #ffffff45;box-shadow:0 -8px 18px #0007;overflow:hidden}
+.field-stripe:before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,#06100fb8 0%,transparent 45%)}
+.field-stripe span{display:none}
 
 /* V3.9.7 team-colored stats section bars — actual rendered #statsBox path */
 #statsBox .stats-block{overflow:hidden;border-radius:9px;border:1px solid #d9dfdb;background:#fff;margin:0 8px 15px;box-shadow:0 1px 4px #0000000a}
@@ -574,17 +576,18 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
   <header class="top">
     <div class="fnl-lights" aria-hidden="true"></div>
     <div class="brand-lockup">
+      <div class="football-mark" aria-hidden="true"></div>
       <div class="product-mark"><span>SIDELINE</span> <b>STATS</b></div>
       <div class="edition-mark">GRIDIRON EDITION</div>
       <div class="screen-title" id="topTitle">Sideline Stats</div>
     </div>
     <button id="editTeamBtn" class="team-edit hidden">Edit Team</button>
-    <div class="field-stripe" aria-hidden="true"><span>50</span></div>
+    <div class="field-stripe" aria-hidden="true"></div>
   </header>
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V3.9.7 • GRIDIRON EDITION</div>
+      <div class="muted" style="color:#dfe9e2">V3.9.8 • GRIDIRON EDITION</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -1220,7 +1223,7 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
-$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.9.6",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
+$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.9.8",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
 $("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
 $("#restoreDataInput").addEventListener("change",async()=>{
   const f=$("#restoreDataInput").files?.[0];if(!f)return;
@@ -2700,14 +2703,20 @@ async function drawShareImage(c,data,x,y,w,h,pad=10){
 }
 async function drawBroadcastHeader(c,W,src,opts={}){
   const P=S.team?.primary||"#111111",A=S.team?.secondary||"#f26a00",compact=!!opts.compact,g=src?.kind==="game"?src.game:null;
-  const H=compact?352:410,brandH=compact?86:102;
+  const H=compact?392:455,brandH=compact?126:145;
   c.fillStyle="#071019";c.fillRect(0,0,W,H);
-  const grad=c.createLinearGradient(0,0,0,brandH);grad.addColorStop(0,"#172536");grad.addColorStop(.55,"#0b141e");grad.addColorStop(1,"#05090d");c.fillStyle=grad;c.fillRect(0,0,W,brandH);
-  c.save();c.globalAlpha=.14;c.strokeStyle="#fff";c.lineWidth=1.1;for(let x=60;x<W;x+=120){c.beginPath();c.moveTo(x,0);c.lineTo(x-42,brandH);c.stroke()}c.restore();
-  c.save();c.fillStyle="#fff";c.shadowColor="#fff";c.shadowBlur=9;[[74,18],[96,18],[118,18],[W-118,18],[W-96,18],[W-74,18]].forEach(([x,y])=>{c.beginPath();c.arc(x,y,4.2,0,Math.PI*2);c.fill()});c.restore();
-  c.save();c.translate(W/2,compact?18:21);c.strokeStyle="#fff";c.lineWidth=2.2;c.beginPath();c.ellipse(0,0,31,12,0,0,Math.PI*2);c.stroke();c.beginPath();c.moveTo(-9,0);c.lineTo(9,0);c.stroke();[-6,-2,2,6].forEach(xx=>{c.beginPath();c.moveTo(xx,-4);c.lineTo(xx,4);c.stroke()});c.restore();
-  const wordY=compact?59:70;c.save();c.shadowColor="rgba(0,0,0,.85)";c.shadowBlur=3;c.shadowOffsetY=2;c.font=`950 ${compact?37:44}px "Arial Black","Helvetica Neue",Arial,sans-serif`;const l="SIDELINE",r="STATS",gap=14,lw=c.measureText(l).width,rw=c.measureText(r).width,start=(W-lw-rw-gap)/2;c.textAlign="left";c.fillStyle="#fff";c.fillText(l,start,wordY);c.fillStyle="#65b946";c.fillText(r,start+lw+gap,wordY);c.restore();
-  const plateW=compact?178:202,plateH=compact?17:19,plateY=compact?65:77;shareRR(c,W/2-plateW/2,plateY,plateW,plateH,4,"#65b946");shareTX(c,"GRIDIRON EDITION",W/2,plateY+plateH-4,compact?10:11,950,"#071019","center");
+  const grad=c.createLinearGradient(0,0,0,brandH);grad.addColorStop(0,"#020509");grad.addColorStop(.54,"#08121d");grad.addColorStop(1,"#0b1716");c.fillStyle=grad;c.fillRect(0,0,W,brandH);
+  c.save();c.globalAlpha=.11;c.strokeStyle="#fff";c.lineWidth=1.1;for(let x=54;x<W;x+=112){c.beginPath();c.moveTo(x,0);c.lineTo(x-45,brandH);c.stroke()}c.restore();
+  c.save();c.fillStyle="#fff";c.shadowColor="#d9ecff";c.shadowBlur=14;[[66,22],[90,18],[114,24],[W-114,24],[W-90,18],[W-66,22]].forEach(([x,y])=>{c.beginPath();c.arc(x,y,4.6,0,Math.PI*2);c.fill()});c.restore();
+  c.save();c.translate(W/2,compact?20:22);c.strokeStyle="#fff";c.lineWidth=2.4;c.beginPath();c.ellipse(0,0,31,12,0,0,Math.PI*2);c.stroke();c.beginPath();c.moveTo(-9,0);c.lineTo(9,0);c.stroke();[-6,-2,2,6].forEach(xx=>{c.beginPath();c.moveTo(xx,-4);c.lineTo(xx,4);c.stroke()});c.restore();
+  const wordY=compact?63:70;c.save();c.shadowColor="rgba(0,0,0,.92)";c.shadowBlur=5;c.shadowOffsetY=2;c.font=`italic 950 ${compact?39:46}px "Arial Black","Helvetica Neue",Arial,sans-serif`;const l="SIDELINE",r="STATS",gap=14,lw=c.measureText(l).width,rw=c.measureText(r).width,start=(W-lw-rw-gap)/2;c.textAlign="left";c.fillStyle="#fff";c.fillText(l,start,wordY);c.fillStyle="#65b946";c.fillText(r,start+lw+gap,wordY);c.restore();
+  const plateW=compact?190:214,plateH=compact?18:20,plateY=compact?70:78;shareRR(c,W/2-plateW/2,plateY,plateW,plateH,4,"#65b946");shareTX(c,"GRIDIRON EDITION",W/2,plateY+plateH-4,compact?10:11,950,"#071019","center");
+  try{
+    const fieldIm=await loadImg("brand-field.png");
+    const fieldH=compact?44:51;
+    c.drawImage(fieldIm,0,0,fieldIm.naturalWidth||fieldIm.width,fieldIm.naturalHeight||fieldIm.height,0,brandH-fieldH,W,fieldH);
+    const fade=c.createLinearGradient(0,brandH-fieldH,0,brandH-fieldH+25);fade.addColorStop(0,"rgba(3,8,10,.92)");fade.addColorStop(1,"rgba(3,8,10,0)");c.fillStyle=fade;c.fillRect(0,brandH-fieldH,W,28);
+  }catch(e){}
   c.fillStyle=A;c.fillRect(0,brandH-4,W,4);
   if(g){
     const metaH=compact?54:62,bodyY=brandH,bodyBottom=H-metaH,bodyH=bodyBottom-bodyY;
