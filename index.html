@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V3.9.6</title>
+<title>Sideline Stats V3.9.7</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -260,7 +260,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 .penalty-down-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 
 
-/* V3.9.6 sideline readability */
+/* V3.9.7 sideline readability */
 .player-grid{gap:12px}
 .player-select{
   min-height:92px !important;
@@ -296,7 +296,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
   font-weight:850 !important;
 }
 
-/* V3.9.6 game editing + opponent logo */
+/* V3.9.7 game editing + opponent logo */
 .game-opponent-badge img{
   width:100%;
   height:100%;
@@ -318,7 +318,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 #editGameCard .row > *{min-width:0}
 
 
-/* V3.9.6 mobile-first Stats tables */
+/* V3.9.7 mobile-first Stats tables */
 .stats-table-wrap{width:100%;overflow-x:hidden}
 .stats-table{width:100%;border-collapse:collapse;table-layout:fixed}
 .stats-table th,.stats-table td{
@@ -342,7 +342,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 }
 
 
-/* V3.9.6 real Stats rendering update */
+/* V3.9.7 real Stats rendering update */
 .stats-table-scroll{
   width:100%;
   overflow-x:auto;
@@ -482,12 +482,12 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 }
 
 
-/* V3.9.6 branded Stats section headers */
+/* V3.9.7 branded Stats section headers */
 #statsContent .stats-block{overflow:hidden;border-radius:12px;border:1px solid #d9dfdb;background:#fff;margin-bottom:14px}
 #statsContent .stats-block>h3{margin:0 0 10px!important;padding:12px 14px 10px;background:var(--team-primary,#111);color:#fff;font-size:17px;font-weight:950;letter-spacing:.025em;text-transform:uppercase;border-bottom:4px solid var(--team-accent,#f26a00)}
 #statsContent .stats-block>.stats-table-scroll,#statsContent .stats-block>.muted{margin-left:10px;margin-right:10px;margin-bottom:10px}
 
-/* V3.9.6 automatic possession UI */
+/* V3.9.7 automatic possession UI */
 #togglePossession{opacity:.72;font-size:12px;padding:8px 10px}
 #stepMain .choice.hidden{display:none!important}
 
@@ -495,7 +495,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 .def-tackler.selected{transform:translateY(-1px)}
 #stepDefensePlay .choice,#stepDefensePass .choice{min-height:72px;font-weight:900}
 
-/* V3.9.6 clearer tap confirmation + defensive readability */
+/* V3.9.7 clearer tap confirmation + defensive readability */
 .choice.selected,
 .player-select.selected,
 .def-tackler.selected,
@@ -549,19 +549,42 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 }
 .signed-yard-picker:focus{border-color:var(--p);outline:none}
 
+
+/* V3.9.7 Friday Night Lights product masthead */
+.top{position:sticky;top:0;z-index:20;min-height:104px;padding:11px 16px 25px;display:flex;align-items:flex-start;justify-content:space-between;overflow:hidden;background:linear-gradient(180deg,#05080d 0%,#0a121c 57%,#0d1a17 100%);color:#fff;box-shadow:0 3px 14px #0008;border-bottom:1px solid #ffffff18}
+.top:before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 7% 5%,#ffffff55 0 1px,#ffffff22 2px 5px,transparent 15%),radial-gradient(ellipse at 93% 5%,#ffffff55 0 1px,#ffffff22 2px 5px,transparent 15%),radial-gradient(ellipse at 50% -18%,#b9d8ff18,transparent 52%)}
+.fnl-lights{position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 3% 15%,#fff 0 1px,#e9f4ff99 2px 3px,transparent 8px),radial-gradient(circle at 8% 10%,#fff 0 1px,#e9f4ff88 2px 3px,transparent 8px),radial-gradient(circle at 97% 15%,#fff 0 1px,#e9f4ff99 2px 3px,transparent 8px),radial-gradient(circle at 92% 10%,#fff 0 1px,#e9f4ff88 2px 3px,transparent 8px);filter:drop-shadow(0 0 8px #d9ecff)}
+.brand-lockup{position:relative;z-index:2;text-shadow:0 2px 5px #000}
+.product-mark{font-family:"Arial Black","Helvetica Neue",Arial,sans-serif;font-size:20px;font-weight:950;line-height:1;letter-spacing:-.035em;font-style:italic}.product-mark b{color:#65b946}.edition-mark{display:inline-block;margin-top:5px;padding:2px 7px 1px;border-radius:2px;background:#65b946;color:#071009;font-size:8px;line-height:1.25;font-weight:950;letter-spacing:.13em;text-shadow:none}.screen-title{margin-top:7px;font-size:12px;font-weight:850;letter-spacing:.04em;color:#eef3ef}.team-edit{position:relative;z-index:3}
+.field-stripe{position:absolute;z-index:1;left:-7%;right:-7%;bottom:-25px;height:51px;transform:perspective(150px) rotateX(54deg);transform-origin:bottom;background-color:#1f672f;background-image:repeating-linear-gradient(90deg,transparent 0 11.8%,#ffffff42 12% 12.35%,transparent 12.55% 24.7%),linear-gradient(90deg,transparent 49.7%,#fff9 49.8% 50.2%,transparent 50.3%),repeating-linear-gradient(0deg,transparent 0 13px,#ffffff30 14px 15px,transparent 16px 27px);border-top:2px solid #ffffff8c;box-shadow:0 -4px 14px #49a55a22}
+.field-stripe span{position:absolute;left:50%;top:7px;transform:translateX(-50%);font:950 13px Arial,sans-serif;color:#ffffffbb;letter-spacing:2px}
+
+/* V3.9.7 team-colored stats section bars — actual rendered #statsBox path */
+#statsBox .stats-block{overflow:hidden;border-radius:9px;border:1px solid #d9dfdb;background:#fff;margin:0 8px 15px;box-shadow:0 1px 4px #0000000a}
+#statsBox .stats-block>h3{margin:0 0 8px!important;padding:7px 9px 6px;background:var(--team-primary,var(--p,#111));color:#fff;font-size:17px;font-weight:950;letter-spacing:.01em;text-transform:none;border-bottom:5px solid var(--team-accent,var(--s,#f26a00));box-shadow:0 2px 4px #0003}
+#statsBox .stats-block>.stats-table-scroll,#statsBox .stats-block>.muted,#statsBox .stats-block>.scope-summary{margin-left:7px;margin-right:7px;margin-bottom:9px}
+.stats-share-head{background:linear-gradient(180deg,#080b10,#101820)!important;border-bottom:5px solid var(--team-accent,var(--s,#f26a00))!important}
+.stats-share-head .eyebrow{color:#65b946;opacity:1}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 <div class="app">
   <header class="top">
-    <div class="brand" id="topTitle">Sideline Stats</div>
+    <div class="fnl-lights" aria-hidden="true"></div>
+    <div class="brand-lockup">
+      <div class="product-mark"><span>SIDELINE</span> <b>STATS</b></div>
+      <div class="edition-mark">GRIDIRON EDITION</div>
+      <div class="screen-title" id="topTitle">Sideline Stats</div>
+    </div>
     <button id="editTeamBtn" class="team-edit hidden">Edit Team</button>
+    <div class="field-stripe" aria-hidden="true"><span>50</span></div>
   </header>
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V3.9.6 • GRIDIRON EDITION</div>
+      <div class="muted" style="color:#dfe9e2">V3.9.7 • GRIDIRON EDITION</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>

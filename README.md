@@ -1,4 +1,4 @@
-# Sideline Stats V3.9.6
+# Sideline Stats V3.9.7
 
 Excel/raw analytics export alignment release.
 
