@@ -1,4 +1,4 @@
-# Sideline Stats V3.10.1
+# Sideline Stats V3.10.2
 
 Sideline workflow expansion focused on branching from the event that happened while keeping entry simple.
 
@@ -14,3 +14,4 @@ Sideline workflow expansion focused on branching from the event that happened wh
 Existing backups remain compatible. Legacy 1PT/2PT extras remain readable/scored.
 
 - V3.10.1: Adds official NFL passer rating to passing box scores, team summaries, shareable stats, and analytics export. Pass attempts used for passer rating exclude sacks.
+- V3.10.2: Live-test UX cleanup: yardage wheels default to 0, offensive fumbles branch to OUR TEAM / OTHER TEAM recovery, defensive prompt wording updated, all branched play-entry screens auto-scroll into view, temporary selections reset between plays, and unselected player/yardage controls use a polished neutral visual treatment.

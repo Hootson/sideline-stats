@@ -1,5 +1,5 @@
-const CACHE_NAME = "sideline-stats-v3-10-1";
-const APP_SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon.png", "./brand-field.png"];
+const CACHE_NAME = "sideline-stats-v3-10-2";
+const APP_SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon.png", "./brand-field.png", "./brand-header.png"];
 
 self.addEventListener("install", event => {
   event.waitUntil(

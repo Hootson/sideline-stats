@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V3.10.1</title>
+<title>Sideline Stats V3.10.2</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -482,6 +482,29 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 }
 
 
+
+/* V3.10.2 polished neutral selection state */
+.choice,
+.player-select,
+#defTacklerGrid .def-tackler,
+#defTurnoverPlayerGrid .def-turnover-player,
+.penalty-choice,
+.penalty-yard{
+  background:linear-gradient(180deg,#fbfcfb 0%,#f4f6f5 100%);
+  color:#202722;
+  border-color:#cfd7d2;
+  box-shadow:0 1px 2px #00000008, inset 0 1px 0 #ffffff;
+}
+.choice:hover,.player-select:hover,#defTacklerGrid .def-tackler:hover,#defTurnoverPlayerGrid .def-turnover-player:hover{border-color:#bcc7c0}
+#stepMain .choice:not(.selected):not(.sel){color:#202722}
+#stepMain .choice:not(.selected):not(.sel) strong{color:#18211b}
+.player-select strong,#defTacklerGrid .def-tackler span,#defTurnoverPlayerGrid .def-turnover-player span{color:#18211b}
+.player-select span{color:#59645d !important}
+.choice.selected,.choice.sel,.player-select.selected,#defTacklerGrid .def-tackler.selected,#defTurnoverPlayerGrid .def-turnover-player.selected,.penalty-choice.selected,.penalty-yard.selected{
+  background:var(--p) !important;color:#fff !important;border-color:var(--p) !important;box-shadow:inset 0 -4px 0 var(--s) !important;
+}
+.player-select.selected strong,.player-select.selected span,#defTacklerGrid .def-tackler.selected span,#defTurnoverPlayerGrid .def-turnover-player.selected span{color:#fff !important}
+
 /* V3.9.7 branded Stats section headers */
 #statsContent .stats-block{overflow:hidden;border-radius:12px;border:1px solid #d9dfdb;background:#fff;margin-bottom:14px}
 #statsContent .stats-block>h3{margin:0 0 10px!important;padding:12px 14px 10px;background:var(--team-primary,#111);color:#fff;font-size:17px;font-weight:950;letter-spacing:.025em;text-transform:uppercase;border-bottom:4px solid var(--team-accent,#f26a00)}
@@ -550,7 +573,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 .signed-yard-picker:focus{border-color:var(--p);outline:none}
 
 
-/* V3.10.1 unified branded Friday Night Lights masthead — accepted marketing artwork */
+/* V3.10.2 unified branded Friday Night Lights masthead — accepted marketing artwork */
 .top{
   position:sticky;top:0;z-index:20;
   width:100%;min-height:0;aspect-ratio:1536/468;
@@ -594,7 +617,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V3.10.1 • GRIDIRON EDITION</div>
+      <div class="muted" style="color:#dfe9e2">V3.10.2 • GRIDIRON EDITION</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -878,7 +901,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
       <div class="card hidden" id="stepDefensePlay">
         <div class="muted">Opponent possession</div>
-        <h2>What did they do?</h2>
+        <h2>What happened on the play?</h2>
         <div class="grid2">
           <button class="choice def-play" data-defplay="Run">🏃<br>RUN</button>
           <button class="choice def-play" data-defplay="Pass">🏈<br>PASS</button>
@@ -990,6 +1013,16 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
       </div><div class="inline-note" style="margin-top:10px">First downs are calculated automatically from down, distance and yards gained. Touchdowns automatically open the point-after workflow. Scoring updates your team score automatically.</div>
       <button class="btn" id="recordPlay" style="margin-top:12px">Record Play</button></div>
+
+      <div class="card hidden" id="stepFumbleRecovery">
+        <div class="muted">Fumble recorded</div>
+        <h2>Who recovered the fumble?</h2>
+        <div class="grid2">
+          <button class="choice fumble-recovery-choice" data-recovery="ours">OUR TEAM</button>
+          <button class="choice fumble-recovery-choice" data-recovery="opp">OTHER TEAM</button>
+        </div>
+        <button class="btn ghost cancel" style="margin-top:12px">Cancel</button>
+      </div>
 
       <div id="editPlayCard" class="card editor hidden">
         <h2>Edit Play</h2>
@@ -1255,7 +1288,7 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
-$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.10.1",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
+$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.10.2",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
 $("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
 $("#restoreDataInput").addEventListener("change",async()=>{
   const f=$("#restoreDataInput").files?.[0];if(!f)return;
@@ -1718,16 +1751,40 @@ function advanceDownAfterPlay(g,p){
 function populateSignedYardPicker(id,min=-99,max=99){
   const el=$("#"+id);if(!el)return;
   const current=el.value;
-  let out='<option value="">Scroll to exact yards…</option>';
+  let out='';
   for(let v=min;v<=max;v++)out+=`<option value="${v}">${v>0?"+":""}${v} yards</option>`;
   el.innerHTML=out;
   if(current!==""&&Number(current)>=min&&Number(current)<=max)el.value=current;
+  else if(min<=0&&max>=0)el.value="0";
+  else el.value=String(min);
 }
-function resetSignedYardPicker(id){populateSignedYardPicker(id);const el=$("#"+id);if(el)el.value=""}
+function resetSignedYardPicker(id,min=-99,max=99){populateSignedYardPicker(id,min,max);const el=$("#"+id);if(el)el.value=(min<=0&&max>=0)?"0":String(min)}
 ["customYards","defSimpleYardsExact","defYardsExact","penaltyCustomYards"].forEach(id=>populateSignedYardPicker(id));
 populateSignedYardPicker("returnYardsExact",0,99);
 
-function resetFlow(){S.flow={};["#stepSub","#stepPenaltyType","#stepPenaltyPlayer","#stepPenaltyYards","#stepPenaltyDown","#stepPlayer","#stepDefenseCredits","#stepDefenseYards","#stepDefensePlay","#stepDefensePass","#stepDefenseSimpleYards","#stepDefenseTacklers","#stepDefenseOutcome","#stepDefenseTurnoverPlayer","#stepPassDefended","#stepReturnYards","#stepTryType","#stepTryResult","#stepKickoffResult","#stepYards","#stepExtras"].forEach(id=>$(id).classList.add("hidden"));$("#stepMain").classList.remove("hidden");$$(".extra").forEach(b=>b.classList.remove("sel"));$$(".def-tackler").forEach(b=>b.classList.remove("selected"))}
+const FLOW_STEP_IDS=["stepSub","stepPenaltyType","stepPenaltyPlayer","stepPenaltyYards","stepPenaltyDown","stepPlayer","stepDefenseCredits","stepDefenseYards","stepDefensePlay","stepDefensePass","stepDefenseSimpleYards","stepDefenseTacklers","stepDefenseOutcome","stepDefenseTurnoverPlayer","stepPassDefended","stepReturnYards","stepTryType","stepTryResult","stepKickoffResult","stepIncompleteDrop","stepFumbleRecovery","stepYards","stepExtras"];
+function scrollFlowStepIntoView(el){
+  if(!el||el.classList.contains("hidden"))return;
+  requestAnimationFrame(()=>setTimeout(()=>{
+    const header=document.querySelector(".top");
+    const offset=(header?.getBoundingClientRect().height||0)+10;
+    const y=window.scrollY+el.getBoundingClientRect().top-offset;
+    window.scrollTo({top:Math.max(0,y),behavior:"smooth"});
+  },20));
+}
+FLOW_STEP_IDS.forEach(id=>{
+  const el=document.getElementById(id);if(!el)return;
+  new MutationObserver(ms=>{if(ms.some(m=>m.attributeName==="class")&&!el.classList.contains("hidden"))scrollFlowStepIntoView(el)}).observe(el,{attributes:true,attributeFilter:["class"]});
+});
+
+function resetFlow(){
+  S.flow={};
+  ["#stepSub","#stepPenaltyType","#stepPenaltyPlayer","#stepPenaltyYards","#stepPenaltyDown","#stepPlayer","#stepDefenseCredits","#stepDefenseYards","#stepDefensePlay","#stepDefensePass","#stepDefenseSimpleYards","#stepDefenseTacklers","#stepDefenseOutcome","#stepDefenseTurnoverPlayer","#stepPassDefended","#stepReturnYards","#stepTryType","#stepTryResult","#stepKickoffResult","#stepIncompleteDrop","#stepFumbleRecovery","#stepYards","#stepExtras"].forEach(id=>{const el=$(id);if(el)el.classList.add("hidden")});
+  $("#stepMain").classList.remove("hidden");
+  $$(".extra,.choice,.player-select,.def-tackler,.def-turnover-player,.def-simple-yard,.yard,.penalty-choice,.penalty-yard").forEach(b=>{b.classList.remove("sel","selected")});
+  $$(".credit-btn").forEach(b=>b.classList.remove("active"));
+  resetSignedYardPicker("customYards");resetSignedYardPicker("defSimpleYardsExact");resetSignedYardPicker("defYardsExact");resetSignedYardPicker("penaltyCustomYards");resetSignedYardPicker("returnYardsExact",0,99);
+}
 $$(".cancel").forEach(b=>b.addEventListener("click",resetFlow));
 $$(".action").forEach(b=>b.addEventListener("click",()=>start(b.dataset.action)));
 
@@ -1963,7 +2020,7 @@ function finishSimpleDefensePlay(){
 function showTakeawayReturnYards(label){
   $("#returnYardsLabel").textContent=label||"Takeaway return yards";
   $("#returnYardGrid").innerHTML=[0,5,10,15,20,30,40].map(v=>`<button class="choice return-yard" data-v="${v}">${v}</button>`).join("");
-  populateSignedYardPicker("returnYardsExact",0,99);$("#returnYardsExact").value="";
+  resetSignedYardPicker("returnYardsExact",0,99);
   $("#stepReturnYards").classList.remove("hidden");
   $$(".return-yard").forEach(b=>b.addEventListener("click",()=>{S.flow.returnYards=Number(b.dataset.v);$("#stepReturnYards").classList.add("hidden");showDefenseOutcome()}));
 }
@@ -2117,7 +2174,7 @@ function pick(id,mode){
 function showYards(){
   let vals=S.flow.type==="Kickoff"?[10,20,30,40,50,60]:[-10,-5,-3,-2,-1,0,1,2,3,4,5,6,7,10,15];
   $("#yardGrid").innerHTML=vals.map(v=>`<button class="choice yard" data-v="${v}">${v>0?"+":""}${v}</button>`).join("");
-  if(S.flow.type==="Kickoff"){populateSignedYardPicker("customYards",0,99);$("#customYards").value="";}else resetSignedYardPicker("customYards");
+  if(S.flow.type==="Kickoff")resetSignedYardPicker("customYards",0,99);else resetSignedYardPicker("customYards");
   $("#stepYards").classList.remove("hidden");
   $$(".yard").forEach(b=>b.addEventListener("click",()=>{
     $$(".yard").forEach(x=>x.classList.remove("selected"));
@@ -2146,11 +2203,22 @@ $$(".try-type").forEach(b=>b.addEventListener("click",()=>{const t=b.dataset.try
 $$(".try-result").forEach(b=>b.addEventListener("click",()=>{S.flow.tryResult=b.dataset.result;S.flow.points=S.flow.tryResult==="Good"?2:0;$("#stepTryResult").classList.add("hidden");recordNow()}));
 $$(".kickoff-result").forEach(b=>b.addEventListener("click",()=>{S.flow.kickoffResult=b.dataset.result;$("#stepKickoffResult").classList.add("hidden");if(S.flow.kickoffResult==="Touchback")return recordNow();showYards()}));
 
+$$(".fumble-recovery-choice").forEach(b=>b.addEventListener("click",()=>{
+  $$(".fumble-recovery-choice").forEach(x=>x.classList.remove("selected"));
+  b.classList.add("selected");
+  S.flow.fumbleRecovery=b.dataset.recovery;
+  if(S.flow.fumbleRecovery==="opp"&&!S.flow.extras.includes("Fumble Lost"))S.flow.extras.push("Fumble Lost");
+  if(S.flow.fumbleRecovery==="ours")S.flow.extras=S.flow.extras.filter(x=>x!=="Fumble Lost");
+  setTimeout(()=>{$("#stepFumbleRecovery").classList.add("hidden");recordNow();},110);
+}));
+
 function recordNow(){
   const g=currentGame();if(!g)return;
 
-  if(g.possession==="ours"&&S.flow.extras?.includes("Fumble")&&!S.flow.extras.includes("Fumble Lost")){
-    if(confirm("Was the fumble lost to the other team?"))S.flow.extras.push("Fumble Lost");
+  if(g.possession==="ours"&&S.flow.extras?.includes("Fumble")&&!S.flow.fumbleRecovery){
+    $("#stepExtras").classList.add("hidden");
+    $("#stepFumbleRecovery").classList.remove("hidden");
+    return;
   }
 
   ensureInitialGameState(g);
