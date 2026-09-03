@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V3.10.2</title>
+<title>Sideline Stats V3.10.3</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -483,11 +483,12 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
 
 
-/* V3.10.2 polished neutral selection state */
+/* V3.10.3 polished neutral selection state */
 .choice,
 .player-select,
 #defTacklerGrid .def-tackler,
 #defTurnoverPlayerGrid .def-turnover-player,
+#defTurnoverPlayerGrid .def-pd-player,
 .penalty-choice,
 .penalty-yard{
   background:linear-gradient(180deg,#fbfcfb 0%,#f4f6f5 100%);
@@ -495,15 +496,15 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
   border-color:#cfd7d2;
   box-shadow:0 1px 2px #00000008, inset 0 1px 0 #ffffff;
 }
-.choice:hover,.player-select:hover,#defTacklerGrid .def-tackler:hover,#defTurnoverPlayerGrid .def-turnover-player:hover{border-color:#bcc7c0}
+.choice:hover,.player-select:hover,#defTacklerGrid .def-tackler:hover,#defTurnoverPlayerGrid .def-turnover-player:hover,#defTurnoverPlayerGrid .def-pd-player:hover{border-color:#bcc7c0}
 #stepMain .choice:not(.selected):not(.sel){color:#202722}
 #stepMain .choice:not(.selected):not(.sel) strong{color:#18211b}
-.player-select strong,#defTacklerGrid .def-tackler span,#defTurnoverPlayerGrid .def-turnover-player span{color:#18211b}
+.player-select strong,#defTacklerGrid .def-tackler span,#defTurnoverPlayerGrid .def-turnover-player span,#defTurnoverPlayerGrid .def-pd-player span{color:#18211b}
 .player-select span{color:#59645d !important}
-.choice.selected,.choice.sel,.player-select.selected,#defTacklerGrid .def-tackler.selected,#defTurnoverPlayerGrid .def-turnover-player.selected,.penalty-choice.selected,.penalty-yard.selected{
+.choice.selected,.choice.sel,.player-select.selected,#defTacklerGrid .def-tackler.selected,#defTurnoverPlayerGrid .def-turnover-player.selected,#defTurnoverPlayerGrid .def-pd-player.selected,.penalty-choice.selected,.penalty-yard.selected{
   background:var(--p) !important;color:#fff !important;border-color:var(--p) !important;box-shadow:inset 0 -4px 0 var(--s) !important;
 }
-.player-select.selected strong,.player-select.selected span,#defTacklerGrid .def-tackler.selected span,#defTurnoverPlayerGrid .def-turnover-player.selected span{color:#fff !important}
+.player-select.selected strong,.player-select.selected span,#defTacklerGrid .def-tackler.selected span,#defTurnoverPlayerGrid .def-turnover-player.selected span,#defTurnoverPlayerGrid .def-pd-player.selected span{color:#fff !important}
 
 /* V3.9.7 branded Stats section headers */
 #statsContent .stats-block{overflow:hidden;border-radius:12px;border:1px solid #d9dfdb;background:#fff;margin-bottom:14px}
@@ -536,7 +537,8 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
   color:#fff !important;
 }
 #defTacklerGrid .def-tackler,
-#defTurnoverPlayerGrid .def-turnover-player{
+#defTurnoverPlayerGrid .def-turnover-player,
+#defTurnoverPlayerGrid .def-pd-player{
   min-height:92px !important;
   padding:12px 7px !important;
   line-height:1.12 !important;
@@ -547,16 +549,36 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
   cursor:pointer;
 }
 #defTacklerGrid .def-tackler span,
-#defTurnoverPlayerGrid .def-turnover-player span{
+#defTurnoverPlayerGrid .def-turnover-player span,
+#defTurnoverPlayerGrid .def-pd-player span{
   display:block;
   font-size:26px !important;
   font-weight:950 !important;
   margin-bottom:4px;
 }
 #defTacklerGrid .def-tackler,
-#defTurnoverPlayerGrid .def-turnover-player{
+#defTurnoverPlayerGrid .def-turnover-player,
+#defTurnoverPlayerGrid .def-pd-player{
   font-size:18px !important;
 }
+
+/* V3.10.3 keep every single-player selection surface visually consistent */
+#defTurnoverPlayerGrid .def-pd-player{
+  border:1px solid #cfd7d2;
+  border-radius:12px;
+  background:linear-gradient(180deg,#fbfcfb 0%,#f4f6f5 100%);
+  color:#202722;
+  font-weight:800;
+  cursor:pointer;
+  box-shadow:0 1px 2px #00000008, inset 0 1px 0 #ffffff;
+}
+#defTurnoverPlayerGrid .def-pd-player.selected{
+  background:var(--p) !important;
+  color:#fff !important;
+  border-color:var(--p) !important;
+  box-shadow:inset 0 -4px 0 var(--s) !important;
+}
+
 
 
 .signed-yard-picker{
@@ -573,7 +595,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 .signed-yard-picker:focus{border-color:var(--p);outline:none}
 
 
-/* V3.10.2 unified branded Friday Night Lights masthead — accepted marketing artwork */
+/* V3.10.3 unified branded Friday Night Lights masthead — accepted marketing artwork */
 .top{
   position:sticky;top:0;z-index:20;
   width:100%;min-height:0;aspect-ratio:1536/468;
@@ -617,7 +639,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V3.10.2 • GRIDIRON EDITION</div>
+      <div class="muted" style="color:#dfe9e2">V3.10.3 • GRIDIRON EDITION</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -1288,7 +1310,7 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
-$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.10.2",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
+$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.10.3",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
 $("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
 $("#restoreDataInput").addEventListener("change",async()=>{
   const f=$("#restoreDataInput").files?.[0];if(!f)return;
@@ -1855,7 +1877,12 @@ $("#yesPassDefended").addEventListener("click",()=>{
   $("#defTurnoverPlayerLabel").textContent="Pass Defended";$("#defTurnoverPlayerTitle").textContent="Who defended it?";
   $("#defTurnoverPlayerGrid").innerHTML=[...(S.roster||[])].sort((a,b)=>Number(a.jersey)-Number(b.jersey)).map(p=>`<button class="player-btn def-pd-player" data-id="${p.id}"><span>#${p.jersey}</span>${esc(p.name)}</button>`).join("");
   $("#stepDefenseTurnoverPlayer").classList.remove("hidden");
-  $$(".def-pd-player").forEach(b=>b.addEventListener("click",()=>{S.flow.passDefendedPlayerId=b.dataset.id;$("#stepDefenseTurnoverPlayer").classList.add("hidden");finishSimpleDefensePlay()}));
+  $$(".def-pd-player").forEach(b=>b.addEventListener("click",()=>{
+    $$(".def-pd-player").forEach(x=>x.classList.remove("selected"));
+    b.classList.add("selected");
+    S.flow.passDefendedPlayerId=b.dataset.id;
+    setTimeout(()=>{$("#stepDefenseTurnoverPlayer").classList.add("hidden");finishSimpleDefensePlay()},110);
+  }));
 });
 
 $("#quickKickoff").addEventListener("click",()=>{
