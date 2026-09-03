@@ -1,4 +1,4 @@
-# Sideline Stats V3.10.0
+# Sideline Stats V3.10.1
 
 Sideline workflow expansion focused on branching from the event that happened while keeping entry simple.
 
@@ -12,3 +12,5 @@ Sideline workflow expansion focused on branching from the event that happened wh
 - Defense stats include PD.
 
 Existing backups remain compatible. Legacy 1PT/2PT extras remain readable/scored.
+
+- V3.10.1: Adds official NFL passer rating to passing box scores, team summaries, shareable stats, and analytics export. Pass attempts used for passer rating exclude sacks.

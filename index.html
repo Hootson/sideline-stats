@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V3.10.0</title>
+<title>Sideline Stats V3.10.1</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -550,7 +550,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 .signed-yard-picker:focus{border-color:var(--p);outline:none}
 
 
-/* V3.10.0 unified branded Friday Night Lights masthead — accepted marketing artwork */
+/* V3.10.1 unified branded Friday Night Lights masthead — accepted marketing artwork */
 .top{
   position:sticky;top:0;z-index:20;
   width:100%;min-height:0;aspect-ratio:1536/468;
@@ -594,7 +594,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V3.10.0 • GRIDIRON EDITION</div>
+      <div class="muted" style="color:#dfe9e2">V3.10.1 • GRIDIRON EDITION</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -1255,7 +1255,7 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
-$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.10.0",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
+$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.10.1",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
 $("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
 $("#restoreDataInput").addEventListener("change",async()=>{
   const f=$("#restoreDataInput").files?.[0];if(!f)return;
@@ -2229,7 +2229,7 @@ function agg(g){
   let m={};S.roster.forEach(p=>m[p.id]={id:p.id,j:p.jersey,n:p.name,car:0,ry:0,rtd:0,att:0,cmp:0,py:0,ptd:0,pi:0,rec:0,rey:0,retd:0,tgt:0,drop:0,t:0,tfl:0,sack:0,int:0,ff:0,fr:0,dtd:0,kr:0,kry:0,pr:0,pry:0,punt:0,punty:0,stff:0,stfr:0,ko:0,kotb:0,koYds:0,pd:0,tryKickAtt:0,tryKickMade:0,tryRunAtt:0,tryRunMade:0,tryPassAtt:0,tryPassMade:0,rfd:0,pfd:0,recfd:0});
   (g?.plays||[]).forEach(p=>{let a=m[p.player],b=m[p.player2];
     if(p.type==="Rush"&&a){a.car++;a.ry+=+p.yards||0;if(p.extras?.includes("TD"))a.rtd++;if(offensivePlayEarnedFirstDown(p))a.rfd++}
-    if(p.type==="Pass"&&a){a.att++;if(p.sub==="Complete"){a.cmp++;a.py+=+p.yards||0;if(p.extras?.includes("TD"))a.ptd++;if(offensivePlayEarnedFirstDown(p))a.pfd++;if(b){b.rec++;b.rey+=+p.yards||0;if(p.extras?.includes("TD"))b.retd++;if(offensivePlayEarnedFirstDown(p))b.recfd++}}if(p.sub==="Intercepted")a.pi++}
+    if(p.type==="Pass"&&a){if(["Complete","Incomplete","Intercepted"].includes(p.sub))a.att++;if(p.sub==="Complete"){a.cmp++;a.py+=+p.yards||0;if(p.extras?.includes("TD"))a.ptd++;if(offensivePlayEarnedFirstDown(p))a.pfd++;if(b){b.rec++;b.rey+=+p.yards||0;if(p.extras?.includes("TD"))b.retd++;if(offensivePlayEarnedFirstDown(p))b.recfd++}}if(p.sub==="Intercepted")a.pi++}
     if(p.type==="Pass"&&p.player2&&m[p.player2]&&(p.sub==="Complete"||p.sub==="Incomplete"||p.sub==="Intercepted")){
       m[p.player2].tgt++;
       if(p.sub==="Incomplete"&&p.drop)m[p.player2].drop++;
@@ -2352,7 +2352,8 @@ function calcTeamMetrics(plays,games=[]){
   const longestPass=Math.max(0,...passComp.map(x=>Number(x.yards)||0));
   const kr=p.filter(x=>x.type==="Kickoff Return"||(x.type==="Special"&&x.sub==="Kick Return"));
   const longestKR=Math.max(0,...kr.map(x=>Number(x.yards)||0));
-  const completions=passComp.length,attempts=passes.length;
+  const attemptPasses=passes.filter(x=>["Complete","Incomplete","Intercepted"].includes(x.sub));
+  const completions=passComp.length,attempts=attemptPasses.length;
   const passTD=passes.filter(x=>x.extras?.includes("TD")).length,ints=passes.filter(x=>x.sub==="Intercepted").length;
   const snapRecords=(games||[]).flatMap(g=>g.snapRecords||[]);
   const snapOpps=snapRecords.length;
@@ -2364,7 +2365,7 @@ function calcTeamMetrics(plays,games=[]){
     rushingYards:rushY,passingYards:passY,totalOffense:rushY+passY,yardsPerPlay:offense.length?(rushY+passY)/offense.length:0,
     firstDowns,turnovers,takeaways,turnoverMargin:takeaways-turnovers,tfl,sacks,
     explosive10,explosive20,longestRush,longestPass,longestKickReturn:longestKR,
-    completions,completionPct:attempts?completions/attempts:0,passingTD:passTD,interceptions:ints,tdIntRatio:ints?passTD/ints:(passTD?passTD:0),
+    completions,completionPct:attempts?completions/attempts:0,passingTD:passTD,interceptions:ints,passerRating:passerRating(completions,attempts,passY,passTD,ints),tdIntRatio:ints?passTD/ints:(passTD?passTD:0),
     tflRate:defense.length?tfl/defense.length:0,sackRate:defense.length?sacks/defense.length:0,takeawayRate:defense.length?takeaways/defense.length:0,
     snapOpportunities:snapOpps,playersBelow10:below10
   };
@@ -2381,7 +2382,7 @@ function renderTeamMetrics(src){
     <div class="metric-card"><strong>Scrimmage plays</strong><div class="metric-main">${m.totalScrimmage}</div><div class="metric-sub">+ ${m.specialTeamsPlays} special teams</div></div>
     <div class="metric-card"><strong>First downs</strong><div class="metric-main">${m.firstDowns}</div><div class="metric-sub">Explosive: ${m.explosive10} 10+ • ${m.explosive20} 20+</div></div>
     <div class="metric-card"><strong>Turnover margin</strong><div class="metric-main">${m.turnoverMargin>0?"+":""}${m.turnoverMargin}</div><div class="metric-sub">${m.takeaways} takeaways • ${m.turnovers} giveaways</div></div>
-    <div class="metric-card"><strong>Passing</strong><div class="metric-main">${pct(m.completionPct)}</div><div class="metric-sub">${m.completions}/${m.passAttempts} • ${m.passingTD} TD • ${m.interceptions} INT</div></div>
+    <div class="metric-card"><strong>Passing</strong><div class="metric-main">${m.passerRating==null?"—":m.passerRating.toFixed(1)}</div><div class="metric-sub">RATE • ${m.completions}/${m.passAttempts} • ${pct(m.completionPct)} • ${m.passingTD} TD • ${m.interceptions} INT</div></div>
     <div class="metric-card"><strong>Longest plays</strong><div class="metric-main">${Math.max(m.longestRush,m.longestPass)}</div><div class="metric-sub">Rush ${m.longestRush} • Pass ${m.longestPass} • KR ${m.longestKickReturn}</div></div>
     <div class="metric-card"><strong>Penalties</strong><div class="metric-main">${m.penalties}</div><div class="metric-sub">${m.penaltyYards} yds • Off ${m.offensivePenalties} • Def ${m.defensivePenalties}</div></div>
     <div class="metric-card"><strong>Unknown/team penalties</strong><div class="metric-main">${m.unknownPenalties}</div><div class="metric-sub">Included in penalty totals</div></div>
@@ -2542,9 +2543,9 @@ function renderStats(){document.documentElement.style.setProperty("--team-primar
   const rushCar=s.reduce((a,x)=>a+x.car,0),rushYds=s.reduce((a,x)=>a+x.ry,0);
   const rushTot=["TEAM TOTAL",rushCar,rushYds,rushCar?(rushYds/rushCar).toFixed(1):"0.0",s.reduce((a,x)=>a+x.rfd,0),s.reduce((a,x)=>a+x.rtd,0)];
 
-  const passRows=s.filter(x=>x.att).map(x=>[pname(x.id),`${x.cmp}/${x.att}`,x.py,(x.py/x.att).toFixed(1),x.pfd,x.ptd,x.pi]);
-  const passCmp=s.reduce((a,x)=>a+x.cmp,0),passAtt=s.reduce((a,x)=>a+x.att,0),passYds=s.reduce((a,x)=>a+x.py,0);
-  const passTot=["TEAM TOTAL",`${passCmp}/${passAtt}`,passYds,passAtt?(passYds/passAtt).toFixed(1):"0.0",s.reduce((a,x)=>a+x.pfd,0),s.reduce((a,x)=>a+x.ptd,0),s.reduce((a,x)=>a+x.pi,0)];
+  const passRows=s.filter(x=>x.att).map(x=>[pname(x.id),`${x.cmp}/${x.att}`,x.py,(x.py/x.att).toFixed(1),x.pfd,x.ptd,x.pi,passerRatingText(x.cmp,x.att,x.py,x.ptd,x.pi)]);
+  const passCmp=s.reduce((a,x)=>a+x.cmp,0),passAtt=s.reduce((a,x)=>a+x.att,0),passYds=s.reduce((a,x)=>a+x.py,0),passTD=s.reduce((a,x)=>a+x.ptd,0),passINT=s.reduce((a,x)=>a+x.pi,0);
+  const passTot=["TEAM TOTAL",`${passCmp}/${passAtt}`,passYds,passAtt?(passYds/passAtt).toFixed(1):"0.0",s.reduce((a,x)=>a+x.pfd,0),passTD,passINT,passerRatingText(passCmp,passAtt,passYds,passTD,passINT)];
 
   const recRows=s.filter(x=>x.tgt||x.rec).map(x=>[
     pname(x.id),x.tgt,x.rec,x.rey,x.rec?fmt1(x.rey/x.rec):"0.0",x.recfd,x.retd,x.drop,x.tgt?`${Math.round((x.rec/x.tgt)*100)}%`:"0%"
@@ -2581,7 +2582,7 @@ function renderStats(){document.documentElement.style.setProperty("--team-primar
   const pm=penaltyMetrics(src.plays);
   $("#statsBox").innerHTML=
     `<div class="stats-block"><h3>Rushing</h3>${tbl(["Player","CAR","YDS","AVG","1D","TD"],rushRows,rushRows.length?rushTot:null)}</div>`+
-    `<div class="stats-block"><h3>Passing</h3>${tbl(["Player","CMP/ATT","YDS","AVG","1D","TD","INT"],passRows,passRows.length?passTot:null)}</div>`+
+    `<div class="stats-block"><h3>Passing</h3>${tbl(["Player","CMP/ATT","YDS","AVG","1D","TD","INT","RATE"],passRows,passRows.length?passTot:null)}</div>`+
     `<div class="stats-block"><h3>Receiving</h3>${tbl(["Player","TGT","REC","YDS","AVG","1D","TD","CATCH%"],recRows.map(r=>[r[0],r[1],r[2],r[3],r[4],r[5],r[6],r[8]]),recRows.length?[recTot[0],recTot[1],recTot[2],recTot[3],recTot[4],recTot[5],recTot[6],recTot[8]]:null)}</div>`+
     `<div class="stats-block"><h3>Defense</h3>${tbl(["Player","TKL","TFL","SACK","PD","INT","FF","FR","TD"],defRows,defRows.length?defTot:null)}</div>`+
     `<div class="stats-block"><h3>Special Teams</h3>
@@ -2624,14 +2625,14 @@ function renderShare(){
 
   const leaders=[];
   if(rush)leaders.push(`<div class="leader-card"><strong>Rushing</strong>${esc(pname(rush.id))} • ${rush.car} CAR • ${rush.ry} YDS • ${rush.rtd} TD</div>`);
-  if(pass)leaders.push(`<div class="leader-card"><strong>Passing</strong>${esc(pname(pass.id))} • ${pass.cmp}/${pass.att} • ${pass.py} YDS • ${pass.ptd} TD</div>`);
+  if(pass)leaders.push(`<div class="leader-card"><strong>Passing</strong>${esc(pname(pass.id))} • ${pass.cmp}/${pass.att} • ${pass.py} YDS • ${pass.ptd} TD • ${passerRatingText(pass.cmp,pass.att,pass.py,pass.ptd,pass.pi)} RATE</div>`);
   if(rec)leaders.push(`<div class="leader-card"><strong>Receiving</strong>${esc(pname(rec.id))} • ${rec.rec} REC • ${rec.rey} YDS • ${rec.retd} TD</div>`);
   if(def)leaders.push(`<div class="leader-card"><strong>Defense</strong>${esc(pname(def.id))} • ${def.t} TKL • ${def.tfl} TFL • ${def.sack} SACK • ${def.int} INT</div>`);
   $("#shareLeaders").innerHTML=leaders.length?leaders.join(""):'<div class="muted">No individual stats yet.</div>';
 
   let offense="";
   offense+=`<h4>Rushing</h4>${shareTable(["Player","CAR","YDS","TD"],s.filter(x=>x.car).map(x=>[pname(x.id),x.car,x.ry,x.rtd]))}`;
-  offense+=`<h4>Passing</h4>${shareTable(["Player","C/A","YDS","TD","INT"],s.filter(x=>x.att).map(x=>[pname(x.id),`${x.cmp}/${x.att}`,x.py,x.ptd,x.pi]))}`;
+  offense+=`<h4>Passing</h4>${shareTable(["Player","C/A","YDS","TD","INT","RATE"],s.filter(x=>x.att).map(x=>[pname(x.id),`${x.cmp}/${x.att}`,x.py,x.ptd,x.pi,passerRatingText(x.cmp,x.att,x.py,x.ptd,x.pi)]))}`;
   offense+=`<h4>Receiving</h4>${shareTable(["Player","REC","YDS","TD"],s.filter(x=>x.rec).map(x=>[pname(x.id),x.rec,x.rey,x.retd]))}`;
   $("#shareOffense").innerHTML=offense;
   $("#shareDefense").innerHTML=shareTable(["Player","TKL","TFL","SACK","PD","INT","FF","FR","TD"],s.filter(x=>x.t+x.tfl+x.sack+x.pd+x.int+x.ff+x.fr+x.dtd).map(x=>[pname(x.id),x.t,x.tfl,x.sack,x.pd,x.int,x.ff,x.fr,x.dtd]));
@@ -2660,7 +2661,7 @@ function createSummaryCanvas(g){
   let y=520;
   const cards=[];
   if(rush)cards.push(["RUSHING",`${pname(rush.id)}   ${rush.car} CAR  •  ${rush.ry} YDS  •  ${rush.rtd} TD`]);
-  if(pass)cards.push(["PASSING",`${pname(pass.id)}   ${pass.cmp}/${pass.att}  •  ${pass.py} YDS  •  ${pass.ptd} TD`]);
+  if(pass)cards.push(["PASSING",`${pname(pass.id)}   ${pass.cmp}/${pass.att}  •  ${pass.py} YDS  •  ${pass.ptd} TD  •  ${passerRatingText(pass.cmp,pass.att,pass.py,pass.ptd,pass.pi)} RATE`]);
   if(rec)cards.push(["RECEIVING",`${pname(rec.id)}   ${rec.rec} REC  •  ${rec.rey} YDS  •  ${rec.retd} TD`]);
   if(def)cards.push(["DEFENSE",`${pname(def.id)}   ${def.t} TKL  •  ${def.tfl} TFL  •  ${def.sack} SACK  •  ${def.int} INT`]);
   cards.slice(0,4).forEach(([lab,val])=>{roundRect(c,70,y,1060,105,18,"#ffffff");c.fillStyle=S.team.secondary;c.fillRect(70,y,12,105);canvasText(c,lab,105,y+38,20,900,S.team.primary);canvasText(c,val,105,y+76,27,700,"#152019");y+=125});
@@ -2668,7 +2669,8 @@ function createSummaryCanvas(g){
   y+=20;canvasText(c,"TEAM STATS",70,y,30,900,S.team.primary);y+=52;
   const rushAtt=s.reduce((a,x)=>a+x.car,0),rushY=s.reduce((a,x)=>a+x.ry,0),passAtt=s.reduce((a,x)=>a+x.att,0),passCmp=s.reduce((a,x)=>a+x.cmp,0),passY=s.reduce((a,x)=>a+x.py,0),
         recs=s.reduce((a,x)=>a+x.rec,0),tackles=s.reduce((a,x)=>a+x.t,0),tfl=s.reduce((a,x)=>a+x.tfl,0),sacks=s.reduce((a,x)=>a+x.sack,0),ints=s.reduce((a,x)=>a+x.int,0);
-  const tiles=[["RUSHING",`${rushAtt} CAR`,`${rushY} YDS`],["PASSING",`${passCmp}/${passAtt}`,`${passY} YDS`],["RECEIVING",`${recs} REC`,""],["DEFENSE",`${tackles} TKL`,`${tfl} TFL • ${sacks} SACK • ${ints} INT`]];
+  const teamPassTD=s.reduce((a,x)=>a+x.ptd,0),teamPassINT=s.reduce((a,x)=>a+x.pi,0);
+  const tiles=[["RUSHING",`${rushAtt} CAR`,`${rushY} YDS`],["PASSING",`${passCmp}/${passAtt}`,`${passY} YDS • ${passerRatingText(passCmp,passAtt,passY,teamPassTD,teamPassINT)} RATE`],["RECEIVING",`${recs} REC`,""],["DEFENSE",`${tackles} TKL`,`${tfl} TFL • ${sacks} SACK • ${ints} INT`]];
   tiles.forEach((t,i)=>{let col=i%2,row=Math.floor(i/2),x=70+col*535,yy=y+row*145;roundRect(c,x,yy,500,120,18,"#ffffff");canvasText(c,t[0],x+25,yy+35,19,900,S.team.primary);canvasText(c,t[1],x+25,yy+77,33,900,"#152019");if(t[2])canvasText(c,t[2],x+230,yy+77,22,700,"#68736b")});
   canvasText(c,`${S.team.name} • ${S.team.grade||""} • ${S.team.season||""}`,600,1450,22,700,"#68736b","center");
   return cv
@@ -2678,6 +2680,17 @@ function rr(c,x,y,w,h,r,fill){c.beginPath();c.roundRect(x,y,w,h,r);c.fillStyle=f
 function tx(c,t,x,y,size,weight,color,align="left"){c.font=`${weight} ${size}px -apple-system,BlinkMacSystemFont,Segoe UI,Arial`;c.fillStyle=color;c.textAlign=align;c.fillText(String(t),x,y)}
 function fmt(v){return Number.isInteger(Number(v))?String(Number(v)):Number(v).toFixed(1)}
 function fmt1(v){const n=Number(v);return Number.isFinite(n)?n.toFixed(1):"0.0"}
+// NFL passer rating: completion %, yards/attempt, TD %, INT %, each component capped 0–2.375; max 158.3.
+function passerRating(cmp,att,yds,td,ints){
+  const A=Number(att)||0;if(A<=0)return null;
+  const clamp=v=>Math.max(0,Math.min(2.375,v));
+  const a=clamp(((Number(cmp)||0)/A-.3)*5);
+  const b=clamp((((Number(yds)||0)/A)-3)*.25);
+  const c=clamp(((Number(td)||0)/A)*20);
+  const d=clamp(2.375-((Number(ints)||0)/A)*25);
+  return ((a+b+c+d)/6)*100;
+}
+function passerRatingText(cmp,att,yds,td,ints){const r=passerRating(cmp,att,yds,td,ints);return r==null?"—":r.toFixed(1)}
 
 function shareRgba(hex,a){
   let h=(hex||"#000000").replace("#","");
@@ -2827,7 +2840,7 @@ async function makeTeamSummaryShare(src){
     ["FIRST DOWNS",m.firstDowns,`${m.explosive10} plays 10+ • ${m.explosive20} plays 20+`],
     ["TURNOVER MARGIN",`${m.turnoverMargin>0?"+":""}${m.turnoverMargin}`,`${m.takeaways} TAKEAWAYS • ${m.turnovers} GIVEAWAYS`],
     ["DEFENSE",`${m.defensivePlays} PLAYS`,`${m.tfl} TFL • ${m.sacks} SACK • ${pct(m.takeawayRate)} TAKEAWAY RATE`],
-    ["PASSING",pct(m.completionPct),`${m.completions}/${m.passAttempts} • ${m.passingYards} YDS • ${m.passingTD} TD • ${m.interceptions} INT`],
+    ["PASSING",m.passerRating==null?"—":m.passerRating.toFixed(1),`RATE • ${m.completions}/${m.passAttempts} • ${pct(m.completionPct)} • ${m.passingYards} YDS • ${m.passingTD} TD • ${m.interceptions} INT`],
     ["TOTAL PLAYS",m.totalScrimmage,`${m.specialTeamsPlays} SPECIAL TEAMS PLAYS`],
     ["PENALTIES",`${pm.penalties} / ${pm.penaltyYards} YDS`,`OFF ${pm.offensivePenalties} • DEF ${pm.defensivePenalties} • UNKNOWN ${pm.unknownPenalties}`]
   ];
@@ -2877,11 +2890,11 @@ async function makeHybridSharePages(src){
       ["TEAM TOTAL",car,yd,car?(yd/car).toFixed(1):"0.0",s.reduce((a,x)=>a+x.rfd,0),s.reduce((a,x)=>a+x.rtd,0)]);
   }
 
-  rows=s.filter(x=>x.att).map(x=>[pname(x.id),`${x.cmp}/${x.att}`,x.py,(x.py/x.att).toFixed(1),x.pfd,x.ptd,x.pi]);
+  rows=s.filter(x=>x.att).map(x=>[pname(x.id),`${x.cmp}/${x.att}`,x.py,(x.py/x.att).toFixed(1),x.pfd,x.ptd,x.pi,passerRatingText(x.cmp,x.att,x.py,x.ptd,x.pi)]);
   if(rows.length){
-    const att=s.reduce((a,x)=>a+x.att,0),cmp=s.reduce((a,x)=>a+x.cmp,0),yd=s.reduce((a,x)=>a+x.py,0);
-    addTable("PASSING",["PLAYER","CMP/ATT","YDS","AVG","1D","TD","INT"],rows,
-      ["TEAM TOTAL",`${cmp}/${att}`,yd,att?(yd/att).toFixed(1):"0.0",s.reduce((a,x)=>a+x.pfd,0),s.reduce((a,x)=>a+x.ptd,0),s.reduce((a,x)=>a+x.pi,0)]);
+    const att=s.reduce((a,x)=>a+x.att,0),cmp=s.reduce((a,x)=>a+x.cmp,0),yd=s.reduce((a,x)=>a+x.py,0),td=s.reduce((a,x)=>a+x.ptd,0),pi=s.reduce((a,x)=>a+x.pi,0);
+    addTable("PASSING",["PLAYER","CMP/ATT","YDS","AVG","1D","TD","INT","RATE"],rows,
+      ["TEAM TOTAL",`${cmp}/${att}`,yd,att?(yd/att).toFixed(1):"0.0",s.reduce((a,x)=>a+x.pfd,0),td,pi,passerRatingText(cmp,att,yd,td,pi)]);
   }
 
   rows=s.filter(x=>x.tgt||x.rec).map(x=>[
@@ -2941,7 +2954,7 @@ async function makeHybridSharePages(src){
 
   // Top performers are kept together on page 1.
   const cards=[
-    ["PASSING",pass,pass?`${pass.cmp}/${pass.att}`:"—","CMP/ATT",pass?pass.py:"—","YDS",pass&&pass.att?`${(pass.py/pass.att).toFixed(1)} AVG • ${pass.ptd} TD`:"—"],
+    ["PASSING",pass,pass?`${pass.cmp}/${pass.att}`:"—","CMP/ATT",pass?pass.py:"—","YDS",pass&&pass.att?`${(pass.py/pass.att).toFixed(1)} AVG • ${pass.ptd} TD • ${passerRatingText(pass.cmp,pass.att,pass.py,pass.ptd,pass.pi)} RATE`:"—"],
     ["RECEIVING",rec,rec?rec.rec:"—","REC",rec?rec.rey:"—","YDS",rec&&rec.rec?`${(rec.rey/rec.rec).toFixed(1)} AVG • ${rec.retd} TD`:"—"],
     ["RUSHING",rush,rush?rush.car:"—","CAR",rush?rush.ry:"—","YDS",rush&&rush.car?`${(rush.ry/rush.car).toFixed(1)} AVG • ${rush.rtd} TD`:"—"],
     ["DEFENSE",def,def?fmt(def.t):"—","TKL",def?fmt(def.tfl):"—","TFL",def?`${fmt(def.sack)} SACK • ${fmt(def.int)} INT`:"—"]
@@ -3247,7 +3260,7 @@ function playRows(){
   }));return rows;
 }
 function gameRows(){return (S.games||[]).map(g=>({GameID:g.id,Date:g.date,Opponent:g.opponent,GameType:g.gameType||"regular",Location:g.location,OurScore:displayedOurScore(g),OpponentScore:Number(g.oppScore||0),Result:displayedOurScore(g)>g.oppScore?"W":displayedOurScore(g)<g.oppScore?"L":"T",Status:g.status||"",PlayCount:(g.plays||[]).length,SnapTrackerPlays:(g.snapRecords||[]).length}))}
-function playerGameRows(){const out=[];(S.games||[]).forEach(g=>agg(g).forEach(x=>{const snaps=playerSnapCountForGames(x.id,[g]),opp=(g.snapRecords||[]).length;out.push({GameID:g.id,Date:g.date,Opponent:g.opponent,GameType:g.gameType||"regular",Jersey:x.j,Player:x.n,RushAtt:x.car,RushYds:x.ry,RushAvg:x.car?x.ry/x.car:0,Rush1D:x.rfd,RushTD:x.rtd,PassAtt:x.att,Completions:x.cmp,PassYds:x.py,PassAvg:x.att?x.py/x.att:0,Pass1D:x.pfd,PassTD:x.ptd,PassINT:x.pi,Receptions:x.rec,RecYds:x.rey,RecAvg:x.rec?x.rey/x.rec:0,Rec1D:x.recfd,RecTD:x.retd,Tackles:x.t,TFL:x.tfl,Sacks:x.sack,PassDefended:x.pd||0,DefINT:x.int,ForcedFumbles:x.ff,FumbleRecoveries:x.fr,DefTD:x.dtd||0,TryKickAtt:x.tryKickAtt||0,TryKickMade:x.tryKickMade||0,TryRunAtt:x.tryRunAtt||0,TryRunMade:x.tryRunMade||0,TryPassAtt:x.tryPassAtt||0,TryPassMade:x.tryPassMade||0,Kickoffs:x.ko||0,KickoffYds:x.koYds||0,KickoffTouchbacks:x.kotb||0,KickReturns:x.kr,KickReturnYds:x.kry,PuntReturns:x.pr,PuntReturnYds:x.pry,Punts:x.punt,PuntYds:x.punty,SpecialTeamsForcedFumbles:x.stff||0,SpecialTeamsFumbleRecoveries:x.stfr||0,Snaps:snaps,SnapOpportunities:opp,ParticipationPct:opp?snaps/opp:0,Met10SnapMinimum:snaps>=10?"Yes":"No",Penalties:(g.plays||[]).filter(p=>p.type==="Penalty"&&p.penaltyPlayer===x.id).length,PenaltyYards:(g.plays||[]).filter(p=>p.type==="Penalty"&&p.penaltyPlayer===x.id).reduce((a,p)=>a+Math.abs(Number(p.penaltyYards||0)),0)})}));return out}
+function playerGameRows(){const out=[];(S.games||[]).forEach(g=>agg(g).forEach(x=>{const snaps=playerSnapCountForGames(x.id,[g]),opp=(g.snapRecords||[]).length;out.push({GameID:g.id,Date:g.date,Opponent:g.opponent,GameType:g.gameType||"regular",Jersey:x.j,Player:x.n,RushAtt:x.car,RushYds:x.ry,RushAvg:x.car?x.ry/x.car:0,Rush1D:x.rfd,RushTD:x.rtd,PassAtt:x.att,Completions:x.cmp,PassYds:x.py,PassAvg:x.att?x.py/x.att:0,Pass1D:x.pfd,PassTD:x.ptd,PassINT:x.pi,PasserRating:passerRating(x.cmp,x.att,x.py,x.ptd,x.pi)??"",Receptions:x.rec,RecYds:x.rey,RecAvg:x.rec?x.rey/x.rec:0,Rec1D:x.recfd,RecTD:x.retd,Tackles:x.t,TFL:x.tfl,Sacks:x.sack,PassDefended:x.pd||0,DefINT:x.int,ForcedFumbles:x.ff,FumbleRecoveries:x.fr,DefTD:x.dtd||0,TryKickAtt:x.tryKickAtt||0,TryKickMade:x.tryKickMade||0,TryRunAtt:x.tryRunAtt||0,TryRunMade:x.tryRunMade||0,TryPassAtt:x.tryPassAtt||0,TryPassMade:x.tryPassMade||0,Kickoffs:x.ko||0,KickoffYds:x.koYds||0,KickoffTouchbacks:x.kotb||0,KickReturns:x.kr,KickReturnYds:x.kry,PuntReturns:x.pr,PuntReturnYds:x.pry,Punts:x.punt,PuntYds:x.punty,SpecialTeamsForcedFumbles:x.stff||0,SpecialTeamsFumbleRecoveries:x.stfr||0,Snaps:snaps,SnapOpportunities:opp,ParticipationPct:opp?snaps/opp:0,Met10SnapMinimum:snaps>=10?"Yes":"No",Penalties:(g.plays||[]).filter(p=>p.type==="Penalty"&&p.penaltyPlayer===x.id).length,PenaltyYards:(g.plays||[]).filter(p=>p.type==="Penalty"&&p.penaltyPlayer===x.id).reduce((a,p)=>a+Math.abs(Number(p.penaltyYards||0)),0)})}));return out}
 function teamGameRows(){return (S.games||[]).map(g=>{const m=calcTeamMetrics(g.plays||[],[g]);return {GameID:g.id,Date:g.date,Opponent:g.opponent,GameType:g.gameType||"regular",...m}})}
 function snapCountRows(){const out=[];(S.games||[]).forEach(g=>(S.roster||[]).forEach(p=>{const snaps=playerSnapCountForGames(p.id,[g]),opp=(g.snapRecords||[]).length;out.push({GameID:g.id,Date:g.date,Opponent:g.opponent,GameType:g.gameType||"regular",Jersey:p.jersey,Player:p.name,Snaps:snaps,SnapOpportunities:opp,ParticipationPct:opp?snaps/opp:0,Met10SnapMinimum:snaps>=10?"Yes":"No",SnapsNeeded:Math.max(0,10-snaps)})}));return out}
 function snapRecordRows(){const out=[];(S.games||[]).forEach(g=>(g.snapRecords||[]).forEach((r,i)=>{(r.playerIds||[]).forEach(id=>{const p=S.roster.find(x=>x.id===id);out.push({GameID:g.id,Date:g.date,Opponent:g.opponent,GameType:g.gameType||"regular",SnapSequence:i+1,Timestamp:r.ts?new Date(r.ts).toISOString():"",PlayerID:id,Jersey:p?.jersey||"",Player:p?.name||""})})}));return out}
@@ -3282,6 +3295,7 @@ function dataDictionaryRows(){return [
   {Field:"Giveaway",Meaning:"1 for our offensive interception or fumble lost; same event logic used by Team Summary turnovers."},
   {Field:"TurnoverMarginImpact",Meaning:"+1 takeaway, -1 giveaway, 0 otherwise. Summing this field by game equals Team Game Stats turnoverMargin."},
   {Field:"Touchdown",Meaning:"1 for any recorded touchdown, including defensive return touchdowns."},
+  {Field:"PasserRating",Meaning:"NFL passer rating calculated from completions, official pass attempts (sacks excluded), passing yards, passing TDs and interceptions; each component is capped from 0 to 2.375 and the maximum rating is 158.3."},
   {Field:"FirstDown",Meaning:"Derived first down using the same offensive first-down logic used by current Rushing/Passing/Receiving and Team Summary stats."},
   {Field:"Extras",Meaning:"Legacy/additional tags such as TD, first down, fumble, PAT or 2PT."},
   {Field:"Player-snaps",Meaning:"Snap Tracker participation records; separate from team play count"},
