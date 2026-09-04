@@ -651,7 +651,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V4.4.3 • MULTI-DEVICE SYNC FIX • GRIDIRON EDITION</div>
+      <div class="muted" style="color:#dfe9e2">V4.4.4 • MULTI-DEVICE REFRESH FIX • GRIDIRON EDITION</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -1333,7 +1333,7 @@ async function loadTeamFromCloud(options={}){
     }
     const roster=players.filter(x=>x.active!==false).map(x=>({id:x.id,jersey:x.jersey_number??"",name:x.name||"Player",snaps:0}));
     const localGames=games.map(g=>{const gp=plays.filter(x=>x.game_id===g.id).sort((a,b)=>a.sequence-b.sequence).map(r=>restorePlayFromCloud(r,credits.filter(c=>c.play_id===r.id&&c.metadata?.active!==false),penalties.find(q=>q.play_id===r.id)));const sr=snaps.filter(x=>x.game_id===g.id).sort((a,b)=>a.snap_number-b.snap_number).map(x=>({id:x.id,ts:x.client_created_at?Date.parse(x.client_created_at):Date.parse(x.created_at),quarter:Number(x.quarter||1),playerIds:snapParts.filter(q=>q.snap_event_id===x.id).map(q=>q.player_id)}));const auto=gp.reduce((sum,p)=>sum+pointsFromPlay(p),0);const firstBefore=gp[0]?.stateBefore;return {id:g.id,opponent:g.opponent_name||"Opponent",opponentLogoData:null,week:Number(g.week_number||1),date:`Week ${Number(g.week_number||1)}`,location:g.location_type||"home",gameType:g.game_type||"regular",status:g.status==="final"?"complete":(g.status||"live"),ourScore:Number(g.team_score||0),scoreAdjustment:Number(g.team_score||0)-auto,scoreModelVersion:2,oppScore:Number(g.opponent_score||0),openingKickoff:g.opening_kickoff||"receive",initialPossession:firstBefore?.possession||((g.opening_kickoff||"receive")==="kick"?"opp":"ours"),initialDown:1,initialDistance:10,down:Number(g.current_down||1),distance:Number(g.current_distance||10),possession:localPossession(g.possession||"ours"),quarter:Number(g.current_quarter||1),plays:gp,snapRecords:sr};});
-    const cloud={teamId:team.id,seasonId:season.id,playerIds:Object.fromEntries(players.map(x=>[x.id,x.id])),gameIds:Object.fromEntries(games.map(x=>[x.id,x.id])),playIds:Object.fromEntries(plays.map(x=>[x.id,x.id])),playHashes:{},gameHashes:{},creditIds:{},creditHashes:{},penaltyIds:{},penaltyHashes:{},snapIds:Object.fromEntries(snaps.map(x=>[x.id,x.id])),snapHashes:{},connectedAt:new Date().toISOString(),lastSyncAt:new Date().toISOString(),lastSyncError:null,remoteFingerprint:null,hashVersion:2};
+    const cloud={teamId:team.id,seasonId:season.id,playerIds:Object.fromEntries(players.map(x=>[x.id,x.id])),gameIds:Object.fromEntries(games.map(x=>[x.id,x.id])),playIds:Object.fromEntries(plays.map(x=>[x.id,x.id])),playHashes:{},gameHashes:{},creditIds:{},creditHashes:{},penaltyIds:{},penaltyHashes:{},snapIds:Object.fromEntries(snaps.map(x=>[x.id,x.id])),snapHashes:{},connectedAt:new Date().toISOString(),lastSyncAt:new Date().toISOString(),lastSyncError:null,remoteFingerprint:fingerprintLoadedCloudSnapshot(team,players,games,plays,credits,penalties,snaps,snapParts),hashVersion:2};
     S={team:{name:team.name,grade:team.grade||"5th Grade",season:season.name||String(season.season_year||"Season"),primary:team.primary_color||"#177b46",secondary:team.accent_color||"#f0b33b",logoData:null},roster,games:localGames,activeGameId:(refreshing&&priorActiveCloudId&&localGames.some(x=>x.id===priorActiveCloudId))?priorActiveCloudId:null,flow:{},editingPlayId:null,cloud};
     for(const p of plays){const lp=localGames.flatMap(x=>x.plays).find(x=>x.id===p.id);if(!lp)continue;const g=localGames.find(x=>x.id===p.game_id);const idx=g.plays.findIndex(x=>x.id===p.id);S.cloud.playHashes[p.id]=simpleHash(buildCloudPlayPayload(g,lp,idx,g.id));for(const c of buildCloudCredits(lp)){const row=credits.find(x=>x.play_id===p.id&&x.player_id===c.playerLocalId&&x.credit_type===c.credit_type&&x.metadata?.active!==false);if(row){const key=creditKey(lp.id,c);S.cloud.creditIds[key]=row.id;S.cloud.creditHashes[key]=simpleHash(c)}}const pen=penalties.find(x=>x.play_id===p.id);if(pen){S.cloud.penaltyIds[lp.id]=pen.id;S.cloud.penaltyHashes[lp.id]=simpleHash(buildCloudPenaltyPayload(g,lp,g.id,p.id))}}
     for(const g of localGames)S.cloud.gameHashes[g.id]=simpleHash(buildCloudGamePayload(g));for(const g of localGames)(g.snapRecords||[]).forEach((r,i)=>S.cloud.snapHashes[r.id]=simpleHash(buildCloudSnapPayload(g,r,i,g.id)));
@@ -1424,6 +1424,20 @@ function rebaseCloudHashesV443(){
 function scheduleCloudSync(delay=700){
   if(cloudSyncTimer)clearTimeout(cloudSyncTimer);
   cloudSyncTimer=setTimeout(()=>{cloudSyncTimer=null;syncCloudNow()},delay);
+}
+function fingerprintLoadedCloudSnapshot(team,players,games,plays,credits,penalties,snaps,snapParts){
+  const pick=(o,keys)=>Object.fromEntries(keys.map(k=>[k,o?.[k]??null]));
+  const sort=(a,k='id')=>[...(a||[])].sort((x,y)=>String(x[k]||'').localeCompare(String(y[k]||'')));
+  return simpleHash({
+    team:pick(team,["id","updated_at"]),
+    players:sort((players||[]).map(x=>pick(x,["id","updated_at","active","jersey_number","name"]))),
+    games:sort((games||[]).map(x=>pick(x,["id","updated_at","status","current_quarter","team_score","opponent_score","possession","current_down","current_distance"]))),
+    plays:sort((plays||[]).map(x=>pick(x,["id","game_id","updated_at","revision","deleted_at"]))),
+    credits:sort((credits||[]).map(x=>pick(x,["id","play_id","player_id","credit_type","value","metadata"]))),
+    penalties:sort((penalties||[]).map(x=>pick(x,["id","game_id","play_id","updated_at","accepted","yards","down_result","player_id"]))),
+    snaps:sort((snaps||[]).map(x=>pick(x,["id","game_id","updated_at","active","snap_number","quarter","client_created_at"]))),
+    snapParts:sort((snapParts||[]).map(x=>pick(x,["id","snap_event_id","player_id","created_at"])))
+  });
 }
 async function remoteCloudFingerprint(){
   const [teamQ,playersQ,gamesQ]=await Promise.all([
