@@ -1,4 +1,4 @@
-# Sideline Stats V4.4.1 — Step 4.5 Multi-Device Hardening
+# Sideline Stats V4.4.2 — Step 4.5 Multi-Device Hardening
 
 Adds safe ongoing cloud refresh/reconciliation on top of V4.3.0.
 
@@ -12,7 +12,12 @@ Adds safe ongoing cloud refresh/reconciliation on top of V4.3.0.
 This is intentionally conservative conflict handling: remote changes are detected and offered to the user, but never auto-applied over unsynced local work.
 
 
-## V4.4.1 hardening
+## V4.4.2 hardening
 - Cloud update detection now fingerprints team, roster, games, plays, credits, penalties, snaps, and snap participants instead of relying only on a few updated_at timestamps.
 - Snap edits use soft replacement so participant changes reconcile safely without deleting immutable participant rows.
 - Deleted local snap records deactivate their cloud event and are excluded from restore.
+
+
+## V4.4.2 auth redirect fix
+- Production account confirmation explicitly redirects to https://hootson.github.io/sideline-stats/.
+- Local development continues to redirect to its local origin/path.

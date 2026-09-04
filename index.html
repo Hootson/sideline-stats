@@ -651,7 +651,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V4.4.1 • MULTI-DEVICE HARDENING • GRIDIRON EDITION</div>
+      <div class="muted" style="color:#dfe9e2">V4.4.2 • MULTI-DEVICE HARDENING • GRIDIRON EDITION</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -1278,7 +1278,8 @@ async function authSignIn(){
 async function authCreate(){
   if(!SB)return toast("Cloud connection is not ready"); const email=$("#authEmail").value.trim(),password=$("#authPassword").value;
   if(!email||password.length<6)return toast("Use an email and password of at least 6 characters"); $("#authMessage").textContent="Creating account…";
-  const {data,error}=await SB.auth.signUp({email,password}); if(error){$("#authMessage").textContent=error.message;return}
+  const redirectTo=(location.hostname==="localhost"||location.hostname==="127.0.0.1")?location.origin+location.pathname:"https://hootson.github.io/sideline-stats/";
+  const {data,error}=await SB.auth.signUp({email,password,options:{emailRedirectTo:redirectTo}}); if(error){$("#authMessage").textContent=error.message;return}
   if(data?.session){closeAuth();toast("Account created") } else $("#authMessage").textContent="Account created. Check your email to confirm it, then sign in here.";
 }
 async function cloudSignOut(){if(!SB)return;await SB.auth.signOut();cloudUser=null;updateCloudUI();toast("Signed out — local data remains safe")}
