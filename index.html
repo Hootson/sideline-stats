@@ -651,7 +651,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V4.4.5 • LIVE AUTO-REFRESH • GRIDIRON EDITION</div>
+      <div class="muted" style="color:#dfe9e2">V4.4.6 • REALTIME LIVE SYNC • GRIDIRON EDITION</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -1239,12 +1239,45 @@ function persist(opts={}){
 }
 
 
+let cloudRealtimeChannel=null,cloudRealtimeTimer=null;
+
+function stopCloudRealtime(){
+  if(cloudRealtimeTimer){clearTimeout(cloudRealtimeTimer);cloudRealtimeTimer=null}
+  if(cloudRealtimeChannel&&SB){try{SB.removeChannel(cloudRealtimeChannel)}catch(e){}}
+  cloudRealtimeChannel=null;
+}
+function queueRealtimeRefresh(){
+  if(cloudRealtimeTimer)clearTimeout(cloudRealtimeTimer);
+  cloudRealtimeTimer=setTimeout(async()=>{
+    cloudRealtimeTimer=null;
+    if(!SB||!cloudUser||!cloudLinked()||navigator.onLine===false||cloudPendingCount()>0||cloudSyncRunning||cloudAutoRefreshRunning)return;
+    cloudAutoRefreshRunning=true;
+    try{await loadTeamFromCloud({refresh:true,auto:true})}
+    catch(e){console.warn("Realtime refresh failed",e)}
+    finally{cloudAutoRefreshRunning=false}
+  },1800);
+}
+function startCloudRealtime(){
+  stopCloudRealtime();
+  if(!SB||!cloudUser||!cloudLinked())return;
+  const gameIds=Object.values(S.cloud?.gameIds||{}).filter(Boolean);
+  if(!gameIds.length)return;
+  let ch=SB.channel(`sideline-live-${S.cloud.teamId}-${Date.now()}`);
+  ch=ch.on('postgres_changes',{event:'*',schema:'public',table:'games'},queueRealtimeRefresh);
+  for(const gid of gameIds){
+    ch=ch.on('postgres_changes',{event:'*',schema:'public',table:'plays',filter:`game_id=eq.${gid}`},queueRealtimeRefresh);
+    ch=ch.on('postgres_changes',{event:'*',schema:'public',table:'penalties',filter:`game_id=eq.${gid}`},queueRealtimeRefresh);
+    ch=ch.on('postgres_changes',{event:'*',schema:'public',table:'snap_events',filter:`game_id=eq.${gid}`},queueRealtimeRefresh);
+  }
+  cloudRealtimeChannel=ch.subscribe(status=>{if(status==='CHANNEL_ERROR'||status==='TIMED_OUT')console.warn('Realtime channel',status)});
+}
+
 async function initCloud(){
   try{
     if(!window.supabase?.createClient){updateCloudUI("unavailable");return}
     SB=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
-    const {data}=await SB.auth.getSession(); cloudUser=data?.session?.user||null; cloudReady=true; if(cloudUser)rebaseCloudHashesV443(); updateCloudUI();scheduleCloudSync(300);
-    SB.auth.onAuthStateChange((_event,session)=>{cloudUser=session?.user||null;if(cloudUser)rebaseCloudHashesV443();updateCloudUI();scheduleCloudSync(250)});
+    const {data}=await SB.auth.getSession(); cloudUser=data?.session?.user||null; cloudReady=true; if(cloudUser)rebaseCloudHashesV443(); updateCloudUI();scheduleCloudSync(300);setTimeout(startCloudRealtime,800);
+    SB.auth.onAuthStateChange((_event,session)=>{cloudUser=session?.user||null;if(cloudUser)rebaseCloudHashesV443();updateCloudUI();scheduleCloudSync(250);setTimeout(startCloudRealtime,800)});
   }catch(e){console.error("Cloud init failed",e);updateCloudUI("unavailable")}
 }
 function cloudLinked(){return !!(teamExists()&&S.cloud?.teamId&&S.cloud?.seasonId)}
@@ -1343,7 +1376,7 @@ async function loadTeamFromCloud(options={}){
     go(refreshing?priorScreen:"setup");
     if(!autoRefresh)toast(refreshing?"Latest cloud changes loaded":"Cloud team loaded on this device");
     if(!autoRefresh)scheduleCloudSync(1000);
-    setTimeout(checkCloudForUpdates,1200);
+    setTimeout(checkCloudForUpdates,1200);startCloudRealtime();
   }catch(e){console.error("Cloud restore failed",e);toast(e?.message||"Could not load cloud team")}
   finally{if(btn){btn.disabled=false;btn.textContent=refreshing?"Refresh Cloud":"Load Cloud Team"}updateCloudUI()}
 }
@@ -1486,7 +1519,7 @@ async function checkCloudForUpdates(){
     }
   }catch(e){console.warn("Cloud update check failed",e)}finally{cloudRemoteCheckRunning=false}
 }
-setInterval(checkCloudForUpdates,30000);
+setInterval(checkCloudForUpdates,15000);
 function cloudStateForPlay(g,p,index){
   const plays=g.plays||[];let teamScore=Number(g.scoreAdjustment||0),oppScore=0;
   for(let i=0;i<=index&&i<plays.length;i++){teamScore+=pointsFromPlay(plays[i]);oppScore+=opponentPointsFromPlay(plays[i])}
@@ -1589,7 +1622,8 @@ async function ensureCloudGame(g){
   let id=S.cloud.gameIds?.[g.id];const payload=buildCloudGamePayload(g);const h=simpleHash(payload);
   if(!id){
     const {data,error}=await SB.from("games").insert(payload).select("id").single();if(error)throw error;id=data.id;S.cloud.gameIds[g.id]=id;S.cloud.gameHashes[g.id]=h;persist({skipCloud:true});
-  }else if(S.cloud.gameHashes?.[g.id]!==h){
+  }else{
+    // Game state (especially score) is authoritative on the active statkeeper. Reconcile it every sync.
     const update={...payload};delete update.created_by;delete update.season_id;
     const {error}=await SB.from("games").update(update).eq("id",id);if(error)throw error;S.cloud.gameHashes[g.id]=h;persist({skipCloud:true});
   }
