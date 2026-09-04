@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V3.10.3</title>
+<title>Sideline Stats V3.10.4</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -183,7 +183,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
 .possession-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;border:2px solid var(--s);border-radius:14px;padding:10px 12px;margin-bottom:10px;background:var(--p);color:#fff}
 .possession-main{font-size:17px;font-weight:950}
-.possession-sub{font-size:12px;font-weight:800;opacity:.9;margin-top:2px}
+.possession-sub{font-size:17px;font-weight:900;opacity:.96;margin-top:4px;line-height:1.15}
 .possession-toggle{border:1px solid var(--s);background:var(--s);color:var(--p);border-radius:10px;padding:9px 10px;font-size:12px;font-weight:900}
 .turnover-note{margin-top:9px;padding:8px 9px;border-radius:9px;background:#fff;border:1px solid var(--s);font-size:11px;color:var(--muted)}
 
@@ -639,7 +639,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V3.10.3 • GRIDIRON EDITION</div>
+      <div class="muted" style="color:#dfe9e2">V3.10.4 • GRIDIRON EDITION</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -1018,6 +1018,17 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
         <div class="grid2"><button class="choice kickoff-result" data-result="Touchback">TOUCHBACK</button><button class="choice kickoff-result" data-result="Returned">RETURNED</button><button class="choice kickoff-result" data-result="Out of Bounds">OUT OF BOUNDS</button><button class="choice kickoff-result" data-result="Onside">ONSIDE</button></div>
         <button class="btn ghost cancel" style="margin-top:12px">Cancel</button>
       </div>
+      <div class="card hidden" id="stepFieldGoalDistance">
+        <div class="muted">Field goal attempt</div><h2>Field goal distance</h2>
+        <div class="grid" id="fieldGoalDistanceGrid"></div>
+        <label>Exact distance — tap to scroll</label><div class="row"><select id="fieldGoalDistanceExact" class="signed-yard-picker"></select><button class="btn" id="fieldGoalDistanceUse">Use</button></div>
+        <button class="btn ghost cancel" style="margin-top:12px">Cancel</button>
+      </div>
+      <div class="card hidden" id="stepFieldGoalResult">
+        <div class="muted" id="fieldGoalResultLabel">Field goal</div><h2>Was it good?</h2>
+        <div class="grid2"><button class="choice field-goal-result" data-result="Good">GOOD +3</button><button class="choice field-goal-result" data-result="No Good">NO GOOD</button></div>
+        <button class="btn ghost cancel" style="margin-top:12px">Cancel</button>
+      </div>
       <div class="card hidden" id="stepIncompleteDrop">
         <div class="muted">Incomplete pass</div>
         <h2>Was it a drop?</h2>
@@ -1310,7 +1321,7 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
-$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.10.3",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
+$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"3.10.4",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
 $("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
 $("#restoreDataInput").addEventListener("change",async()=>{
   const f=$("#restoreDataInput").files?.[0];if(!f)return;
@@ -1497,6 +1508,7 @@ function pointsFromPlay(p){
   let pts=legacyPointsFromPlay(p);
   if(p.type==="Defense"&&p.defensiveTouchdownPlayerId)pts+=6;
   if(p.type==="Try"&&p.tryResult==="Good")pts+=Number(p.points||2);
+  if(p.type==="Field Goal"&&p.fieldGoalResult==="Good")pts+=3;
   return pts;
 }
 function legacyAutoPoints(g){return (g?.plays||[]).reduce((sum,p)=>sum+legacyPointsFromPlay(p),0)}
@@ -1603,6 +1615,7 @@ function applyPlayToState(state,p){
   if(p.type==="Kickoff")return {possession:p.receivingSide==="ours"?"ours":"opp",down:1,distance:10};
   if(p.type==="Kickoff Return")return {possession:"ours",down:1,distance:10};
   if(p.type==="Opponent Kickoff Return")return {possession:"opp",down:1,distance:10};
+  if(p.type==="Field Goal")return p.fieldGoalResult==="Good"?{possession:"ours",down:1,distance:10}:{possession:"opp",down:1,distance:10};
 
   // Punt always hands the ball to the other side.
   if(p.type==="Punt")return {possession:oppositePossession(st.possession),down:1,distance:10};
@@ -1783,8 +1796,9 @@ function populateSignedYardPicker(id,min=-99,max=99){
 function resetSignedYardPicker(id,min=-99,max=99){populateSignedYardPicker(id,min,max);const el=$("#"+id);if(el)el.value=(min<=0&&max>=0)?"0":String(min)}
 ["customYards","defSimpleYardsExact","defYardsExact","penaltyCustomYards"].forEach(id=>populateSignedYardPicker(id));
 populateSignedYardPicker("returnYardsExact",0,99);
+populateSignedYardPicker("fieldGoalDistanceExact",0,99);
 
-const FLOW_STEP_IDS=["stepSub","stepPenaltyType","stepPenaltyPlayer","stepPenaltyYards","stepPenaltyDown","stepPlayer","stepDefenseCredits","stepDefenseYards","stepDefensePlay","stepDefensePass","stepDefenseSimpleYards","stepDefenseTacklers","stepDefenseOutcome","stepDefenseTurnoverPlayer","stepPassDefended","stepReturnYards","stepTryType","stepTryResult","stepKickoffResult","stepIncompleteDrop","stepFumbleRecovery","stepYards","stepExtras"];
+const FLOW_STEP_IDS=["stepSub","stepPenaltyType","stepPenaltyPlayer","stepPenaltyYards","stepPenaltyDown","stepPlayer","stepDefenseCredits","stepDefenseYards","stepDefensePlay","stepDefensePass","stepDefenseSimpleYards","stepDefenseTacklers","stepDefenseOutcome","stepDefenseTurnoverPlayer","stepPassDefended","stepReturnYards","stepTryType","stepTryResult","stepKickoffResult","stepFieldGoalDistance","stepFieldGoalResult","stepIncompleteDrop","stepFumbleRecovery","stepYards","stepExtras"];
 function scrollFlowStepIntoView(el){
   if(!el||el.classList.contains("hidden"))return;
   requestAnimationFrame(()=>setTimeout(()=>{
@@ -1801,11 +1815,11 @@ FLOW_STEP_IDS.forEach(id=>{
 
 function resetFlow(){
   S.flow={};
-  ["#stepSub","#stepPenaltyType","#stepPenaltyPlayer","#stepPenaltyYards","#stepPenaltyDown","#stepPlayer","#stepDefenseCredits","#stepDefenseYards","#stepDefensePlay","#stepDefensePass","#stepDefenseSimpleYards","#stepDefenseTacklers","#stepDefenseOutcome","#stepDefenseTurnoverPlayer","#stepPassDefended","#stepReturnYards","#stepTryType","#stepTryResult","#stepKickoffResult","#stepIncompleteDrop","#stepFumbleRecovery","#stepYards","#stepExtras"].forEach(id=>{const el=$(id);if(el)el.classList.add("hidden")});
+  ["#stepSub","#stepPenaltyType","#stepPenaltyPlayer","#stepPenaltyYards","#stepPenaltyDown","#stepPlayer","#stepDefenseCredits","#stepDefenseYards","#stepDefensePlay","#stepDefensePass","#stepDefenseSimpleYards","#stepDefenseTacklers","#stepDefenseOutcome","#stepDefenseTurnoverPlayer","#stepPassDefended","#stepReturnYards","#stepTryType","#stepTryResult","#stepKickoffResult","#stepFieldGoalDistance","#stepFieldGoalResult","#stepIncompleteDrop","#stepFumbleRecovery","#stepYards","#stepExtras"].forEach(id=>{const el=$(id);if(el)el.classList.add("hidden")});
   $("#stepMain").classList.remove("hidden");
   $$(".extra,.choice,.player-select,.def-tackler,.def-turnover-player,.def-simple-yard,.yard,.penalty-choice,.penalty-yard").forEach(b=>{b.classList.remove("sel","selected")});
   $$(".credit-btn").forEach(b=>b.classList.remove("active"));
-  resetSignedYardPicker("customYards");resetSignedYardPicker("defSimpleYardsExact");resetSignedYardPicker("defYardsExact");resetSignedYardPicker("penaltyCustomYards");resetSignedYardPicker("returnYardsExact",0,99);
+  resetSignedYardPicker("customYards");resetSignedYardPicker("defSimpleYardsExact");resetSignedYardPicker("defYardsExact");resetSignedYardPicker("penaltyCustomYards");resetSignedYardPicker("returnYardsExact",0,99);resetSignedYardPicker("fieldGoalDistanceExact",0,99);
 }
 $$(".cancel").forEach(b=>b.addEventListener("click",resetFlow));
 $$(".action").forEach(b=>b.addEventListener("click",()=>start(b.dataset.action)));
@@ -1925,7 +1939,7 @@ function start(type){
   if(type==="Rush")showPlayers("Who had the ball?","runner");
   else if(type==="Pass")showPlayers("Select QB","qb");
   else if(type==="Defense")showDefensePlayMenu();
-  else showSubs("Special teams",["Kick Return","Punt Return","Punt","Forced Fumble","Fumble Recovery"])
+  else showSubs("Special teams",["Field Goal","Kick Return","Punt Return","Punt","Forced Fumble","Fumble Recovery"])
 }
 function showSubs(title,items){
   $("#subTitle").textContent=title;$("#subGrid").innerHTML=items.map(x=>`<button class="choice sub" data-v="${x}">${x}</button>`).join("");$("#stepSub").classList.remove("hidden");
@@ -1947,6 +1961,7 @@ function showSubs(title,items){
         S.flow.defYards=0;resetSignedYardPicker("defYardsExact");
       }else showDefenseCredits(v);
     }
+    else if(S.flow.type==="Special"&&v==="Field Goal"){S.flow={type:"Field Goal",sub:"Field Goal",extras:[]};showPlayers("Field goal — select kicker","fieldGoalKicker");}
     else if(S.flow.type==="Special"&&(v==="Forced Fumble"||v==="Fumble Recovery"))showPlayers(`${v} — select player`,"specialTurnover");
     else if(v==="Punt"){S.flow.type="Punt";showPlayers("Punt — select punter","punter")}else showPlayers(`${v} — select returner`,"special")
   }))
@@ -2189,6 +2204,7 @@ function pick(id,mode){
   }
   else if(mode==="kickoffKicker"){S.flow.player=id;$("#stepKickoffResult").classList.remove("hidden");}
   else if(mode==="tryKicker"){S.flow.player=id;showTryResult("2-point kick");}
+  else if(mode==="fieldGoalKicker"){S.flow.player=id;showFieldGoalDistance();}
   else if(mode==="tryRunner"){S.flow.player=id;showTryResult("2-point run");}
   else if(mode==="tryQB"){S.flow.player=id;showPlayers("2-point pass — select receiver","tryReceiver");}
   else if(mode==="tryReceiver"){S.flow.player2=id;showTryResult("2-point pass");}
@@ -2198,6 +2214,30 @@ function pick(id,mode){
   else if(mode==="specialTurnover"){S.flow.player=id;recordNow()}
   else{S.flow.player=id;recordNow()}
 }
+function showFieldGoalDistance(){
+  const vals=[20,25,30,35,40,45,50];
+  $("#fieldGoalDistanceGrid").innerHTML=vals.map(v=>`<button class="choice field-goal-distance" data-v="${v}">${v} YDS</button>`).join("");
+  resetSignedYardPicker("fieldGoalDistanceExact",0,99);
+  $("#stepFieldGoalDistance").classList.remove("hidden");
+  $$(".field-goal-distance").forEach(b=>b.addEventListener("click",()=>{
+    $$(".field-goal-distance").forEach(x=>x.classList.remove("selected"));b.classList.add("selected");
+    setTimeout(()=>setFieldGoalDistance(+b.dataset.v),110);
+  }));
+}
+function setFieldGoalDistance(v){
+  const n=Number(v);if(!Number.isFinite(n)||n<0)return toast("Enter field goal distance");
+  S.flow.fieldGoalDistance=n;S.flow.yards=n;
+  $("#stepFieldGoalDistance").classList.add("hidden");
+  $("#fieldGoalResultLabel").textContent=`${n}-yard field goal`;
+  $("#stepFieldGoalResult").classList.remove("hidden");
+}
+$("#fieldGoalDistanceUse").addEventListener("click",()=>setFieldGoalDistance(parseInt($("#fieldGoalDistanceExact").value,10)));
+$$(".field-goal-result").forEach(b=>b.addEventListener("click",()=>{
+  $$(".field-goal-result").forEach(x=>x.classList.remove("selected"));b.classList.add("selected");
+  S.flow.fieldGoalResult=b.dataset.result;S.flow.points=S.flow.fieldGoalResult==="Good"?3:0;
+  setTimeout(()=>{$("#stepFieldGoalResult").classList.add("hidden");recordNow();},110);
+}));
+
 function showYards(){
   let vals=S.flow.type==="Kickoff"?[10,20,30,40,50,60]:[-10,-5,-3,-2,-1,0,1,2,3,4,5,6,7,10,15];
   $("#yardGrid").innerHTML=vals.map(v=>`<button class="choice yard" data-v="${v}">${v>0?"+":""}${v}</button>`).join("");
@@ -2283,6 +2323,7 @@ function ptext(p){
     return `Kickoff — ${p.player?pname(p.player)+" — ":""}${p.kickoffResult||""}${p.kickoffResult?" — ":""}${receiver} receives`;
   }
   if(p.type==="Try"){const who=p.player?pname(p.player):"";const to=p.player2?` → ${pname(p.player2)}`:"";return `${p.sub} 2-point try — ${who}${to} — ${p.tryResult||""}${p.tryResult==="Good"?" +2":""}`;}
+  if(p.type==="Field Goal")return `Field Goal — ${pname(p.player)} — ${Number(p.fieldGoalDistance||p.yards||0)} yds — ${p.fieldGoalResult||""}${p.fieldGoalResult==="Good"?" +3":""}`;
   if(p.type==="Rush")return `Rush ${pname(p.player)} ${sgn(p.yards)} yds${ex(p)}${p.extras?.includes("Fumble Lost")?" — LOST":""}`;
   if(p.type==="Pass"){if(p.sub==="Complete")return `Pass ${pname(p.player)} → ${pname(p.player2)} ${sgn(p.yards)} yds${ex(p)}${p.extras?.includes("Fumble Lost")?" — LOST":""}`;return `Pass ${pname(p.player)} — ${p.sub}`}
   if(p.type==="Punt")return `Punt — ${pname(p.player)} ${Math.abs(Number(p.yards)||0)} yds`;
@@ -2321,7 +2362,7 @@ $("#saveEdit").addEventListener("click",()=>{
 });
 
 function agg(g){
-  let m={};S.roster.forEach(p=>m[p.id]={id:p.id,j:p.jersey,n:p.name,car:0,ry:0,rtd:0,att:0,cmp:0,py:0,ptd:0,pi:0,rec:0,rey:0,retd:0,tgt:0,drop:0,t:0,tfl:0,sack:0,int:0,ff:0,fr:0,dtd:0,kr:0,kry:0,pr:0,pry:0,punt:0,punty:0,stff:0,stfr:0,ko:0,kotb:0,koYds:0,pd:0,tryKickAtt:0,tryKickMade:0,tryRunAtt:0,tryRunMade:0,tryPassAtt:0,tryPassMade:0,rfd:0,pfd:0,recfd:0});
+  let m={};S.roster.forEach(p=>m[p.id]={id:p.id,j:p.jersey,n:p.name,car:0,ry:0,rtd:0,att:0,cmp:0,py:0,ptd:0,pi:0,rec:0,rey:0,retd:0,tgt:0,drop:0,t:0,tfl:0,sack:0,int:0,ff:0,fr:0,dtd:0,kr:0,kry:0,pr:0,pry:0,punt:0,punty:0,stff:0,stfr:0,ko:0,kotb:0,koYds:0,pd:0,tryKickAtt:0,tryKickMade:0,tryRunAtt:0,tryRunMade:0,tryPassAtt:0,tryPassMade:0,fga:0,fgm:0,fgLong:0,rfd:0,pfd:0,recfd:0});
   (g?.plays||[]).forEach(p=>{let a=m[p.player],b=m[p.player2];
     if(p.type==="Rush"&&a){a.car++;a.ry+=+p.yards||0;if(p.extras?.includes("TD"))a.rtd++;if(offensivePlayEarnedFirstDown(p))a.rfd++}
     if(p.type==="Pass"&&a){if(["Complete","Incomplete","Intercepted"].includes(p.sub))a.att++;if(p.sub==="Complete"){a.cmp++;a.py+=+p.yards||0;if(p.extras?.includes("TD"))a.ptd++;if(offensivePlayEarnedFirstDown(p))a.pfd++;if(b){b.rec++;b.rey+=+p.yards||0;if(p.extras?.includes("TD"))b.retd++;if(offensivePlayEarnedFirstDown(p))b.recfd++}}if(p.sub==="Intercepted")a.pi++}
@@ -2366,6 +2407,7 @@ function agg(g){
     }
     if(p.type==="Kickoff"&&a){a.ko++;a.koYds+=Math.max(0,Number(p.yards)||0);if(p.kickoffResult==="Touchback")a.kotb++;}
     if(p.type==="Try"&&a){if(p.tryType==="Kick"){a.tryKickAtt++;if(p.tryResult==="Good")a.tryKickMade++}else if(p.tryType==="Run"){a.tryRunAtt++;if(p.tryResult==="Good")a.tryRunMade++}else if(p.tryType==="Pass"){a.tryPassAtt++;if(p.tryResult==="Good")a.tryPassMade++}}
+    if(p.type==="Field Goal"&&a){a.fga++;if(p.fieldGoalResult==="Good"){a.fgm++;a.fgLong=Math.max(a.fgLong,Number(p.fieldGoalDistance||p.yards||0));}}
     if(p.type==="Kickoff Return"&&a){a.kr++;a.kry+=+p.yards||0}
     if(p.type==="Punt"&&a){a.punt++;a.punty+=Math.abs(+p.yards||0)}
   });return Object.values(m)
@@ -2427,7 +2469,7 @@ function calcTeamMetrics(plays,games=[]){
   const p=plays||[];
   const offense=p.filter(x=>x.type==="Rush"||x.type==="Pass");
   const defense=p.filter(x=>x.type==="Defense");
-  const special=p.filter(x=>["Kickoff","Kickoff Return","Punt","Special"].includes(x.type));
+  const special=p.filter(x=>["Kickoff","Kickoff Return","Punt","Special","Field Goal"].includes(x.type));
   const rush=p.filter(x=>x.type==="Rush"), passes=p.filter(x=>x.type==="Pass");
   const rushY=rush.reduce((a,x)=>a+(Number(x.yards)||0),0);
   const passComp=passes.filter(x=>x.sub==="Complete");
@@ -2491,7 +2533,8 @@ function teamSpecialCounts(plays){
     kickoffs:list.filter(p=>p.type==="Kickoff").length,
     kickoffReturns:list.filter(p=>p.type==="Kickoff Return"||(p.type==="Special"&&p.sub==="Kick Return")).length,
     punts:list.filter(p=>p.type==="Punt").length,
-    puntReturns:list.filter(p=>p.type==="Special"&&p.sub==="Punt Return").length
+    puntReturns:list.filter(p=>p.type==="Special"&&p.sub==="Punt Return").length,
+    fieldGoals:list.filter(p=>p.type==="Field Goal").length
   };
 }
 
@@ -2659,9 +2702,10 @@ function renderStats(){document.documentElement.style.setProperty("--team-primar
   const defRows=s.filter(x=>x.t+x.tfl+x.sack+x.pd+x.int+x.ff+x.fr+x.dtd).map(x=>[pname(x.id),fmt(x.t),fmt(x.tfl),fmt(x.sack),fmt(x.pd),fmt(x.int),fmt(x.ff),fmt(x.fr),fmt(x.dtd)]);
   const defTot=["TEAM TOTAL",fmt(s.reduce((a,x)=>a+x.t,0)),fmt(s.reduce((a,x)=>a+x.tfl,0)),fmt(s.reduce((a,x)=>a+x.sack,0)),fmt(s.reduce((a,x)=>a+x.pd,0)),fmt(s.reduce((a,x)=>a+x.int,0)),fmt(s.reduce((a,x)=>a+x.ff,0)),fmt(s.reduce((a,x)=>a+x.fr,0)),fmt(s.reduce((a,x)=>a+x.dtd,0))];
 
-  const specialRows=s.filter(x=>x.kr+x.pr+x.punt+x.stff+x.stfr).map(x=>[
-    pname(x.id),x.kr,x.kry,x.pr,x.pry,x.punt,x.punty,x.stff,x.stfr
+  const specialRows=s.filter(x=>x.kr+x.pr+x.punt+x.stff+x.stfr+x.fga).map(x=>[
+    pname(x.id),x.kr,x.kry,x.pr,x.pry,x.punt,x.punty,x.fgm,x.fga,x.fga?`${Math.round((x.fgm/x.fga)*100)}%`:"0%",x.fgLong,x.stff,x.stfr
   ]);
+  const teamFGM=s.reduce((a,x)=>a+x.fgm,0),teamFGA=s.reduce((a,x)=>a+x.fga,0);
   const specialTot=["TEAM TOTAL",
     s.reduce((a,x)=>a+x.kr,0),
     s.reduce((a,x)=>a+x.kry,0),
@@ -2669,6 +2713,8 @@ function renderStats(){document.documentElement.style.setProperty("--team-primar
     s.reduce((a,x)=>a+x.pry,0),
     s.reduce((a,x)=>a+x.punt,0),
     s.reduce((a,x)=>a+x.punty,0),
+    teamFGM,teamFGA,teamFGA?`${Math.round((teamFGM/teamFGA)*100)}%`:"0%",
+    Math.max(0,...s.map(x=>x.fgLong||0)),
     s.reduce((a,x)=>a+x.stff,0),
     s.reduce((a,x)=>a+x.stfr,0)
   ];
@@ -2686,8 +2732,9 @@ function renderStats(){document.documentElement.style.setProperty("--team-primar
         <span class="scope-pill">Kick Returns ${specialTeamCounts.kickoffReturns}</span>
         <span class="scope-pill">Punts ${specialTeamCounts.punts}</span>
         <span class="scope-pill">Punt Returns ${specialTeamCounts.puntReturns}</span>
+        <span class="scope-pill">FG Attempts ${specialTeamCounts.fieldGoals}</span>
       </div>
-      ${tbl(["Player","KR","KR YDS","PR","PR YDS","PUNT","PUNT YDS","FF","FR"],specialRows,specialRows.length?specialTot:null)}
+      ${tbl(["Player","KR","KR YDS","PR","PR YDS","PUNT","PUNT YDS","FGM","FGA","FG%","LONG","FF","FR"],specialRows,specialRows.length?specialTot:null)}
     </div>`+
     `<div class="stats-block"><h3>Penalties</h3><div class="scope-summary"><span class="scope-pill">${pm.penalties} penalties</span><span class="scope-pill">${pm.penaltyYards} yards</span><span class="scope-pill">Offense ${pm.offensivePenalties}</span><span class="scope-pill">Defense ${pm.defensivePenalties}</span><span class="scope-pill">Unknown ${pm.unknownPenalties}</span></div></div>`;
 }
@@ -3013,14 +3060,16 @@ async function makeHybridSharePages(src){
        fmt(s.reduce((a,x)=>a+x.ff,0)),fmt(s.reduce((a,x)=>a+x.fr,0))]);
   }
 
-  rows=s.filter(x=>x.kr+x.pr+x.punt+x.stff+x.stfr).map(x=>[
-    pname(x.id),x.kr,x.kry,x.pr,x.pry,x.punt,x.punty,x.stff,x.stfr
+  rows=s.filter(x=>x.kr+x.pr+x.punt+x.stff+x.stfr+x.fga).map(x=>[
+    pname(x.id),x.kr,x.kry,x.pr,x.pry,x.punt,x.punty,x.fgm,x.fga,x.fga?`${Math.round((x.fgm/x.fga)*100)}%`:"0%",x.fgLong,x.stff,x.stfr
   ]);
   if(rows.length){
-    addTable("SPECIAL TEAMS",["PLAYER","KR","KR YDS","PR","PR YDS","PUNT","PUNT YDS","FF","FR"],rows,
+    const tfgm=s.reduce((a,x)=>a+x.fgm,0),tfga=s.reduce((a,x)=>a+x.fga,0);
+    addTable("SPECIAL TEAMS",["PLAYER","KR","KR YDS","PR","PR YDS","PUNT","PUNT YDS","FGM","FGA","FG%","LONG","FF","FR"],rows,
       ["TEAM TOTAL",s.reduce((a,x)=>a+x.kr,0),s.reduce((a,x)=>a+x.kry,0),
        s.reduce((a,x)=>a+x.pr,0),s.reduce((a,x)=>a+x.pry,0),
        s.reduce((a,x)=>a+x.punt,0),s.reduce((a,x)=>a+x.punty,0),
+       tfgm,tfga,tfga?`${Math.round((tfgm/tfga)*100)}%`:"0%",Math.max(0,...s.map(x=>x.fgLong||0)),
        s.reduce((a,x)=>a+x.stff,0),s.reduce((a,x)=>a+x.stfr,0)]);
   }
 
@@ -3328,6 +3377,10 @@ function playRows(){
       TryResult:p.type==="Try"?(p.tryResult||""):"",
       TryPoints:p.type==="Try"?Number(p.points||0):0,
       KickoffResult:p.type==="Kickoff"?(p.kickoffResult||""):"",
+      FieldGoalAttempt:p.type==="Field Goal"?1:0,
+      FieldGoalResult:p.type==="Field Goal"?(p.fieldGoalResult||""):"",
+      FieldGoalDistance:p.type==="Field Goal"?Number(p.fieldGoalDistance||p.yards||0):0,
+      FieldGoalPoints:p.type==="Field Goal"&&p.fieldGoalResult==="Good"?3:0,
       Yards:Number(p.yards)||0,
       PenaltyType:p.penaltyType||"",
       PenaltyPlayer:p.type==="Penalty"?penaltyPlayerName(p):"",
@@ -3355,11 +3408,11 @@ function playRows(){
   }));return rows;
 }
 function gameRows(){return (S.games||[]).map(g=>({GameID:g.id,Date:g.date,Opponent:g.opponent,GameType:g.gameType||"regular",Location:g.location,OurScore:displayedOurScore(g),OpponentScore:Number(g.oppScore||0),Result:displayedOurScore(g)>g.oppScore?"W":displayedOurScore(g)<g.oppScore?"L":"T",Status:g.status||"",PlayCount:(g.plays||[]).length,SnapTrackerPlays:(g.snapRecords||[]).length}))}
-function playerGameRows(){const out=[];(S.games||[]).forEach(g=>agg(g).forEach(x=>{const snaps=playerSnapCountForGames(x.id,[g]),opp=(g.snapRecords||[]).length;out.push({GameID:g.id,Date:g.date,Opponent:g.opponent,GameType:g.gameType||"regular",Jersey:x.j,Player:x.n,RushAtt:x.car,RushYds:x.ry,RushAvg:x.car?x.ry/x.car:0,Rush1D:x.rfd,RushTD:x.rtd,PassAtt:x.att,Completions:x.cmp,PassYds:x.py,PassAvg:x.att?x.py/x.att:0,Pass1D:x.pfd,PassTD:x.ptd,PassINT:x.pi,PasserRating:passerRating(x.cmp,x.att,x.py,x.ptd,x.pi)??"",Receptions:x.rec,RecYds:x.rey,RecAvg:x.rec?x.rey/x.rec:0,Rec1D:x.recfd,RecTD:x.retd,Tackles:x.t,TFL:x.tfl,Sacks:x.sack,PassDefended:x.pd||0,DefINT:x.int,ForcedFumbles:x.ff,FumbleRecoveries:x.fr,DefTD:x.dtd||0,TryKickAtt:x.tryKickAtt||0,TryKickMade:x.tryKickMade||0,TryRunAtt:x.tryRunAtt||0,TryRunMade:x.tryRunMade||0,TryPassAtt:x.tryPassAtt||0,TryPassMade:x.tryPassMade||0,Kickoffs:x.ko||0,KickoffYds:x.koYds||0,KickoffTouchbacks:x.kotb||0,KickReturns:x.kr,KickReturnYds:x.kry,PuntReturns:x.pr,PuntReturnYds:x.pry,Punts:x.punt,PuntYds:x.punty,SpecialTeamsForcedFumbles:x.stff||0,SpecialTeamsFumbleRecoveries:x.stfr||0,Snaps:snaps,SnapOpportunities:opp,ParticipationPct:opp?snaps/opp:0,Met10SnapMinimum:snaps>=10?"Yes":"No",Penalties:(g.plays||[]).filter(p=>p.type==="Penalty"&&p.penaltyPlayer===x.id).length,PenaltyYards:(g.plays||[]).filter(p=>p.type==="Penalty"&&p.penaltyPlayer===x.id).reduce((a,p)=>a+Math.abs(Number(p.penaltyYards||0)),0)})}));return out}
+function playerGameRows(){const out=[];(S.games||[]).forEach(g=>agg(g).forEach(x=>{const snaps=playerSnapCountForGames(x.id,[g]),opp=(g.snapRecords||[]).length;out.push({GameID:g.id,Date:g.date,Opponent:g.opponent,GameType:g.gameType||"regular",Jersey:x.j,Player:x.n,RushAtt:x.car,RushYds:x.ry,RushAvg:x.car?x.ry/x.car:0,Rush1D:x.rfd,RushTD:x.rtd,PassAtt:x.att,Completions:x.cmp,PassYds:x.py,PassAvg:x.att?x.py/x.att:0,Pass1D:x.pfd,PassTD:x.ptd,PassINT:x.pi,PasserRating:passerRating(x.cmp,x.att,x.py,x.ptd,x.pi)??"",Receptions:x.rec,RecYds:x.rey,RecAvg:x.rec?x.rey/x.rec:0,Rec1D:x.recfd,RecTD:x.retd,Tackles:x.t,TFL:x.tfl,Sacks:x.sack,PassDefended:x.pd||0,DefINT:x.int,ForcedFumbles:x.ff,FumbleRecoveries:x.fr,DefTD:x.dtd||0,TryKickAtt:x.tryKickAtt||0,TryKickMade:x.tryKickMade||0,TryRunAtt:x.tryRunAtt||0,TryRunMade:x.tryRunMade||0,TryPassAtt:x.tryPassAtt||0,TryPassMade:x.tryPassMade||0,FieldGoalAtt:x.fga||0,FieldGoalMade:x.fgm||0,FieldGoalPct:x.fga?x.fgm/x.fga:0,FieldGoalLong:x.fgLong||0,Kickoffs:x.ko||0,KickoffYds:x.koYds||0,KickoffTouchbacks:x.kotb||0,KickReturns:x.kr,KickReturnYds:x.kry,PuntReturns:x.pr,PuntReturnYds:x.pry,Punts:x.punt,PuntYds:x.punty,SpecialTeamsForcedFumbles:x.stff||0,SpecialTeamsFumbleRecoveries:x.stfr||0,Snaps:snaps,SnapOpportunities:opp,ParticipationPct:opp?snaps/opp:0,Met10SnapMinimum:snaps>=10?"Yes":"No",Penalties:(g.plays||[]).filter(p=>p.type==="Penalty"&&p.penaltyPlayer===x.id).length,PenaltyYards:(g.plays||[]).filter(p=>p.type==="Penalty"&&p.penaltyPlayer===x.id).reduce((a,p)=>a+Math.abs(Number(p.penaltyYards||0)),0)})}));return out}
 function teamGameRows(){return (S.games||[]).map(g=>{const m=calcTeamMetrics(g.plays||[],[g]);return {GameID:g.id,Date:g.date,Opponent:g.opponent,GameType:g.gameType||"regular",...m}})}
 function snapCountRows(){const out=[];(S.games||[]).forEach(g=>(S.roster||[]).forEach(p=>{const snaps=playerSnapCountForGames(p.id,[g]),opp=(g.snapRecords||[]).length;out.push({GameID:g.id,Date:g.date,Opponent:g.opponent,GameType:g.gameType||"regular",Jersey:p.jersey,Player:p.name,Snaps:snaps,SnapOpportunities:opp,ParticipationPct:opp?snaps/opp:0,Met10SnapMinimum:snaps>=10?"Yes":"No",SnapsNeeded:Math.max(0,10-snaps)})}));return out}
 function snapRecordRows(){const out=[];(S.games||[]).forEach(g=>(g.snapRecords||[]).forEach((r,i)=>{(r.playerIds||[]).forEach(id=>{const p=S.roster.find(x=>x.id===id);out.push({GameID:g.id,Date:g.date,Opponent:g.opponent,GameType:g.gameType||"regular",SnapSequence:i+1,Timestamp:r.ts?new Date(r.ts).toISOString():"",PlayerID:id,Jersey:p?.jersey||"",Player:p?.name||""})})}));return out}
-function specialRowsExport(){const out=[];(S.games||[]).forEach(g=>agg(g).filter(x=>x.kr+x.pr+x.punt+x.ko+x.tryKickAtt+x.tryRunAtt+x.tryPassAtt).forEach(x=>out.push({GameID:g.id,Date:g.date,Opponent:g.opponent,Jersey:x.j,Player:x.n,Kickoffs:x.ko||0,KickoffYds:x.koYds||0,KickoffTouchbacks:x.kotb||0,KickReturns:x.kr,KickReturnYds:x.kry,PuntReturns:x.pr,PuntReturnYds:x.pry,Punts:x.punt,PuntYds:x.punty,TryKickAtt:x.tryKickAtt||0,TryKickMade:x.tryKickMade||0,TryRunAtt:x.tryRunAtt||0,TryRunMade:x.tryRunMade||0,TryPassAtt:x.tryPassAtt||0,TryPassMade:x.tryPassMade||0,SpecialTeamsForcedFumbles:x.stff||0,SpecialTeamsFumbleRecoveries:x.stfr||0})));return out}
+function specialRowsExport(){const out=[];(S.games||[]).forEach(g=>agg(g).filter(x=>x.kr+x.pr+x.punt+x.ko+x.tryKickAtt+x.tryRunAtt+x.tryPassAtt+x.fga).forEach(x=>out.push({GameID:g.id,Date:g.date,Opponent:g.opponent,Jersey:x.j,Player:x.n,Kickoffs:x.ko||0,KickoffYds:x.koYds||0,KickoffTouchbacks:x.kotb||0,KickReturns:x.kr,KickReturnYds:x.kry,PuntReturns:x.pr,PuntReturnYds:x.pry,Punts:x.punt,PuntYds:x.punty,FieldGoalAtt:x.fga||0,FieldGoalMade:x.fgm||0,FieldGoalPct:x.fga?x.fgm/x.fga:0,FieldGoalLong:x.fgLong||0,TryKickAtt:x.tryKickAtt||0,TryKickMade:x.tryKickMade||0,TryRunAtt:x.tryRunAtt||0,TryRunMade:x.tryRunMade||0,TryPassAtt:x.tryPassAtt||0,TryPassMade:x.tryPassMade||0,SpecialTeamsForcedFumbles:x.stff||0,SpecialTeamsFumbleRecoveries:x.stfr||0})));return out}
 function penaltyRowsExport(){const out=[];(S.games||[]).forEach(g=>(g.plays||[]).filter(p=>p.type==="Penalty").forEach((p,i)=>out.push({GameID:g.id,Date:g.date,Opponent:g.opponent,GameType:g.gameType||"regular",Quarter:Number(p.quarter||1),PlaySequence:(g.plays||[]).indexOf(p)+1,Possession:p.stateBefore?.possession||"",Down:p.stateBefore?.down||"",Distance:p.stateBefore?.distance||"",Penalty:p.penaltyType||"Other",Player:penaltyPlayerName(p),Yards:Number(p.penaltyYards||0),DownResult:p.penaltyDownResult||"unchanged"})));return out}
 
 function seasonRows(){return ["regular","playoff","season"].map(scope=>{const games=scopeGames(scope),plays=games.flatMap(g=>g.plays||[]),m=calcTeamMetrics(plays,games);return {Scope:scope,Games:games.length,Record:recordFor(games),...m}})}
@@ -3376,6 +3429,8 @@ function dataDictionaryRows(){return [
   {Field:"TryResult",Meaning:"Good or No Good for a post-touchdown try."},
   {Field:"TryPoints",Meaning:"Points awarded by the try; currently 2 when successful."},
   {Field:"KickoffResult",Meaning:"Our kickoff result: Touchback, Returned, Out of Bounds or Onside."},
+  {Field:"FieldGoalResult",Meaning:"Field goal attempt result: Good or No Good."},
+  {Field:"FieldGoalDistance",Meaning:"Recorded distance in yards of the field goal attempt."},
   {Field:"DefensiveCredits",Meaning:"Tackle/TFL/sack credit by player. Fractional values are shared tackle credit."},
   {Field:"TackleKind",Meaning:"Tackle or TFL classification used by current defensive player stats."},
   {Field:"ForcedFumble",Meaning:"1 when this play credits a defensive forced fumble."},
@@ -3398,7 +3453,7 @@ function dataDictionaryRows(){return [
   {Field:"OffensivePlays",Meaning:"Rush attempts plus pass attempts"},
   {Field:"DefensivePlays",Meaning:"Recorded opponent scrimmage plays via Defense entries"},
   {Field:"TotalScrimmage",Meaning:"Offensive plays plus defensive plays"},
-  {Field:"SpecialTeamsPlays",Meaning:"Kickoff, kickoff return, punt and return events"},
+  {Field:"SpecialTeamsPlays",Meaning:"Kickoff, kickoff return, punt, return and field goal events"},
   {Field:"Explosive10/20",Meaning:"Offensive plays gaining at least 10 / 20 yards"},
   {Field:"PenaltyYards",Meaning:"Signed yardage applied to the offense; negative hurts the team with possession, positive helps it"},
   {Field:"PenaltyDownResult",Meaning:"unchanged, automatic1st, replay, or loss"},

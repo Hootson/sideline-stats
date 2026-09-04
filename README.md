@@ -1,4 +1,4 @@
-# Sideline Stats V3.10.3
+# Sideline Stats V3.10.4
 
 Sideline workflow expansion focused on branching from the event that happened while keeping entry simple.
 
@@ -17,3 +17,5 @@ Existing backups remain compatible. Legacy 1PT/2PT extras remain readable/scored
 - V3.10.2: Live-test UX cleanup: yardage wheels default to 0, offensive fumbles branch to OUR TEAM / OTHER TEAM recovery, defensive prompt wording updated, all branched play-entry screens auto-scroll into view, temporary selections reset between plays, and unselected player/yardage controls use a polished neutral visual treatment.
 
 - V3.10.3: Unified the Pass Defended player picker with the same full-size, neutral professional player-button treatment used elsewhere, including the branded selected-state confirmation. Audited all live single-player selection paths for visual consistency.
+
+- V3.10.4: Enlarged live down-and-distance text. Added offensive Field Goal under Special Teams: kicker → distance → Good/No Good, automatic +3 scoring, possession handling, box score/shareable Special Teams stats, and Excel export fields.
