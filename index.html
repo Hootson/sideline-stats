@@ -651,7 +651,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V4.4.4 • MULTI-DEVICE REFRESH FIX • GRIDIRON EDITION</div>
+      <div class="muted" style="color:#dfe9e2">V4.4.5 • LIVE AUTO-REFRESH • GRIDIRON EDITION</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -1310,18 +1310,19 @@ function restorePlayFromCloud(row,credits,penalty){
   return p;
 }
 async function chooseCloudTeam(){
-  const {data,error}=await SB.from("teams").select("id,name,grade,primary_color,accent_color,timezone,created_at").order("created_at",{ascending:true});if(error)throw error;if(!data?.length)throw new Error("No cloud teams found for this account");if(data.length===1)return data[0];
+  const {data,error}=await SB.from("teams").select("id,name,grade,primary_color,accent_color,timezone,created_at,updated_at").order("created_at",{ascending:true});if(error)throw error;if(!data?.length)throw new Error("No cloud teams found for this account");if(data.length===1)return data[0];
   const lines=data.map((t,i)=>`${i+1}. ${t.name}${t.grade?` — ${t.grade}`:""}`).join("\n");const ans=prompt(`Choose a team to load:\n\n${lines}\n\nEnter 1-${data.length}`);if(ans===null)return null;const n=Number(ans);if(!Number.isInteger(n)||n<1||n>data.length)throw new Error("That team number was not valid");return data[n-1];
 }
 async function loadTeamFromCloud(options={}){
   if(!SB||!cloudUser)return openAuth();if(navigator.onLine===false)return toast("Connect to the internet to load cloud data");
-  const refreshing=!!options.refresh;
+  const refreshing=!!options.refresh, autoRefresh=!!options.auto;
+  const priorScreen=$('.screen.active')?.dataset?.screen||"setup";
   if(!refreshing&&teamExists()&&!confirm("Load a cloud team on this device? This will replace the current local team, roster and games. Export a backup first if you need to keep them."))return;
   const btn=refreshing?$("#cloudRefreshBtn"):$("#cloudLoadTeamBtn");if(btn){btn.disabled=true;btn.textContent=refreshing?"Refreshing…":"Loading…"}
   const priorActiveCloudId=S.activeGameId?(S.cloud?.gameIds?.[S.activeGameId]||S.activeGameId):null;
   try{
     let team=options.team||null;
-    if(!team&&refreshing&&S.cloud?.teamId){const q=await SB.from("teams").select("id,name,grade,primary_color,accent_color,timezone,created_at").eq("id",S.cloud.teamId).single();if(q.error)throw q.error;team=q.data}
+    if(!team&&refreshing&&S.cloud?.teamId){const q=await SB.from("teams").select("id,name,grade,primary_color,accent_color,timezone,created_at,updated_at").eq("id",S.cloud.teamId).single();if(q.error)throw q.error;team=q.data}
     if(!team)team=await chooseCloudTeam();if(!team)return;
     const {data:seasons,error:se}=await SB.from("seasons").select("*").eq("team_id",team.id).order("created_at",{ascending:false});if(se)throw se;const season=seasons?.find(x=>x.status==="active")||seasons?.[0];if(!season)throw new Error("This cloud team has no season yet");
     const [pr,gr]=await Promise.all([SB.from("players").select("*").eq("season_id",season.id).order("created_at"),SB.from("games").select("*").eq("season_id",season.id).order("created_at")]);if(pr.error)throw pr.error;if(gr.error)throw gr.error;
@@ -1337,7 +1338,12 @@ async function loadTeamFromCloud(options={}){
     S={team:{name:team.name,grade:team.grade||"5th Grade",season:season.name||String(season.season_year||"Season"),primary:team.primary_color||"#177b46",secondary:team.accent_color||"#f0b33b",logoData:null},roster,games:localGames,activeGameId:(refreshing&&priorActiveCloudId&&localGames.some(x=>x.id===priorActiveCloudId))?priorActiveCloudId:null,flow:{},editingPlayId:null,cloud};
     for(const p of plays){const lp=localGames.flatMap(x=>x.plays).find(x=>x.id===p.id);if(!lp)continue;const g=localGames.find(x=>x.id===p.game_id);const idx=g.plays.findIndex(x=>x.id===p.id);S.cloud.playHashes[p.id]=simpleHash(buildCloudPlayPayload(g,lp,idx,g.id));for(const c of buildCloudCredits(lp)){const row=credits.find(x=>x.play_id===p.id&&x.player_id===c.playerLocalId&&x.credit_type===c.credit_type&&x.metadata?.active!==false);if(row){const key=creditKey(lp.id,c);S.cloud.creditIds[key]=row.id;S.cloud.creditHashes[key]=simpleHash(c)}}const pen=penalties.find(x=>x.play_id===p.id);if(pen){S.cloud.penaltyIds[lp.id]=pen.id;S.cloud.penaltyHashes[lp.id]=simpleHash(buildCloudPenaltyPayload(g,lp,g.id,p.id))}}
     for(const g of localGames)S.cloud.gameHashes[g.id]=simpleHash(buildCloudGamePayload(g));for(const g of localGames)(g.snapRecords||[]).forEach((r,i)=>S.cloud.snapHashes[r.id]=simpleHash(buildCloudSnapPayload(g,r,i,g.id)));
-    persist({skipCloud:true});normalizeRoster();normalizeGames();syncChrome();populateSetup();initializeSnapSelections();renderRoster();renderGameArea();renderSnaps();renderStats();updateCloudUI();go("setup");toast(refreshing?"Latest cloud changes loaded":"Cloud team loaded on this device");cloudRemoteUpdates=false;scheduleCloudSync(1000);setTimeout(checkCloudForUpdates,1200);
+    cloudRemoteUpdates=false;
+    persist({skipCloud:true});normalizeRoster();normalizeGames();syncChrome();populateSetup();initializeSnapSelections();renderRoster();renderGameArea();renderSnaps();renderStats();updateCloudUI();
+    go(refreshing?priorScreen:"setup");
+    if(!autoRefresh)toast(refreshing?"Latest cloud changes loaded":"Cloud team loaded on this device");
+    if(!autoRefresh)scheduleCloudSync(1000);
+    setTimeout(checkCloudForUpdates,1200);
   }catch(e){console.error("Cloud restore failed",e);toast(e?.message||"Could not load cloud team")}
   finally{if(btn){btn.disabled=false;btn.textContent=refreshing?"Refresh Cloud":"Load Cloud Team"}updateCloudUI()}
 }
@@ -1464,13 +1470,20 @@ async function remoteCloudFingerprint(){
   return simpleHash({team:teamQ.data,players:sort(playersQ.data),games:sort(gamesQ.data),plays:sort(plays),credits:sort(credits),penalties:sort(penalties),snaps:sort(snaps),snapParts:sort(snapParts)});
 }
 async function checkCloudForUpdates(){
-  if(cloudRemoteCheckRunning||!SB||!cloudUser||!cloudLinked()||navigator.onLine===false||cloudPendingCount()>0)return;
+  if(cloudRemoteCheckRunning||cloudAutoRefreshRunning||!SB||!cloudUser||!cloudLinked()||navigator.onLine===false||cloudPendingCount()>0)return;
   cloudRemoteCheckRunning=true;
   try{
     const fp=await remoteCloudFingerprint();
-    if(!S.cloud.remoteFingerprint){S.cloud.remoteFingerprint=fp;cloudRemoteUpdates=false;persist({skipCloud:true})}
-    else cloudRemoteUpdates=fp!==S.cloud.remoteFingerprint;
+    if(!S.cloud.remoteFingerprint){
+      S.cloud.remoteFingerprint=fp;cloudRemoteUpdates=false;persist({skipCloud:true});updateCloudUI();return;
+    }
+    cloudRemoteUpdates=fp!==S.cloud.remoteFingerprint;
     updateCloudUI();
+    if(cloudRemoteUpdates&&cloudPendingCount()===0){
+      cloudAutoRefreshRunning=true;
+      try{await loadTeamFromCloud({refresh:true,auto:true})}
+      finally{cloudAutoRefreshRunning=false}
+    }
   }catch(e){console.warn("Cloud update check failed",e)}finally{cloudRemoteCheckRunning=false}
 }
 setInterval(checkCloudForUpdates,30000);

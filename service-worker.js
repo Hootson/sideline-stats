@@ -1,4 +1,4 @@
-const CACHE='sideline-stats-v4-4-4';
+const CACHE='sideline-stats-v4-4-5';
 const ASSETS=['./','./index.html','./brand-header.png','./brand-field.png','./icon.png'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
