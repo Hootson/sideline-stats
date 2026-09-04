@@ -1,20 +1,15 @@
-V4.4.3 — Device hydration UI fix
+# Sideline Stats V4.4.3 — Step 4.5 Multi-Device Sync Fix
 
-Built from the complete V4.4.2 deployment. Fixes the second-device state where cloud linkage exists but local team/game data has not yet been hydrated. The UI now exposes Load Cloud Team and does not falsely report Cloud synced.
+This patch fixes issues found in the first real two-device test.
 
-# Sideline Stats V4.4.2 — Step 4.5 Multi-Device Hardening
-
-Adds safe ongoing cloud refresh/reconciliation on top of V4.3.0.
-
-- Linked devices can manually **Refresh Cloud** to pull the latest team, roster, games, plays, credits, penalties and snap data.
-- The app checks for newer cloud changes approximately every 30 seconds while online and surfaces **Cloud has updates / Load Updates** instead of silently overwriting the device.
-- A cloud pull is blocked while local changes are still pending, protecting offline sideline work from accidental replacement.
-- Refresh preserves the active game when the same cloud game still exists.
-- After a refresh, cloud UUIDs remain the canonical local IDs and sync hashes are rebuilt to prevent duplicate uploads.
-- Game-day recording remains local-first and does not depend on connectivity.
-
-This is intentionally conservative conflict handling: remote changes are detected and offered to the user, but never auto-applied over unsynced local work.
-
+## V4.4.3 fixes
+- Cloud restore now refreshes the actual interface after loading: team fields, header, navigation, roster, game, snaps, and stats.
+- Removes calls to nonexistent `renderSetup()` and `updateNav()` that caused the restore flow to stop after data had already been saved locally.
+- A device with cloud IDs but no loaded local team is no longer treated as fully linked; `Load Cloud Team` remains available.
+- Fixes a phantom pending-play loop caused by cloud-only revision metadata changing the play hash after an edit.
+- Existing V4.4.2 hash state is safely rebased locally on upgrade when there is no sync error, avoiding unnecessary rewrites of already-synced Week 2 data.
+- Cloud status now identifies the first pending item(s), e.g. play, stat credit, penalty, snap, game state, or deletion.
+- Includes a V4.4.3 service worker/cache file so GitHub deployments update cleanly.
 
 ## V4.4.2 hardening
 - Cloud update detection now fingerprints team, roster, games, plays, credits, penalties, snaps, and snap participants instead of relying only on a few updated_at timestamps.

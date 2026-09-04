@@ -1,62 +1,10 @@
-const CACHE_NAME = "sideline-stats-v4-4-1";
-const APP_SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon.png", "./brand-field.png", "./brand-header.png"];
-
-self.addEventListener("install", event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL))
-  );
-  self.skipWaiting();
-});
-
-self.addEventListener("activate", event => {
-  event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
-  );
-});
-
-self.addEventListener("fetch", event => {
-  if (event.request.method !== "GET") return;
-
-  const req = event.request;
-  const url = new URL(req.url);
-  const isNavigation = req.mode === "navigate";
-  const isIndex = url.pathname.endsWith("/index.html") || url.pathname.endsWith("/sideline-stats/") || url.pathname === "/sideline-stats";
-
-  // IMPORTANT: Always try the network first for the app shell HTML.
-  // This prevents Safari/PWA from getting stuck on an older deployed version.
-  if (isNavigation || isIndex) {
-    event.respondWith(
-      fetch(req, {cache:"no-store"})
-        .then(response => {
-          if (response && response.status === 200) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then(cache => cache.put(req, clone));
-          }
-          return response;
-        })
-        .catch(async () => {
-          return (await caches.match(req)) ||
-                 (await caches.match("./index.html")) ||
-                 (await caches.match("./"));
-        })
-    );
-    return;
-  }
-
-  // Static assets can remain cache-first for fast/offline behavior,
-  // while refreshing themselves from network in the background.
-  event.respondWith(
-    caches.match(req).then(cached => {
-      const network = fetch(req).then(response => {
-        if (response && response.status === 200 && response.type !== "opaque") {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(req, clone));
-        }
-        return response;
-      }).catch(() => cached);
-      return cached || network;
-    })
-  );
+const CACHE='sideline-stats-v4-4-3';
+const ASSETS=['./','./index.html','./brand-header.png','./brand-field.png','./icon.png'];
+self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()))});
+self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
+self.addEventListener('fetch',event=>{
+  if(event.request.method!=='GET')return;
+  const url=new URL(event.request.url);
+  if(url.origin!==self.location.origin)return;
+  event.respondWith(fetch(event.request).then(res=>{const copy=res.clone();caches.open(CACHE).then(c=>c.put(event.request,copy));return res}).catch(()=>caches.match(event.request).then(r=>r||caches.match('./index.html'))));
 });
