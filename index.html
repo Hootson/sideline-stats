@@ -651,7 +651,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V4.4.2 • MULTI-DEVICE HARDENING • GRIDIRON EDITION</div>
+      <div class="muted" style="color:#dfe9e2">V4.4.3 • MULTI-DEVICE HARDENING • GRIDIRON EDITION</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -1249,13 +1249,16 @@ async function initCloud(){
 function cloudLinked(){return !!(S.cloud?.teamId&&S.cloud?.seasonId)}
 function updateCloudUI(force){
   const dot=$("#cloudDot"), text=$("#cloudStatusText"), meta=$("#cloudMeta"), acct=$("#cloudAccountBtn"); if(!dot||!text)return;
+  const localTeam=teamExists(), linked=cloudLinked();
   dot.className="cloud-dot"; acct?.classList.remove("connected");
   $("#cloudSignInBtn")?.classList.toggle("hidden",!!cloudUser); $("#cloudSignOutBtn")?.classList.toggle("hidden",!cloudUser);
-  $("#cloudConnectTeamBtn")?.classList.toggle("hidden",!cloudUser||!teamExists()||cloudLinked()); $("#cloudLoadTeamBtn")?.classList.toggle("hidden",!cloudUser||cloudLinked()); $("#cloudRefreshBtn")?.classList.toggle("hidden",!cloudUser||!cloudLinked());
+  $("#cloudConnectTeamBtn")?.classList.toggle("hidden",!cloudUser||!localTeam||linked);
+  $("#cloudLoadTeamBtn")?.classList.toggle("hidden",!cloudUser||(linked&&localTeam));
+  $("#cloudRefreshBtn")?.classList.toggle("hidden",!cloudUser||!linked||!localTeam);
   if(force==="unavailable"){dot.classList.add("warn");text.textContent="Local mode";meta.textContent="Cloud library unavailable. Game tracking still works offline.";return}
   if(!cloudUser){text.textContent="Local mode";meta.textContent="Your existing data stays on this device until you sign in."; if(acct)acct.textContent="☁ Account";return}
   acct?.classList.add("connected"); if(acct)acct.textContent="☁ Connected";
-  if(cloudLinked()){
+  if(linked&&localTeam){
     const pending=cloudPendingCount();
     if(pending>0){dot.classList.add("warn");text.textContent=`Cloud connected — ${pending} pending`;}
     else if(cloudRemoteUpdates){dot.classList.add("warn");text.textContent="Cloud has updates";}
@@ -1264,8 +1267,12 @@ function updateCloudUI(force){
     const when=S.cloud?.lastSyncAt?` • Last sync ${new Date(S.cloud.lastSyncAt).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})}`:"";
     const err=S.cloud?.lastSyncError?` • Sync paused: ${S.cloud.lastSyncError}`:"";
     meta.textContent=`${cloudUser.email||"Signed in"} • Games, stats, penalties + snaps are local-first and sync automatically${when}${err}`;
+  } else if(linked&&!localTeam){
+    dot.classList.add("warn");text.textContent="Cloud team available — load this device";
+    meta.textContent=`${cloudUser.email||"Signed in"} • This device is connected to your cloud team, but the local team data has not been loaded yet.`;
+  } else {
+    dot.classList.add("warn");text.textContent="Signed in — team not connected";meta.textContent=`${cloudUser.email||"Signed in"} • Connect this team or load one already stored in the cloud.`;
   }
-  else{dot.classList.add("warn");text.textContent="Signed in — team not connected";meta.textContent=`${cloudUser.email||"Signed in"} • Connect this team or load one already stored in the cloud.`}
 }
 function openAuth(){if(cloudUser){go("setup");return}$("#authModal").classList.remove("hidden");setTimeout(()=>$("#authEmail")?.focus(),50)}
 function closeAuth(){$("#authModal").classList.add("hidden")}

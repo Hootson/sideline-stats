@@ -1,3 +1,7 @@
+V4.4.3 — Device hydration UI fix
+
+Built from the complete V4.4.2 deployment. Fixes the second-device state where cloud linkage exists but local team/game data has not yet been hydrated. The UI now exposes Load Cloud Team and does not falsely report Cloud synced.
+
 # Sideline Stats V4.4.2 — Step 4.5 Multi-Device Hardening
 
 Adds safe ongoing cloud refresh/reconciliation on top of V4.3.0.
