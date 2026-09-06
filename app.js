@@ -1697,10 +1697,10 @@ $("#saveEdit").addEventListener("click",()=>{
 });
 
 function agg(g){
-  let m={};S.roster.forEach(p=>m[p.id]={id:p.id,j:p.jersey,n:p.name,car:0,ry:0,rtd:0,att:0,cmp:0,py:0,ptd:0,pi:0,rec:0,rey:0,retd:0,tgt:0,drop:0,t:0,tfl:0,sack:0,int:0,ff:0,fr:0,dtd:0,kr:0,kry:0,pr:0,pry:0,punt:0,punty:0,stff:0,stfr:0,ko:0,kotb:0,koYds:0,pd:0,tryKickAtt:0,tryKickMade:0,tryRunAtt:0,tryRunMade:0,tryPassAtt:0,tryPassMade:0,fga:0,fgm:0,fgLong:0,rfd:0,pfd:0,recfd:0});
+  let m={};S.roster.forEach(p=>m[p.id]={id:p.id,j:p.jersey,n:p.name,car:0,ry:0,rtd:0,att:0,cmp:0,py:0,ptd:0,pi:0,rec:0,rey:0,retd:0,tgt:0,drop:0,rfum:0,recfum:0,t:0,tfl:0,sack:0,int:0,ff:0,fr:0,dtd:0,kr:0,kry:0,pr:0,pry:0,punt:0,punty:0,stff:0,stfr:0,ko:0,kotb:0,koYds:0,pd:0,tryKickAtt:0,tryKickMade:0,tryRunAtt:0,tryRunMade:0,tryPassAtt:0,tryPassMade:0,fga:0,fgm:0,fgLong:0,rfd:0,pfd:0,recfd:0});
   (g?.plays||[]).forEach(p=>{let a=m[p.player],b=m[p.player2];
-    if(p.type==="Rush"&&a){a.car++;a.ry+=+p.yards||0;if(p.extras?.includes("TD"))a.rtd++;if(offensivePlayEarnedFirstDown(p))a.rfd++}
-    if(p.type==="Pass"&&a){if(["Complete","Incomplete","Intercepted"].includes(p.sub))a.att++;if(p.sub==="Complete"){a.cmp++;a.py+=+p.yards||0;if(p.extras?.includes("TD"))a.ptd++;if(offensivePlayEarnedFirstDown(p))a.pfd++;if(b){b.rec++;b.rey+=+p.yards||0;if(p.extras?.includes("TD"))b.retd++;if(offensivePlayEarnedFirstDown(p))b.recfd++}}if(p.sub==="Intercepted")a.pi++}
+    if(p.type==="Rush"&&a){a.car++;a.ry+=+p.yards||0;if(p.extras?.includes("TD"))a.rtd++;if(p.extras?.includes("Fumble"))a.rfum++;if(offensivePlayEarnedFirstDown(p))a.rfd++}
+    if(p.type==="Pass"&&a){if(["Complete","Incomplete","Intercepted"].includes(p.sub))a.att++;if(p.sub==="Complete"){a.cmp++;a.py+=+p.yards||0;if(p.extras?.includes("TD"))a.ptd++;if(offensivePlayEarnedFirstDown(p))a.pfd++;if(b){b.rec++;b.rey+=+p.yards||0;if(p.extras?.includes("TD"))b.retd++;if(p.extras?.includes("Fumble"))b.recfum++;if(offensivePlayEarnedFirstDown(p))b.recfd++}}if(p.sub==="Intercepted")a.pi++}
     if(p.type==="Pass"&&p.player2&&m[p.player2]&&(p.sub==="Complete"||p.sub==="Incomplete"||p.sub==="Intercepted")){
       m[p.player2].tgt++;
       if(p.sub==="Incomplete"&&p.drop)m[p.player2].drop++;
@@ -2012,16 +2012,16 @@ function renderStats(){document.documentElement.style.setProperty("--team-primar
   renderTeamMetrics(src);
   const s=agg({plays:src.plays});
 
-  const rushRows=s.filter(x=>x.car).map(x=>[pname(x.id),x.car,x.ry,(x.ry/x.car).toFixed(1),x.rfd,x.rtd]);
+  const rushRows=s.filter(x=>x.car).sort((a,b)=>b.ry-a.ry||b.rtd-a.rtd||b.car-a.car).map(x=>[pname(x.id),x.car,x.ry,(x.ry/x.car).toFixed(1),x.rfd,x.rtd,x.rfum]);
   const rushCar=s.reduce((a,x)=>a+x.car,0),rushYds=s.reduce((a,x)=>a+x.ry,0);
-  const rushTot=["TEAM TOTAL",rushCar,rushYds,rushCar?(rushYds/rushCar).toFixed(1):"0.0",s.reduce((a,x)=>a+x.rfd,0),s.reduce((a,x)=>a+x.rtd,0)];
+  const rushTot=["TEAM TOTAL",rushCar,rushYds,rushCar?(rushYds/rushCar).toFixed(1):"0.0",s.reduce((a,x)=>a+x.rfd,0),s.reduce((a,x)=>a+x.rtd,0),s.reduce((a,x)=>a+x.rfum,0)];
 
-  const passRows=s.filter(x=>x.att).map(x=>[pname(x.id),`${x.cmp}/${x.att}`,x.py,(x.py/x.att).toFixed(1),x.pfd,x.ptd,x.pi,passerRatingText(x.cmp,x.att,x.py,x.ptd,x.pi)]);
+  const passRows=s.filter(x=>x.att).sort((a,b)=>b.py-a.py||b.ptd-a.ptd||b.cmp-a.cmp).map(x=>[pname(x.id),`${x.cmp}/${x.att}`,x.py,(x.py/x.att).toFixed(1),x.pfd,x.ptd,x.pi,passerRatingText(x.cmp,x.att,x.py,x.ptd,x.pi)]);
   const passCmp=s.reduce((a,x)=>a+x.cmp,0),passAtt=s.reduce((a,x)=>a+x.att,0),passYds=s.reduce((a,x)=>a+x.py,0),passTD=s.reduce((a,x)=>a+x.ptd,0),passINT=s.reduce((a,x)=>a+x.pi,0);
   const passTot=["TEAM TOTAL",`${passCmp}/${passAtt}`,passYds,passAtt?(passYds/passAtt).toFixed(1):"0.0",s.reduce((a,x)=>a+x.pfd,0),passTD,passINT,passerRatingText(passCmp,passAtt,passYds,passTD,passINT)];
 
-  const recRows=s.filter(x=>x.tgt||x.rec).map(x=>[
-    pname(x.id),x.tgt,x.rec,x.rey,x.rec?fmt1(x.rey/x.rec):"0.0",x.recfd,x.retd,x.drop,x.tgt?`${Math.round((x.rec/x.tgt)*100)}%`:"0%"
+  const recRows=s.filter(x=>x.tgt||x.rec).sort((a,b)=>b.rey-a.rey||b.rec-a.rec||b.retd-a.retd).map(x=>[
+    pname(x.id),x.tgt,x.rec,x.rey,x.rec?fmt1(x.rey/x.rec):"0.0",x.recfd,x.retd,x.recfum,x.drop,x.tgt?`${Math.round((x.rec/x.tgt)*100)}%`:"0%"
   ]);
   const recTot=["TEAM TOTAL",
     s.reduce((a,x)=>a+x.tgt,0),
@@ -2030,14 +2030,15 @@ function renderStats(){document.documentElement.style.setProperty("--team-primar
     s.reduce((a,x)=>a+x.rec,0)?fmt1(s.reduce((a,x)=>a+x.rey,0)/s.reduce((a,x)=>a+x.rec,0)):"0.0",
     s.reduce((a,x)=>a+x.recfd,0),
     s.reduce((a,x)=>a+x.retd,0),
+    s.reduce((a,x)=>a+x.recfum,0),
     s.reduce((a,x)=>a+x.drop,0),
     s.reduce((a,x)=>a+x.tgt,0)?`${Math.round((s.reduce((a,x)=>a+x.rec,0)/s.reduce((a,x)=>a+x.tgt,0))*100)}%`:"0%"
   ];
 
-  const defRows=s.filter(x=>x.t+x.tfl+x.sack+x.pd+x.int+x.ff+x.fr+x.dtd).map(x=>[pname(x.id),fmt(x.t),fmt(x.tfl),fmt(x.sack),fmt(x.pd),fmt(x.int),fmt(x.ff),fmt(x.fr),fmt(x.dtd)]);
+  const defRows=s.filter(x=>x.t+x.tfl+x.sack+x.pd+x.int+x.ff+x.fr+x.dtd).sort((a,b)=>b.t-a.t||b.tfl-a.tfl||b.sack-a.sack).map(x=>[pname(x.id),fmt(x.t),fmt(x.tfl),fmt(x.sack),fmt(x.pd),fmt(x.int),fmt(x.ff),fmt(x.fr),fmt(x.dtd)]);
   const defTot=["TEAM TOTAL",fmt(s.reduce((a,x)=>a+x.t,0)),fmt(s.reduce((a,x)=>a+x.tfl,0)),fmt(s.reduce((a,x)=>a+x.sack,0)),fmt(s.reduce((a,x)=>a+x.pd,0)),fmt(s.reduce((a,x)=>a+x.int,0)),fmt(s.reduce((a,x)=>a+x.ff,0)),fmt(s.reduce((a,x)=>a+x.fr,0)),fmt(s.reduce((a,x)=>a+x.dtd,0))];
 
-  const specialRows=s.filter(x=>x.kr+x.pr+x.punt+x.stff+x.stfr+x.fga).map(x=>[
+  const specialRows=s.filter(x=>x.kr+x.pr+x.punt+x.stff+x.stfr+x.fga).sort((a,b)=>(b.kry+b.pry)-(a.kry+a.pry)||b.kry-a.kry||b.pry-a.pry).map(x=>[
     pname(x.id),x.kr,x.kry,x.pr,x.pry,x.punt,x.punty,x.fgm,x.fga,x.fga?`${Math.round((x.fgm/x.fga)*100)}%`:"0%",x.fgLong,x.stff,x.stfr
   ]);
   const teamFGM=s.reduce((a,x)=>a+x.fgm,0),teamFGA=s.reduce((a,x)=>a+x.fga,0);
@@ -2057,9 +2058,9 @@ function renderStats(){document.documentElement.style.setProperty("--team-primar
 
   const pm=penaltyMetrics(src.plays);
   $("#statsBox").innerHTML=
-    `<div class="stats-block"><h3>Rushing</h3>${tbl(["Player","CAR","YDS","AVG","1D","TD"],rushRows,rushRows.length?rushTot:null)}</div>`+
+    `<div class="stats-block"><h3>Rushing</h3>${tbl(["Player","CAR","YDS","AVG","1D","TD","FUM"],rushRows,rushRows.length?rushTot:null)}</div>`+
     `<div class="stats-block"><h3>Passing</h3>${tbl(["Player","CMP/ATT","YDS","AVG","1D","TD","INT","RATE"],passRows,passRows.length?passTot:null)}</div>`+
-    `<div class="stats-block"><h3>Receiving</h3>${tbl(["Player","TGT","REC","YDS","AVG","1D","TD","CATCH%"],recRows.map(r=>[r[0],r[1],r[2],r[3],r[4],r[5],r[6],r[8]]),recRows.length?[recTot[0],recTot[1],recTot[2],recTot[3],recTot[4],recTot[5],recTot[6],recTot[8]]:null)}</div>`+
+    `<div class="stats-block"><h3>Receiving</h3>${tbl(["Player","TGT","REC","YDS","AVG","1D","TD","FUM","DROP","CATCH%"],recRows,recRows.length?recTot:null)}</div>`+
     `<div class="stats-block"><h3>Defense</h3>${tbl(["Player","TKL","TFL","SACK","PD","INT","FF","FR","TD"],defRows,defRows.length?defTot:null)}</div>`+
     `<div class="stats-block"><h3>Special Teams</h3>
       <div class="scope-summary" style="margin-bottom:8px">
@@ -2108,11 +2109,11 @@ function renderShare(){
   $("#shareLeaders").innerHTML=leaders.length?leaders.join(""):'<div class="muted">No individual stats yet.</div>';
 
   let offense="";
-  offense+=`<h4>Rushing</h4>${shareTable(["Player","CAR","YDS","TD"],s.filter(x=>x.car).map(x=>[pname(x.id),x.car,x.ry,x.rtd]))}`;
-  offense+=`<h4>Passing</h4>${shareTable(["Player","C/A","YDS","TD","INT","RATE"],s.filter(x=>x.att).map(x=>[pname(x.id),`${x.cmp}/${x.att}`,x.py,x.ptd,x.pi,passerRatingText(x.cmp,x.att,x.py,x.ptd,x.pi)]))}`;
-  offense+=`<h4>Receiving</h4>${shareTable(["Player","REC","YDS","TD"],s.filter(x=>x.rec).map(x=>[pname(x.id),x.rec,x.rey,x.retd]))}`;
+  offense+=`<h4>Rushing</h4>${shareTable(["Player","CAR","YDS","TD","FUM"],s.filter(x=>x.car).sort((a,b)=>b.ry-a.ry).map(x=>[pname(x.id),x.car,x.ry,x.rtd,x.rfum]))}`;
+  offense+=`<h4>Passing</h4>${shareTable(["Player","C/A","YDS","TD","INT","RATE"],s.filter(x=>x.att).sort((a,b)=>b.py-a.py).map(x=>[pname(x.id),`${x.cmp}/${x.att}`,x.py,x.ptd,x.pi,passerRatingText(x.cmp,x.att,x.py,x.ptd,x.pi)]))}`;
+  offense+=`<h4>Receiving</h4>${shareTable(["Player","REC","YDS","TD","FUM","DROP"],s.filter(x=>x.tgt||x.rec).sort((a,b)=>b.rey-a.rey).map(x=>[pname(x.id),x.rec,x.rey,x.retd,x.recfum,x.drop]))}`;
   $("#shareOffense").innerHTML=offense;
-  $("#shareDefense").innerHTML=shareTable(["Player","TKL","TFL","SACK","PD","INT","FF","FR","TD"],s.filter(x=>x.t+x.tfl+x.sack+x.pd+x.int+x.ff+x.fr+x.dtd).map(x=>[pname(x.id),x.t,x.tfl,x.sack,x.pd,x.int,x.ff,x.fr,x.dtd]));
+  $("#shareDefense").innerHTML=shareTable(["Player","TKL","TFL","SACK","PD","INT","FF","FR","TD"],s.filter(x=>x.t+x.tfl+x.sack+x.pd+x.int+x.ff+x.fr+x.dtd).sort((a,b)=>b.t-a.t||b.tfl-a.tfl||b.sack-a.sack).map(x=>[pname(x.id),x.t,x.tfl,x.sack,x.pd,x.int,x.ff,x.fr,x.dtd]));
 }
 function roundRect(ctx,x,y,w,h,r,fill){
   ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fillStyle=fill;ctx.fill();
