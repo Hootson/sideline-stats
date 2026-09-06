@@ -68,6 +68,24 @@ function inferCloudDeviceRole(){
 function cloudDeviceRole(){return inferCloudDeviceRole()||"viewer"}
 function isCloudStatkeeper(){return cloudDeviceRole()==="statkeeper"}
 
+async function resolveCloudDeviceRole(){
+  if(!SB||!cloudUser||!S.cloud?.teamId||!S.cloud?.seasonId)return cloudDeviceRole();
+  try{
+    const {data:team,error:teamErr}=await SB.from("teams").select("owner_user_id").eq("id",S.cloud.teamId).single();
+    if(teamErr)throw teamErr;
+    let role=team?.owner_user_id===cloudUser.id?"statkeeper":"viewer";
+    if(role!=="statkeeper"){
+      const {data:member,error:memberErr}=await SB.from("team_members").select("is_admin,is_statkeeper,status").eq("team_id",S.cloud.teamId).eq("user_id",cloudUser.id).maybeSingle();
+      if(memberErr)throw memberErr;
+      if(member?.status==="active"&&(member.is_admin||member.is_statkeeper))role="statkeeper";
+    }
+    S.cloud.deviceRole=role;
+    persist({skipCloud:true});
+    updateCloudUI();
+    return role;
+  }catch(e){console.warn("Could not resolve cloud role",e);return cloudDeviceRole()}
+}
+
 let cloudRealtimeChannel=null,cloudRealtimeTimer=null;
 
 function stopCloudRealtime(){
@@ -79,7 +97,7 @@ function queueRealtimeRefresh(){
   if(cloudRealtimeTimer)clearTimeout(cloudRealtimeTimer);
   cloudRealtimeTimer=setTimeout(async()=>{
     cloudRealtimeTimer=null;
-    if(!SB||!cloudUser||!cloudLinked()||navigator.onLine===false||cloudPendingCount()>0||cloudSyncRunning||cloudAutoRefreshRunning)return;
+    if(isCloudStatkeeper()||!SB||!cloudUser||!cloudLinked()||navigator.onLine===false||cloudPendingCount()>0||cloudSyncRunning||cloudAutoRefreshRunning)return;
     cloudAutoRefreshRunning=true;
     try{await loadTeamFromCloud({refresh:true,auto:true})}
     catch(e){console.warn("Realtime refresh failed",e)}
@@ -105,8 +123,16 @@ async function initCloud(){
   try{
     if(!window.supabase?.createClient){updateCloudUI("unavailable");return}
     SB=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
-    const {data}=await SB.auth.getSession(); cloudUser=data?.session?.user||null; cloudReady=true; if(cloudUser)rebaseCloudHashesV443(); inferCloudDeviceRole();updateCloudUI();if(isCloudStatkeeper())scheduleCloudSync(300);else setTimeout(checkCloudForUpdates,500);setTimeout(startCloudRealtime,800);
-    SB.auth.onAuthStateChange((_event,session)=>{cloudUser=session?.user||null;if(cloudUser)rebaseCloudHashesV443();inferCloudDeviceRole();updateCloudUI();if(isCloudStatkeeper())scheduleCloudSync(250);else setTimeout(checkCloudForUpdates,500);setTimeout(startCloudRealtime,800)});
+    const {data}=await SB.auth.getSession();cloudUser=data?.session?.user||null;cloudReady=true;
+    if(cloudUser){rebaseCloudHashesV443();await resolveCloudDeviceRole()}else updateCloudUI();
+    if(isCloudStatkeeper())scheduleCloudSync(300);else setTimeout(checkCloudForUpdates,500);
+    setTimeout(startCloudRealtime,800);
+    SB.auth.onAuthStateChange(async(_event,session)=>{
+      cloudUser=session?.user||null;
+      if(cloudUser){rebaseCloudHashesV443();await resolveCloudDeviceRole()}else updateCloudUI();
+      if(isCloudStatkeeper())scheduleCloudSync(250);else setTimeout(checkCloudForUpdates,500);
+      setTimeout(startCloudRealtime,800);
+    });
   }catch(e){console.error("Cloud init failed",e);updateCloudUI("unavailable")}
 }
 function cloudLinked(){return !!(teamExists()&&S.cloud?.teamId&&S.cloud?.seasonId)}
@@ -333,7 +359,7 @@ async function remoteCloudFingerprint(){
   return simpleHash({team:teamQ.data,players:sort(playersQ.data),games:sort(gamesQ.data),plays:sort(plays),credits:sort(credits),penalties:sort(penalties),snaps:sort(snaps),snapParts:sort(snapParts)});
 }
 async function checkCloudForUpdates(){
-  if(cloudRemoteCheckRunning||cloudAutoRefreshRunning||!SB||!cloudUser||!cloudLinked()||navigator.onLine===false||cloudPendingCount()>0)return;
+  if(isCloudStatkeeper()||cloudRemoteCheckRunning||cloudAutoRefreshRunning||!SB||!cloudUser||!cloudLinked()||navigator.onLine===false||cloudPendingCount()>0)return;
   cloudRemoteCheckRunning=true;
   try{
     const fp=await remoteCloudFingerprint();
@@ -1962,6 +1988,31 @@ function updateSnapSummary(){
 $("#checkAllSnaps").addEventListener("click",()=>{
   initializeSnapSelections();renderSnaps();
 });
+
+async function inviteSnapTracker(){
+  const g=currentGame();
+  if(!g)return toast("Open a game first");
+  if(!SB||!cloudUser){openAuth();return toast("Sign in first to invite a snap tracker")}
+  const role=await resolveCloudDeviceRole();
+  if(role!=="statkeeper")return toast("Only the team statkeeper can create this invite");
+  try{
+    await syncCloudNow();
+    const cloudGameId=S.cloud?.gameIds?.[g.id];
+    if(!cloudGameId)throw new Error("This game has not synced to the cloud yet");
+    const {data,error}=await SB.rpc("create_snap_tracker_invite",{p_game_id:cloudGameId,p_expires_hours:24});
+    if(error)throw error;
+    const row=Array.isArray(data)?data[0]:data;
+    if(!row?.token)throw new Error("Invite link was not created");
+    const u=new URL("./snap-tracker.html",location.href);u.searchParams.set("token",row.token);
+    const text=`Track ${S.team.name} player snaps vs ${g.opponent} with this Sideline Stats link.`;
+    if(navigator.share){
+      try{await navigator.share({title:`${S.team.name} Snap Tracker`,text,url:u.href});return}catch(e){if(e?.name==="AbortError")return}
+    }
+    if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(u.href);toast("Snap Tracker link copied")}
+    else{prompt("Copy this Snap Tracker link",u.href)}
+  }catch(e){console.error(e);toast(e.message||"Could not create Snap Tracker invite")}
+}
+$("#inviteSnapTrackerBtn")?.addEventListener("click",inviteSnapTracker);
 
 $("#recordSnapBtn").addEventListener("click",()=>{
   if(!S.roster.length)return toast("Add your roster first");
