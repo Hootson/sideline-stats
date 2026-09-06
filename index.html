@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V3.10.4</title>
+<title>Sideline Stats V4.4.8</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -32,7 +32,7 @@
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V4.4.7c • GAME-DAY ROLES • GRIDIRON EDITION</div>
+      <div class="muted" style="color:#dfe9e2">V4.4.8 • REMEMBERED TEAM • GRIDIRON EDITION</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -555,12 +555,24 @@
 <div id="authModal" class="modal-backdrop hidden">
   <div class="modal-card">
     <button id="authCloseBtn" class="modal-close" aria-label="Close">×</button>
-    <h2>Sideline Stats Account</h2>
-    <div class="muted">Sign in to connect this device to the secure Sideline Stats cloud.</div>
-    <label>Email</label><input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com">
-    <label>Password</label><input id="authPassword" type="password" autocomplete="current-password" placeholder="At least 6 characters">
-    <div class="modal-actions"><button class="btn" id="authSignInBtn" type="button">Sign In</button><button class="btn ghost" id="authCreateBtn" type="button">Create Account</button></div>
-    <div id="authMessage" class="inline-note" style="margin-top:12px">Cloud connection is optional during this transition. Local game data continues to work offline.</div>
+    <div id="signedOutAccountPane">
+      <h2>Sideline Stats Account</h2>
+      <div class="muted">Sign in once on this device. Sideline Stats will remember you and reopen your team automatically.</div>
+      <label>Email</label><input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com">
+      <label>Password</label><input id="authPassword" type="password" autocomplete="current-password" placeholder="At least 6 characters">
+      <div class="modal-actions"><button class="btn" id="authSignInBtn" type="button">Sign In</button><button class="btn ghost" id="authCreateBtn" type="button">Create Account</button></div>
+      <div id="authMessage" class="inline-note" style="margin-top:12px">Your game data remains available offline after the first cloud load.</div>
+    </div>
+    <div id="signedInAccountPane" class="hidden">
+      <h2>Settings</h2>
+      <div id="accountTeamName" class="account-team-name">Erie</div>
+      <div id="accountEmail" class="muted"></div>
+      <div class="inline-note account-remember-note">This device will keep you signed in and open this team automatically.</div>
+      <div class="account-actions">
+        <button class="btn ghost" id="switchTeamBtn" type="button">Switch Team</button>
+        <button class="btn danger" id="accountSignOutBtn" type="button">Sign Out</button>
+      </div>
+    </div>
   </div>
 </div>
 <div class="toast" id="toast"></div>

@@ -1,4 +1,13 @@
-# Sideline Stats V4.4.5 — Live Auto-Refresh
+# Sideline Stats V4.4.8 — Remembered Sign-In and Team
+
+## V4.4.8 changes
+- Supabase Auth sessions persist on each device and refresh automatically.
+- The selected cloud team is remembered per signed-in user on that device.
+- Returning users reopen their locally cached team immediately, including offline.
+- A signed-in user with no local team automatically loads the remembered cloud team (or their only cloud team).
+- Account Settings now includes **Switch Team** and device-only **Sign Out**.
+
+## Earlier V4.4.5 fixes
 
 ## V4.4.5 fixes
 - Connected secondary devices automatically check Supabase every 30 seconds and apply remote changes when there are no unsynced local changes.

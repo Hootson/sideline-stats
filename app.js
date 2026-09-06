@@ -1,11 +1,13 @@
 (function(){
 const KEY="sidelineStatsData";
 const RECOVERY_KEY="sidelineStatsRecovery";
+const LAST_TEAM_KEY_PREFIX="sidelineStatsLastTeam:";
 const MIGRATION_KEYS=["sidelineStatsV23","sidelineStatsV20","sidelineStatsV19","sidelineStatsV18","sidelineStatsV17","sidelineStatsV16","sidelineStatsV15","sidelineStatsV14","sidelineStatsV13","sidelineStatsV12","sidelineStatsV11","sidelineStatsV10","sidelineStatsV09","sidelineStatsV08","sidelineStatsV07","sidelineStatsV06","sidelineStatsV05","sidelineStatsV04","sidelineStatsV03","sidelineStatsV02"];
 
 const SUPABASE_URL="https://eyuvgzhkhcpwtcbmsvct.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY="sb_publishable_uMOkwO4jyHen4pz4zCkIuQ_Ss-wUf2l";
 let SB=null, cloudUser=null, cloudReady=false, cloudRemoteUpdates=false, cloudRemoteCheckRunning=false;
+let cloudAutoTeamLoadRunning=false;
 const empty={team:null,roster:[],games:[],activeGameId:null,flow:{},editingPlayId:null,cloud:{teamId:null,seasonId:null,playerIds:{},gameIds:{},playIds:{},playHashes:{},gameHashes:{},creditIds:{},creditHashes:{},penaltyIds:{},penaltyHashes:{},snapIds:{},snapHashes:{},connectedAt:null,lastSyncAt:null,lastSyncError:null,remoteFingerprint:null,hashVersion:2,deviceRole:null}};
 let S=load();
 if(!S.cloud)S.cloud={teamId:null,seasonId:null,playerIds:{},gameIds:{},playIds:{},playHashes:{},gameHashes:{},connectedAt:null,lastSyncAt:null,lastSyncError:null};
@@ -52,6 +54,12 @@ function persist(opts={}){
     if(typeof updateCloudUI==="function")updateCloudUI();
     if(!opts.skipCloud && typeof scheduleCloudSync==="function" && cloudDeviceRole()!=="viewer")scheduleCloudSync();
   }catch(e){console.error("Save failed",e);toast("Could not save data")}
+}
+
+function lastTeamStorageKey(){return cloudUser?.id?`${LAST_TEAM_KEY_PREFIX}${cloudUser.id}`:null}
+function rememberedTeamId(){try{const key=lastTeamStorageKey();return key?localStorage.getItem(key):null}catch(_){return null}}
+function rememberTeam(teamId){
+  try{const key=lastTeamStorageKey();if(key&&teamId)localStorage.setItem(key,teamId)}catch(e){console.warn("Could not remember team",e)}
 }
 
 function inferCloudDeviceRole(){
@@ -124,16 +132,37 @@ async function initCloud(){
     if(!window.supabase?.createClient){updateCloudUI("unavailable");return}
     SB=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
     const {data}=await SB.auth.getSession();cloudUser=data?.session?.user||null;cloudReady=true;
-    if(cloudUser){rebaseCloudHashesV443();await resolveCloudDeviceRole()}else updateCloudUI();
+    if(cloudUser){rebaseCloudHashesV443();await restoreRememberedTeam()}else updateCloudUI();
     if(isCloudStatkeeper())scheduleCloudSync(300);else setTimeout(checkCloudForUpdates,500);
     setTimeout(startCloudRealtime,800);
-    SB.auth.onAuthStateChange(async(_event,session)=>{
+    SB.auth.onAuthStateChange((_event,session)=>{
       cloudUser=session?.user||null;
-      if(cloudUser){rebaseCloudHashesV443();await resolveCloudDeviceRole()}else updateCloudUI();
-      if(isCloudStatkeeper())scheduleCloudSync(250);else setTimeout(checkCloudForUpdates,500);
-      setTimeout(startCloudRealtime,800);
+      setTimeout(async()=>{
+        if(cloudUser){rebaseCloudHashesV443();await restoreRememberedTeam()}else updateCloudUI();
+        if(isCloudStatkeeper())scheduleCloudSync(250);else setTimeout(checkCloudForUpdates,500);
+        setTimeout(startCloudRealtime,800);
+      },0);
     });
   }catch(e){console.error("Cloud init failed",e);updateCloudUI("unavailable")}
+}
+async function restoreRememberedTeam(){
+  if(!cloudUser||cloudAutoTeamLoadRunning)return;
+  if(cloudLinked()){
+    rememberTeam(S.cloud.teamId);
+    await resolveCloudDeviceRole();
+    updateCloudUI();
+    return;
+  }
+  if(teamExists()){updateCloudUI();return}
+  if(navigator.onLine===false){updateCloudUI();return}
+  cloudAutoTeamLoadRunning=true;
+  try{
+    const preferredId=rememberedTeamId();
+    const team=await chooseCloudTeam({preferredId,onlyAutomatic:true});
+    if(team)await loadTeamFromCloud({team,auto:true,skipReplaceConfirm:true,destination:"roster"});
+    else updateCloudUI();
+  }catch(e){console.warn("Automatic team restore failed",e);updateCloudUI()}
+  finally{cloudAutoTeamLoadRunning=false}
 }
 function cloudLinked(){return !!(teamExists()&&S.cloud?.teamId&&S.cloud?.seasonId)}
 function updateCloudUI(force){
@@ -143,7 +172,7 @@ function updateCloudUI(force){
   $("#cloudConnectTeamBtn")?.classList.toggle("hidden",!cloudUser||!teamExists()||cloudLinked()); $("#cloudLoadTeamBtn")?.classList.toggle("hidden",!cloudUser||cloudLinked()); $("#cloudRefreshBtn")?.classList.toggle("hidden",!cloudUser||!cloudLinked());
   if(force==="unavailable"){dot.classList.add("warn");text.textContent="Local mode";meta.textContent="Cloud library unavailable. Game tracking still works offline.";return}
   if(!cloudUser){text.textContent="Local mode";meta.textContent="Your existing data stays on this device until you sign in."; if(acct)acct.textContent="☁ Account";return}
-  acct?.classList.add("connected"); if(acct)acct.textContent="☁ Connected";
+  acct?.classList.add("connected"); if(acct)acct.textContent=teamExists()?`⚙ ${S.team.name}`:"⚙ Settings";
   if(cloudLinked()){
     const pending=cloudPendingCount();
     if(pending>0){dot.classList.add("warn");text.textContent=`Cloud connected — ${pending} pending`;}
@@ -157,13 +186,23 @@ function updateCloudUI(force){
   }
   else{dot.classList.add("warn");text.textContent="Signed in — team not connected";meta.textContent=`${cloudUser.email||"Signed in"} • Connect this team or load one already stored in the cloud.`}
 }
-function openAuth(){if(cloudUser){go("setup");return}$("#authModal").classList.remove("hidden");setTimeout(()=>$("#authEmail")?.focus(),50)}
+function openAuth(){
+  $("#signedOutAccountPane")?.classList.toggle("hidden",!!cloudUser);
+  $("#signedInAccountPane")?.classList.toggle("hidden",!cloudUser);
+  if(cloudUser){
+    const teamName=teamExists()?S.team.name:"No team selected";
+    if($("#accountTeamName"))$("#accountTeamName").textContent=teamName;
+    if($("#accountEmail"))$("#accountEmail").textContent=cloudUser.email||"Signed in";
+  }
+  $("#authModal").classList.remove("hidden");
+  if(!cloudUser)setTimeout(()=>$("#authEmail")?.focus(),50);
+}
 function closeAuth(){$("#authModal").classList.add("hidden")}
 async function authSignIn(){
   if(!SB)return toast("Cloud connection is not ready"); const email=$("#authEmail").value.trim(),password=$("#authPassword").value;
   if(!email||!password)return toast("Enter email and password"); $("#authMessage").textContent="Signing in…";
   const {error}=await SB.auth.signInWithPassword({email,password}); if(error){$("#authMessage").textContent=error.message;return}
-  closeAuth();toast("Signed in");
+  closeAuth();toast("Signed in — this device will remember you");
 }
 async function authCreate(){
   if(!SB)return toast("Cloud connection is not ready"); const email=$("#authEmail").value.trim(),password=$("#authPassword").value;
@@ -172,7 +211,12 @@ async function authCreate(){
   const {data,error}=await SB.auth.signUp({email,password,options:{emailRedirectTo:redirectTo}}); if(error){$("#authMessage").textContent=error.message;return}
   if(data?.session){closeAuth();toast("Account created") } else $("#authMessage").textContent="Account created. Check your email to confirm it, then sign in here.";
 }
-async function cloudSignOut(){if(!SB)return;await SB.auth.signOut();cloudUser=null;updateCloudUI();toast("Signed out — local data remains safe")}
+async function cloudSignOut(){
+  if(!SB)return;
+  const {error}=await SB.auth.signOut({scope:"local"});
+  if(error)return toast(error.message||"Could not sign out");
+  cloudUser=null;stopCloudRealtime();closeAuth();updateCloudUI();toast("Signed out on this device — local data remains safe")
+}
 function localPossession(v){return v==="opponent"?"opp":"ours"}
 function cloneJson(v){return JSON.parse(JSON.stringify(v??{}))}
 function firstCreditPlayer(credits,types){for(const t of types){const c=credits.find(x=>x.credit_type===t&&Number(x.value)!==0);if(c)return c.player_id}return null}
@@ -197,15 +241,17 @@ function restorePlayFromCloud(row,credits,penalty){
   if(p.type==="Penalty"){p.penaltyPlayer=penalty?.player_id||"UNKNOWN";p.penaltyType=penalty?.penalty_type||p.penaltyType||"Other";p.penaltyYards=penalty?.yards??p.penaltyYards??0;const rev={replay_same:"replay",next_down:"next",automatic_first:"automatic1st",loss_of_down:"loss"};p.penaltyDownResult=rev[penalty?.down_result]||p.penaltyDownResult||"replay"}
   return p;
 }
-async function chooseCloudTeam(){
+async function chooseCloudTeam(options={}){
   const {data,error}=await SB.from("teams").select("id,name,grade,primary_color,accent_color,logo_data,timezone,created_at,updated_at").order("created_at",{ascending:true});if(error)throw error;if(!data?.length)throw new Error("No cloud teams found for this account");if(data.length===1)return data[0];
+  if(options.preferredId){const preferred=data.find(t=>t.id===options.preferredId);if(preferred)return preferred}
+  if(options.onlyAutomatic)return null;
   const lines=data.map((t,i)=>`${i+1}. ${t.name}${t.grade?` — ${t.grade}`:""}`).join("\n");const ans=prompt(`Choose a team to load:\n\n${lines}\n\nEnter 1-${data.length}`);if(ans===null)return null;const n=Number(ans);if(!Number.isInteger(n)||n<1||n>data.length)throw new Error("That team number was not valid");return data[n-1];
 }
 async function loadTeamFromCloud(options={}){
   if(!SB||!cloudUser)return openAuth();if(navigator.onLine===false)return toast("Connect to the internet to load cloud data");
   const refreshing=!!options.refresh, autoRefresh=!!options.auto;
   const priorScreen=$('.screen.active')?.dataset?.screen||"setup";
-  if(!refreshing&&teamExists()&&!confirm("Load a cloud team on this device? This will replace the current local team, roster and games. Export a backup first if you need to keep them."))return;
+  if(!refreshing&&teamExists()&&!options.skipReplaceConfirm&&!confirm("Load a cloud team on this device? This will replace the current local team, roster and games. Export a backup first if you need to keep them."))return;
   const btn=refreshing?$("#cloudRefreshBtn"):$("#cloudLoadTeamBtn");if(btn){btn.disabled=true;btn.textContent=refreshing?"Refreshing…":"Loading…"}
   const priorActiveCloudId=S.activeGameId?(S.cloud?.gameIds?.[S.activeGameId]||S.activeGameId):null;
   try{
@@ -226,14 +272,27 @@ async function loadTeamFromCloud(options={}){
     S={team:{name:team.name,grade:team.grade||"5th Grade",season:season.name||String(season.season_year||"Season"),primary:team.primary_color||"#177b46",secondary:team.accent_color||"#f0b33b",logoData:team.logo_data||null},roster,games:localGames,activeGameId:(refreshing&&priorActiveCloudId&&localGames.some(x=>x.id===priorActiveCloudId))?priorActiveCloudId:null,flow:{},editingPlayId:null,cloud};
     for(const p of plays){const lp=localGames.flatMap(x=>x.plays).find(x=>x.id===p.id);if(!lp)continue;const g=localGames.find(x=>x.id===p.game_id);const idx=g.plays.findIndex(x=>x.id===p.id);S.cloud.playHashes[p.id]=simpleHash(buildCloudPlayPayload(g,lp,idx,g.id));for(const c of buildCloudCredits(lp)){const row=credits.find(x=>x.play_id===p.id&&x.player_id===c.playerLocalId&&x.credit_type===c.credit_type&&x.metadata?.active!==false);if(row){const key=creditKey(lp.id,c);S.cloud.creditIds[key]=row.id;S.cloud.creditHashes[key]=simpleHash(c)}}const pen=penalties.find(x=>x.play_id===p.id);if(pen){S.cloud.penaltyIds[lp.id]=pen.id;S.cloud.penaltyHashes[lp.id]=simpleHash(buildCloudPenaltyPayload(g,lp,g.id,p.id))}}
     for(const g of localGames)S.cloud.gameHashes[g.id]=simpleHash(buildCloudGamePayload(g));for(const g of localGames)(g.snapRecords||[]).forEach((r,i)=>S.cloud.snapHashes[r.id]=simpleHash(buildCloudSnapPayload(g,r,i,g.id)));
-    cloudRemoteUpdates=false;
+    cloudRemoteUpdates=false;rememberTeam(team.id);
     persist({skipCloud:true});normalizeRoster();normalizeGames();syncChrome();populateSetup();initializeSnapSelections();renderRoster();renderGameArea();renderSnaps();renderStats();updateCloudUI();
-    go(refreshing?priorScreen:"setup");
+    go(refreshing?priorScreen:(options.destination||"roster"));
     if(!autoRefresh)toast(refreshing?"Latest cloud changes loaded":"Cloud team loaded on this device");
     // Cloud-loaded devices are viewers; never push a restored snapshot back to the database.
     setTimeout(checkCloudForUpdates,1200);startCloudRealtime();
   }catch(e){console.error("Cloud restore failed",e);toast(e?.message||"Could not load cloud team")}
   finally{if(btn){btn.disabled=false;btn.textContent=refreshing?"Refresh Cloud":"Load Cloud Team"}updateCloudUI()}
+}
+
+async function switchCloudTeam(){
+  if(!SB||!cloudUser)return openAuth();
+  if(navigator.onLine===false)return toast("Connect to the internet to switch teams");
+  if(cloudPendingCount()>0)return toast("Wait for local changes to finish syncing before switching teams");
+  let team;
+  try{team=await chooseCloudTeam()}catch(e){return toast(e?.message||"Could not load teams")}
+  if(!team||team.id===S.cloud?.teamId){closeAuth();return}
+  const current=S.team?.name||"current team";
+  if(!confirm(`Switch from ${current} to ${team.name}? The new team's roster and games will replace the current local view on this device.`))return;
+  closeAuth();
+  await loadTeamFromCloud({team,skipReplaceConfirm:true,destination:"roster"});
 }
 
 async function refreshFromCloud(){
@@ -264,7 +323,7 @@ async function connectTeamToCloud(){
       if(playerIds[p.id]){const {error}=await SB.from("players").update({jersey_number:String(p.jersey),name:p.name,active:true}).eq("id",playerIds[p.id]);if(error)throw error}
       else{const {data,error}=await SB.from("players").insert({season_id:seasonId,jersey_number:String(p.jersey),name:p.name,active:true}).select("id").single();if(error)throw error;playerIds[p.id]=data.id}
     }
-    S.cloud={...(S.cloud||{}),teamId,seasonId,playerIds,gameIds:S.cloud?.gameIds||{},playIds:S.cloud?.playIds||{},playHashes:S.cloud?.playHashes||{},gameHashes:S.cloud?.gameHashes||{},creditIds:S.cloud?.creditIds||{},creditHashes:S.cloud?.creditHashes||{},penaltyIds:S.cloud?.penaltyIds||{},penaltyHashes:S.cloud?.penaltyHashes||{},snapIds:S.cloud?.snapIds||{},snapHashes:S.cloud?.snapHashes||{},connectedAt:new Date().toISOString(),lastSyncError:null,remoteFingerprint:S.cloud?.remoteFingerprint||null,hashVersion:2,deviceRole:"statkeeper"};persist();updateCloudUI();toast("Team connected — this device is the statkeeper")
+    S.cloud={...(S.cloud||{}),teamId,seasonId,playerIds,gameIds:S.cloud?.gameIds||{},playIds:S.cloud?.playIds||{},playHashes:S.cloud?.playHashes||{},gameHashes:S.cloud?.gameHashes||{},creditIds:S.cloud?.creditIds||{},creditHashes:S.cloud?.creditHashes||{},penaltyIds:S.cloud?.penaltyIds||{},penaltyHashes:S.cloud?.penaltyHashes||{},snapIds:S.cloud?.snapIds||{},snapHashes:S.cloud?.snapHashes||{},connectedAt:new Date().toISOString(),lastSyncError:null,remoteFingerprint:S.cloud?.remoteFingerprint||null,hashVersion:2,deviceRole:"statkeeper"};rememberTeam(teamId);persist();updateCloudUI();toast("Team connected — this device is the statkeeper")
   }catch(e){console.error("Cloud team connect failed",e);toast(e?.message||"Could not connect team")}
   finally{if(btn){btn.disabled=false;btn.textContent="Connect Team"}updateCloudUI()}
 }
@@ -537,9 +596,10 @@ async function syncCloudNow(){
 window.addEventListener("online",()=>{if(isCloudStatkeeper())scheduleCloudSync(150);setTimeout(checkCloudForUpdates,500)});
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){if(isCloudStatkeeper())scheduleCloudSync(250);setTimeout(checkCloudForUpdates,500)}});
 
-$("#cloudAccountBtn")?.addEventListener("click",()=>cloudUser?go("setup"):openAuth());
+$("#cloudAccountBtn")?.addEventListener("click",openAuth);
 $("#cloudSignInBtn")?.addEventListener("click",openAuth); $("#cloudSignOutBtn")?.addEventListener("click",cloudSignOut); $("#cloudConnectTeamBtn")?.addEventListener("click",connectTeamToCloud); $("#cloudLoadTeamBtn")?.addEventListener("click",()=>loadTeamFromCloud()); $("#cloudRefreshBtn")?.addEventListener("click",refreshFromCloud);
 $("#authCloseBtn")?.addEventListener("click",closeAuth); $("#authSignInBtn")?.addEventListener("click",authSignIn); $("#authCreateBtn")?.addEventListener("click",authCreate);
+$("#switchTeamBtn")?.addEventListener("click",switchCloudTeam); $("#accountSignOutBtn")?.addEventListener("click",cloudSignOut);
 $("#authModal")?.addEventListener("click",e=>{if(e.target.id==="authModal")closeAuth()});
 
 function normalizeRoster(){
