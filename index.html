@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V4.5.0</title>
+<title>Sideline Stats V4.5.1</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -32,7 +32,7 @@
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V4.5.0 • SHARED SNAP TRACKER • GRIDIRON EDITION</div>
+      <div class="muted" style="color:#dfe9e2">V4.5.1 • RELIABLE SNAP INVITES • GRIDIRON EDITION</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -554,6 +554,19 @@
     <button data-go="snaps">✅<br>Snaps</button>
     <button data-go="stats">📊<br>Stats</button>
   </nav>
+</div>
+<div id="snapInviteModal" class="modal-backdrop hidden">
+  <div class="modal-card">
+    <button id="snapInviteCloseBtn" class="modal-close" aria-label="Close">×</button>
+    <h2>Snap Tracker Link</h2>
+    <div class="muted">This link only allows participation tracking for the open game. No login is required.</div>
+    <label>Invitation link</label>
+    <input id="snapInviteUrl" type="text" readonly>
+    <div class="modal-actions">
+      <button class="btn" id="shareSnapInviteBtn" type="button">Share Link</button>
+      <button class="btn ghost" id="copySnapInviteBtn" type="button">Copy Link</button>
+    </div>
+  </div>
 </div>
 <div id="authModal" class="modal-backdrop hidden">
   <div class="modal-card">

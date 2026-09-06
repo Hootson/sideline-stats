@@ -1,4 +1,9 @@
-# Sideline Stats V4.5.0 — Shared Snap Progress
+# Sideline Stats V4.5.1 — Reliable Snap Invites
+
+## V4.5.1 changes
+- Snap invitations now open a link preview with separate **Share Link** and **Copy Link** buttons.
+- The second, direct tap preserves the browser's required user activation and prevents iPhone `NotAllowedError` permission messages.
+- Link creation is temporarily disabled while the cloud invitation is prepared, preventing accidental duplicate requests.
 
 ## V4.5.0 changes
 - The restricted Snap Tracker link now mirrors the in-app player progress bars, minimum status, and player-snap summary.

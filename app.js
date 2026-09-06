@@ -763,7 +763,7 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
-$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"4.5.0",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
+$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"4.5.1",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
 $("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
 $("#restoreDataInput").addEventListener("change",async()=>{
   const f=$("#restoreDataInput").files?.[0];if(!f)return;
@@ -2079,6 +2079,7 @@ async function inviteSnapTracker(){
   if(!SB||!cloudUser){openAuth();return toast("Sign in first to invite a snap tracker")}
   const role=await resolveCloudDeviceRole();
   if(role!=="statkeeper")return toast("Only the team statkeeper can create this invite");
+  const btn=$("#inviteSnapTrackerBtn");if(btn){btn.disabled=true;btn.textContent="Creating Link…"}
   try{
     await syncCloudNow();
     const cloudGameId=S.cloud?.gameIds?.[g.id];
@@ -2089,14 +2090,34 @@ async function inviteSnapTracker(){
     if(!row?.token)throw new Error("Invite link was not created");
     const u=new URL("./snap-tracker.html",location.href);u.searchParams.set("token",row.token);
     const text=`Track ${S.team.name} player snaps vs ${g.opponent} with this Sideline Stats link.`;
-    if(navigator.share){
-      try{await navigator.share({title:`${S.team.name} Snap Tracker`,text,url:u.href});return}catch(e){if(e?.name==="AbortError")return}
-    }
-    if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(u.href);toast("Snap Tracker link copied")}
-    else{prompt("Copy this Snap Tracker link",u.href)}
+    showSnapInvite({title:`${S.team.name} Snap Tracker`,text,url:u.href});
   }catch(e){console.error(e);toast(e.message||"Could not create Snap Tracker invite")}
+  finally{if(btn){btn.disabled=false;btn.textContent="Invite Snap Tracker"}}
 }
 $("#inviteSnapTrackerBtn")?.addEventListener("click",inviteSnapTracker);
+
+let snapInviteShareData=null;
+function showSnapInvite(data){
+  snapInviteShareData=data;
+  $("#snapInviteUrl").value=data.url;
+  $("#snapInviteModal").classList.remove("hidden");
+}
+function closeSnapInvite(){$("#snapInviteModal").classList.add("hidden")}
+function copySnapInvite(){
+  const input=$("#snapInviteUrl"),url=input.value;if(!url)return;
+  input.focus();input.select();input.setSelectionRange(0,url.length);
+  const fallback=()=>{try{if(document.execCommand("copy")){toast("Snap Tracker link copied");return}}catch(_){}prompt("Copy this Snap Tracker link",url)};
+  if(navigator.clipboard?.writeText)navigator.clipboard.writeText(url).then(()=>toast("Snap Tracker link copied")).catch(fallback);
+  else fallback();
+}
+$("#snapInviteCloseBtn")?.addEventListener("click",closeSnapInvite);
+$("#copySnapInviteBtn")?.addEventListener("click",copySnapInvite);
+$("#shareSnapInviteBtn")?.addEventListener("click",()=>{
+  if(!snapInviteShareData)return toast("Create the invitation link first");
+  if(!navigator.share)return copySnapInvite();
+  navigator.share(snapInviteShareData).then(closeSnapInvite).catch(e=>{if(e?.name!=="AbortError")toast("Share menu unavailable — use Copy Link")});
+});
+$("#snapInviteModal")?.addEventListener("click",e=>{if(e.target.id==="snapInviteModal")closeSnapInvite()});
 
 $("#recordSnapBtn").addEventListener("click",()=>{
   if(!S.roster.length)return toast("Add your roster first");
