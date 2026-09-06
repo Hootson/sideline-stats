@@ -2354,39 +2354,39 @@ async function makeHybridSharePages(src){
   const rec=[...s].filter(x=>x.rec).sort((a,b)=>b.rey-a.rey)[0];
   const rush=[...s].filter(x=>x.car).sort((a,b)=>b.ry-a.ry)[0];
   const def=[...s].filter(x=>x.t+x.tfl+x.sack+x.int+x.ff+x.fr)
-    .sort((a,b)=>(b.t+b.tfl*2+b.sack*2+b.int*3+b.ff*2+b.fr*2)-(a.t+a.tfl*2+a.sack*2+a.int*3+a.ff*2+a.fr*2))[0];
+    .sort((a,b)=>b.t-a.t||b.tfl-a.tfl||b.sack-a.sack)[0];
 
   const sections=[];
   function addTable(title,headers,rows,total){
     if(rows.length)sections.push({kind:"table",title,headers,rows,total});
   }
 
-  let rows=s.filter(x=>x.car).map(x=>[pname(x.id),x.car,x.ry,(x.ry/x.car).toFixed(1),x.rfd,x.rtd]);
+  let rows=s.filter(x=>x.car).sort((a,b)=>b.ry-a.ry||b.rtd-a.rtd||b.car-a.car).map(x=>[pname(x.id),x.car,x.ry,(x.ry/x.car).toFixed(1),x.rfd,x.rtd,x.rfum]);
   if(rows.length){
     const car=s.reduce((a,x)=>a+x.car,0),yd=s.reduce((a,x)=>a+x.ry,0);
-    addTable("RUSHING",["PLAYER","CAR","YDS","AVG","1D","TD"],rows,
-      ["TEAM TOTAL",car,yd,car?(yd/car).toFixed(1):"0.0",s.reduce((a,x)=>a+x.rfd,0),s.reduce((a,x)=>a+x.rtd,0)]);
+    addTable("RUSHING",["PLAYER","CAR","YDS","AVG","1D","TD","FUM"],rows,
+      ["TEAM TOTAL",car,yd,car?(yd/car).toFixed(1):"0.0",s.reduce((a,x)=>a+x.rfd,0),s.reduce((a,x)=>a+x.rtd,0),s.reduce((a,x)=>a+x.rfum,0)]);
   }
 
-  rows=s.filter(x=>x.att).map(x=>[pname(x.id),`${x.cmp}/${x.att}`,x.py,(x.py/x.att).toFixed(1),x.pfd,x.ptd,x.pi,passerRatingText(x.cmp,x.att,x.py,x.ptd,x.pi)]);
+  rows=s.filter(x=>x.att).sort((a,b)=>b.py-a.py||b.ptd-a.ptd||b.cmp-a.cmp).map(x=>[pname(x.id),`${x.cmp}/${x.att}`,x.py,(x.py/x.att).toFixed(1),x.pfd,x.ptd,x.pi,passerRatingText(x.cmp,x.att,x.py,x.ptd,x.pi)]);
   if(rows.length){
     const att=s.reduce((a,x)=>a+x.att,0),cmp=s.reduce((a,x)=>a+x.cmp,0),yd=s.reduce((a,x)=>a+x.py,0),td=s.reduce((a,x)=>a+x.ptd,0),pi=s.reduce((a,x)=>a+x.pi,0);
     addTable("PASSING",["PLAYER","CMP/ATT","YDS","AVG","1D","TD","INT","RATE"],rows,
       ["TEAM TOTAL",`${cmp}/${att}`,yd,att?(yd/att).toFixed(1):"0.0",s.reduce((a,x)=>a+x.pfd,0),td,pi,passerRatingText(cmp,att,yd,td,pi)]);
   }
 
-  rows=s.filter(x=>x.tgt||x.rec).map(x=>[
+  rows=s.filter(x=>x.tgt||x.rec).sort((a,b)=>b.rey-a.rey||b.rec-a.rec||b.retd-a.retd).map(x=>[
     pname(x.id),x.tgt,x.rec,x.rey,x.rec?(x.rey/x.rec).toFixed(1):"0.0",
-    x.recfd,x.retd,x.drop,x.tgt?`${Math.round((x.rec/x.tgt)*100)}%`:"0%"
+    x.recfd,x.retd,x.recfum,x.drop,x.tgt?`${Math.round((x.rec/x.tgt)*100)}%`:"0%"
   ]);
   if(rows.length){
     const tgt=s.reduce((a,x)=>a+x.tgt,0),rc=s.reduce((a,x)=>a+x.rec,0),yd=s.reduce((a,x)=>a+x.rey,0);
-    addTable("RECEIVING",["PLAYER","TGT","REC","YDS","AVG","1D","TD","DROP","CATCH%"],rows,
+    addTable("RECEIVING",["PLAYER","TGT","REC","YDS","AVG","1D","TD","FUM","DROP","CATCH%"],rows,
       ["TEAM TOTAL",tgt,rc,yd,rc?(yd/rc).toFixed(1):"0.0",s.reduce((a,x)=>a+x.recfd,0),
-       s.reduce((a,x)=>a+x.retd,0),s.reduce((a,x)=>a+x.drop,0),tgt?`${Math.round((rc/tgt)*100)}%`:"0%"]);
+       s.reduce((a,x)=>a+x.retd,0),s.reduce((a,x)=>a+x.recfum,0),s.reduce((a,x)=>a+x.drop,0),tgt?`${Math.round((rc/tgt)*100)}%`:"0%"]);
   }
 
-  rows=s.filter(x=>x.t+x.tfl+x.sack+x.int+x.ff+x.fr).map(x=>[
+  rows=s.filter(x=>x.t+x.tfl+x.sack+x.int+x.ff+x.fr).sort((a,b)=>b.t-a.t||b.tfl-a.tfl||b.sack-a.sack).map(x=>[
     pname(x.id),fmt(x.t),fmt(x.tfl),fmt(x.sack),fmt(x.int),fmt(x.ff),fmt(x.fr)
   ]);
   if(rows.length){
@@ -2396,7 +2396,7 @@ async function makeHybridSharePages(src){
        fmt(s.reduce((a,x)=>a+x.ff,0)),fmt(s.reduce((a,x)=>a+x.fr,0))]);
   }
 
-  rows=s.filter(x=>x.kr+x.pr+x.punt+x.stff+x.stfr+x.fga).map(x=>[
+  rows=s.filter(x=>x.kr+x.pr+x.punt+x.stff+x.stfr+x.fga).sort((a,b)=>(b.kry+b.pry)-(a.kry+a.pry)||b.kry-a.kry||b.pry-a.pry).map(x=>[
     pname(x.id),x.kr,x.kry,x.pr,x.pry,x.punt,x.punty,x.fgm,x.fga,x.fga?`${Math.round((x.fgm/x.fga)*100)}%`:"0%",x.fgLong,x.stff,x.stfr
   ]);
   if(rows.length){
