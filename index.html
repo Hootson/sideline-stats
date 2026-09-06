@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V4.4.9</title>
+<title>Sideline Stats V4.5.0</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -32,7 +32,7 @@
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V4.4.9 • SAFE CLOUD STARTUP • GRIDIRON EDITION</div>
+      <div class="muted" style="color:#dfe9e2">V4.5.0 • SHARED SNAP TRACKER • GRIDIRON EDITION</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -58,6 +58,9 @@
         <div><label>Grade</label><select id="grade"><option>5th Grade</option><option>4th Grade</option><option>6th Grade</option><option>7th Grade</option><option>8th Grade</option></select></div>
         <div><label>Season</label><input id="season" value="2026"></div>
       </div>
+      <label>League snap minimum</label>
+      <input id="snapMinimum" type="number" inputmode="numeric" min="1" max="100" value="10">
+      <div class="muted" style="margin-top:6px">Progress bars track each player toward this minimum. You can change it for any team.</div>
 
       <div class="color-grid">
         <div>
@@ -496,7 +499,7 @@
     <div class="card snap-alert-card">
       <div class="snap-alert-row">
         <div>
-          <strong>10-Snap Minimum</strong>
+          <strong id="snapMinimumLabel">10-Snap Minimum</strong>
           <div class="muted">Players still below the league minimum</div>
         </div>
         <div class="snap-alert-num" id="playersUnderTen">0</div>

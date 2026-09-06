@@ -1,4 +1,11 @@
-# Sideline Stats V4.4.9 — Safe Cloud Startup
+# Sideline Stats V4.5.0 — Shared Snap Progress
+
+## V4.5.0 changes
+- The restricted Snap Tracker link now mirrors the in-app player progress bars, minimum status, and player-snap summary.
+- Each team can set its league snap minimum from 1–100 in Edit Team; existing teams default to 10.
+- The snap minimum syncs through Supabase and is included automatically in team backups.
+- Invite links work in current Android and iPhone browsers without an account or app installation.
+- Reopening Invite Snap Tracker reuses the active unexpired game link instead of invalidating a link that was already shared.
 
 ## V4.4.9 changes
 - A returning connected device checks the cloud fingerprint before scheduling any local sync.
