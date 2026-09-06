@@ -1,6 +1,12 @@
-# Sideline Stats V4.4.8 — Remembered Sign-In and Team
+# Sideline Stats V4.4.9 — Safe Cloud Backup Restore
 
-## V4.4.8 changes
+## V4.4.9 changes
+- Restoring a backup while signed into the connected Erie team preserves the existing Supabase team and season IDs.
+- Backup roster players and games are reconciled to existing cloud records by jersey/name and week/opponent.
+- The restored backup becomes the local source of truth and syncs immediately to Supabase without creating a duplicate Erie team.
+- Only a resolved statkeeper account can perform a connected cloud restore.
+
+## Earlier V4.4.8 changes
 - Supabase Auth sessions persist on each device and refresh automatically.
 - The selected cloud team is remembered per signed-in user on that device.
 - Returning users reopen their locally cached team immediately, including offline.

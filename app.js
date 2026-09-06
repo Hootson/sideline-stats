@@ -742,16 +742,73 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
-$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"4.2.0",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
+$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:2,appVersion:"4.4.9",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
 $("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
+
+function normalizedName(v){return String(v||"").trim().toLowerCase().replace(/\s+/g," ")}
+function matchingRosterPlayer(incoming,current){
+  return current.find(p=>String(p.jersey??"")===String(incoming.jersey??"")&&normalizedName(p.name)===normalizedName(incoming.name))
+    ||current.find(p=>String(p.jersey??"")===String(incoming.jersey??""))
+    ||current.find(p=>normalizedName(p.name)===normalizedName(incoming.name));
+}
+function matchingGame(incoming,current){
+  return current.find(g=>Number(g.week||0)===Number(incoming.week||0)&&normalizedName(g.opponent)===normalizedName(incoming.opponent))
+    ||current.find(g=>normalizedName(g.opponent)===normalizedName(incoming.opponent));
+}
+function preserveConnectedCloudForRestore(data){
+  const oldCloud=cloneJson(S.cloud||{}),backupCloud=cloneJson(data.cloud||{});
+  const sameCloudTeam=backupCloud.teamId&&backupCloud.teamId===oldCloud.teamId;
+  const merged={
+    ...oldCloud,
+    playerIds:{...(oldCloud.playerIds||{})},gameIds:{...(oldCloud.gameIds||{})},playIds:{...(oldCloud.playIds||{})},playHashes:{...(oldCloud.playHashes||{})},gameHashes:{...(oldCloud.gameHashes||{})},
+    creditIds:{...(oldCloud.creditIds||{})},creditHashes:{...(oldCloud.creditHashes||{})},penaltyIds:{...(oldCloud.penaltyIds||{})},penaltyHashes:{...(oldCloud.penaltyHashes||{})},snapIds:{...(oldCloud.snapIds||{})},snapHashes:{...(oldCloud.snapHashes||{})},
+    lastSyncError:null,remoteFingerprint:oldCloud.remoteFingerprint||null,hashVersion:2,deviceRole:"statkeeper"
+  };
+  for(const p of data.roster||[]){
+    const old=matchingRosterPlayer(p,S.roster||[]),id=oldCloud.playerIds?.[old?.id]||(sameCloudTeam?backupCloud.playerIds?.[p.id]:null);
+    if(id){merged.playerIds[p.id]=id;if(old?.id&&old.id!==p.id)delete merged.playerIds[old.id]}
+  }
+  for(const g of data.games||[]){
+    const old=matchingGame(g,S.games||[]),cloudGameId=oldCloud.gameIds?.[old?.id]||(sameCloudTeam?backupCloud.gameIds?.[g.id]:null);
+    if(cloudGameId)merged.gameIds[g.id]=cloudGameId;
+    for(const p of g.plays||[]){
+      const id=oldCloud.playIds?.[p.id]||(sameCloudTeam?backupCloud.playIds?.[p.id]:null);
+      if(id)merged.playIds[p.id]=id;
+    }
+    for(const snap of g.snapRecords||[]){
+      const id=oldCloud.snapIds?.[snap.id]||(sameCloudTeam?backupCloud.snapIds?.[snap.id]:null);
+      if(id)merged.snapIds[snap.id]=id;
+    }
+  }
+  return merged;
+}
+
 $("#restoreDataInput").addEventListener("change",async()=>{
   const f=$("#restoreDataInput").files?.[0];if(!f)return;
   try{
     const obj=JSON.parse(await f.text()),data=obj.data||obj;
     if(!data||!Array.isArray(data.roster)||!Array.isArray(data.games))throw new Error("Invalid backup");
-    if(!confirm("Restore this backup and replace the current local team data?"))return;
-    S=Object.assign({},empty,data);persist();normalizeRoster();normalizeGames();syncChrome();populateSetup();renderRoster();initializeSnapSelections();go(teamExists()?"roster":"setup");toast("Backup restored");
-  }catch(e){toast("That backup file could not be restored")}
+    const connected=!!(cloudUser&&cloudLinked());
+    if(connected){
+      const role=await resolveCloudDeviceRole();
+      if(role!=="statkeeper")throw new Error("Only the Erie statkeeper account can restore a backup to Supabase");
+      const backupTeam=normalizedName(data.team?.name),currentTeam=normalizedName(S.team?.name);
+      if(backupTeam&&currentTeam&&backupTeam!==currentTeam)throw new Error(`This backup is for ${data.team.name}, not ${S.team.name}`);
+      if(!confirm(`Restore this backup into ${S.team.name}? Its roster, Week 2 and Week 3 games, plays and stats will become the local source of truth and sync to the existing Supabase team. This will not create a duplicate team.`))return;
+      const preservedCloud=preserveConnectedCloudForRestore(data);
+      S=Object.assign({},empty,data,{cloud:preservedCloud});
+    }else{
+      if(!confirm("Restore this backup and replace the current local team data?"))return;
+      S=Object.assign({},empty,data);
+    }
+    persist({skipCloud:true});normalizeRoster();normalizeGames();syncChrome();populateSetup();renderRoster();initializeSnapSelections();renderGameArea();renderSnaps();renderStats();go(teamExists()?"roster":"setup");
+    if(connected){
+      toast("Backup restored — updating Supabase…");
+      await syncCloudNow();
+      if(S.cloud?.lastSyncError)throw new Error(S.cloud.lastSyncError);
+      toast("Backup restored and Supabase updated");
+    }else toast("Backup restored");
+  }catch(e){console.error("Backup restore failed",e);toast(e?.message||"That backup file could not be restored")}
   $("#restoreDataInput").value="";
 });
 $("#exportRosterBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-roster",team:S.team?.name||"",roster:S.roster},`${(S.team?.name||"team").replace(/[^a-z0-9]/gi,"_")}_roster.json`));
