@@ -1,6 +1,11 @@
-# Sideline Stats V4.4.8 — Remembered Sign-In and Team
+# Sideline Stats V4.4.9 — Safe Cloud Startup
 
-## V4.4.8 changes
+## V4.4.9 changes
+- A returning connected device checks the cloud fingerprint before scheduling any local sync.
+- When Supabase is newer and the phone has no pending local changes, the app loads the cloud copy first.
+- This prevents an older locally cached game from overwriting newer backend corrections at startup.
+
+## Earlier V4.4.8 changes
 - Supabase Auth sessions persist on each device and refresh automatically.
 - The selected cloud team is remembered per signed-in user on that device.
 - Returning users reopen their locally cached team immediately, including offline.

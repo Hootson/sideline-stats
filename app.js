@@ -150,6 +150,15 @@ async function restoreRememberedTeam(){
   if(cloudLinked()){
     rememberTeam(S.cloud.teamId);
     await resolveCloudDeviceRole();
+    if(navigator.onLine!==false&&cloudPendingCount()===0){
+      try{
+        const remoteFingerprint=await remoteCloudFingerprint();
+        if(S.cloud.remoteFingerprint&&remoteFingerprint!==S.cloud.remoteFingerprint){
+          await loadTeamFromCloud({refresh:true,auto:true});
+          return;
+        }
+      }catch(e){console.warn("Startup cloud refresh check failed",e)}
+    }
     updateCloudUI();
     return;
   }
