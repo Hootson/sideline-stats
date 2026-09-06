@@ -1,0 +1,27 @@
+(()=>{
+const URL='https://eyuvgzhkhcpwtcbmsvct.supabase.co';
+const KEY='sb_publishable_uMOkwO4jyHen4pz4zCkIuQ_Ss-wUf2l';
+const token=new URLSearchParams(location.search).get('token')||'';
+const qkey=`sidelineSnapQueue:${token}`;
+const skey=`sidelineSnapSelection:${token}`;
+let game=null,players=[],selected=new Set(),counts={},syncing=false;
+const $=s=>document.querySelector(s);
+function uuid(){return crypto.randomUUID?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0,v=c==='x'?r:(r&3|8);return v.toString(16)})}
+function queue(){try{return JSON.parse(localStorage.getItem(qkey)||'[]')}catch{return[]}}
+function saveQueue(v){localStorage.setItem(qkey,JSON.stringify(v))}
+function saveSelection(){localStorage.setItem(skey,JSON.stringify([...selected]))}
+function loadSelection(){try{return new Set(JSON.parse(localStorage.getItem(skey)||'[]'))}catch{return new Set()}}
+async function rpc(name,body){const r=await fetch(`${URL}/rest/v1/rpc/${name}`,{method:'POST',headers:{apikey:KEY,Authorization:`Bearer ${KEY}`,'Content-Type':'application/json'},body:JSON.stringify(body)});const text=await r.text();if(!r.ok)throw new Error((()=>{try{return JSON.parse(text).message||text}catch{return text}})());return text?JSON.parse(text):null}
+function msg(text,err=false){const m=$('#message');m.textContent=text;m.classList.remove('hidden','err');if(err)m.classList.add('err')}
+function status(){const pending=queue().length;$('#syncStatus').textContent=navigator.onLine===false?'Offline — recording locally':pending?`${pending} snap${pending===1?'':'s'} waiting to sync`:'Synced';$('#syncDetail').textContent='Participation only — game stats cannot be edited here.'}
+function render(){document.documentElement.style.setProperty('--p',game?.team?.primary||'#177b46');document.documentElement.style.setProperty('--a',game?.team?.accent||'#f0b33b');$('#teamName').textContent=game?`${game.team.name} vs ${game.game.opponent}`:'Snap Tracker';$('#gameMeta').textContent=game?`Week ${game.game.week||'?'} • Q${game.game.quarter||1} • ${game.game.teamScore}-${game.game.opponentScore}`:'Loading…';$('#snapCount').textContent=game?.snapCount||0;$('#players').innerHTML=players.map(p=>`<label class="player ${selected.has(p.id)?'in':''}"><input type="checkbox" data-id="${p.id}" ${selected.has(p.id)?'checked':''}><span><span class="num">#${p.jersey}</span> <span class="name">${escapeHtml(p.name)}</span></span><span class="count">${counts[p.id]||0}</span></label>`).join('');document.querySelectorAll('.player input').forEach(ch=>ch.addEventListener('change',()=>{ch.checked?selected.add(ch.dataset.id):selected.delete(ch.dataset.id);saveSelection();renderSelectionOnly()}));renderSelectionOnly();status()}
+function renderSelectionOnly(){document.querySelectorAll('.player').forEach(el=>{const ch=el.querySelector('input');el.classList.toggle('in',ch.checked)});$('#onFieldCount').textContent=`${selected.size} selected`;$('#recordSnap').disabled=!selected.size}
+function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+async function refresh(){if(!token){msg('This snap tracker link is missing its game token.',true);return}try{const d=await rpc('get_snap_tracker_game',{p_token:token});game=d;players=d.players||[];counts=d.playerSnapCounts||{};const prior=loadSelection();selected=new Set([...prior].filter(id=>players.some(p=>p.id===id)));if(!selected.size)players.forEach(p=>selected.add(p.id));saveSelection();render();await flush()}catch(e){msg(e.message||'Could not load this game.',true);status()}}
+async function flush(){if(syncing||navigator.onLine===false||!token)return;let items=queue();if(!items.length){status();return}syncing=true;try{while(items.length){const item=items[0];await rpc('submit_snap_tracker_event',{p_token:token,p_client_event_id:item.id,p_player_ids:item.playerIds,p_quarter:item.quarter,p_client_created_at:item.createdAt});items.shift();saveQueue(items)}await refreshCounts()}catch(e){console.warn(e);status()}finally{syncing=false;status()}}
+async function refreshCounts(){try{const d=await rpc('get_snap_tracker_game',{p_token:token});game=d;players=d.players||players;counts=d.playerSnapCounts||{};render()}catch(e){console.warn(e)}}
+$('#checkAll').addEventListener('click',()=>{players.forEach(p=>selected.add(p.id));saveSelection();render()});
+$('#recordSnap').addEventListener('click',async()=>{if(!selected.size)return;const item={id:uuid(),playerIds:[...selected],quarter:game?.game?.quarter||null,createdAt:new Date().toISOString()};const items=queue();items.push(item);saveQueue(items);game.snapCount=(game.snapCount||0)+1;item.playerIds.forEach(id=>counts[id]=(counts[id]||0)+1);render();$('#recordSnap').textContent='Recorded ✓';setTimeout(()=>$('#recordSnap').textContent='Record Snap',650);await flush()});
+window.addEventListener('online',()=>flush());setInterval(()=>{if(navigator.onLine!==false){flush();refreshCounts()}else status()},10000);
+refresh();
+})();
