@@ -8,10 +8,11 @@ const SUPABASE_URL="https://eyuvgzhkhcpwtcbmsvct.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY="sb_publishable_uMOkwO4jyHen4pz4zCkIuQ_Ss-wUf2l";
 let SB=null, cloudUser=null, cloudReady=false, cloudRemoteUpdates=false, cloudRemoteCheckRunning=false;
 let cloudAutoTeamLoadRunning=false;
-const empty={team:null,roster:[],games:[],activeGameId:null,flow:{},editingPlayId:null,cloud:{teamId:null,seasonId:null,playerIds:{},gameIds:{},playIds:{},playHashes:{},gameHashes:{},creditIds:{},creditHashes:{},penaltyIds:{},penaltyHashes:{},snapIds:{},snapHashes:{},connectedAt:null,lastSyncAt:null,lastSyncError:null,remoteFingerprint:null,hashVersion:2,deviceRole:null}};
+const empty={team:null,roster:[],games:[],activeGameId:null,flow:{},editingPlayId:null,cloud:{teamId:null,seasonId:null,teamHash:null,playerIds:{},playerHashes:{},gameIds:{},playIds:{},playHashes:{},gameHashes:{},creditIds:{},creditHashes:{},penaltyIds:{},penaltyHashes:{},snapIds:{},snapHashes:{},connectedAt:null,lastSyncAt:null,lastSyncError:null,remoteFingerprint:null,hashVersion:2,deviceRole:null}};
 let S=load();
 if(!S.cloud)S.cloud={teamId:null,seasonId:null,playerIds:{},gameIds:{},playIds:{},playHashes:{},gameHashes:{},connectedAt:null,lastSyncAt:null,lastSyncError:null};
 if(!S.cloud.playerIds)S.cloud.playerIds={};
+if(!S.cloud.playerHashes)S.cloud.playerHashes={};
 if(!S.cloud.gameIds)S.cloud.gameIds={};
 if(!S.cloud.playIds)S.cloud.playIds={};
 if(!S.cloud.playHashes)S.cloud.playHashes={};
@@ -99,12 +100,12 @@ async function resolveCloudDeviceRole(){
   }catch(e){console.warn("Could not resolve cloud role",e);return cloudDeviceRole()}
 }
 
-let cloudRealtimeChannel=null,cloudRealtimeTimer=null;
+let cloudRealtimeChannel=null,cloudRealtimeTimer=null,cloudRealtimeConnected=false;
 
 function stopCloudRealtime(){
   if(cloudRealtimeTimer){clearTimeout(cloudRealtimeTimer);cloudRealtimeTimer=null}
   if(cloudRealtimeChannel&&SB){try{SB.removeChannel(cloudRealtimeChannel)}catch(e){}}
-  cloudRealtimeChannel=null;
+  cloudRealtimeChannel=null;cloudRealtimeConnected=false;
 }
 function queueRealtimeRefresh(){
   if(cloudRealtimeTimer)clearTimeout(cloudRealtimeTimer);
@@ -115,21 +116,29 @@ function queueRealtimeRefresh(){
     try{await loadTeamFromCloud({refresh:true,auto:true})}
     catch(e){console.warn("Realtime refresh failed",e)}
     finally{cloudAutoRefreshRunning=false}
-  },1800);
+  },650);
 }
 function startCloudRealtime(){
   stopCloudRealtime();
   if(!SB||!cloudUser||!cloudLinked())return;
   const gameIds=Object.values(S.cloud?.gameIds||{}).filter(Boolean);
-  if(!gameIds.length)return;
   let ch=SB.channel(`sideline-live-${S.cloud.teamId}-${Date.now()}`);
-  ch=ch.on('postgres_changes',{event:'*',schema:'public',table:'games'},queueRealtimeRefresh);
+  ch=ch.on('postgres_changes',{event:'*',schema:'public',table:'teams',filter:`id=eq.${S.cloud.teamId}`},queueRealtimeRefresh);
+  ch=ch.on('postgres_changes',{event:'*',schema:'public',table:'players',filter:`season_id=eq.${S.cloud.seasonId}`},queueRealtimeRefresh);
+  ch=ch.on('postgres_changes',{event:'*',schema:'public',table:'games',filter:`season_id=eq.${S.cloud.seasonId}`},queueRealtimeRefresh);
   for(const gid of gameIds){
     ch=ch.on('postgres_changes',{event:'*',schema:'public',table:'plays',filter:`game_id=eq.${gid}`},queueRealtimeRefresh);
     ch=ch.on('postgres_changes',{event:'*',schema:'public',table:'penalties',filter:`game_id=eq.${gid}`},queueRealtimeRefresh);
     ch=ch.on('postgres_changes',{event:'*',schema:'public',table:'snap_events',filter:`game_id=eq.${gid}`},queueRealtimeRefresh);
   }
-  cloudRealtimeChannel=ch.subscribe(status=>{if(status==='CHANNEL_ERROR'||status==='TIMED_OUT')console.warn('Realtime channel',status)});
+  // Child rows do not contain game_id; their RLS policies limit delivery to readable team data.
+  ch=ch.on('postgres_changes',{event:'*',schema:'public',table:'play_credits'},queueRealtimeRefresh);
+  ch=ch.on('postgres_changes',{event:'*',schema:'public',table:'snap_participants'},queueRealtimeRefresh);
+  cloudRealtimeChannel=ch.subscribe(status=>{
+    cloudRealtimeConnected=status==='SUBSCRIBED';
+    if(status==='CHANNEL_ERROR'||status==='TIMED_OUT')console.warn('Realtime channel',status);
+    updateCloudUI();
+  });
 }
 
 async function initCloud(){
@@ -191,12 +200,13 @@ function updateCloudUI(force){
     const pending=cloudPendingCount();
     if(pending>0){dot.classList.add("warn");text.textContent=`Cloud connected — ${pending} pending`;}
     else if(cloudRemoteUpdates){dot.classList.add("warn");text.textContent="Cloud has updates";}
-    else{dot.classList.add("on");text.textContent="Cloud synced";}
+    else{dot.classList.add("on");text.textContent=!isCloudStatkeeper()&&cloudRealtimeConnected?"Live updates on":"Cloud synced";}
     const rb=$("#cloudRefreshBtn");if(rb)rb.textContent=cloudRemoteUpdates?"Load Updates":"Refresh Cloud";
     const when=S.cloud?.lastSyncAt?` • Last sync ${new Date(S.cloud.lastSyncAt).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})}`:"";
     const err=S.cloud?.lastSyncError?` • Sync paused: ${S.cloud.lastSyncError}`:"";
     const pendingDetail=pending>0?` • Pending: ${cloudPendingItems().slice(0,3).join(", ")}${pending>3?` +${pending-3} more`:""}`:"";
-    meta.textContent=`${cloudUser.email||"Signed in"} • Games, stats, penalties + snaps are local-first and sync automatically${when}${pendingDetail}${err}`;
+    const mode=!isCloudStatkeeper()&&cloudRealtimeConnected?" • Watching live — new stats load automatically":"";
+    meta.textContent=`${cloudUser.email||"Signed in"} • Games, stats, penalties + snaps are local-first and sync automatically${mode}${when}${pendingDetail}${err}`;
   }
   else{dot.classList.add("warn");text.textContent="Signed in — team not connected";meta.textContent=`${cloudUser.email||"Signed in"} • Connect this team or load one already stored in the cloud.`}
 }
@@ -282,8 +292,9 @@ async function loadTeamFromCloud(options={}){
     }
     const roster=players.filter(x=>x.active!==false).map(x=>({id:x.id,jersey:x.jersey_number??"",name:x.name||"Player",snaps:0}));
     const localGames=games.map(g=>{const gp=plays.filter(x=>x.game_id===g.id).sort((a,b)=>a.sequence-b.sequence).map(r=>restorePlayFromCloud(r,credits.filter(c=>c.play_id===r.id&&c.metadata?.active!==false),penalties.find(q=>q.play_id===r.id)));const sr=snaps.filter(x=>x.game_id===g.id).sort((a,b)=>a.snap_number-b.snap_number).map(x=>({id:x.id,ts:x.client_created_at?Date.parse(x.client_created_at):Date.parse(x.created_at),quarter:Number(x.quarter||1),playerIds:snapParts.filter(q=>q.snap_event_id===x.id).map(q=>q.player_id)}));const auto=gp.reduce((sum,p)=>sum+pointsFromPlay(p),0);const firstBefore=gp[0]?.stateBefore;return {id:g.id,opponent:g.opponent_name||"Opponent",opponentLogoData:g.opponent_logo_data||null,week:Number(g.week_number||1),date:`Week ${Number(g.week_number||1)}`,location:g.location_type||"home",gameType:g.game_type||"regular",status:g.status==="final"?"complete":(g.status||"live"),ourScore:Number(g.team_score||0),scoreAdjustment:Number(g.team_score||0)-auto,scoreModelVersion:2,oppScore:Number(g.opponent_score||0),openingKickoff:g.opening_kickoff||"receive",initialPossession:firstBefore?.possession||((g.opening_kickoff||"receive")==="kick"?"opp":"ours"),initialDown:1,initialDistance:10,down:Number(g.current_down||1),distance:Number(g.current_distance||10),possession:localPossession(g.possession||"ours"),quarter:Number(g.current_quarter||1),plays:gp,snapRecords:sr};});
-    const cloud={teamId:team.id,seasonId:season.id,playerIds:Object.fromEntries(players.map(x=>[x.id,x.id])),gameIds:Object.fromEntries(games.map(x=>[x.id,x.id])),playIds:Object.fromEntries(plays.map(x=>[x.id,x.id])),playHashes:{},gameHashes:{},creditIds:{},creditHashes:{},penaltyIds:{},penaltyHashes:{},snapIds:Object.fromEntries(snaps.map(x=>[x.id,x.id])),snapHashes:{},connectedAt:new Date().toISOString(),lastSyncAt:new Date().toISOString(),lastSyncError:null,remoteFingerprint:fingerprintLoadedCloudSnapshot(team,players,games,plays,credits,penalties,snaps,snapParts),hashVersion:2,deviceRole:"viewer"};
+    const cloud={teamId:team.id,seasonId:season.id,teamHash:null,playerIds:Object.fromEntries(players.map(x=>[x.id,x.id])),playerHashes:{},gameIds:Object.fromEntries(games.map(x=>[x.id,x.id])),playIds:Object.fromEntries(plays.map(x=>[x.id,x.id])),playHashes:{},gameHashes:{},creditIds:{},creditHashes:{},penaltyIds:{},penaltyHashes:{},snapIds:Object.fromEntries(snaps.map(x=>[x.id,x.id])),snapHashes:{},connectedAt:new Date().toISOString(),lastSyncAt:new Date().toISOString(),lastSyncError:null,remoteFingerprint:fingerprintLoadedCloudSnapshot(team,players,games,plays,credits,penalties,snaps,snapParts),hashVersion:2,deviceRole:"viewer"};
     S={team:{name:team.name,grade:team.grade||"5th Grade",season:season.name||String(season.season_year||"Season"),primary:team.primary_color||"#177b46",secondary:team.accent_color||"#f0b33b",logoData:team.logo_data||null,snapMinimum:Number(team.snap_minimum||10)},roster,games:localGames,activeGameId:(refreshing&&priorActiveCloudId&&localGames.some(x=>x.id===priorActiveCloudId))?priorActiveCloudId:null,flow:{},editingPlayId:null,cloud};
+    S.cloud.teamHash=simpleHash(buildCloudTeamPayload());for(const p of S.roster)S.cloud.playerHashes[p.id]=simpleHash({season_id:S.cloud.seasonId,jersey_number:String(p.jersey??""),name:p.name||"Player",active:true});
     for(const p of plays){const lp=localGames.flatMap(x=>x.plays).find(x=>x.id===p.id);if(!lp)continue;const g=localGames.find(x=>x.id===p.game_id);const idx=g.plays.findIndex(x=>x.id===p.id);S.cloud.playHashes[p.id]=simpleHash(buildCloudPlayPayload(g,lp,idx,g.id));for(const c of buildCloudCredits(lp)){const row=credits.find(x=>x.play_id===p.id&&x.player_id===c.playerLocalId&&x.credit_type===c.credit_type&&x.metadata?.active!==false);if(row){const key=creditKey(lp.id,c);S.cloud.creditIds[key]=row.id;S.cloud.creditHashes[key]=simpleHash(c)}}const pen=penalties.find(x=>x.play_id===p.id);if(pen){S.cloud.penaltyIds[lp.id]=pen.id;S.cloud.penaltyHashes[lp.id]=simpleHash(buildCloudPenaltyPayload(g,lp,g.id,p.id))}}
     for(const g of localGames)S.cloud.gameHashes[g.id]=simpleHash(buildCloudGamePayload(g));for(const g of localGames)(g.snapRecords||[]).forEach((r,i)=>S.cloud.snapHashes[r.id]=simpleHash(buildCloudSnapPayload(g,r,i,g.id)));
     cloudRemoteUpdates=false;rememberTeam(team.id);
@@ -337,7 +348,7 @@ async function connectTeamToCloud(){
       if(playerIds[p.id]){const {error}=await SB.from("players").update({jersey_number:String(p.jersey),name:p.name,active:true}).eq("id",playerIds[p.id]);if(error)throw error}
       else{const {data,error}=await SB.from("players").insert({season_id:seasonId,jersey_number:String(p.jersey),name:p.name,active:true}).select("id").single();if(error)throw error;playerIds[p.id]=data.id}
     }
-    S.cloud={...(S.cloud||{}),teamId,seasonId,playerIds,gameIds:S.cloud?.gameIds||{},playIds:S.cloud?.playIds||{},playHashes:S.cloud?.playHashes||{},gameHashes:S.cloud?.gameHashes||{},creditIds:S.cloud?.creditIds||{},creditHashes:S.cloud?.creditHashes||{},penaltyIds:S.cloud?.penaltyIds||{},penaltyHashes:S.cloud?.penaltyHashes||{},snapIds:S.cloud?.snapIds||{},snapHashes:S.cloud?.snapHashes||{},connectedAt:new Date().toISOString(),lastSyncError:null,remoteFingerprint:S.cloud?.remoteFingerprint||null,hashVersion:2,deviceRole:"statkeeper"};rememberTeam(teamId);persist();updateCloudUI();toast("Team connected — this device is the statkeeper")
+    S.cloud={...(S.cloud||{}),teamId,seasonId,playerIds,playerHashes:S.cloud?.playerHashes||{},gameIds:S.cloud?.gameIds||{},playIds:S.cloud?.playIds||{},playHashes:S.cloud?.playHashes||{},gameHashes:S.cloud?.gameHashes||{},creditIds:S.cloud?.creditIds||{},creditHashes:S.cloud?.creditHashes||{},penaltyIds:S.cloud?.penaltyIds||{},penaltyHashes:S.cloud?.penaltyHashes||{},snapIds:S.cloud?.snapIds||{},snapHashes:S.cloud?.snapHashes||{},connectedAt:new Date().toISOString(),lastSyncError:null,remoteFingerprint:S.cloud?.remoteFingerprint||null,hashVersion:2,deviceRole:"statkeeper"};S.cloud.teamHash=simpleHash(buildCloudTeamPayload());for(const p of S.roster||[])S.cloud.playerHashes[p.id]=simpleHash({season_id:seasonId,jersey_number:String(p.jersey??""),name:p.name||"Player",active:true});rememberTeam(teamId);persist();updateCloudUI();toast("Team connected — this device is the statkeeper")
   }catch(e){console.error("Cloud team connect failed",e);toast(e?.message||"Could not connect team")}
   finally{if(btn){btn.disabled=false;btn.textContent="Connect Team"}updateCloudUI()}
 }
@@ -388,7 +399,7 @@ function rebaseCloudHashesV443(){
     S.cloud.hashVersion=2;persist({skipCloud:true});
   }catch(e){console.warn("Cloud hash rebase skipped",e)}
 }
-function scheduleCloudSync(delay=700){
+function scheduleCloudSync(delay=350){
   if(!isCloudStatkeeper())return;
   if(cloudSyncTimer)clearTimeout(cloudSyncTimer);
   cloudSyncTimer=setTimeout(()=>{cloudSyncTimer=null;syncCloudNow()},delay);
@@ -399,7 +410,7 @@ function fingerprintLoadedCloudSnapshot(team,players,games,plays,credits,penalti
   return simpleHash({
     team:pick(team,["id","updated_at","snap_minimum"]),
     players:sort((players||[]).map(x=>pick(x,["id","updated_at","active","jersey_number","name"]))),
-    games:sort((games||[]).map(x=>pick(x,["id","updated_at","status","current_quarter","team_score","opponent_score","possession","current_down","current_distance"]))),
+    games:sort((games||[]).map(x=>pick(x,["id","updated_at","revision","status","current_quarter","team_score","opponent_score","possession","current_down","current_distance"]))),
     plays:sort((plays||[]).map(x=>pick(x,["id","game_id","updated_at","revision","deleted_at"]))),
     credits:sort((credits||[]).map(x=>pick(x,["id","play_id","player_id","credit_type","value","metadata"]))),
     penalties:sort((penalties||[]).map(x=>pick(x,["id","game_id","play_id","updated_at","accepted","yards","down_result","player_id"]))),
@@ -411,7 +422,7 @@ async function remoteCloudFingerprint(){
   const [teamQ,playersQ,gamesQ]=await Promise.all([
     SB.from("teams").select("id,updated_at,snap_minimum").eq("id",S.cloud.teamId).single(),
     SB.from("players").select("id,updated_at,active,jersey_number,name").eq("season_id",S.cloud.seasonId),
-    SB.from("games").select("id,updated_at,status,current_quarter,team_score,opponent_score,possession,current_down,current_distance").eq("season_id",S.cloud.seasonId)
+    SB.from("games").select("id,updated_at,revision,status,current_quarter,team_score,opponent_score,possession,current_down,current_distance").eq("season_id",S.cloud.seasonId)
   ]);
   if(teamQ.error)throw teamQ.error;if(playersQ.error)throw playersQ.error;if(gamesQ.error)throw gamesQ.error;
   const gameIds=(gamesQ.data||[]).map(x=>x.id);
@@ -543,25 +554,41 @@ function buildCloudGamePayload(g){
 }
 async function ensureCloudRoster(){
   if(!cloudLinked())return;const localIds=new Set();
-  for(const p of S.roster||[]){localIds.add(p.id);const payload={season_id:S.cloud.seasonId,jersey_number:String(p.jersey??""),name:p.name||"Player",active:true};let id=S.cloud.playerIds?.[p.id];if(id){const {error}=await SB.from("players").update({jersey_number:payload.jersey_number,name:payload.name,active:true}).eq("id",id);if(error)throw error}else{const {data,error}=await SB.from("players").insert(payload).select("id").single();if(error)throw error;S.cloud.playerIds[p.id]=data.id}}
-  for(const [localId,cloudId] of Object.entries(S.cloud.playerIds||{})){if(localIds.has(localId))continue;const {error}=await SB.from("players").update({active:false}).eq("id",cloudId);if(error)throw error}
+  for(const p of S.roster||[]){localIds.add(p.id);const payload={season_id:S.cloud.seasonId,jersey_number:String(p.jersey??""),name:p.name||"Player",active:true},h=simpleHash(payload);let id=S.cloud.playerIds?.[p.id];if(id){if(S.cloud.playerHashes?.[p.id]===h)continue;const {error}=await SB.from("players").update({jersey_number:payload.jersey_number,name:payload.name,active:true}).eq("id",id);if(error)throw error}else{const {data,error}=await SB.from("players").insert(payload).select("id").single();if(error)throw error;S.cloud.playerIds[p.id]=data.id}S.cloud.playerHashes[p.id]=h}
+  for(const [localId,cloudId] of Object.entries(S.cloud.playerIds||{})){if(localIds.has(localId))continue;const {error}=await SB.from("players").update({active:false}).eq("id",cloudId);if(error)throw error;delete S.cloud.playerHashes[localId]}
   persist({skipCloud:true});
 }
+function buildCloudTeamPayload(){return {name:S.team.name,grade:S.team.grade||null,primary_color:S.team.primary||null,accent_color:S.team.secondary||null,logo_data:S.team.logoData||null,snap_minimum:teamSnapMinimum()}}
 async function ensureCloudTeam(){
   if(!cloudLinked())return;
-  const {error}=await SB.from("teams").update({name:S.team.name,grade:S.team.grade||null,primary_color:S.team.primary||null,accent_color:S.team.secondary||null,logo_data:S.team.logoData||null,snap_minimum:teamSnapMinimum()}).eq("id",S.cloud.teamId);
+  const payload=buildCloudTeamPayload(),h=simpleHash(payload);if(S.cloud.teamHash===h)return;
+  const {error}=await SB.from("teams").update(payload).eq("id",S.cloud.teamId);
   if(error)throw error;
+  S.cloud.teamHash=h;persist({skipCloud:true});
 }
 async function ensureCloudGame(g){
   let id=S.cloud.gameIds?.[g.id];const payload=buildCloudGamePayload(g);const h=simpleHash(payload);
   if(!id){
     const {data,error}=await SB.from("games").insert(payload).select("id").single();if(error)throw error;id=data.id;S.cloud.gameIds[g.id]=id;S.cloud.gameHashes[g.id]=h;persist({skipCloud:true});
-  }else{
-    // Game state (especially score) is authoritative on the active statkeeper. Reconcile it every sync.
+  }else if(S.cloud.gameHashes?.[g.id]!==h){
+    // Game state (especially score) is authoritative on the active statkeeper.
     const update={...payload};delete update.created_by;delete update.season_id;
     const {error}=await SB.from("games").update(update).eq("id",id);if(error)throw error;S.cloud.gameHashes[g.id]=h;persist({skipCloud:true});
   }
   return id;
+}
+async function publishCloudGame(cloudGameId){
+  const {error}=await SB.rpc("publish_game_update",{p_game_id:cloudGameId});if(error)throw error;
+}
+function cloudGameNeedsSync(g){
+  const cloudGameId=S.cloud.gameIds?.[g.id];if(!cloudGameId||S.cloud.gameHashes?.[g.id]!==simpleHash(buildCloudGamePayload(g)))return true;
+  for(let i=0;i<(g.plays||[]).length;i++){
+    const p=g.plays[i],playId=S.cloud.playIds?.[p.id];if(!playId||S.cloud.playHashes?.[p.id]!==simpleHash(buildCloudPlayPayload(g,p,i,cloudGameId)))return true;
+    for(const c of buildCloudCredits(p)){const key=creditKey(p.id,c);if(!S.cloud.creditIds?.[key]||S.cloud.creditHashes?.[key]!==simpleHash(c))return true}
+    if(p.type==="Penalty"&&(!S.cloud.penaltyIds?.[p.id]||S.cloud.penaltyHashes?.[p.id]!==simpleHash(buildCloudPenaltyPayload(g,p,cloudGameId,playId))))return true;
+  }
+  for(let i=0;i<(g.snapRecords||[]).length;i++){const r=g.snapRecords[i];if(!S.cloud.snapIds?.[r.id]||S.cloud.snapHashes?.[r.id]!==simpleHash(buildCloudSnapPayload(g,r,i,cloudGameId)))return true}
+  return false;
 }
 async function syncOnePlay(g,p,index,cloudGameId){
   if(!S.cloud.playIds[p.id])S.cloud.playIds[p.id]=cloudUuid();
@@ -581,22 +608,26 @@ async function syncOnePlay(g,p,index,cloudGameId){
   persist({skipCloud:true});
 }
 async function syncDeletedCloudPlays(){
+  let changed=false;
   const localPlayIds=new Set((S.games||[]).flatMap(g=>(g.plays||[]).map(p=>p.id)));
   for(const [localId,cloudId] of Object.entries(S.cloud.playIds||{})){
     if(localPlayIds.has(localId))continue;
     const {error}=await SB.from("plays").update({deleted_at:new Date().toISOString()}).eq("id",cloudId);if(error)throw error;
     if(S.cloud.penaltyIds?.[localId]){const {error:pe}=await SB.from("penalties").update({accepted:false,metadata:{local_play_id:localId,active:false}}).eq("id",S.cloud.penaltyIds[localId]);if(pe)throw pe}
     for(const [key,id] of Object.entries(S.cloud.creditIds||{})){if(key.startsWith(`${localId}::`)){const {error:ce}=await SB.from("play_credits").update({value:0,metadata:{local_play_id:localId,active:false}}).eq("id",id);if(ce)throw ce;S.cloud.creditHashes[key]="inactive"}}
-    delete S.cloud.playIds[localId];delete S.cloud.playHashes[localId];persist({skipCloud:true});
+    delete S.cloud.playIds[localId];delete S.cloud.playHashes[localId];persist({skipCloud:true});changed=true;
   }
+  return changed;
 }
 async function syncDeletedCloudSnaps(){
+  let changed=false;
   const localSnapIds=new Set((S.games||[]).flatMap(g=>(g.snapRecords||[]).map(r=>r.id)));
   for(const [localId,cloudId] of Object.entries(S.cloud.snapIds||{})){
     if(localSnapIds.has(localId))continue;
     const {error}=await SB.from("snap_events").update({active:false}).eq("id",cloudId);if(error)throw error;
-    delete S.cloud.snapIds[localId];delete S.cloud.snapHashes[localId];persist({skipCloud:true});
+    delete S.cloud.snapIds[localId];delete S.cloud.snapHashes[localId];persist({skipCloud:true});changed=true;
   }
+  return changed;
 }
 async function syncCloudNow(){
   if(cloudSyncRunning||!SB||!cloudUser||!cloudLinked()||navigator.onLine===false||!isCloudStatkeeper())return;
@@ -604,9 +635,12 @@ async function syncCloudNow(){
   try{
     await ensureCloudTeam();
     await ensureCloudRoster();
-    for(const g of S.games||[]){const cloudGameId=await ensureCloudGame(g);for(let i=0;i<(g.plays||[]).length;i++)await syncOnePlay(g,g.plays[i],i,cloudGameId);for(let i=0;i<(g.snapRecords||[]).length;i++)await syncSnapRecord(g,g.snapRecords[i],i,cloudGameId);await ensureCloudGame(g)}
-    await syncDeletedCloudPlays();
-    await syncDeletedCloudSnaps();
+    const ordered=[...(S.games||[])].sort((a,b)=>(b.id===S.activeGameId)-(a.id===S.activeGameId));
+    const published=[];
+    for(const g of ordered){if(!cloudGameNeedsSync(g))continue;const cloudGameId=await ensureCloudGame(g);for(let i=0;i<(g.plays||[]).length;i++)await syncOnePlay(g,g.plays[i],i,cloudGameId);for(let i=0;i<(g.snapRecords||[]).length;i++)await syncSnapRecord(g,g.snapRecords[i],i,cloudGameId);await ensureCloudGame(g);await publishCloudGame(cloudGameId);published.push(cloudGameId)}
+    const deletedPlays=await syncDeletedCloudPlays();
+    const deletedSnaps=await syncDeletedCloudSnaps();
+    if(deletedPlays||deletedSnaps)for(const cloudGameId of [...new Set(Object.values(S.cloud.gameIds||{}).filter(Boolean))])if(!published.includes(cloudGameId))await publishCloudGame(cloudGameId);
     S.cloud.lastSyncAt=new Date().toISOString();S.cloud.lastSyncError=null;
     try{S.cloud.remoteFingerprint=await remoteCloudFingerprint()}catch(_){S.cloud.remoteFingerprint=null}
     persist({skipCloud:true});setTimeout(checkCloudForUpdates,500);
@@ -763,7 +797,7 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
-$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"4.5.2",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
+$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"4.5.3",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
 $("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
 $("#restoreDataInput").addEventListener("change",async()=>{
   const f=$("#restoreDataInput").files?.[0];if(!f)return;

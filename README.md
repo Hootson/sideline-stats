@@ -1,4 +1,11 @@
-# Sideline Stats V4.5.2 — Offline Snap Tracker
+# Sideline Stats V4.5.3 — Live Viewing
+
+## V4.5.3 changes
+- A connected statkeeper publishes completed play updates to Supabase after the full play, credits, penalties, and game state are stored.
+- Signed-in free/view-only team members receive near-real-time score, play log, player-stat, penalty, roster, and snap updates without tapping Refresh Cloud.
+- Unchanged team and roster records are skipped during game sync, reducing the work and network time required after each play.
+- The active game syncs first; the existing 15-second cloud check remains as a fallback if a live event is missed.
+- The Account status reads **Live updates on** when a viewer's Realtime connection is active.
 
 ## V4.5.2 changes
 - Snap Tracker invitations last 48 hours and reopening the invite extends the same active link.
