@@ -18,7 +18,13 @@ assert.match(app, /await publishCloudGame\(cloudGameId\)/, 'a completed game syn
 assert.ok(app.indexOf('await syncOnePlay') < app.indexOf('await publishCloudGame(cloudGameId)'), 'publish marker must follow play sync');
 assert.match(app, /if\(!isCloudStatkeeper\(\)\)\{[\s\S]*if\(role==="statkeeper"\)scheduleCloudSync\(delay\)/, 'only a verified statkeeper may continue to a write');
 assert.match(app, /"Live updates on"/, 'viewers should see a live-connection indicator');
+assert.match(app, /cloudAutoRefreshRunning=false/, 'automatic viewer reloads must use an explicitly declared lock');
+assert.match(app, /setInterval\(checkLiveGameRevisions,3000\)/, 'visible viewers should check game revisions every three seconds');
+assert.match(app, /\.select\("id,revision"\)/, 'the frequent viewer check must fetch only lightweight revision markers');
+assert.match(app, /document\.visibilityState==="hidden"/, 'the frequent viewer check must pause while the page is hidden');
+assert.match(app, /cloudRevision:Number\(g\.revision\|\|1\)/, 'cloud-loaded games must retain the revision used for redraw checks');
+assert.match(app, /else setTimeout\(checkLiveGameRevisions,100\)/, 'viewers must check immediately after reconnecting or returning to the page');
 assert.match(sql, /security invoker/, 'publish RPC must preserve RLS authorization');
-assert.match(sw, /v4-5-5-statkeeper-sync-recovery/, 'service worker cache must be bumped');
+assert.match(sw, /v4-5-6-automatic-live-viewing/, 'service worker cache must be bumped');
 
 console.log('live cloud sync checks passed');

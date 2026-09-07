@@ -1,6 +1,12 @@
-# Sideline Stats V4.5.5 — Statkeeper Sync Recovery
+# Sideline Stats V4.5.6 — Automatic Live Viewing
+
+## V4.5.6 changes
+- Viewer accounts keep the instant Supabase live subscription and also perform a lightweight game-revision check every three seconds while the page is visible.
+- A missed or delayed mobile-browser live event now causes the viewer screen to reload the cloud game automatically without a pull-to-refresh.
+- Returning to the viewer page or reconnecting to the internet triggers an immediate revision check on iPhone and Android.
 
 ## V4.5.5 fix
+
 - Every cloud load now rechecks the signed-in team membership, preventing an owner/statkeeper phone from remaining mislabeled as a viewer.
 - A local change made while the role is temporarily unknown triggers a role check and uploads automatically once statkeeper access is confirmed.
 - **Refresh Cloud** becomes **Retry Sync** when a statkeeper has pending local changes, providing a safe upload retry without replacing the phone's copy.
