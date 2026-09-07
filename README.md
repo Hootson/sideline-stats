@@ -1,4 +1,10 @@
-# Sideline Stats V4.5.7 — Viewer Game Center
+# Sideline Stats V4.5.8 — Voice Play Entry
+
+## V4.5.8 changes
+- Statkeepers can speak common offensive plays and review the interpretation before anything is recorded.
+- The first voice parser supports runs, completed passes, incompletions, interceptions, player names or jersey numbers, spoken yardage, touchdowns, and dropped passes.
+- Voice commands use the same play-recording and Supabase sync path as tapped entries; viewer accounts remain unchanged.
+- The app never stores audio. If browser speech recognition is unavailable, the transcript field can still be typed or filled with the phone keyboard's dictation button.
 
 ## V4.5.7 changes
 - Viewer accounts now open directly to a read-only Game Center showing the newest game's scoreboard, quarter, possession, down and distance, and full statistics.

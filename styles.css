@@ -115,6 +115,15 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 .viewer-score-card{margin-bottom:10px}
 .viewer-possession{margin-bottom:12px}
 .viewer-quarter{flex:0 0 auto;min-width:50px;padding:9px 10px;border-radius:10px;background:var(--s);color:var(--p);font-size:15px;font-weight:950;text-align:center}
+.voice-play-btn{margin-top:12px;background:linear-gradient(180deg,var(--p),#081f15);border:2px solid var(--s);color:#fff}
+.voice-play-modal textarea{width:100%;min-height:82px;resize:vertical;font-size:18px;font-weight:750;line-height:1.35}
+.voice-status{margin:12px 0;padding:10px 12px;border-radius:12px;background:#f3f6f4;border:1px solid var(--line);font-weight:800}
+.voice-status.listening{background:#fff3e6;border-color:#f2a33a;color:#8a4300}
+.voice-preview{min-height:58px;margin:12px 0;padding:12px;border-radius:12px;background:#f7f9f8;border:2px solid var(--line);font-weight:850;line-height:1.35}
+.voice-preview.ready{background:#eef9f1;border-color:#45a764;color:#174d27}
+.voice-preview.error{background:#fff0f0;border-color:#df7777;color:#7d2020}
+.voice-examples{display:flex;flex-direction:column;gap:5px;margin-top:14px;padding:11px 12px;border-radius:12px;background:#f5f7f6;font-size:13px}
+.voice-privacy{margin-top:12px;font-size:11px}
 .scope-btn{border:1px solid var(--line);background:#f8faf9;border-radius:10px;padding:10px 6px;font-size:12px;font-weight:900;color:var(--muted)}
 .scope-btn.active{background:var(--p);color:#fff;border-color:var(--p)}
 .scope-summary{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}

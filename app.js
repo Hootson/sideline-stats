@@ -831,7 +831,7 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
-$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"4.5.7",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
+$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"4.5.8",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
 $("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
 $("#restoreDataInput").addEventListener("change",async()=>{
   const f=$("#restoreDataInput").files?.[0];if(!f)return;
@@ -1246,6 +1246,7 @@ function renderLiveGame(){
   if(!g.distance||g.distance<1)g.distance=10;
   $("#possessionSub").textContent=`${ordinal(g.down)} & ${g.distance||10}`;
   $("#togglePossession").textContent="Correct Possession";
+  $("#voicePlayBtn")?.classList.toggle("hidden",!isCloudStatkeeper());
 
   // Only show play-entry choices that make sense for the current possession.
   $("#actionRush")?.classList.toggle("hidden",g.possession!=="ours");
@@ -1307,6 +1308,79 @@ function resetSignedYardPicker(id,min=-99,max=99){populateSignedYardPicker(id,mi
 ["customYards","defSimpleYardsExact","defYardsExact","penaltyCustomYards"].forEach(id=>populateSignedYardPicker(id));
 populateSignedYardPicker("returnYardsExact",0,99);
 populateSignedYardPicker("fieldGoalDistanceExact",0,99);
+
+let voiceRecognition=null,voiceInterpretation=null,voiceListening=false;
+function setVoiceStatus(message,listening=false){
+  const el=$("#voicePlayStatus");if(!el)return;
+  el.textContent=message;el.classList.toggle("listening",listening);
+}
+function clearVoiceInterpretation(){
+  voiceInterpretation=null;
+  const confirmBtn=$("#voiceConfirmBtn");if(confirmBtn)confirmBtn.disabled=true;
+  const preview=$("#voicePlayPreview");if(preview){preview.className="voice-preview";preview.textContent="Nothing will be recorded until you confirm it."}
+}
+function interpretVoiceTranscript(){
+  const preview=$("#voicePlayPreview"),text=$("#voiceTranscript")?.value.trim()||"",g=currentGame();
+  if(!preview||!g)return;
+  if(!window.SidelineVoice?.interpretVoiceCommand){
+    clearVoiceInterpretation();preview.classList.add("error");preview.textContent="Voice parser did not load. Use the normal play buttons.";return
+  }
+  const result=window.SidelineVoice.interpretVoiceCommand(text,S.roster,{possession:g.possession});
+  voiceInterpretation=result.ok?result:null;
+  preview.className="voice-preview "+(result.ok?"ready":"error");
+  preview.textContent=result.ok?result.summary:result.error;
+  $("#voiceConfirmBtn").disabled=!result.ok;
+  setVoiceStatus(result.ok?"Review the play below, then confirm.":"Edit the wording or try listening again.");
+}
+function stopVoiceListening(){
+  if(voiceRecognition){try{voiceRecognition.abort()}catch(_){}}
+  voiceRecognition=null;voiceListening=false;
+}
+function closeVoicePlay(){
+  stopVoiceListening();clearVoiceInterpretation();$("#voicePlayModal")?.classList.add("hidden");
+}
+function startVoiceListening(){
+  if(!isCloudStatkeeper())return toast("Voice entry is available on the statkeeper account");
+  const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!Recognition){
+    setVoiceStatus("Speech recognition is unavailable here. Type the play below or use your keyboard microphone.");
+    $("#voiceTranscript")?.focus();return
+  }
+  stopVoiceListening();clearVoiceInterpretation();
+  $("#voiceTranscript").value="";
+  const recognition=new Recognition();voiceRecognition=recognition;
+  recognition.lang="en-US";recognition.continuous=false;recognition.interimResults=true;recognition.maxAlternatives=1;
+  recognition.onstart=()=>{voiceListening=true;setVoiceStatus("Listening… say one complete play.",true);$("#voiceStartBtn").textContent="Listening…"};
+  recognition.onresult=event=>{
+    let heard="",finalResult=false;
+    for(let i=0;i<event.results.length;i++){heard+=event.results[i][0]?.transcript||"";if(event.results[i].isFinal)finalResult=true}
+    $("#voiceTranscript").value=heard.trim();
+    if(finalResult)interpretVoiceTranscript();
+  };
+  recognition.onerror=event=>{
+    const messages={"not-allowed":"Microphone permission was denied. Allow microphone access or type the play.","audio-capture":"No microphone was available.","no-speech":"I didn't hear a play. Tap Start Listening and try again.",network:"Speech recognition needs a better connection. Manual tap entry still works."};
+    setVoiceStatus(messages[event.error]||"Voice recognition stopped. Try again or type the play.");
+  };
+  recognition.onend=()=>{voiceListening=false;voiceRecognition=null;$("#voiceStartBtn").textContent="🎙️ Start Listening";if($("#voiceTranscript").value.trim()&&!voiceInterpretation)interpretVoiceTranscript();else if(!$("#voiceTranscript").value.trim())setVoiceStatus("No play heard. Tap Start Listening and try again.");};
+  try{recognition.start()}catch(e){setVoiceStatus("Voice recognition could not start. Try again or type the play.")}
+}
+$("#voicePlayBtn")?.addEventListener("click",()=>{
+  if(!isCloudStatkeeper())return toast("Voice entry is available on the statkeeper account");
+  if(!currentGame())return toast("Open a game first");
+  $("#voiceTranscript").value="";clearVoiceInterpretation();setVoiceStatus("Tap Start Listening, then say one play.");
+  $("#voicePlayModal").classList.remove("hidden");
+});
+$("#voiceStartBtn")?.addEventListener("click",startVoiceListening);
+$("#voiceInterpretBtn")?.addEventListener("click",interpretVoiceTranscript);
+$("#voiceTranscript")?.addEventListener("input",clearVoiceInterpretation);
+$("#voiceConfirmBtn")?.addEventListener("click",()=>{
+  if(!voiceInterpretation?.ok)return;
+  S.flow=cloneJson(voiceInterpretation.flow);
+  stopVoiceListening();$("#voicePlayModal").classList.add("hidden");voiceInterpretation=null;
+  recordNow();
+});
+$("#voicePlayCloseBtn")?.addEventListener("click",closeVoicePlay);
+$("#voicePlayModal")?.addEventListener("click",e=>{if(e.target.id==="voicePlayModal")closeVoicePlay()});
 
 const FLOW_STEP_IDS=["stepSub","stepPenaltyType","stepPenaltyPlayer","stepPenaltyYards","stepPenaltyDown","stepPlayer","stepDefenseCredits","stepDefenseYards","stepDefensePlay","stepDefensePass","stepDefenseSimpleYards","stepDefenseTacklers","stepDefenseOutcome","stepDefenseTurnoverPlayer","stepPassDefended","stepReturnYards","stepTryType","stepTryResult","stepKickoffResult","stepFieldGoalDistance","stepFieldGoalResult","stepIncompleteDrop","stepFumbleRecovery","stepYards","stepExtras"];
 function scrollFlowStepIntoView(el){
