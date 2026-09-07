@@ -58,7 +58,7 @@ function persist(opts={}){
     if(current)localStorage.setItem(RECOVERY_KEY,current);
     localStorage.setItem(KEY,JSON.stringify(S));
     if(typeof updateCloudUI==="function")updateCloudUI();
-    if(!opts.skipCloud && typeof scheduleCloudSync==="function" && cloudDeviceRole()!=="viewer")scheduleCloudSync();
+    if(!opts.skipCloud && typeof scheduleCloudSync==="function")scheduleCloudSync();
   }catch(e){console.error("Save failed",e);toast("Could not save data")}
 }
 
@@ -201,7 +201,7 @@ function updateCloudUI(force){
     if(pending>0){dot.classList.add("warn");text.textContent=`Cloud connected — ${pending} pending`;}
     else if(cloudRemoteUpdates){dot.classList.add("warn");text.textContent="Cloud has updates";}
     else{dot.classList.add("on");text.textContent=!isCloudStatkeeper()&&cloudRealtimeConnected?"Live updates on":"Cloud synced";}
-    const rb=$("#cloudRefreshBtn");if(rb)rb.textContent=cloudRemoteUpdates?"Load Updates":"Refresh Cloud";
+    const rb=$("#cloudRefreshBtn");if(rb)rb.textContent=pending>0&&isCloudStatkeeper()?"Retry Sync":cloudRemoteUpdates?"Load Updates":"Refresh Cloud";
     const when=S.cloud?.lastSyncAt?` • Last sync ${new Date(S.cloud.lastSyncAt).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})}`:"";
     const err=S.cloud?.lastSyncError?` • Sync paused: ${S.cloud.lastSyncError}`:"";
     const pendingDetail=pending>0?` • Pending: ${cloudPendingItems().slice(0,3).join(", ")}${pending>3?` +${pending-3} more`:""}`:"";
@@ -298,10 +298,10 @@ async function loadTeamFromCloud(options={}){
     for(const p of plays){const lp=localGames.flatMap(x=>x.plays).find(x=>x.id===p.id);if(!lp)continue;const g=localGames.find(x=>x.id===p.game_id);const idx=g.plays.findIndex(x=>x.id===p.id);S.cloud.playHashes[p.id]=simpleHash(buildCloudPlayPayload(g,lp,idx,g.id));for(const c of buildCloudCredits(lp)){const row=credits.find(x=>x.play_id===p.id&&x.player_id===c.playerLocalId&&x.credit_type===c.credit_type&&x.metadata?.active!==false);if(row){const key=creditKey(lp.id,c);S.cloud.creditIds[key]=row.id;S.cloud.creditHashes[key]=simpleHash(c)}}const pen=penalties.find(x=>x.play_id===p.id);if(pen){S.cloud.penaltyIds[lp.id]=pen.id;S.cloud.penaltyHashes[lp.id]=simpleHash(buildCloudPenaltyPayload(g,lp,g.id,p.id))}}
     for(const g of localGames)S.cloud.gameHashes[g.id]=simpleHash(buildCloudGamePayload(g));for(const g of localGames)(g.snapRecords||[]).forEach((r,i)=>S.cloud.snapHashes[r.id]=simpleHash(buildCloudSnapPayload(g,r,i,g.id)));
     cloudRemoteUpdates=false;rememberTeam(team.id);
-    persist({skipCloud:true});normalizeRoster();normalizeGames();syncChrome();populateSetup();initializeSnapSelections();renderRoster();renderGameArea();renderSnaps();renderStats();updateCloudUI();
+    persist({skipCloud:true});await resolveCloudDeviceRole();normalizeRoster();normalizeGames();syncChrome();populateSetup();initializeSnapSelections();renderRoster();renderGameArea();renderSnaps();renderStats();updateCloudUI();
     go(refreshing?priorScreen:(options.destination||"roster"));
     if(!autoRefresh)toast(refreshing?"Latest cloud changes loaded":"Cloud team loaded on this device");
-    // Cloud-loaded devices are viewers; never push a restored snapshot back to the database.
+    // Recheck membership after every load so an owner/statkeeper cannot remain stuck in viewer mode.
     setTimeout(checkCloudForUpdates,1200);startCloudRealtime();
   }catch(e){console.error("Cloud restore failed",e);toast(e?.message||"Could not load cloud team")}
   finally{if(btn){btn.disabled=false;btn.textContent=refreshing?"Refresh Cloud":"Load Cloud Team"}updateCloudUI()}
@@ -324,7 +324,7 @@ async function refreshFromCloud(){
   if(!cloudLinked())return toast("Connect or load a cloud team first");
   if(navigator.onLine===false)return toast("Connect to the internet to refresh");
   const pending=cloudPendingCount();
-  if(pending>0){const detail=cloudPendingItems().slice(0,2).join(", ");return toast(`${pending} local change${pending===1?"":"s"} pending${detail?`: ${detail}`:""}`)};
+  if(pending>0){const role=await resolveCloudDeviceRole();if(role==="statkeeper"){scheduleCloudSync(0);return toast("Sync retry started")}const detail=cloudPendingItems().slice(0,2).join(", ");return toast(`${pending} viewer change${pending===1?"":"s"} cannot upload${detail?`: ${detail}`:""}`)};
   await loadTeamFromCloud({refresh:true});cloudRemoteUpdates=false;updateCloudUI();
 }
 
@@ -353,7 +353,7 @@ async function connectTeamToCloud(){
   finally{if(btn){btn.disabled=false;btn.textContent="Connect Team"}updateCloudUI()}
 }
 
-let cloudSyncTimer=null,cloudSyncRunning=false,cloudSyncRequested=false;
+let cloudSyncTimer=null,cloudSyncRunning=false,cloudSyncRequested=false,cloudRoleResolvePromise=null;
 function cloudUuid(){return (crypto?.randomUUID?crypto.randomUUID():"xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,c=>{const r=Math.random()*16|0,v=c==="x"?r:(r&3|8);return v.toString(16)}))}
 function simpleHash(value){
   const str=typeof value==="string"?value:JSON.stringify(value);let h=2166136261;
@@ -400,7 +400,11 @@ function rebaseCloudHashesV443(){
   }catch(e){console.warn("Cloud hash rebase skipped",e)}
 }
 function scheduleCloudSync(delay=350){
-  if(!isCloudStatkeeper())return;
+  if(!SB||!cloudUser||!cloudLinked())return;
+  if(!isCloudStatkeeper()){
+    if(!cloudRoleResolvePromise)cloudRoleResolvePromise=resolveCloudDeviceRole().then(role=>{cloudRoleResolvePromise=null;if(role==="statkeeper")scheduleCloudSync(delay)}).catch(e=>{cloudRoleResolvePromise=null;console.warn("Could not verify statkeeper role",e)});
+    return;
+  }
   if(cloudSyncRunning){cloudSyncRequested=true;return}
   if(cloudSyncTimer)clearTimeout(cloudSyncTimer);
   cloudSyncTimer=setTimeout(()=>{cloudSyncTimer=null;syncCloudNow()},delay);
@@ -799,7 +803,7 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
-$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"4.5.4",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
+$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"4.5.5",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
 $("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
 $("#restoreDataInput").addEventListener("change",async()=>{
   const f=$("#restoreDataInput").files?.[0];if(!f)return;

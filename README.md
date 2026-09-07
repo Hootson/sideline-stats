@@ -1,4 +1,9 @@
-# Sideline Stats V4.5.4 — Reliable Live Sync
+# Sideline Stats V4.5.5 — Statkeeper Sync Recovery
+
+## V4.5.5 fix
+- Every cloud load now rechecks the signed-in team membership, preventing an owner/statkeeper phone from remaining mislabeled as a viewer.
+- A local change made while the role is temporarily unknown triggers a role check and uploads automatically once statkeeper access is confirmed.
+- **Refresh Cloud** becomes **Retry Sync** when a statkeeper has pending local changes, providing a safe upload retry without replacing the phone's copy.
 
 ## V4.5.4 fix
 - A change made while another cloud sync is still running now queues an immediate follow-up sync instead of remaining pending.
