@@ -44,6 +44,10 @@ begin
    limit 1;
 
   if v_token is not null then
+    v_expires := greatest(v_expires, now() + make_interval(hours => greatest(1, least(coalesce(p_expires_hours, 12), 72))));
+    update public.snap_tracker_invites
+       set expires_at = v_expires, updated_at = now()
+     where snap_tracker_invites.token = v_token;
     return query select v_token, v_expires;
     return;
   end if;

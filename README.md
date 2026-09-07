@@ -1,4 +1,12 @@
-# Sideline Stats V4.5.1 — Reliable Snap Invites
+# Sideline Stats V4.5.2 — Offline Snap Tracker
+
+## V4.5.2 changes
+- Snap Tracker invitations last 48 hours and reopening the invite extends the same active link.
+- After the first successful load, the helper's browser stores the game, roster, progress totals, selections, and pending snap queue locally.
+- The Snap Tracker page now registers the offline service worker itself and reopens from cache when the field has no service.
+- The helper can wait for the visible **Offline ready** confirmation before leaving Wi-Fi or closing the page.
+- Offline snaps update the saved progress immediately and upload in order when connectivity returns.
+- Server validation errors disable recording; genuine network failures retain the usable offline copy.
 
 ## V4.5.1 changes
 - Snap invitations now open a link preview with separate **Share Link** and **Copy Link** buttons.

@@ -763,7 +763,7 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
-$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"4.5.1",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
+$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"4.5.2",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
 $("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
 $("#restoreDataInput").addEventListener("change",async()=>{
   const f=$("#restoreDataInput").files?.[0];if(!f)return;
@@ -2084,7 +2084,7 @@ async function inviteSnapTracker(){
     await syncCloudNow();
     const cloudGameId=S.cloud?.gameIds?.[g.id];
     if(!cloudGameId)throw new Error("This game has not synced to the cloud yet");
-    const {data,error}=await SB.rpc("create_snap_tracker_invite",{p_game_id:cloudGameId,p_expires_hours:24});
+    const {data,error}=await SB.rpc("create_snap_tracker_invite",{p_game_id:cloudGameId,p_expires_hours:48});
     if(error)throw error;
     const row=Array.isArray(data)?data[0]:data;
     if(!row?.token)throw new Error("Invite link was not created");
