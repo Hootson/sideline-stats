@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V4.5.8</title>
+<title>Sideline Stats V4.5.9</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -32,7 +32,7 @@
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V4.5.8 • VOICE PLAY ENTRY • GRIDIRON EDITION</div>
+      <div class="muted" style="color:#dfe9e2">V4.5.9 • FIELD POSITION • GRIDIRON EDITION</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -258,6 +258,7 @@
         </div>
         <button class="possession-toggle" id="togglePossession">Correct Possession</button>
       </div>
+      <div id="fieldPositionBar" class="field-position-bar"><div><strong>Ball position</strong><span id="fieldPositionText">Starting position needed</span></div><button id="correctFieldPosition" type="button">Set / Correct</button></div>
 <div class="card" id="stepMain">
         <h2>What happened?</h2>
         <div class="grid2">
@@ -267,7 +268,7 @@
           <button class="choice action" id="actionSpecial" data-action="Special">⭐<br>SPECIAL</button>
           <button class="choice action" id="actionPenalty" data-action="Penalty">🚩<br>PENALTY</button>
         </div>
-        <button class="btn voice-play-btn hidden" id="voicePlayBtn" type="button">🎙️ Record Play by Voice</button>
+        <button class="btn voice-play-btn" id="voicePlayBtn" type="button">🎙️ Record Play by Voice</button>
         <button class="btn punt-btn" id="quickKickoff">🦵 KICKOFF</button>
         <button class="btn punt-btn" id="quickPunt">🏈 PUNT</button>
         <button class="btn ghost" id="undo" style="margin-top:10px">↶ Undo Last Play</button>
@@ -452,6 +453,23 @@
       </div>
 
       <div class="card hidden" id="stepYards"><h2>How many yards?</h2><div id="yardGrid" class="grid"></div><label>Exact yards — tap to scroll</label><div class="row"><select id="customYards" class="signed-yard-picker"></select><button class="btn" id="customBtn">Use</button></div></div>
+      <div class="card hidden" id="stepFieldPosition">
+        <div class="muted" id="fieldPositionPrompt">Field position</div>
+        <h2 id="fieldPositionTitle">Where is the ball?</h2>
+        <div class="field-side-grid">
+          <button class="choice field-side" data-side="ours" id="fieldSideOurs">Our side</button>
+          <button class="choice field-side" data-side="opp" id="fieldSideOpp">Opponent side</button>
+          <button class="choice field-side" data-side="midfield">50 / Midfield</button>
+          <button class="choice field-side" data-side="endzone">End Zone</button>
+        </div>
+        <div id="fieldYardRow">
+          <label>Yard line</label>
+          <select id="fieldYardLine"></select>
+        </div>
+        <button class="btn" id="fieldPositionUse" type="button" style="margin-top:12px">Use This Position</button>
+        <button class="btn ghost hidden" id="fieldPositionManual" type="button" style="margin-top:8px">Enter Yards Instead</button>
+        <button class="btn ghost" id="fieldPositionCancel" type="button" style="margin-top:8px">Cancel</button>
+      </div>
       <div class="card hidden" id="stepExtras"><h2>Anything else?</h2><div class="grid2">
         <button class="choice extra" data-extra="TD">TD +6</button>
         <button class="choice extra" data-extra="Fumble">FUMBLE</button>
@@ -557,6 +575,20 @@
     <button data-go="stats">📊<br>Stats</button>
   </nav>
 </div>
+<div id="voicePlayModal" class="modal-backdrop hidden">
+  <div class="modal-card voice-play-modal">
+    <button id="voicePlayCloseBtn" class="modal-close" aria-label="Close">×</button>
+    <div class="muted">Statkeeper only</div><h2>Voice Play Entry</h2>
+    <div id="voicePlayStatus" class="voice-status">Tap Start Listening, then describe one play.</div>
+    <label for="voiceTranscript">What I heard</label>
+    <textarea id="voiceTranscript" rows="3" placeholder="Own 25, Abe runs to our 36"></textarea>
+    <div id="voicePlayPreview" class="voice-preview">Nothing will be recorded until you confirm it.</div>
+    <div id="voiceConflictActions" class="modal-actions hidden"><button class="btn" id="voiceUseSpokenStart" type="button">Use Spoken Start</button><button class="btn ghost" id="voiceKeepCurrentStart" type="button">Keep Current Spot</button></div>
+    <div class="modal-actions"><button class="btn" id="voiceStartBtn" type="button">🎙️ Start Listening</button><button class="btn ghost" id="voiceInterpretBtn" type="button">Check Wording</button></div>
+    <button class="btn alt" id="voiceConfirmBtn" type="button" disabled>Confirm &amp; Record Play</button>
+    <div class="muted voice-privacy">The app does not save an audio recording. Tap entry remains available.</div>
+  </div>
+</div>
 <div id="snapInviteModal" class="modal-backdrop hidden">
   <div class="modal-card">
     <button id="snapInviteCloseBtn" class="modal-close" aria-label="Close">×</button>
@@ -568,29 +600,6 @@
       <button class="btn" id="shareSnapInviteBtn" type="button">Share Link</button>
       <button class="btn ghost" id="copySnapInviteBtn" type="button">Copy Link</button>
     </div>
-  </div>
-</div>
-<div id="voicePlayModal" class="modal-backdrop hidden">
-  <div class="modal-card voice-play-modal">
-    <button id="voicePlayCloseBtn" class="modal-close" aria-label="Close">×</button>
-    <div class="muted">Statkeeper only</div>
-    <h2>Voice Play Entry</h2>
-    <div id="voicePlayStatus" class="voice-status">Tap Start Listening, then say one play.</div>
-    <label for="voiceTranscript">What I heard</label>
-    <textarea id="voiceTranscript" rows="3" placeholder="Cohen run 15 yards"></textarea>
-    <div id="voicePlayPreview" class="voice-preview">Nothing will be recorded until you confirm it.</div>
-    <div class="modal-actions">
-      <button class="btn" id="voiceStartBtn" type="button">🎙️ Start Listening</button>
-      <button class="btn ghost" id="voiceInterpretBtn" type="button">Check Wording</button>
-    </div>
-    <button class="btn alt" id="voiceConfirmBtn" type="button" disabled>Confirm & Record Play</button>
-    <div class="voice-examples">
-      <strong>Try saying:</strong>
-      <span>“Cohen run 15 yards”</span>
-      <span>“Cole complete to Cohen for 12 yards”</span>
-      <span>“Cole incomplete intended for Cohen”</span>
-    </div>
-    <div class="muted voice-privacy">The app does not save an audio recording. Normal tap entry remains available.</div>
   </div>
 </div>
 <div id="authModal" class="modal-backdrop hidden">
@@ -618,6 +627,7 @@
 </div>
 <div class="toast" id="toast"></div>
 
+<script src="./field-position.js"></script>
 <script src="./voice-play.js"></script>
 <script src="./app.js"></script>
 

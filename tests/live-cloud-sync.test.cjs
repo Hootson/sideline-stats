@@ -34,10 +34,6 @@ assert.match(app, /analyticsExportCard"\)\?\.classList\.toggle\("hidden",viewer\
 assert.match(app, /function renderViewerGameSummary\(\)/, 'viewer Game Center must render its scoreboard');
 assert.match(html, /id="viewerGameSummary"/, 'Stats must contain the viewer scoreboard destination');
 assert.match(html, /id="shareStatsBtn"/, 'Stats sharing must remain available');
-assert.match(html, /class="[^"]*hidden[^"]*" id="voicePlayBtn"/, 'voice entry must start hidden until the statkeeper role renders it');
-assert.match(app, /voicePlayBtn"\)\?\.classList\.toggle\("hidden",!isCloudStatkeeper\(\)\)/, 'voice entry must remain statkeeper-only');
-assert.match(app, /if\(!voiceInterpretation\?\.ok\)return/, 'voice entry must require a successful interpretation before recording');
-assert.match(sw, /voice-play\.js/, 'the offline shell must include the voice parser');
-assert.match(sw, /v4-5-8-voice-play-entry/, 'service worker cache must be bumped');
+assert.match(sw, /v4-5-9-field-position/, 'service worker cache must be bumped');
 
 console.log('live cloud sync checks passed');

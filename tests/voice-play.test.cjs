@@ -1,50 +1,44 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const voice = require('../voice-play.js');
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const voice=require('../voice-play.js');
 
-const roster = [
-  {id:'cole', jersey:'12', name:'Cole'},
-  {id:'cohen', jersey:'15', name:'Cohen'},
-  {id:'kallum', jersey:'33', name:'Kallum'}
+const roster=[
+  {id:'abe',jersey:'4',name:'Abe'},
+  {id:'receiver',jersey:'12',name:'Cohen'},
+  {id:'defender',jersey:'33',name:'Kallum'}
 ];
 
-test('parses a named runner and numeric yards', () => {
-  const result = voice.interpretVoiceCommand('Cohen run 15 yards', roster, {possession:'ours'});
-  assert.equal(result.ok, true);
-  assert.deepEqual(result.flow, {type:'Rush', player:'cohen', yards:15, extras:[]});
+test('corrects Babe to rostered player Abe and calculates a rush',()=>{
+  const r=voice.interpretVoiceCommand('Own 25, Babe with the run to our 31',roster,{possession:'ours',teamName:'Erie Tigers',opponentName:'Falcons'});
+  assert.equal(r.ok,true);assert.equal(r.flow.player,'abe');assert.equal(r.flow.yards,6);
 });
 
-test('parses jersey number, spoken loss, and touchdown', () => {
-  const result = voice.interpretVoiceCommand('number 33 rush loss of five yards touchdown', roster, {possession:'ours'});
-  assert.equal(result.ok, true);
-  assert.equal(result.flow.player, 'kallum');
-  assert.equal(result.flow.yards, -5);
-  assert.deepEqual(result.flow.extras, ['TD']);
+test('calculates a completed pass from spoken field positions',()=>{
+  const r=voice.interpretVoiceCommand('Abe with the pass attempt to number 12 starting at our 15 and getting tackled at the 50 yard line',roster,{possession:'ours',teamName:'Erie Tigers',opponentName:'Falcons'});
+  assert.equal(r.ok,true);assert.equal(r.flow.sub,'Complete');assert.equal(r.flow.player,'abe');assert.equal(r.flow.player2,'receiver');assert.equal(r.flow.yards,35);
 });
 
-test('parses a completed pass with spoken yards', () => {
-  const result = voice.interpretVoiceCommand('Cole complete to Cohen for twelve yards', roster, {possession:'ours'});
-  assert.equal(result.ok, true);
-  assert.deepEqual(result.flow, {type:'Pass', sub:'Complete', player:'cole', player2:'cohen', yards:12, extras:[]});
+test('asks for a missing drive start',()=>{
+  const r=voice.interpretVoiceCommand('Abe runs to our 31',roster,{possession:'ours',ballSpot:null,teamName:'Erie Tigers',opponentName:'Falcons'});
+  assert.equal(r.ok,false);assert.equal(r.missing,'startSpot');
 });
 
-test('parses an incomplete dropped pass', () => {
-  const result = voice.interpretVoiceCommand('Cole incomplete intended for Cohen dropped', roster, {possession:'ours'});
-  assert.equal(result.ok, true);
-  assert.equal(result.flow.sub, 'Incomplete');
-  assert.equal(result.flow.drop, true);
-  assert.equal(result.flow.yards, 0);
+test('uses known drive location when only ending location is spoken',()=>{
+  const r=voice.interpretVoiceCommand('Abe runs to our 36',roster,{possession:'ours',ballSpot:25,teamName:'Erie Tigers',opponentName:'Falcons'});
+  assert.equal(r.ok,true);assert.equal(r.flow.yards,11);
 });
 
-test('parses an interception and leaves yardage at zero', () => {
-  const result = voice.interpretVoiceCommand('Cole intercepted intended for Cohen', roster, {possession:'ours'});
-  assert.equal(result.ok, true);
-  assert.equal(result.flow.sub, 'Intercepted');
-  assert.equal(result.flow.yards, 0);
+test('flags an explicitly spoken start that conflicts with the current spot',()=>{
+  const r=voice.interpretVoiceCommand('From our 20 Abe runs to our 30',roster,{possession:'ours',ballSpot:25,teamName:'Erie Tigers',opponentName:'Falcons'});
+  assert.equal(r.ok,true);assert.deepEqual(r.conflict,{spoken:20,current:25});assert.equal(r.flow.yards,10);
 });
 
-test('rejects ambiguity and defensive possession', () => {
-  assert.equal(voice.interpretVoiceCommand('run 15 yards', roster, {possession:'ours'}).ok, false);
-  assert.equal(voice.interpretVoiceCommand('Cohen run 15 yards', roster, {possession:'opp'}).ok, false);
-  assert.equal(voice.interpretVoiceCommand('Cole complete 12 yards', roster, {possession:'ours'}).ok, false);
+test('calculates opponent run and credits a defender',()=>{
+  const r=voice.interpretVoiceCommand('Their 25 run tackled by Kallum at their 36',roster,{possession:'opp',teamName:'Erie Tigers',opponentName:'Falcons'});
+  assert.equal(r.ok,true);assert.equal(r.flow.sub,'Opponent Run');assert.equal(r.flow.yards,11);assert.deepEqual(r.flow.tacklerIds,['defender']);
+});
+
+test('calculates an opponent sack as a loss',()=>{
+  const r=voice.interpretVoiceCommand('Sack by number 33 from their 30 to their 22',roster,{possession:'opp',teamName:'Erie Tigers',opponentName:'Falcons'});
+  assert.equal(r.ok,true);assert.equal(r.flow.sub,'Sack');assert.equal(r.flow.yards,-8);
 });

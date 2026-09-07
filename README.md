@@ -1,10 +1,12 @@
-# Sideline Stats V4.5.8 — Voice Play Entry
+# Sideline Stats V4.5.9 — Field Position Entry
 
-## V4.5.8 changes
-- Statkeepers can speak common offensive plays and review the interpretation before anything is recorded.
-- The first voice parser supports runs, completed passes, incompletions, interceptions, player names or jersey numbers, spoken yardage, touchdowns, and dropped passes.
-- Voice commands use the same play-recording and Supabase sync path as tapped entries; viewer accounts remain unchanged.
-- The app never stores audio. If browser speech recognition is unavailable, the transcript field can still be typed or filled with the phone keyboard's dictation button.
+## V4.5.9 changes
+- Starts from the stable V4.5.7 Viewer Game Center release.
+- Manual offense and defense entry can calculate yardage from a drive's starting spot and the play's ending spot.
+- The ending spot automatically becomes the next play's starting spot; a new drive asks when its starting position is unknown.
+- Field sides use the team and opponent names, with midfield and end-zone choices plus a direct-yardage fallback.
+- Voice entry understands field positions, offense and basic defense, jersey numbers, and fuzzy roster matching such as “Babe” → “Abe.”
+- Every voice play shows a confirmation before it is recorded.
 
 ## V4.5.7 changes
 - Viewer accounts now open directly to a read-only Game Center showing the newest game's scoreboard, quarter, possession, down and distance, and full statistics.
