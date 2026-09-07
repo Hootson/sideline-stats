@@ -18,6 +18,18 @@ test('calculates a completed pass from spoken field positions',()=>{
   assert.equal(r.ok,true);assert.equal(r.flow.sub,'Complete');assert.equal(r.flow.player,'abe');assert.equal(r.flow.player2,'receiver');assert.equal(r.flow.yards,35);
 });
 
+test('recognizes spelled-out and digit jersey numbers',()=>{
+  const words=voice.interpretVoiceCommand('Number four with a complete pass to jersey twelve at their 35 yard line',roster,{possession:'ours',ballSpot:25,teamName:'Erie Tigers',opponentName:'Falcons'});
+  assert.equal(words.ok,true);assert.equal(words.flow.player,'abe');assert.equal(words.flow.player2,'receiver');assert.equal(words.flow.yards,40);
+  const digits=voice.interpretVoiceCommand('#4 complete pass to number 12 at their 35 yard line',roster,{possession:'ours',ballSpot:25,teamName:'Erie Tigers',opponentName:'Falcons'});
+  assert.equal(digits.ok,true);assert.equal(digits.flow.player,'abe');assert.equal(digits.flow.player2,'receiver');
+});
+
+test('applies a saved team speech correction',()=>{
+  const r=voice.interpretVoiceCommand('Babe with the run to our 31',roster,{possession:'ours',ballSpot:25,teamName:'Erie Tigers',opponentName:'Falcons',voiceCorrections:{babe:'abe'}});
+  assert.equal(r.ok,true);assert.equal(r.flow.player,'abe');assert.equal(r.flow.yards,6);
+});
+
 test('asks for a missing drive start',()=>{
   const r=voice.interpretVoiceCommand('Abe runs to our 31',roster,{possession:'ours',ballSpot:null,teamName:'Erie Tigers',opponentName:'Falcons'});
   assert.equal(r.ok,false);assert.equal(r.missing,'startSpot');

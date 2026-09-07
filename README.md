@@ -1,4 +1,10 @@
-# Sideline Stats V4.5.9 — Field Position Entry
+# Sideline Stats V4.5.10 — Voice Control and Live Game Status
+
+## V4.5.10 changes
+- Voice listening now continues through thinking pauses until the statkeeper taps **Stop & Transcribe**, with a 30-second safety stop.
+- Jersey references recognize digits, spelled-out numbers, and common speech-to-text number variants.
+- A one-word transcript correction made before **Check Wording** is remembered locally for that team, including corrections such as “Babe” → “Abe.”
+- Opening a finalized game now offers to resume it and mark it Live; finalizing a game has clearer wording and requires confirmation.
 
 ## V4.5.9 changes
 - Starts from the stable V4.5.7 Viewer Game Center release.

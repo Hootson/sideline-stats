@@ -33,6 +33,7 @@ let pendingEditOpponentLogo=undefined;
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const Field=window.SidelineFieldPosition;
 let pendingFieldSpotHandler=null,pendingFieldSpotMode=null,pendingVoiceResult=null;
+let voiceRecognition=null,voiceListening=false,voiceStopRequested=false,voiceInterpretOnStop=false,voiceSafetyTimer=null,lastVoiceTranscriptRaw="",voiceSessionBase="";
 
 function teamSnapMinimum(){
   const n=Number(S.team?.snapMinimum);
@@ -296,7 +297,8 @@ async function loadTeamFromCloud(options={}){
     const roster=players.filter(x=>x.active!==false).map(x=>({id:x.id,jersey:x.jersey_number??"",name:x.name||"Player",snaps:0}));
     const localGames=games.map(g=>{const gp=plays.filter(x=>x.game_id===g.id).sort((a,b)=>a.sequence-b.sequence).map(r=>restorePlayFromCloud(r,credits.filter(c=>c.play_id===r.id&&c.metadata?.active!==false),penalties.find(q=>q.play_id===r.id)));const sr=snaps.filter(x=>x.game_id===g.id).sort((a,b)=>a.snap_number-b.snap_number).map(x=>({id:x.id,ts:x.client_created_at?Date.parse(x.client_created_at):Date.parse(x.created_at),quarter:Number(x.quarter||1),playerIds:snapParts.filter(q=>q.snap_event_id===x.id).map(q=>q.player_id)}));const auto=gp.reduce((sum,p)=>sum+pointsFromPlay(p),0);const firstBefore=gp[0]?.stateBefore,lastAfter=gp[gp.length-1]?.stateAfter;return {id:g.id,opponent:g.opponent_name||"Opponent",opponentLogoData:g.opponent_logo_data||null,week:Number(g.week_number||1),date:`Week ${Number(g.week_number||1)}`,location:g.location_type||"home",gameType:g.game_type||"regular",status:g.status==="final"?"complete":(g.status||"live"),ourScore:Number(g.team_score||0),scoreAdjustment:Number(g.team_score||0)-auto,scoreModelVersion:2,oppScore:Number(g.opponent_score||0),openingKickoff:g.opening_kickoff||"receive",initialPossession:firstBefore?.possession||((g.opening_kickoff||"receive")==="kick"?"opp":"ours"),initialDown:1,initialDistance:10,initialBallSpot:Field.validSpot(firstBefore?.ballSpot),ballSpot:Field.validSpot(lastAfter?.ballSpot??g.current_state?.ballSpot),down:Number(g.current_down||1),distance:Number(g.current_distance||10),possession:localPossession(g.possession||"ours"),quarter:Number(g.current_quarter||1),cloudRevision:Number(g.revision||1),plays:gp,snapRecords:sr};});
     const cloud={teamId:team.id,seasonId:season.id,teamHash:null,playerIds:Object.fromEntries(players.map(x=>[x.id,x.id])),playerHashes:{},gameIds:Object.fromEntries(games.map(x=>[x.id,x.id])),playIds:Object.fromEntries(plays.map(x=>[x.id,x.id])),playHashes:{},gameHashes:{},creditIds:{},creditHashes:{},penaltyIds:{},penaltyHashes:{},snapIds:Object.fromEntries(snaps.map(x=>[x.id,x.id])),snapHashes:{},connectedAt:new Date().toISOString(),lastSyncAt:new Date().toISOString(),lastSyncError:null,remoteFingerprint:fingerprintLoadedCloudSnapshot(team,players,games,plays,credits,penalties,snaps,snapParts),hashVersion:2,deviceRole:"viewer"};
-    S={team:{name:team.name,grade:team.grade||"5th Grade",season:season.name||String(season.season_year||"Season"),primary:team.primary_color||"#177b46",secondary:team.accent_color||"#f0b33b",logoData:team.logo_data||null,snapMinimum:Number(team.snap_minimum||10)},roster,games:localGames,activeGameId:(refreshing&&priorActiveCloudId&&localGames.some(x=>x.id===priorActiveCloudId))?priorActiveCloudId:null,flow:{},editingPlayId:null,cloud};
+    const voiceCorrections=S.cloud?.teamId===team.id&&S.team?.voiceCorrections?{...S.team.voiceCorrections}:{};
+    S={team:{name:team.name,grade:team.grade||"5th Grade",season:season.name||String(season.season_year||"Season"),primary:team.primary_color||"#177b46",secondary:team.accent_color||"#f0b33b",logoData:team.logo_data||null,snapMinimum:Number(team.snap_minimum||10),voiceCorrections},roster,games:localGames,activeGameId:(refreshing&&priorActiveCloudId&&localGames.some(x=>x.id===priorActiveCloudId))?priorActiveCloudId:null,flow:{},editingPlayId:null,cloud};
     S.cloud.teamHash=simpleHash(buildCloudTeamPayload());for(const p of S.roster)S.cloud.playerHashes[p.id]=simpleHash({season_id:S.cloud.seasonId,jersey_number:String(p.jersey??""),name:p.name||"Player",active:true});
     for(const p of plays){const lp=localGames.flatMap(x=>x.plays).find(x=>x.id===p.id);if(!lp)continue;const g=localGames.find(x=>x.id===p.game_id);const idx=g.plays.findIndex(x=>x.id===p.id);S.cloud.playHashes[p.id]=simpleHash(buildCloudPlayPayload(g,lp,idx,g.id));for(const c of buildCloudCredits(lp)){const row=credits.find(x=>x.play_id===p.id&&x.player_id===c.playerLocalId&&x.credit_type===c.credit_type&&x.metadata?.active!==false);if(row){const key=creditKey(lp.id,c);S.cloud.creditIds[key]=row.id;S.cloud.creditHashes[key]=simpleHash(c)}}const pen=penalties.find(x=>x.play_id===p.id);if(pen){S.cloud.penaltyIds[lp.id]=pen.id;S.cloud.penaltyHashes[lp.id]=simpleHash(buildCloudPenaltyPayload(g,lp,g.id,p.id))}}
     for(const g of localGames)S.cloud.gameHashes[g.id]=simpleHash(buildCloudGamePayload(g));for(const g of localGames)(g.snapRecords||[]).forEach((r,i)=>S.cloud.snapHashes[r.id]=simpleHash(buildCloudSnapPayload(g,r,i,g.id)));
@@ -823,7 +825,7 @@ $("#saveTeam").addEventListener("click",()=>{
     const ok=confirm(`New season: ${nextSeason}. In the production app, starting a new season will require a new season purchase. Continue in test mode?`);
     if(!ok)return;
   }
-  S.team={name,grade:$("#grade").value,season:nextSeason,primary:$("#primary").value,secondary:$("#secondary").value,logoData:S.team?.logoData||null,snapMinimum};
+  S.team={name,grade:$("#grade").value,season:nextSeason,primary:$("#primary").value,secondary:$("#secondary").value,logoData:S.team?.logoData||null,snapMinimum,voiceCorrections:{...(S.team?.voiceCorrections||{})}};
   persist();syncChrome();normalizeRoster();initializeSnapSelections();renderRoster();updateCloudUI();toast("Team saved");
   go("roster");
 });
@@ -833,7 +835,7 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
-$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"4.5.7",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
+$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"4.5.10",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
 $("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
 $("#restoreDataInput").addEventListener("change",async()=>{
   const f=$("#restoreDataInput").files?.[0];if(!f)return;
@@ -893,7 +895,7 @@ function renderGameList(){
         <button class="btn danger small delete-game" data-id="${g.id}">Delete</button>
       </div>
     </div>`).join("");
-  $$(".open-game").forEach(b=>b.addEventListener("click",()=>{S.activeGameId=b.dataset.id;selectedStatsGameId=b.dataset.id;persist();renderGameArea()}));
+  $$(".open-game").forEach(b=>b.addEventListener("click",()=>{const g=gameById(b.dataset.id);if(!g)return;if(g.status==="complete"){if(!confirm(`This game is marked Final. Resume the game vs ${g.opponent} and mark it Live?`))return;g.status="live";toast("Game resumed — now Live")}S.activeGameId=g.id;selectedStatsGameId=g.id;persist();renderGameArea()}));
   $$(".edit-saved-game").forEach(b=>b.addEventListener("click",()=>{
     S.activeGameId=b.dataset.id;selectedStatsGameId=b.dataset.id;persist();renderGameArea();openEditGame();
   }));
@@ -991,7 +993,8 @@ $("#saveGameDetailsBtn").addEventListener("click",()=>{
 
 $("#endGameBtn").addEventListener("click",()=>{
   const g=currentGame();if(!g)return;
-  g.status="complete";S.activeGameId=null;persist();toast("Game saved");renderGameArea()
+  if(!confirm(`Finalize the game vs ${g.opponent}? The viewer scoreboard will show Final.`))return;
+  g.status="complete";S.activeGameId=null;persist();toast("Game finalized");renderGameArea()
 });
 $("#setOurScore").addEventListener("click",()=>{
   const g=currentGame();if(!g)return;ensureScoreModel(g);
@@ -3095,11 +3098,12 @@ $("#exportExcelBtn").addEventListener("click",()=>{
 });
 
 function closeVoicePlay(){
+  stopVoiceListening(false);
   $("#voicePlayModal")?.classList.add("hidden");pendingVoiceResult=null;
   if($("#voiceConfirmBtn"))$("#voiceConfirmBtn").disabled=true;
   $("#voiceConflictActions")?.classList.add("hidden");
 }
-function voiceContext(){const g=currentGame();return {possession:g?.possession||"ours",ballSpot:g?.ballSpot,teamName:S.team?.name||"Our",opponentName:g?.opponent||"Opponent"}}
+function voiceContext(){const g=currentGame();return {possession:g?.possession||"ours",ballSpot:g?.ballSpot,teamName:S.team?.name||"Our",opponentName:g?.opponent||"Opponent",voiceCorrections:S.team?.voiceCorrections||{}}}
 function voiceSpotWords(spot){const n=Field.validSpot(spot),g=currentGame();if(n===(g?.possession==="opp"?0:100))return "end zone touchdown";if(n===50)return "midfield";if(n<50)return `${S.team.name} ${n}`;return `${g?.opponent||"opponent"} ${100-n}`}
 function interpretVoicePlay(){
   const transcript=$("#voiceTranscript")?.value||"",result=window.SidelineVoice?.interpretVoiceCommand(transcript,S.roster,voiceContext());
@@ -3117,18 +3121,26 @@ function interpretVoicePlay(){
   pendingVoiceResult=result;$("#voicePlayPreview").textContent=result.summary;$("#voicePlayPreview").classList.add("ready");
   if(result.conflict){$("#voicePlayStatus").textContent=`You said ${Field.label(result.conflict.spoken,S.team.name,currentGame().opponent)}, but the app currently has ${Field.label(result.conflict.current,S.team.name,currentGame().opponent)}. Which is correct?`;$("#voiceConflictActions").classList.remove("hidden")}else{$("#voicePlayStatus").textContent="Ready to confirm";$("#voiceConfirmBtn").disabled=false}
 }
-$("#voicePlayBtn")?.addEventListener("click",()=>{if(!currentGame())return toast("Open a game first");$("#voiceTranscript").value="";$("#voicePlayStatus").textContent="Tap Start Listening, then describe one play.";$("#voicePlayPreview").textContent="Nothing will be recorded until you confirm it.";$("#voicePlayPreview").classList.remove("ready");$("#voiceConfirmBtn").disabled=true;$("#voicePlayModal").classList.remove("hidden")});
+$("#voicePlayBtn")?.addEventListener("click",()=>{if(!currentGame())return toast("Open a game first");lastVoiceTranscriptRaw="";$("#voiceTranscript").value="";$("#voicePlayStatus").textContent="Tap Start Listening, then tap again when you finish.";$("#voicePlayPreview").textContent="Nothing will be recorded until you confirm it.";$("#voicePlayPreview").classList.remove("ready");$("#voiceConfirmBtn").disabled=true;$("#voicePlayModal").classList.remove("hidden")});
 $("#voicePlayCloseBtn")?.addEventListener("click",closeVoicePlay);$("#voicePlayModal")?.addEventListener("click",e=>{if(e.target.id==="voicePlayModal")closeVoicePlay()});
-$("#voiceInterpretBtn")?.addEventListener("click",interpretVoicePlay);
+function learnVoiceCorrection(){const heard=window.SidelineVoice?.normalize(lastVoiceTranscriptRaw).split(" ").filter(Boolean)||[],edited=window.SidelineVoice?.normalize($("#voiceTranscript")?.value).split(" ").filter(Boolean)||[];if(!lastVoiceTranscriptRaw||heard.length!==edited.length)return "";const changes=heard.map((word,i)=>word!==edited[i]?[word,edited[i]]:null).filter(Boolean);if(changes.length!==1)return "";const [from,to]=changes[0];S.team.voiceCorrections={...(S.team.voiceCorrections||{}),[from]:to};lastVoiceTranscriptRaw=$("#voiceTranscript").value;persist();return ` Remembering “${from}” as “${to}” for ${S.team.name}.`}
+$("#voiceInterpretBtn")?.addEventListener("click",()=>{const learned=learnVoiceCorrection();interpretVoicePlay();if(learned)$("#voicePlayStatus").textContent+=learned});
 $("#voiceUseSpokenStart")?.addEventListener("click",()=>{if(!pendingVoiceResult?.conflict)return;pendingVoiceResult.useSpokenStart=true;$("#voiceConflictActions").classList.add("hidden");$("#voicePlayStatus").textContent="Using the spoken starting position. Ready to confirm.";$("#voiceConfirmBtn").disabled=false});
 $("#voiceKeepCurrentStart")?.addEventListener("click",()=>{if(!pendingVoiceResult?.conflict)return;const current=pendingVoiceResult.conflict.current,flow=pendingVoiceResult.flow;flow.startSpot=current;if(Field.validSpot(flow.endSpot)!==null&&(flow.type==="Rush"||(flow.type==="Pass"&&flow.sub==="Complete")||flow.type==="Defense"))flow.yards=Field.yardsBetween(current,flow.endSpot,currentGame().possession);$("#voicePlayPreview").textContent=`${pendingVoiceResult.summary.split(" • ")[0]} • corrected to ${flow.yards} yards from ${Field.label(current,S.team.name,currentGame().opponent)}`;$("#voiceConflictActions").classList.add("hidden");$("#voicePlayStatus").textContent="Keeping the app's current position. Ready to confirm.";$("#voiceConfirmBtn").disabled=false});
-$("#voiceStartBtn")?.addEventListener("click",()=>{
+function resetVoiceButton(){voiceListening=false;voiceRecognition=null;clearTimeout(voiceSafetyTimer);voiceSafetyTimer=null;const btn=$("#voiceStartBtn");if(btn){btn.disabled=false;btn.textContent="🎙️ Start Listening"}}
+function stopVoiceListening(interpret=true){if(!voiceListening)return;voiceStopRequested=true;voiceInterpretOnStop=interpret;clearTimeout(voiceSafetyTimer);voiceSafetyTimer=null;try{voiceRecognition?.stop()}catch(e){}if(!voiceRecognition){resetVoiceButton();if(interpret)interpretVoicePlay()}}
+function startVoiceRecognition(){
   const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;if(!Recognition)return toast("Voice recognition is not available here. You can type the play instead.");
-  const recognition=new Recognition();recognition.lang="en-US";recognition.interimResults=false;recognition.maxAlternatives=3;
-  $("#voicePlayStatus").textContent="Listening…";$("#voiceStartBtn").disabled=true;
-  recognition.onresult=e=>{$("#voiceTranscript").value=e.results?.[0]?.[0]?.transcript||"";interpretVoicePlay()};
-  recognition.onerror=e=>{$("#voicePlayStatus").textContent=e.error==="not-allowed"?"Microphone permission was not allowed.":"I couldn't clearly hear that play. Try again or type it."};
-  recognition.onend=()=>{$("#voiceStartBtn").disabled=false};recognition.start();
+  voiceRecognition=new Recognition();voiceRecognition.lang="en-US";voiceRecognition.interimResults=true;voiceRecognition.continuous=true;voiceRecognition.maxAlternatives=3;voiceStopRequested=false;voiceInterpretOnStop=false;voiceListening=true;voiceSessionBase=$("#voiceTranscript").value.trim();
+  $("#voicePlayStatus").textContent="Listening… take your time, then tap Stop & Transcribe.";$("#voiceStartBtn").textContent="⏹ Stop & Transcribe";
+  voiceRecognition.onresult=e=>{let words="";for(let i=0;i<e.results.length;i++)words+=`${e.results[i]?.[0]?.transcript||""} `;const value=`${voiceSessionBase} ${words}`.trim();$("#voiceTranscript").value=value;lastVoiceTranscriptRaw=value};
+  voiceRecognition.onerror=e=>{if(e.error==="not-allowed"){voiceStopRequested=true;$("#voicePlayStatus").textContent="Microphone permission was not allowed."}else if(!["no-speech","aborted"].includes(e.error))$("#voicePlayStatus").textContent="I couldn't clearly hear that play. Try again or type it."};
+  voiceRecognition.onend=()=>{const stopped=voiceStopRequested,shouldInterpret=stopped&&voiceInterpretOnStop,stillListening=voiceListening;voiceRecognition=null;if(stopped){resetVoiceButton();if(shouldInterpret&&$("#voiceTranscript").value.trim())interpretVoicePlay()}else if(stillListening){voiceSessionBase=$("#voiceTranscript").value.trim();setTimeout(()=>{if(voiceListening)startVoiceRecognition()},150)}};
+  voiceRecognition.start();
+}
+$("#voiceStartBtn")?.addEventListener("click",()=>{
+  if(voiceListening)return stopVoiceListening(true);
+  startVoiceRecognition();voiceSafetyTimer=setTimeout(()=>stopVoiceListening(true),30000);
 });
 $("#voiceConfirmBtn")?.addEventListener("click",()=>{
   if(!pendingVoiceResult?.ok)return;const flow=JSON.parse(JSON.stringify(pendingVoiceResult.flow)),useSpoken=!!pendingVoiceResult.useSpokenStart;closeVoicePlay();S.flow=flow;

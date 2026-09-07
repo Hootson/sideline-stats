@@ -34,6 +34,10 @@ assert.match(app, /analyticsExportCard"\)\?\.classList\.toggle\("hidden",viewer\
 assert.match(app, /function renderViewerGameSummary\(\)/, 'viewer Game Center must render its scoreboard');
 assert.match(html, /id="viewerGameSummary"/, 'Stats must contain the viewer scoreboard destination');
 assert.match(html, /id="shareStatsBtn"/, 'Stats sharing must remain available');
-assert.match(sw, /v4-5-9-field-position/, 'service worker cache must be bumped');
+assert.match(sw, /v4-5-10-voice-control/, 'service worker cache must be bumped');
+assert.match(app, /Resume the game vs \$\{g\.opponent\} and mark it Live\?/, 'opening a final game must offer to resume it live');
+assert.match(app, /Finalize the game vs \$\{g\.opponent\}\?/, 'finalizing a game must require confirmation');
+assert.match(app, /voiceRecognition\.continuous=true/, 'voice listening must tolerate pauses');
+assert.match(app, /Stop & Transcribe/, 'voice recording must use an explicit stop action');
 
 console.log('live cloud sync checks passed');
