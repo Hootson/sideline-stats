@@ -111,6 +111,10 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 .game-type-badge.regular{background:#eef5f0;color:var(--p)}
 .game-type-badge.playoff{background:#fff2e8;color:#a94b00}
 .stats-scope{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px;margin-bottom:12px;background:#fff;border:1px solid var(--line);border-radius:16px;position:sticky;top:57px;z-index:8}
+.viewer-mode-label{margin:2px 0 8px;text-align:center;color:var(--muted);font-size:11px;font-weight:950;letter-spacing:.11em}
+.viewer-score-card{margin-bottom:10px}
+.viewer-possession{margin-bottom:12px}
+.viewer-quarter{flex:0 0 auto;min-width:50px;padding:9px 10px;border-radius:10px;background:var(--s);color:var(--p);font-size:15px;font-weight:950;text-align:center}
 .scope-btn{border:1px solid var(--line);background:#f8faf9;border-radius:10px;padding:10px 6px;font-size:12px;font-weight:900;color:var(--muted)}
 .scope-btn.active{background:var(--p);color:#fff;border-color:var(--p)}
 .scope-summary{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}

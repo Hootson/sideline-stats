@@ -95,6 +95,7 @@ async function resolveCloudDeviceRole(){
     }
     S.cloud.deviceRole=role;
     persist({skipCloud:true});
+    syncChrome();
     updateCloudUI();
     return role;
   }catch(e){console.warn("Could not resolve cloud role",e);return cloudDeviceRole()}
@@ -696,6 +697,7 @@ function today(){return new Date().toISOString().slice(0,10)}
 function colors(){let p=S.team?.primary||"#177b46",s=S.team?.secondary||"#f0b33b";document.documentElement.style.setProperty("--p",p);document.documentElement.style.setProperty("--s",s);document.querySelector('meta[name="theme-color"]').setAttribute("content",p)}
 function teamExists(){return !!(S.team&&S.team.name)}
 function currentGame(){return S.games.find(g=>g.id===S.activeGameId)||null}
+function isCloudViewer(){return !!(S.cloud?.teamId&&S.cloud?.seasonId&&cloudDeviceRole()==="viewer")}
 function gameById(id){return S.games.find(g=>g.id===id)||null}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 function readImageFile(file,cb){
@@ -714,20 +716,27 @@ function renderLogoPreview(targetId,data){
 
 function go(name){
   if(!teamExists() && name!=="setup"){toast("Create your team first");name="setup"}
+  if(teamExists()&&isCloudViewer()&&name!=="stats"){
+    name="stats";statsScope="game";selectedStatsGameId=selectedStatsGameId||latestGame()?.id||null;
+  }
   $$(".screen").forEach(x=>x.classList.remove("active"));$(`[data-screen="${name}"]`).classList.add("active");
-  $("#topTitle").textContent={setup:"Sideline Stats",roster:"Roster",game:"Game",snaps:"Snaps",stats:"Team Stats",share:"Share"}[name];
+  $("#topTitle").textContent={setup:"Sideline Stats",roster:"Roster",game:"Game",snaps:"Snaps",stats:isCloudViewer()?"Game Center":"Team Stats",share:"Share"}[name];
   if(name==="game")renderGameArea();
   if(name==="snaps")renderSnaps();
-  if(name==="stats"){if(currentGame())selectedStatsGameId=currentGame().id;renderStats();}
+  if(name==="stats"){if(!isCloudViewer()&&currentGame())selectedStatsGameId=currentGame().id;renderStats();}
   
 }
 $$("[data-go]").forEach(b=>b.addEventListener("click",()=>go(b.dataset.go)));
 
 function syncChrome(){
   colors();
-  $("#bottomNav").classList.toggle("hidden",!teamExists());
-  $("#editTeamBtn").classList.toggle("hidden",!teamExists());
+  const viewer=teamExists()&&isCloudViewer();
+  $("#bottomNav").classList.toggle("hidden",!teamExists()||viewer);
+  $("#editTeamBtn").classList.toggle("hidden",!teamExists()||viewer);
+  $("#analyticsExportCard")?.classList.toggle("hidden",viewer);
   if(teamExists()) $("#editTeamBtn").textContent=`Edit ${S.team.name}`;
+  const activeScreen=$(".screen.active")?.dataset?.screen;
+  if(viewer&&activeScreen&&activeScreen!=="stats")go("stats");
 }
 $("#editTeamBtn").addEventListener("click",()=>{populateSetup();go("setup")});
 $("#resetAllBtn").addEventListener("click",()=>{
@@ -822,7 +831,7 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
-$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"4.5.6",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
+$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"4.5.7",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
 $("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
 $("#restoreDataInput").addEventListener("change",async()=>{
   const f=$("#restoreDataInput").files?.[0];if(!f)return;
@@ -1928,6 +1937,27 @@ function selectedStatsGame(){
   selectedStatsGameId=games[0].id;
   return games[0];
 }
+function renderViewerGameSummary(){
+  const box=$("#viewerGameSummary");if(!box)return;
+  const viewer=isCloudViewer();box.classList.toggle("hidden",!viewer);if(!viewer){box.innerHTML="";return}
+  const g=selectedStatsGame();
+  if(!g){box.innerHTML='<div class="card"><strong>No games available yet.</strong></div>';return}
+  const teamName=S.team?.name||"Team",opp=g.opponent||"Opponent";
+  const teamMark=S.team?.logoData?`<img src="${S.team.logoData}" alt="${esc(teamName)} logo">`:`<div style="font-size:26px;font-weight:950;color:var(--p)">${esc(teamName.split(/\s+/).map(x=>x[0]).join("").slice(0,2).toUpperCase()||"SS")}</div>`;
+  const oppMark=g.opponentLogoData?`<img src="${g.opponentLogoData}" alt="${esc(opp)} logo">`:esc(opp.trim().charAt(0).toUpperCase()||"O");
+  const possession=g.possession==="opp"?`${opp} Ball — OUR DEFENSE`:`${teamName} Ball — OUR OFFENSE`;
+  const status=g.status==="complete"?"Final":`Q${Number(g.quarter||1)} • Live`;
+  box.innerHTML=`
+    <div class="viewer-mode-label">VIEW-ONLY GAME CENTER</div>
+    <div class="game-score-card viewer-score-card">
+      <div class="game-score-inner"><div class="game-score-grid">
+        <div class="game-team-side"><div class="game-team-logo">${teamMark}</div><div class="game-team-name">${esc(teamName)}</div><div class="game-score-num">${displayedOurScore(g)}</div></div>
+        <div class="game-center"><div class="game-vs">VS</div><div class="game-date">${esc(g.date||`Week ${g.week||"?"}`)}</div><div class="game-badges"><span class="game-badge">${esc(status)}</span><span class="game-type-text">${esc(g.location||"Home")}</span></div></div>
+        <div class="game-team-side"><div class="game-opponent-badge">${oppMark}</div><div class="game-team-name">${esc(opp)}</div><div class="game-score-num">${Number(g.oppScore||0)}</div></div>
+      </div></div>
+    </div>
+    <div class="possession-bar viewer-possession"><div><div class="possession-main">${esc(possession)}</div><div class="possession-sub">${ordinal(Number(g.down||1))} &amp; ${Number(g.distance||10)}</div></div><div class="viewer-quarter">${g.status==="complete"?"FINAL":`Q${Number(g.quarter||1)}`}</div></div>`;
+}
 function renderGameHistoryPicker(){
   const picker=$("#gameHistoryPicker"),sel=$("#statsGameSelect");
   picker.classList.toggle("hidden",statsScope!=="game");
@@ -2207,6 +2237,7 @@ $("#recordSnapBtn").addEventListener("click",()=>{
 
 function renderStats(){document.documentElement.style.setProperty("--team-primary",S.team?.primary||"#111111");document.documentElement.style.setProperty("--team-accent",S.team?.secondary||"#f26a00");
   renderGameHistoryPicker();
+  renderViewerGameSummary();
   const src=statsSource(statsScope);
   $$(".scope-btn").forEach(b=>b.classList.toggle("active",b.dataset.scope===statsScope));
   $("#statsShareTitle").textContent=S.team?.name||"Team";

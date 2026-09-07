@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const app = fs.readFileSync('app.js', 'utf8');
 const sw = fs.readFileSync('service-worker.js', 'utf8');
 const sql = fs.readFileSync('supabase-live-stats.sql', 'utf8');
+const html = fs.readFileSync('index.html', 'utf8');
 
 assert.match(app, /function scheduleCloudSync\(delay=350\)/, 'completed local changes should be queued quickly');
 assert.match(app, /if\(cloudSyncRunning\)\{cloudSyncRequested=true;return\}/, 'a change during an active sync must request a follow-up pass');
@@ -25,6 +26,14 @@ assert.match(app, /document\.visibilityState==="hidden"/, 'the frequent viewer c
 assert.match(app, /cloudRevision:Number\(g\.revision\|\|1\)/, 'cloud-loaded games must retain the revision used for redraw checks');
 assert.match(app, /else setTimeout\(checkLiveGameRevisions,100\)/, 'viewers must check immediately after reconnecting or returning to the page');
 assert.match(sql, /security invoker/, 'publish RPC must preserve RLS authorization');
-assert.match(sw, /v4-5-6-automatic-live-viewing/, 'service worker cache must be bumped');
+assert.match(app, /if\(teamExists\(\)&&isCloudViewer\(\)&&name!=="stats"\)/, 'viewer navigation must be restricted to Stats');
+assert.match(app, /selectedStatsGameId=selectedStatsGameId\|\|latestGame\(\)\?\.id/, 'viewer entry must default to the newest game');
+assert.match(app, /if\(!isCloudViewer\(\)&&currentGame\(\)\)selectedStatsGameId=currentGame\(\)\.id/, 'a statkeeper active game must not override a viewer game selection');
+assert.match(app, /bottomNav"\)\.classList\.toggle\("hidden",!teamExists\(\)\|\|viewer\)/, 'viewer navigation tabs must be hidden');
+assert.match(app, /analyticsExportCard"\)\?\.classList\.toggle\("hidden",viewer\)/, 'viewer analytics exports must be hidden');
+assert.match(app, /function renderViewerGameSummary\(\)/, 'viewer Game Center must render its scoreboard');
+assert.match(html, /id="viewerGameSummary"/, 'Stats must contain the viewer scoreboard destination');
+assert.match(html, /id="shareStatsBtn"/, 'Stats sharing must remain available');
+assert.match(sw, /v4-5-7-viewer-game-center/, 'service worker cache must be bumped');
 
 console.log('live cloud sync checks passed');

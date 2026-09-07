@@ -1,4 +1,9 @@
-# Sideline Stats V4.5.6 — Automatic Live Viewing
+# Sideline Stats V4.5.7 — Viewer Game Center
+
+## V4.5.7 changes
+- Viewer accounts now open directly to a read-only Game Center showing the newest game's scoreboard, quarter, possession, down and distance, and full statistics.
+- Viewers can select previous games and share stats, while Roster, Game, Snaps, team editing, and analytics export controls are unavailable.
+- Role-based routing prevents an old navigation action from opening a statkeeping screen. The layout is ready for a separate Coach Analytics destination in a future version.
 
 ## V4.5.6 changes
 - Viewer accounts keep the instant Supabase live subscription and also perform a lightweight game-revision check every three seconds while the page is visible.

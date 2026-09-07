@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V4.5.6</title>
+<title>Sideline Stats V4.5.7</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -32,7 +32,7 @@
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V4.5.6 • AUTOMATIC LIVE VIEWING • GRIDIRON EDITION</div>
+      <div class="muted" style="color:#dfe9e2">V4.5.7 • VIEWER GAME CENTER • GRIDIRON EDITION</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -516,6 +516,7 @@
   </section>
 
 <section class="screen" data-screen="stats">
+    <div id="viewerGameSummary" class="hidden" aria-live="polite"></div>
     <div class="stats-scope" id="statsScope">
       <button class="scope-btn active" data-scope="game">Game</button>
       <button class="scope-btn" data-scope="regular">Regular Season</button>
@@ -537,7 +538,7 @@
     </div>
     <button class="btn" id="shareStatsBtn" style="margin-top:14px">Share Game Stats</button>
     <div class="share-tip">Shares a Team Summary plus every Player Box Score page. Long stat sheets automatically continue onto additional images.</div>
-    <div class="card export-card">
+    <div class="card export-card" id="analyticsExportCard">
       <h3>Analytics Export</h3>
       <div class="muted">Take the raw game, play and snap data to Excel, ChatGPT, Claude or your own dashboard.</div>
       <div class="data-tools">
