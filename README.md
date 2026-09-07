@@ -1,4 +1,8 @@
-# Sideline Stats V4.5.3 — Live Viewing
+# Sideline Stats V4.5.4 — Reliable Live Sync
+
+## V4.5.4 fix
+- A change made while another cloud sync is still running now queues an immediate follow-up sync instead of remaining pending.
+- This specifically fixes a newly created game getting stuck at **Cloud connected — 1 pending** during startup.
 
 ## V4.5.3 changes
 - A connected statkeeper publishes completed play updates to Supabase after the full play, credits, penalties, and game state are stored.

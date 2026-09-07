@@ -353,7 +353,7 @@ async function connectTeamToCloud(){
   finally{if(btn){btn.disabled=false;btn.textContent="Connect Team"}updateCloudUI()}
 }
 
-let cloudSyncTimer=null,cloudSyncRunning=false;
+let cloudSyncTimer=null,cloudSyncRunning=false,cloudSyncRequested=false;
 function cloudUuid(){return (crypto?.randomUUID?crypto.randomUUID():"xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,c=>{const r=Math.random()*16|0,v=c==="x"?r:(r&3|8);return v.toString(16)}))}
 function simpleHash(value){
   const str=typeof value==="string"?value:JSON.stringify(value);let h=2166136261;
@@ -401,6 +401,7 @@ function rebaseCloudHashesV443(){
 }
 function scheduleCloudSync(delay=350){
   if(!isCloudStatkeeper())return;
+  if(cloudSyncRunning){cloudSyncRequested=true;return}
   if(cloudSyncTimer)clearTimeout(cloudSyncTimer);
   cloudSyncTimer=setTimeout(()=>{cloudSyncTimer=null;syncCloudNow()},delay);
 }
@@ -630,7 +631,8 @@ async function syncDeletedCloudSnaps(){
   return changed;
 }
 async function syncCloudNow(){
-  if(cloudSyncRunning||!SB||!cloudUser||!cloudLinked()||navigator.onLine===false||!isCloudStatkeeper())return;
+  if(cloudSyncRunning){cloudSyncRequested=true;return}
+  if(!SB||!cloudUser||!cloudLinked()||navigator.onLine===false||!isCloudStatkeeper())return;
   cloudSyncRunning=true;updateCloudUI();
   try{
     await ensureCloudTeam();
@@ -645,7 +647,7 @@ async function syncCloudNow(){
     try{S.cloud.remoteFingerprint=await remoteCloudFingerprint()}catch(_){S.cloud.remoteFingerprint=null}
     persist({skipCloud:true});setTimeout(checkCloudForUpdates,500);
   }catch(e){console.error("Cloud sync failed",e);S.cloud.lastSyncError=(e?.message||"Will retry when connected").slice(0,120);persist({skipCloud:true})}
-  finally{cloudSyncRunning=false;updateCloudUI()}
+  finally{const runAgain=cloudSyncRequested;cloudSyncRequested=false;cloudSyncRunning=false;updateCloudUI();if(runAgain)scheduleCloudSync(100)}
 }
 window.addEventListener("online",()=>{if(isCloudStatkeeper())scheduleCloudSync(150);setTimeout(checkCloudForUpdates,500)});
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){if(isCloudStatkeeper())scheduleCloudSync(250);setTimeout(checkCloudForUpdates,500)}});
@@ -797,7 +799,7 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
-$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"4.5.3",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
+$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"4.5.4",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
 $("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
 $("#restoreDataInput").addEventListener("change",async()=>{
   const f=$("#restoreDataInput").files?.[0];if(!f)return;
