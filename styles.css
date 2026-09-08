@@ -194,7 +194,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
 
 
-.snap-player{grid-template-columns:auto 1fr minmax(84px,120px)}
+.snap-player{grid-template-columns:auto minmax(62px,1fr) minmax(92px,120px) minmax(58px,70px)}
 .snap-player-main{min-width:0}
 .snap-progress-wrap{display:flex;flex-direction:column;gap:6px}
 .snap-progress-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -209,6 +209,11 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 .snap-alert-card{border:2px solid var(--s);background:#fffaf6}
 .snap-alert-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .snap-alert-num{font-size:28px;font-weight:950;color:var(--p)}
+.snap-minimum-change{border:0;background:transparent;color:var(--p);font:inherit;font-size:12px;font-weight:900;text-decoration:underline;padding:5px 0 0;cursor:pointer}
+.snap-usage{border-left:1px solid var(--line);padding-left:9px;text-align:right;line-height:1.05}
+.snap-usage strong{display:block;color:var(--p);font-size:17px;font-weight:950}
+.snap-usage span{display:block;margin-top:4px;font-size:10px;font-weight:850;white-space:nowrap;color:var(--muted)}
+.snap-usage small{display:block;margin-top:4px;font-size:8px;font-weight:950;letter-spacing:.06em;color:var(--muted)}
 
 
 /* Current data + analytics */

@@ -104,26 +104,35 @@ async function resolveCloudDeviceRole(){
   }catch(e){console.warn("Could not resolve cloud role",e);return cloudDeviceRole()}
 }
 
-let cloudRealtimeChannel=null,cloudRealtimeTimer=null,cloudRealtimeConnected=false,cloudLiveCheckRunning=false;
+let cloudRealtimeChannel=null,cloudRealtimeTimer=null,cloudRealtimeReconnectTimer=null,cloudRealtimeConnected=false,cloudRealtimeRefreshQueued=false,cloudLiveCheckRunning=false;
 
-function stopCloudRealtime(){
+function stopCloudRealtime(options={}){
   if(cloudRealtimeTimer){clearTimeout(cloudRealtimeTimer);cloudRealtimeTimer=null}
-  if(cloudRealtimeChannel&&SB){try{SB.removeChannel(cloudRealtimeChannel)}catch(e){}}
-  cloudRealtimeChannel=null;cloudRealtimeConnected=false;
+  if(cloudRealtimeReconnectTimer){clearTimeout(cloudRealtimeReconnectTimer);cloudRealtimeReconnectTimer=null}
+  const priorChannel=cloudRealtimeChannel;cloudRealtimeChannel=null;
+  if(priorChannel&&SB){try{SB.removeChannel(priorChannel)}catch(e){}}
+  cloudRealtimeConnected=false;if(!options.preserveRefresh)cloudRealtimeRefreshQueued=false;
 }
 function queueRealtimeRefresh(){
+  cloudRealtimeRefreshQueued=true;
   if(cloudRealtimeTimer)clearTimeout(cloudRealtimeTimer);
   cloudRealtimeTimer=setTimeout(async()=>{
     cloudRealtimeTimer=null;
-    if(isCloudStatkeeper()||!SB||!cloudUser||!cloudLinked()||navigator.onLine===false||cloudPendingCount()>0||cloudSyncRunning||cloudAutoRefreshRunning)return;
+    if(isCloudStatkeeper()||!SB||!cloudUser||!cloudLinked()||navigator.onLine===false)return;
+    if(cloudAutoRefreshRunning||cloudRemoteCheckRunning||cloudLiveCheckRunning){queueRealtimeRefresh();return}
+    cloudRealtimeRefreshQueued=false;
     cloudAutoRefreshRunning=true;
     try{await loadTeamFromCloud({refresh:true,auto:true})}
     catch(e){console.warn("Realtime refresh failed",e)}
-    finally{cloudAutoRefreshRunning=false}
+    finally{cloudAutoRefreshRunning=false;if(cloudRealtimeRefreshQueued)queueRealtimeRefresh()}
   },650);
 }
-function startCloudRealtime(){
-  stopCloudRealtime();
+function scheduleCloudRealtimeReconnect(){
+  if(cloudRealtimeReconnectTimer||isCloudStatkeeper()||!SB||!cloudUser||!cloudLinked()||navigator.onLine===false)return;
+  cloudRealtimeReconnectTimer=setTimeout(()=>{cloudRealtimeReconnectTimer=null;startCloudRealtime();queueRealtimeRefresh()},2000);
+}
+function startCloudRealtime(options={}){
+  stopCloudRealtime(options);
   if(!SB||!cloudUser||!cloudLinked())return;
   const gameIds=Object.values(S.cloud?.gameIds||{}).filter(Boolean);
   let ch=SB.channel(`sideline-live-${S.cloud.teamId}-${Date.now()}`);
@@ -140,7 +149,11 @@ function startCloudRealtime(){
   ch=ch.on('postgres_changes',{event:'*',schema:'public',table:'snap_participants'},queueRealtimeRefresh);
   cloudRealtimeChannel=ch.subscribe(status=>{
     cloudRealtimeConnected=status==='SUBSCRIBED';
-    if(status==='CHANNEL_ERROR'||status==='TIMED_OUT')console.warn('Realtime channel',status);
+    if(status==='SUBSCRIBED'&&cloudRealtimeReconnectTimer){clearTimeout(cloudRealtimeReconnectTimer);cloudRealtimeReconnectTimer=null}
+    if((status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED')&&cloudRealtimeChannel===ch){
+      console.warn('Realtime channel',status);
+      scheduleCloudRealtimeReconnect();
+    }
     updateCloudUI();
   });
 }
@@ -168,7 +181,7 @@ async function restoreRememberedTeam(){
   if(cloudLinked()){
     rememberTeam(S.cloud.teamId);
     await resolveCloudDeviceRole();
-    if(navigator.onLine!==false&&cloudPendingCount()===0){
+    if(navigator.onLine!==false&&(!isCloudStatkeeper()||cloudPendingCount()===0)){
       try{
         const remoteFingerprint=await remoteCloudFingerprint();
         if(S.cloud.remoteFingerprint&&remoteFingerprint!==S.cloud.remoteFingerprint){
@@ -287,7 +300,7 @@ async function loadTeamFromCloud(options={}){
     if(!team&&refreshing&&S.cloud?.teamId){const q=await SB.from("teams").select("id,name,grade,primary_color,accent_color,logo_data,snap_minimum,timezone,created_at,updated_at").eq("id",S.cloud.teamId).single();if(q.error)throw q.error;team=q.data}
     if(!team)team=await chooseCloudTeam();if(!team)return;
     const {data:seasons,error:se}=await SB.from("seasons").select("*").eq("team_id",team.id).order("created_at",{ascending:false});if(se)throw se;const season=seasons?.find(x=>x.status==="active")||seasons?.[0];if(!season)throw new Error("This cloud team has no season yet");
-    const [pr,gr]=await Promise.all([SB.from("players").select("*").eq("season_id",season.id).order("created_at"),SB.from("games").select("*").eq("season_id",season.id).order("created_at")]);if(pr.error)throw pr.error;if(gr.error)throw gr.error;
+    const [pr,gr]=await Promise.all([SB.from("players").select("*").eq("season_id",season.id).order("created_at"),SB.from("games").select("*").eq("season_id",season.id).neq("status","archived").order("created_at")]);if(pr.error)throw pr.error;if(gr.error)throw gr.error;
     const players=pr.data||[],games=gr.data||[],gameIds=games.map(x=>x.id);
     let plays=[],credits=[],penalties=[],snaps=[],snapParts=[];
     if(gameIds.length){const [a,b,c]=await Promise.all([SB.from("plays").select("*").in("game_id",gameIds).is("deleted_at",null).order("sequence"),SB.from("penalties").select("*").in("game_id",gameIds).eq("accepted",true),SB.from("snap_events").select("*").in("game_id",gameIds).eq("active",true).order("snap_number")]);if(a.error)throw a.error;if(b.error)throw b.error;if(c.error)throw c.error;plays=a.data||[];penalties=b.data||[];snaps=c.data||[];
@@ -307,7 +320,7 @@ async function loadTeamFromCloud(options={}){
     go(refreshing?priorScreen:(options.destination||"roster"));
     if(!autoRefresh)toast(refreshing?"Latest cloud changes loaded":"Cloud team loaded on this device");
     // Recheck membership after every load so an owner/statkeeper cannot remain stuck in viewer mode.
-    setTimeout(checkCloudForUpdates,1200);startCloudRealtime();
+    setTimeout(checkCloudForUpdates,1200);startCloudRealtime({preserveRefresh:true});
   }catch(e){console.error("Cloud restore failed",e);toast(e?.message||"Could not load cloud team")}
   finally{if(btn){btn.disabled=false;btn.textContent=refreshing?"Refresh Cloud":"Load Cloud Team"}updateCloudUI()}
 }
@@ -385,6 +398,8 @@ function cloudPendingItems(){
   for(const localId of Object.keys(S.cloud.playIds||{}))if(!localPlayIds.has(localId))out.push("deleted play");
   const localSnapIds=new Set((S.games||[]).flatMap(g=>(g.snapRecords||[]).map(r=>r.id)));
   for(const localId of Object.keys(S.cloud.snapIds||{}))if(!localSnapIds.has(localId))out.push("deleted snap");
+  const localGameIds=new Set((S.games||[]).map(g=>g.id));
+  for(const localId of Object.keys(S.cloud.gameIds||{}))if(!localGameIds.has(localId))out.push("deleted game");
   return out;
 }
 function cloudPendingCount(){return cloudPendingItems().length}
@@ -432,7 +447,7 @@ async function remoteCloudFingerprint(){
   const [teamQ,playersQ,gamesQ]=await Promise.all([
     SB.from("teams").select("id,updated_at,snap_minimum").eq("id",S.cloud.teamId).single(),
     SB.from("players").select("id,updated_at,active,jersey_number,name").eq("season_id",S.cloud.seasonId),
-    SB.from("games").select("id,updated_at,revision,status,current_quarter,team_score,opponent_score,possession,current_down,current_distance").eq("season_id",S.cloud.seasonId)
+    SB.from("games").select("id,updated_at,revision,status,current_quarter,team_score,opponent_score,possession,current_down,current_distance").eq("season_id",S.cloud.seasonId).neq("status","archived")
   ]);
   if(teamQ.error)throw teamQ.error;if(playersQ.error)throw playersQ.error;if(gamesQ.error)throw gamesQ.error;
   const gameIds=(gamesQ.data||[]).map(x=>x.id);
@@ -453,7 +468,7 @@ async function remoteCloudFingerprint(){
   return simpleHash({team:teamQ.data,players:sort(playersQ.data),games:sort(gamesQ.data),plays:sort(plays),credits:sort(credits),penalties:sort(penalties),snaps:sort(snaps),snapParts:sort(snapParts)});
 }
 async function checkCloudForUpdates(){
-  if(isCloudStatkeeper()||cloudRemoteCheckRunning||cloudLiveCheckRunning||cloudAutoRefreshRunning||!SB||!cloudUser||!cloudLinked()||navigator.onLine===false||cloudPendingCount()>0)return;
+  if(isCloudStatkeeper()||cloudRemoteCheckRunning||cloudLiveCheckRunning||cloudAutoRefreshRunning||!SB||!cloudUser||!cloudLinked()||navigator.onLine===false)return;
   cloudRemoteCheckRunning=true;
   try{
     const fp=await remoteCloudFingerprint();
@@ -462,7 +477,7 @@ async function checkCloudForUpdates(){
     }
     cloudRemoteUpdates=fp!==S.cloud.remoteFingerprint;
     updateCloudUI();
-    if(cloudRemoteUpdates&&cloudPendingCount()===0){
+    if(cloudRemoteUpdates){
       cloudAutoRefreshRunning=true;
       try{await loadTeamFromCloud({refresh:true,auto:true})}
       finally{cloudAutoRefreshRunning=false}
@@ -475,10 +490,10 @@ function liveGameRevisionsChanged(rows){
   return (rows||[]).some(row=>!local.has(row.id)||Number(row.revision||0)!==local.get(row.id));
 }
 async function checkLiveGameRevisions(){
-  if(isCloudStatkeeper()||cloudLiveCheckRunning||cloudRemoteCheckRunning||cloudAutoRefreshRunning||!SB||!cloudUser||!cloudLinked()||navigator.onLine===false||document.visibilityState==="hidden"||cloudPendingCount()>0)return;
+  if(isCloudStatkeeper()||cloudLiveCheckRunning||cloudRemoteCheckRunning||cloudAutoRefreshRunning||!SB||!cloudUser||!cloudLinked()||navigator.onLine===false||document.visibilityState==="hidden")return;
   cloudLiveCheckRunning=true;
   try{
-    const {data,error}=await SB.from("games").select("id,revision").eq("season_id",S.cloud.seasonId);
+    const {data,error}=await SB.from("games").select("id,revision").eq("season_id",S.cloud.seasonId).neq("status","archived");
     if(error)throw error;
     if(liveGameRevisionsChanged(data||[])){
       cloudAutoRefreshRunning=true;
@@ -658,6 +673,16 @@ async function syncDeletedCloudSnaps(){
   }
   return changed;
 }
+async function syncDeletedCloudGames(){
+  let changed=false;
+  const localGameIds=new Set((S.games||[]).map(g=>g.id));
+  for(const [localId,cloudId] of Object.entries(S.cloud.gameIds||{})){
+    if(localGameIds.has(localId))continue;
+    const {error}=await SB.from("games").update({status:"archived"}).eq("id",cloudId);if(error)throw error;
+    delete S.cloud.gameIds[localId];delete S.cloud.gameHashes[localId];persist({skipCloud:true});changed=true;
+  }
+  return changed;
+}
 async function syncCloudNow(){
   if(cloudSyncRunning){cloudSyncRequested=true;return}
   if(!SB||!cloudUser||!cloudLinked()||navigator.onLine===false||!isCloudStatkeeper())return;
@@ -670,7 +695,11 @@ async function syncCloudNow(){
     for(const g of ordered){if(!cloudGameNeedsSync(g))continue;const cloudGameId=await ensureCloudGame(g);for(let i=0;i<(g.plays||[]).length;i++)await syncOnePlay(g,g.plays[i],i,cloudGameId);for(let i=0;i<(g.snapRecords||[]).length;i++)await syncSnapRecord(g,g.snapRecords[i],i,cloudGameId);await ensureCloudGame(g);await publishCloudGame(cloudGameId);published.push(cloudGameId)}
     const deletedPlays=await syncDeletedCloudPlays();
     const deletedSnaps=await syncDeletedCloudSnaps();
-    if(deletedPlays||deletedSnaps)for(const cloudGameId of [...new Set(Object.values(S.cloud.gameIds||{}).filter(Boolean))])if(!published.includes(cloudGameId))await publishCloudGame(cloudGameId);
+    if(deletedPlays||deletedSnaps){
+      const localGameIds=new Set((S.games||[]).map(g=>g.id));
+      for(const [localId,cloudGameId] of Object.entries(S.cloud.gameIds||{}))if(localGameIds.has(localId)&&cloudGameId&&!published.includes(cloudGameId))await publishCloudGame(cloudGameId);
+    }
+    await syncDeletedCloudGames();
     S.cloud.lastSyncAt=new Date().toISOString();S.cloud.lastSyncError=null;
     try{S.cloud.remoteFingerprint=await remoteCloudFingerprint()}catch(_){S.cloud.remoteFingerprint=null}
     persist({skipCloud:true});setTimeout(checkCloudForUpdates,500);
@@ -694,6 +723,7 @@ function normalizeRoster(){
 function normalizeGames(){
   let changed=false;
   (S.games||[]).forEach(g=>{if(!g.gameType){g.gameType="regular";changed=true}if(!g.week){const w=Number(String(g.date||"").replace(/\D/g,""));if(w>=1&&w<=10){g.week=w;changed=true}} if(!g.down||g.down<1||g.down>4){g.down=1;changed=true} if(!g.possession){g.possession="ours";changed=true}if(!g.quarter||g.quarter<1||g.quarter>4){g.quarter=1;changed=true}if(!Array.isArray(g.snapRecords)){g.snapRecords=[];changed=true}if(!g.distance||g.distance<1){g.distance=10;changed=true}if(g.ballSpot===undefined){g.ballSpot=null;changed=true}if(g.initialBallSpot===undefined){g.initialBallSpot=null;changed=true}});
+  if(S.activeGameId&&gameById(S.activeGameId)?.status==="complete"){S.activeGameId=null;changed=true}
   if(changed)persist();
 }
 function toast(m){let t=$("#toast");t.textContent=m;t.style.display="block";setTimeout(()=>t.style.display="none",1500)}
@@ -835,7 +865,7 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
-$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"4.5.10",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
+$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"4.5.11",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
 $("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
 $("#restoreDataInput").addEventListener("change",async()=>{
   const f=$("#restoreDataInput").files?.[0];if(!f)return;
@@ -883,6 +913,13 @@ function renderGameArea(){
   renderGameList();
   if(g) renderLiveGame();
 }
+function resumeGameIfFinal(g){
+  if(!g)return false;
+  if(g.status!=="complete")return true;
+  if(!confirm(`This game is marked Final. Resume the game vs ${g.opponent} and mark it Live?`))return false;
+  g.status="live";persist();toast("Game resumed — now Live");
+  return true;
+}
 function renderGameList(){
   const list=$("#gameList");
   if(!S.games.length){list.innerHTML='<span class="muted">No games yet.</span>';return}
@@ -895,9 +932,10 @@ function renderGameList(){
         <button class="btn danger small delete-game" data-id="${g.id}">Delete</button>
       </div>
     </div>`).join("");
-  $$(".open-game").forEach(b=>b.addEventListener("click",()=>{const g=gameById(b.dataset.id);if(!g)return;if(g.status==="complete"){if(!confirm(`This game is marked Final. Resume the game vs ${g.opponent} and mark it Live?`))return;g.status="live";toast("Game resumed — now Live")}S.activeGameId=g.id;selectedStatsGameId=g.id;persist();renderGameArea()}));
+  $$(".open-game").forEach(b=>b.addEventListener("click",()=>{const g=gameById(b.dataset.id);if(!resumeGameIfFinal(g))return;S.activeGameId=g.id;selectedStatsGameId=g.id;persist();renderGameArea()}));
   $$(".edit-saved-game").forEach(b=>b.addEventListener("click",()=>{
-    S.activeGameId=b.dataset.id;selectedStatsGameId=b.dataset.id;persist();renderGameArea();openEditGame();
+    const g=gameById(b.dataset.id);if(!resumeGameIfFinal(g))return;
+    S.activeGameId=g.id;selectedStatsGameId=g.id;persist();renderGameArea();openEditGame();
   }));
   $$(".delete-game").forEach(b=>b.addEventListener("click",()=>{
     const g=gameById(b.dataset.id); if(!g)return;
@@ -1098,7 +1136,8 @@ function ensureInitialGameState(g){
 function stateWithBallPosition(before,after,p){
   const out=normalizeGameState(after),start=Field.validSpot(p.startSpot??before.ballSpot),end=Field.validSpot(p.endSpot);
   if(p.type==="Game State Correction"){out.ballSpot=Field.validSpot(p.correctedBallSpot??out.ballSpot??start);return out}
-  if(out.possession!==before.possession||p.extras?.includes("TD")){out.ballSpot=null;return out}
+  if(out.possession!==before.possession){out.ballSpot=end;return out}
+  if(p.extras?.includes("TD")){out.ballSpot=null;return out}
   if(end!==null){out.ballSpot=end;return out}
   if(start!==null&&Number.isFinite(Number(p.yards))&&(p.type==="Rush"||(p.type==="Pass"&&p.sub==="Complete")||(p.type==="Defense"&&["Opponent Run","Complete Pass","Sack","TFL","Tackle"].includes(p.sub))))out.ballSpot=Field.advanceSpot(start,Number(p.yards),before.possession);
   else out.ballSpot=start;
@@ -1387,10 +1426,11 @@ $$(".def-pass").forEach(b=>b.addEventListener("click",()=>{
   if(v==="Incomplete"){
     S.flow={type:"Defense",sub:"Incomplete Pass",yards:0,extras:[]};
     $("#stepDefensePass").classList.add("hidden");
-    $("#stepPassDefended").classList.remove("hidden");
+    ensureDriveStart(()=>$("#stepPassDefended").classList.remove("hidden"));
   }else if(v==="INT"){
     S.flow={type:"Defense",sub:"INT",yards:0,extras:[]};
-    showDefenseTurnoverPlayer("Interception");
+    $("#stepDefensePass").classList.add("hidden");
+    ensureDriveStart(()=>showDefenseTurnoverPlayer("Interception"));
   }else if(v==="Sack"){
     S.flow={type:"Defense",sub:"Sack",extras:[]};
     showDefenseSimpleYards("Sack yards lost (enter a positive number, e.g. 6)");
@@ -1407,7 +1447,6 @@ $$(".def-simple-yard").forEach(b=>b.addEventListener("click",()=>{
 $("#defSimpleYardsUse").addEventListener("click",()=>setDefenseYardsAndContinue($("#defSimpleYardsExact").value));
 $("#defTacklersDone").addEventListener("click",()=>{
   if(!(S.flow.tacklerIds||[]).length)return toast("Select at least one tackler or choose No Tackle / Scored");
-  S.flow.tackleKind=Number(S.flow.yards)<0?"TFL":"Tackle";
   showDefenseOutcome();
 });
 $("#defNoTackle").addEventListener("click",()=>{
@@ -1415,7 +1454,7 @@ $("#defNoTackle").addEventListener("click",()=>{
 });
 $$(".def-outcome").forEach(b=>b.addEventListener("click",()=>{
   const v=b.dataset.defout;
-  if(v==="None")return finishSimpleDefensePlay();
+  if(v==="None")return finishDefenseAtEndSpot();
   if(v==="TD"){
     const returner=S.flow.fumbleRecoveryPlayerId||S.flow.interceptionPlayerId||null;
     if(returner){
@@ -1423,7 +1462,7 @@ $$(".def-outcome").forEach(b=>b.addEventListener("click",()=>{
     }else{
       if(!S.flow.extras.includes("TD"))S.flow.extras.push("TD");
     }
-    return finishSimpleDefensePlay();
+    return finishDefenseAtEndSpot();
   }
   if(v==="Forced Fumble")return showDefenseTurnoverPlayer("Forced Fumble");
   if(v==="Fumble Recovery")return showDefenseTurnoverPlayer("Fumble Recovery");
@@ -1466,12 +1505,15 @@ $("#quickPunt").addEventListener("click",()=>{
   syncDerivedGameState(g);
   if(g.possession==="opp"){
     if(confirm(`${g.opponent} punts. Change possession to ${S.team.name}?`)){
-      const before=normalizeGameState({possession:g.possession,down:g.down,distance:g.distance});
-      const p={id:uid(),ts:Date.now(),type:"Punt",sub:"Opponent Punt",player:null,yards:0,quarter:Number(g.quarter||1),extras:[],stateBefore:{...before}};
-      const after=applyPlayToState(before,p);p.stateAfter={...after};g.plays.push(p);
-      g.possession=after.possession;g.down=after.down;g.distance=after.distance;
-      persist();renderLiveGame();toast(`${S.team.name} ball — 1st & 10`);
-    }
+      ensureDriveStart(()=>requestFieldSpot("end",end=>{
+        const before=normalizeGameState({possession:g.possession,down:g.down,distance:g.distance,ballSpot:g.ballSpot});
+        const start=Field.validSpot(before.ballSpot),yards=Field.yardsBetween(start,end,"opp");
+        const p={id:uid(),ts:Date.now(),type:"Punt",sub:"Opponent Punt",player:null,yards:Number(yards||0),quarter:Number(g.quarter||1),startSpot:start,endSpot:end,extras:[],stateBefore:{...before}};
+        const after=stateWithBallPosition(before,applyPlayToState(before,p),p);p.stateAfter={...after};g.plays.push(p);
+        g.possession=after.possession;g.down=after.down;g.distance=after.distance;g.ballSpot=after.ballSpot;
+        persist();renderLiveGame();toast(`${S.team.name} ball — 1st & 10`);resetFlow();
+      }));
+    }else resetFlow();
     return;
   }
   S.flow={type:"Punt",sub:"Punt",extras:[]};
@@ -1523,7 +1565,7 @@ function showDefenseSimpleYards(label){
   $("#stepDefensePlay").classList.add("hidden");
   $("#stepDefensePass").classList.add("hidden");
   $("#defSimpleYardsLabel").textContent=label||"Opponent yards";
-  showEndPosition(()=>showDefenseTacklers());
+  ensureDriveStart(()=>showDefenseTacklers());
 }
 function setDefenseYardsAndContinue(y){
   const n=Number(y);
@@ -1534,7 +1576,7 @@ function setDefenseYardsAndContinue(y){
 }
 function showDefenseTacklers(){
   S.flow.tacklerIds=[];
-  $("#defTacklerLabel").textContent=(Number(S.flow.yards)<0)?"Tackle for loss":"Tackle";
+  $("#defTacklerLabel").textContent="Tackle credit";
   $("#defTacklerGrid").innerHTML=[...(S.roster||[])].sort((a,b)=>Number(a.jersey)-Number(b.jersey)).map(p=>`<button class="player-btn def-tackler" data-id="${p.id}"><span>#${p.jersey}</span>${esc(p.name)}</button>`).join("");
   $("#stepDefenseTacklers").classList.remove("hidden");
   $$(".def-tackler").forEach(b=>b.addEventListener("click",()=>{
@@ -1574,6 +1616,24 @@ function showDefenseOutcome(){
     );
   });
 }
+function finishDefenseAtEndSpot(){
+  $("#stepDefenseOutcome").classList.add("hidden");
+  const movingPlay=["Opponent Run","Complete Pass","Sack","INT"].includes(S.flow.sub)||!!S.flow.fumbleRecoveryPlayerId;
+  if(!movingPlay)return finishSimpleDefensePlay();
+  showEndPosition(rawYards=>{
+    const g=currentGame();if(!g)return;
+    let yards=Number(rawYards||0);
+    const hasTakeaway=!!(S.flow.fumbleRecoveryPlayerId||S.flow.interceptionPlayerId);
+    if(hasTakeaway){
+      const returnYards=Math.max(0,Number(S.flow.returnYards||0));
+      const recoverySpot=Field.advanceSpot(S.flow.endSpot,-returnYards,"ours");
+      yards=Field.yardsBetween(S.flow.startSpot,recoverySpot,"opp");
+    }
+    S.flow.yards=yards;
+    S.flow.tackleKind=(S.flow.tacklerIds||[]).length?(yards<0?"TFL":"Tackle"):null;
+    finishSimpleDefensePlay();
+  });
+}
 function finishSimpleDefensePlay(){
   const g=currentGame();if(!g)return;
   ensureInitialGameState(g);
@@ -1589,6 +1649,8 @@ function finishSimpleDefensePlay(){
     defensiveTouchdownPlayerId:S.flow.defensiveTouchdownPlayerId||null,
     passDefendedPlayerId:S.flow.passDefendedPlayerId||null,
     returnYards:Number(S.flow.returnYards||0),
+    startSpot:Field.validSpot(S.flow.startSpot??before.ballSpot),
+    endSpot:Field.validSpot(S.flow.endSpot),
     extras:[...(S.flow.extras||[])],
     stateBefore:{...before}
   };
@@ -2160,10 +2222,12 @@ function renderSnaps(){
   }
   $("#recordSnapBtn").disabled=false;
 
+  const gameTotal=currentGame()?.snapRecords?.length||0;
   const ordered=[...S.roster].sort((a,b)=>a.jersey-b.jersey);
   box.innerHTML=ordered.map(p=>{
     const snaps=currentGameSnapCount(p.id);
     const pct=Math.min(100,(snaps/minimum)*100);
+    const snapPct=gameTotal?Math.round((snaps/gameTotal)*100):0;
     const done=snaps>=minimum;
     return `
     <label class="snap-player ${done?"complete":"needs-snaps"}">
@@ -2178,6 +2242,11 @@ function renderSnaps(){
         </div>
         <div class="snap-bar"><div class="snap-bar-fill ${done?"done":""}" style="width:${pct}%"></div></div>
       </div>
+      <div class="snap-usage" aria-label="${snaps} of ${gameTotal} total snaps, ${snapPct} percent">
+        <strong>${snapPct}%</strong>
+        <span>${snaps} of ${gameTotal}</span>
+        <small>SNAP %</small>
+      </div>
     </label>`;
   }).join("");
 
@@ -2190,12 +2259,22 @@ function renderSnaps(){
 
 function updateSnapSummary(){
   const on=(S.roster||[]).filter(p=>snapSelections[p.id]!==false).length;
-  const g=currentGame();const total=g&&Array.isArray(g.snapRecords)?g.snapRecords.reduce((a,r)=>a+(r.playerIds||[]).length,0):0;
+  const g=currentGame();const total=g&&Array.isArray(g.snapRecords)?g.snapRecords.length:0;
   const under=(S.roster||[]).filter(p=>currentGameSnapCount(p.id)<teamSnapMinimum()).length;
   $("#snapOnFieldCount").textContent=`${on} on field`;
-  $("#snapTotalCount").textContent=`${total} player-snaps`;
+  $("#snapTotalCount").textContent=`${total} total snap${total===1?"":"s"}`;
   $("#playersUnderTen").textContent=under;
 }
+
+$("#changeSnapMinimumBtn")?.addEventListener("click",()=>{
+  const raw=prompt("Minimum snaps required per player",String(teamSnapMinimum()));
+  if(raw===null)return;
+  const minimum=Number(raw);
+  if(!Number.isInteger(minimum)||minimum<1||minimum>100)return toast("Enter a snap minimum from 1 to 100");
+  S.team.snapMinimum=minimum;
+  persist();populateSetup();renderSnaps();
+  toast(`Snap minimum updated to ${minimum}`);
+});
 
 $("#checkAllSnaps").addEventListener("click",()=>{
   initializeSnapSelections();renderSnaps();

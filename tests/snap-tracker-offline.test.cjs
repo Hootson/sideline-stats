@@ -123,6 +123,16 @@ test('offline shell and 48-hour invite wiring remain enabled',()=>{
   assert.match(html,/src="\.\/pwa\.js"/);
 });
 
+test('in-app snaps expose the team minimum and current-game participation percentage',()=>{
+  const app=fs.readFileSync(new URL('../app.js',`file://${__filename}`),'utf8');
+  const html=fs.readFileSync(new URL('../index.html',`file://${__filename}`),'utf8');
+  const sql=fs.readFileSync(new URL('../supabase-snap-minimum.sql',`file://${__filename}`),'utf8');
+  assert.match(html,/id="changeSnapMinimumBtn"/);
+  assert.match(app,/const snapPct=gameTotal\?Math\.round\(\(snaps\/gameTotal\)\*100\):0/);
+  assert.match(app,/aria-label="\$\{snaps\} of \$\{gameTotal\} total snaps, \$\{snapPct\} percent"/);
+  assert.match(sql,/'snapMinimum', coalesce\(v_team\.snap_minimum, 10\)/,'Snap Tracker invitations must use the team minimum stored in Supabase');
+});
+
 test('service worker serves the Snap Tracker shell for an offline token URL',async()=>{
   const worker=fs.readFileSync(new URL('../service-worker.js',`file://${__filename}`),'utf8');
   const listeners={};

@@ -1,4 +1,14 @@
-# Sideline Stats V4.5.10 — Voice Control and Live Game Status
+# Sideline Stats V4.5.11 — Voice Number Lookup
+
+## V4.5.11 changes
+- Adds a deterministic lookup table connecting every digit from 0–99 to its full English spelling.
+- Spoken jersey numbers are converted to digits before the app searches the roster, including phrases such as “number four,” “jersey eighteen,” and “number twenty four.”
+- Common speech-to-text variants such as “for” for four and “too” for two are also normalized when used after number, jersey, or #.
+- “Pass from number four” is correctly treated as identifying the passer, not as introducing a starting field position.
+- Manual defensive entry collects tackle, turnover, and scoring details before asking for the ending field position and calculating yardage.
+- Deleting a cloud-connected game now archives it in Supabase and removes it from statkeeper and viewer game lists on the next automatic sync.
+- Viewer live refreshes retain changes that arrive during another refresh and reconnect automatically after a Realtime interruption.
+- The Snaps screen now includes a direct minimum-setting control plus each player’s current-game snap percentage and `player snaps / total snaps` count.
 
 ## V4.5.10 changes
 - Voice listening now continues through thinking pauses until the statkeeper taps **Stop & Transcribe**, with a 30-second safety stop.

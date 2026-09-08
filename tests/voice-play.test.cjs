@@ -25,6 +25,29 @@ test('recognizes spelled-out and digit jersey numbers',()=>{
   assert.equal(digits.ok,true);assert.equal(digits.flow.player,'abe');assert.equal(digits.flow.player2,'receiver');
 });
 
+test('maps every spelled number from zero through ninety-nine to its digit',()=>{
+  for(let n=0;n<=99;n++)assert.equal(voice.spokenNumber(voice.NUMBER_WORDS[n]),n,`${voice.NUMBER_WORDS[n]} should equal ${n}`);
+});
+
+test('matches every spelled jersey number from zero through ninety-nine',()=>{
+  for(let n=0;n<=99;n++){
+    const players=[{id:`p${n}`,jersey:String(n),name:`Player ${n}`}];
+    const found=voice.playerMentions(`pass by number ${voice.NUMBER_WORDS[n]}`,players);
+    assert.equal(found[0]?.player.id,`p${n}`,`number ${voice.NUMBER_WORDS[n]} should match jersey ${n}`);
+  }
+});
+
+test('normalizes common jersey-number homophones only in a jersey reference',()=>{
+  const found=voice.playerMentions('number for with the pass to jersey too',roster);
+  assert.deepEqual(found.map(x=>x.player.id),['abe']);
+  assert.equal(voice.canonicalizeJerseyReferences('number for and jersey too'),'number 4 and jersey 2');
+});
+
+test('does not mistake pass from a player for a spoken starting field position',()=>{
+  const r=voice.interpretVoiceCommand('Pass from number four to number 12 to their 22 yard line for a completed pass',roster,{possession:'ours',ballSpot:75,teamName:'Erie Tigers',opponentName:'Falcons'});
+  assert.equal(r.ok,true);assert.equal(r.flow.player,'abe');assert.equal(r.flow.player2,'receiver');assert.equal(r.flow.startSpot,75);assert.equal(r.flow.endSpot,78);assert.equal(r.flow.yards,3);assert.equal(r.conflict,undefined);
+});
+
 test('applies a saved team speech correction',()=>{
   const r=voice.interpretVoiceCommand('Babe with the run to our 31',roster,{possession:'ours',ballSpot:25,teamName:'Erie Tigers',opponentName:'Falcons',voiceCorrections:{babe:'abe'}});
   assert.equal(r.ok,true);assert.equal(r.flow.player,'abe');assert.equal(r.flow.yards,6);

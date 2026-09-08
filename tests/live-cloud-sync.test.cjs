@@ -20,6 +20,8 @@ assert.ok(app.indexOf('await syncOnePlay') < app.indexOf('await publishCloudGame
 assert.match(app, /if\(!isCloudStatkeeper\(\)\)\{[\s\S]*if\(role==="statkeeper"\)scheduleCloudSync\(delay\)/, 'only a verified statkeeper may continue to a write');
 assert.match(app, /"Live updates on"/, 'viewers should see a live-connection indicator');
 assert.match(app, /cloudAutoRefreshRunning=false/, 'automatic viewer reloads must use an explicitly declared lock');
+assert.match(app, /cloudRealtimeRefreshQueued=true/, 'realtime events must remain queued while another viewer refresh is running');
+assert.match(app, /scheduleCloudRealtimeReconnect/, 'a failed realtime channel must schedule a reconnect');
 assert.match(app, /setInterval\(checkLiveGameRevisions,3000\)/, 'visible viewers should check game revisions every three seconds');
 assert.match(app, /\.select\("id,revision"\)/, 'the frequent viewer check must fetch only lightweight revision markers');
 assert.match(app, /document\.visibilityState==="hidden"/, 'the frequent viewer check must pause while the page is hidden');
@@ -34,9 +36,14 @@ assert.match(app, /analyticsExportCard"\)\?\.classList\.toggle\("hidden",viewer\
 assert.match(app, /function renderViewerGameSummary\(\)/, 'viewer Game Center must render its scoreboard');
 assert.match(html, /id="viewerGameSummary"/, 'Stats must contain the viewer scoreboard destination');
 assert.match(html, /id="shareStatsBtn"/, 'Stats sharing must remain available');
-assert.match(sw, /v4-5-10-voice-control/, 'service worker cache must be bumped');
+assert.match(sw, /v4-5-11-number-lookup/, 'service worker cache must be bumped');
 assert.match(app, /Resume the game vs \$\{g\.opponent\} and mark it Live\?/, 'opening a final game must offer to resume it live');
 assert.match(app, /Finalize the game vs \$\{g\.opponent\}\?/, 'finalizing a game must require confirmation');
+assert.match(app, /async function syncDeletedCloudGames\(\)/, 'deleted local games must be reconciled to Supabase');
+assert.match(app, /update\(\{status:"archived"\}\)/, 'cloud game deletion must use the recoverable archived status');
+assert.match(app, /\.neq\("status","archived"\)/, 'archived games must be excluded from cloud loads and viewer checks');
+assert.match(app, /function finishDefenseAtEndSpot\(\)/, 'manual defense must defer field position until the final step');
+assert.match(app, /ensureDriveStart\(\(\)=>showDefenseTacklers\(\)\)/, 'manual defense must collect tacklers before the ending spot');
 assert.match(app, /voiceRecognition\.continuous=true/, 'voice listening must tolerate pauses');
 assert.match(app, /Stop & Transcribe/, 'voice recording must use an explicit stop action');
 
