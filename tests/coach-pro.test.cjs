@@ -23,6 +23,8 @@ assert.match(analytics, /heat-cell/, 'play calls must render as a traffic-light 
 assert.match(css, /@media \(max-width:560px\)/, 'phone-specific responsive rules must remain available');
 assert.match(sql, /team_identifier/, 'database setup must support duplicate public team names');
 assert.match(sql, /status = 'submitted'/, 'shared coach notes must expose submitted debriefs only');
+assert.match(sql, /grant select on table public\.coach_demo_playbook to authenticated/, 'signed-in users need the Data API grant before RLS can evaluate demo playbook rows');
+assert.match(sql, /grant select on table public\.coach_demo_play_calls to authenticated/, 'signed-in users need the Data API grant before RLS can evaluate demo play-call rows');
 
 const context={window:{}};
 vm.runInNewContext(analytics,context);

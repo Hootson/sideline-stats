@@ -67,6 +67,11 @@ create table if not exists public.coach_demo_play_calls (
 alter table public.coach_demo_playbook enable row level security;
 alter table public.coach_demo_play_calls enable row level security;
 
+-- Data API grants allow signed-in clients to reach these tables. RLS below
+-- still decides which team rows each authenticated user may read.
+grant select on table public.coach_demo_playbook to authenticated;
+grant select on table public.coach_demo_play_calls to authenticated;
+
 drop policy if exists "Eligible coaches can read demo playbook" on public.coach_demo_playbook;
 create policy "Eligible coaches can read demo playbook" on public.coach_demo_playbook for select
 using (private.is_team_coach(team_id) and private.team_has_coach_access(team_id));
