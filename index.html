@@ -32,7 +32,7 @@
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V4.5.13 • SHARED SNAP VIEW • GRIDIRON EDITION</div>
+      <div class="muted" style="color:#dfe9e2">V4.5.13 • TEAM INVITES + SHARED SNAPS • GRIDIRON EDITION</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -633,7 +633,20 @@
       <h2>Settings</h2>
       <div id="accountTeamName" class="account-team-name">Erie</div>
       <div id="accountEmail" class="muted"></div>
+      <div id="accountRole" class="account-role">Viewer access</div>
       <div class="inline-note account-remember-note">This device will keep you signed in and open this team automatically.</div>
+      <div id="teamInvitePane" class="team-invite-pane hidden">
+        <strong>Invite Parents</strong>
+        <div class="muted">One viewer link can connect the team's parent accounts. It expires in seven days.</div>
+        <button class="btn" id="createViewerInviteBtn" type="button">Create Parent Link</button>
+        <div id="teamInviteResult" class="hidden">
+          <input id="teamInviteUrl" type="text" readonly aria-label="Parent invitation link">
+          <div class="modal-actions">
+            <button class="btn" id="shareTeamInviteBtn" type="button">Share Link</button>
+            <button class="btn ghost" id="copyTeamInviteBtn" type="button">Copy Link</button>
+          </div>
+        </div>
+      </div>
       <div class="account-actions">
         <button class="btn ghost" id="switchTeamBtn" type="button">Switch Team</button>
         <button class="btn danger" id="accountSignOutBtn" type="button">Sign Out</button>

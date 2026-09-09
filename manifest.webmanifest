@@ -5,7 +5,7 @@
   "display": "standalone",
   "background_color": "#f4f6f5",
   "theme_color": "#177b46",
-  "description": "Sideline Stats V4.5.13 — matching in-app and shared Snap Tracker views",
+  "description": "Sideline Stats V4.5.13 — team viewer invitations and matching shared Snap Tracker views",
   "scope": "./",
   "icons": [
     {

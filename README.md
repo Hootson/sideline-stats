@@ -1,10 +1,13 @@
 # Sideline Stats V4.5.13 — Shared Snap View
 
 ## V4.5.13 changes
+- Adds invitation-aware email sign-up and sign-in for new team viewers.
+- Lets the statkeeper create one reusable parent link that automatically assigns each authenticated parent to the correct team.
+- Enforces team roles so invited parents remain read-only viewers while the owner/statkeeper retains recording access.
 - Makes the parent-facing Snap Tracker player cards match the in-app Snaps screen.
 - Shows each player's progress bar toward the team's configured minimum, total snaps, and participation percentage.
 - Uses the same stacked jersey-number and player-name layout optimized for phone screens.
-- Preserves the existing 48-hour invitation, offline recording queue, automatic retry, and Supabase synchronization.
+- Preserves the existing 48-hour Snap Tracker invitation, offline recording queue, automatic retry, and Supabase synchronization.
 
 ## V4.5.12 changes
 - Adds an optional offensive playbook with a play number and name.

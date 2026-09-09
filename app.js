@@ -2,12 +2,14 @@
 const KEY="sidelineStatsData";
 const RECOVERY_KEY="sidelineStatsRecovery";
 const LAST_TEAM_KEY_PREFIX="sidelineStatsLastTeam:";
+const PENDING_TEAM_INVITE_KEY="sidelineStatsPendingTeamInvite";
 const MIGRATION_KEYS=["sidelineStatsV23","sidelineStatsV20","sidelineStatsV19","sidelineStatsV18","sidelineStatsV17","sidelineStatsV16","sidelineStatsV15","sidelineStatsV14","sidelineStatsV13","sidelineStatsV12","sidelineStatsV11","sidelineStatsV10","sidelineStatsV09","sidelineStatsV08","sidelineStatsV07","sidelineStatsV06","sidelineStatsV05","sidelineStatsV04","sidelineStatsV03","sidelineStatsV02"];
 
 const SUPABASE_URL="https://eyuvgzhkhcpwtcbmsvct.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY="sb_publishable_uMOkwO4jyHen4pz4zCkIuQ_Ss-wUf2l";
 let SB=null, cloudUser=null, cloudReady=false, cloudRemoteUpdates=false, cloudRemoteCheckRunning=false, cloudAutoRefreshRunning=false;
 let cloudAutoTeamLoadRunning=false;
+let teamInviteRedeemPromise=null,teamInviteShareData=null;
 const empty={team:null,roster:[],games:[],activeGameId:null,flow:{},editingPlayId:null,cloud:{teamId:null,seasonId:null,teamHash:null,playerIds:{},playerHashes:{},gameIds:{},playIds:{},playHashes:{},gameHashes:{},creditIds:{},creditHashes:{},penaltyIds:{},penaltyHashes:{},snapIds:{},snapHashes:{},connectedAt:null,lastSyncAt:null,lastSyncError:null,remoteFingerprint:null,hashVersion:2,deviceRole:null}};
 let S=load();
 if(!S.cloud)S.cloud={teamId:null,seasonId:null,playerIds:{},gameIds:{},playIds:{},playHashes:{},gameHashes:{},connectedAt:null,lastSyncAt:null,lastSyncError:null};
@@ -81,6 +83,19 @@ function lastTeamStorageKey(){return cloudUser?.id?`${LAST_TEAM_KEY_PREFIX}${clo
 function rememberedTeamId(){try{const key=lastTeamStorageKey();return key?localStorage.getItem(key):null}catch(_){return null}}
 function rememberTeam(teamId){
   try{const key=lastTeamStorageKey();if(key&&teamId)localStorage.setItem(key,teamId)}catch(e){console.warn("Could not remember team",e)}
+}
+function pendingTeamInviteToken(){
+  try{
+    const incoming=new URLSearchParams(location.search).get("teamInvite")||"";
+    if(/^[a-z0-9_-]{32,}$/i.test(incoming)){localStorage.setItem(PENDING_TEAM_INVITE_KEY,incoming);return incoming}
+    return localStorage.getItem(PENDING_TEAM_INVITE_KEY)||"";
+  }catch(_){return ""}
+}
+function clearPendingTeamInvite(){
+  try{
+    localStorage.removeItem(PENDING_TEAM_INVITE_KEY);
+    const u=new URL(location.href);u.searchParams.delete("teamInvite");window.history?.replaceState?.({},"",u.href);
+  }catch(_){}
 }
 
 function inferCloudDeviceRole(){
@@ -175,13 +190,13 @@ async function initCloud(){
     if(!window.supabase?.createClient){updateCloudUI("unavailable");return}
     SB=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
     const {data}=await SB.auth.getSession();cloudUser=data?.session?.user||null;cloudReady=true;
-    if(cloudUser){rebaseCloudHashesV443();await restoreRememberedTeam()}else updateCloudUI();
+    if(cloudUser){rebaseCloudHashesV443();if(!await redeemPendingTeamInvite())await restoreRememberedTeam()}else{updateCloudUI();if(pendingTeamInviteToken()){openAuth();$("#authMessage").textContent="Create an account or sign in to join this team as a viewer."}}
     if(isCloudStatkeeper())scheduleCloudSync(300);else setTimeout(checkCloudForUpdates,500);
     setTimeout(startCloudRealtime,800);
     SB.auth.onAuthStateChange((_event,session)=>{
       cloudUser=session?.user||null;
       setTimeout(async()=>{
-        if(cloudUser){rebaseCloudHashesV443();await restoreRememberedTeam()}else updateCloudUI();
+        if(cloudUser){rebaseCloudHashesV443();if(!await redeemPendingTeamInvite())await restoreRememberedTeam()}else updateCloudUI();
         if(isCloudStatkeeper())scheduleCloudSync(250);else setTimeout(checkCloudForUpdates,500);
         setTimeout(startCloudRealtime,800);
       },0);
@@ -246,6 +261,8 @@ function openAuth(){
     const teamName=teamExists()?S.team.name:"No team selected";
     if($("#accountTeamName"))$("#accountTeamName").textContent=teamName;
     if($("#accountEmail"))$("#accountEmail").textContent=cloudUser.email||"Signed in";
+    if($("#accountRole"))$("#accountRole").textContent=isCloudStatkeeper()?"Statkeeper access":"Viewer access";
+    $("#teamInvitePane")?.classList.toggle("hidden",!cloudLinked()||!isCloudStatkeeper());
   }
   $("#authModal").classList.remove("hidden");
   if(!cloudUser)setTimeout(()=>$("#authEmail")?.focus(),50);
@@ -260,9 +277,56 @@ async function authSignIn(){
 async function authCreate(){
   if(!SB)return toast("Cloud connection is not ready"); const email=$("#authEmail").value.trim(),password=$("#authPassword").value;
   if(!email||password.length<6)return toast("Use an email and password of at least 6 characters"); $("#authMessage").textContent="Creating account…";
-  const redirectTo=(location.hostname==="localhost"||location.hostname==="127.0.0.1")?location.origin+location.pathname:"https://hootson.github.io/sideline-stats/";
+  const redirectUrl=new URL((location.hostname==="localhost"||location.hostname==="127.0.0.1")?location.origin+location.pathname:"https://hootson.github.io/sideline-stats/");
+  const inviteToken=pendingTeamInviteToken();if(inviteToken)redirectUrl.searchParams.set("teamInvite",inviteToken);
+  const redirectTo=redirectUrl.href;
   const {data,error}=await SB.auth.signUp({email,password,options:{emailRedirectTo:redirectTo}}); if(error){$("#authMessage").textContent=error.message;return}
   if(data?.session){closeAuth();toast("Account created") } else $("#authMessage").textContent="Account created. Check your email to confirm it, then sign in here.";
+}
+async function redeemPendingTeamInvite(){
+  const token=pendingTeamInviteToken();
+  if(!token||!SB||!cloudUser)return false;
+  if(teamInviteRedeemPromise)return teamInviteRedeemPromise;
+  teamInviteRedeemPromise=(async()=>{
+    try{
+      const {data,error}=await SB.rpc("redeem_team_invite",{p_token:token});if(error)throw error;
+      const joined=Array.isArray(data)?data[0]:data;if(!joined?.team_id)throw new Error("This team invitation could not be completed");
+      rememberTeam(joined.team_id);clearPendingTeamInvite();
+      const {data:team,error:teamError}=await SB.from("teams").select("id,name,grade,primary_color,accent_color,logo_data,snap_minimum,playbook,timezone,created_at,updated_at").eq("id",joined.team_id).single();if(teamError)throw teamError;
+      await loadTeamFromCloud({team,auto:true,skipReplaceConfirm:true,destination:"stats"});
+      closeAuth();toast(`Joined ${joined.team_name||team.name} as a viewer`);return true;
+    }catch(e){
+      console.error("Team invitation failed",e);
+      const message=e?.message||"Could not join this team";
+      if(/invalid|expired|use limit/i.test(message))clearPendingTeamInvite();
+      if($("#authMessage"))$("#authMessage").textContent=message;
+      toast(message);return false;
+    }finally{teamInviteRedeemPromise=null}
+  })();
+  return teamInviteRedeemPromise;
+}
+async function createViewerInvite(){
+  if(!SB||!cloudUser||!cloudLinked())return toast("Connect this team first");
+  if(await resolveCloudDeviceRole()!=="statkeeper")return toast("Only a team statkeeper can create parent links");
+  const btn=$("#createViewerInviteBtn");if(btn){btn.disabled=true;btn.textContent="Creating Link…"}
+  try{
+    const {data,error}=await SB.rpc("create_team_invite",{p_team_id:S.cloud.teamId,p_role:"viewer",p_expires_days:7});if(error)throw error;
+    const token=String(data||"");if(!token)throw new Error("No invitation link was returned");
+    const u=new URL("https://hootson.github.io/sideline-stats/");u.searchParams.set("teamInvite",token);
+    teamInviteShareData={title:`Join ${S.team.name} on Sideline Stats`,text:`Create or sign in to your viewer account for ${S.team.name}.`,url:u.href};
+    $("#teamInviteUrl").value=u.href;$("#teamInviteResult").classList.remove("hidden");
+  }catch(e){console.error("Parent invitation failed",e);toast(e?.message||"Could not create parent link")}
+  finally{if(btn){btn.disabled=false;btn.textContent="Create New Parent Link"}}
+}
+function copyTeamInvite(){
+  const url=$("#teamInviteUrl")?.value;if(!url)return;
+  const fallback=()=>prompt("Copy this parent invitation link",url);
+  if(navigator.clipboard?.writeText)navigator.clipboard.writeText(url).then(()=>toast("Parent link copied")).catch(fallback);else fallback();
+}
+async function shareTeamInvite(){
+  if(!teamInviteShareData)return copyTeamInvite();
+  if(!navigator.share)return copyTeamInvite();
+  try{await navigator.share(teamInviteShareData)}catch(e){if(e?.name!=="AbortError")copyTeamInvite()}
 }
 async function cloudSignOut(){
   if(!SB)return;
@@ -725,6 +789,7 @@ $("#cloudAccountBtn")?.addEventListener("click",openAuth);
 $("#cloudSignInBtn")?.addEventListener("click",openAuth); $("#cloudSignOutBtn")?.addEventListener("click",cloudSignOut); $("#cloudConnectTeamBtn")?.addEventListener("click",connectTeamToCloud); $("#cloudLoadTeamBtn")?.addEventListener("click",()=>loadTeamFromCloud()); $("#cloudRefreshBtn")?.addEventListener("click",refreshFromCloud);
 $("#authCloseBtn")?.addEventListener("click",closeAuth); $("#authSignInBtn")?.addEventListener("click",authSignIn); $("#authCreateBtn")?.addEventListener("click",authCreate);
 $("#switchTeamBtn")?.addEventListener("click",switchCloudTeam); $("#accountSignOutBtn")?.addEventListener("click",cloudSignOut);
+$("#createViewerInviteBtn")?.addEventListener("click",createViewerInvite);$("#copyTeamInviteBtn")?.addEventListener("click",copyTeamInvite);$("#shareTeamInviteBtn")?.addEventListener("click",shareTeamInvite);
 $("#authModal")?.addEventListener("click",e=>{if(e.target.id==="authModal")closeAuth()});
 
 function normalizeRoster(){
