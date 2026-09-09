@@ -1,6 +1,25 @@
-# Sideline Stats V4.5.13 — Shared Snap View
+# Sideline Stats V4.5.15 — Coach Pro
 
-## V4.5.13 changes
+## V4.5.15 changes
+
+- Adds responsive Coach Pro Overview, Play Calls, Players, Trends, and shared Game Debrief screens.
+- Adds the “WHAT’S WORKED ON 1ST DOWN” traffic-light heat map with down, metric, distance, and field-zone views.
+- Adds coach invitation links and enforces viewer, coach, and statkeeper navigation permissions.
+- Gives statkeepers Coach Pro access during an active trial or Team Pro plan without removing game-entry tools.
+- Adds optional team identifiers so multiple teams may share the same public name while remaining separate by backend UUID.
+- Adds an isolated, removable 25-call demo layer for Erie Week 2 and Week 3 analytics without altering real plays or statistics.
+- Keeps the fixed company-green header while using each team's primary and accent colors throughout navigation and analytics.
+
+## V4.5.14 changes
+
+- Keeps the Sideline Stats masthead in the fixed company-green artwork.
+- Uses each team's primary color for the statkeeper bottom navigation row.
+- Uses the team accent color to identify the active tab, with automatic contrast fallback.
+- Applies the same team-primary/team-accent treatment to the shared Snap Tracker action row.
+- Establishes this navigation treatment for the future Coach Pro analytics screens.
+
+## V4.5.13 — Shared Snap View
+
 - Adds invitation-aware email sign-up and sign-in for new team viewers.
 - Lets the statkeeper create one reusable parent link that automatically assigns each authenticated parent to the correct team.
 - Enforces team roles so invited parents remain read-only viewers while the owner/statkeeper retains recording access.

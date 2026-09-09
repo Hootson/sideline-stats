@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V4.5.13</title>
+<title>Sideline Stats V4.5.15</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -32,7 +32,7 @@
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V4.5.13 • TEAM INVITES + SHARED SNAPS • GRIDIRON EDITION</div>
+      <div class="muted" style="color:#dfe9e2">V4.5.15 • COACH PRO • GRIDIRON EDITION</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -54,6 +54,9 @@
     <div class="card">
       <label>Team name</label>
       <input id="teamName" placeholder="Wildcats">
+      <label>Team identifier <span class="muted">(optional)</span></label>
+      <input id="teamIdentifier" placeholder="Orange • Team 2">
+      <div class="muted" style="margin-top:6px">Distinguishes teams with the same name in account menus and invitations. Your public team name stays unchanged.</div>
       <div class="row">
         <div><label>Grade</label><select id="grade"><option>5th Grade</option><option>4th Grade</option><option>6th Grade</option><option>7th Grade</option><option>8th Grade</option></select></div>
         <div><label>Season</label><input id="season" value="2026"></div>
@@ -584,11 +587,37 @@
     </div>
   </section>
 
+  <section class="screen coach-screen" data-screen="coach">
+    <div class="coach-shell">
+      <div class="coach-view-controls">
+        <label>Analyze
+          <select id="coachGameSelect"></select>
+        </label>
+      </div>
+      <div id="coachSectionTabs" class="coach-section-tabs" aria-label="Coach analytics sections">
+        <button type="button" data-coach-tab="overview" class="active">Overview</button>
+        <button type="button" data-coach-tab="playcalls">Play Calls</button>
+        <button type="button" data-coach-tab="players">Players</button>
+        <button type="button" data-coach-tab="trends">Trends</button>
+        <button type="button" data-coach-tab="debrief">Debrief</button>
+      </div>
+      <div id="coachAnalyticsContent"></div>
+    </div>
+  </section>
+
   <nav id="bottomNav" class="hidden">
     <button data-go="roster">👥<br>Roster</button>
     <button data-go="game">🏈<br>Game</button>
     <button data-go="snaps">✅<br>Snaps</button>
     <button data-go="stats">📊<br>Stats</button>
+    <button id="statkeeperAnalyticsNav" class="hidden" data-go="coach">📈<br>Analytics</button>
+  </nav>
+  <nav id="coachNav" class="hidden coach-nav">
+    <button class="active" data-coach-go="overview">⌂<br>Overview</button>
+    <button data-coach-go="playcalls">▦<br>Play Calls</button>
+    <button data-coach-go="players">★<br>Players</button>
+    <button data-coach-go="trends">↗<br>Trends</button>
+    <button data-coach-go="debrief">✎<br>Debrief</button>
   </nav>
 </div>
 <div id="voicePlayModal" class="modal-backdrop hidden">
@@ -646,6 +675,17 @@
             <button class="btn ghost" id="copyTeamInviteBtn" type="button">Copy Link</button>
           </div>
         </div>
+        <div class="invite-divider"></div>
+        <strong>Invite Coaches</strong>
+        <div class="muted">A coach link gives eligible Team Pro coaches analytics and shared debrief access, but no stat-entry controls.</div>
+        <button class="btn" id="createCoachInviteBtn" type="button">Create Coach Link</button>
+        <div id="coachInviteResult" class="hidden">
+          <input id="coachInviteUrl" type="text" readonly aria-label="Coach invitation link">
+          <div class="modal-actions">
+            <button class="btn" id="shareCoachInviteBtn" type="button">Share Link</button>
+            <button class="btn ghost" id="copyCoachInviteBtn" type="button">Copy Link</button>
+          </div>
+        </div>
       </div>
       <div class="account-actions">
         <button class="btn ghost" id="switchTeamBtn" type="button">Switch Team</button>
@@ -658,6 +698,7 @@
 
 <script src="./field-position.js"></script>
 <script src="./voice-play.js"></script>
+<script src="./coach-analytics.js"></script>
 <script src="./app.js"></script>
 
 <script src="./pwa.js"></script>
