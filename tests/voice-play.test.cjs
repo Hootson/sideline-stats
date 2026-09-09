@@ -77,3 +77,10 @@ test('calculates an opponent sack as a loss',()=>{
   const r=voice.interpretVoiceCommand('Sack by number 33 from their 30 to their 22',roster,{possession:'opp',teamName:'Erie Tigers',opponentName:'Falcons'});
   assert.equal(r.ok,true);assert.equal(r.flow.sub,'Sack');assert.equal(r.flow.yards,-8);
 });
+
+test('recognizes our/their speech-to-text homophones only as field-side words',()=>{
+  const offense=voice.interpretVoiceCommand('Number four runs to are 31',roster,{possession:'ours',ballSpot:25,teamName:'Erie Tigers',opponentName:'Falcons'});
+  assert.equal(offense.ok,true);assert.equal(offense.flow.endSpot,31);assert.equal(offense.flow.yards,6);
+  const defense=voice.interpretVoiceCommand('There 25 run tackled by number 33 at there 36',roster,{possession:'opp',teamName:'Erie Tigers',opponentName:'Falcons'});
+  assert.equal(defense.ok,true);assert.equal(defense.flow.endSpot,64);assert.equal(defense.flow.yards,11);
+});

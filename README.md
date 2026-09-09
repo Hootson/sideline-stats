@@ -1,4 +1,11 @@
-# Sideline Stats V4.5.11 — Voice Number Lookup
+# Sideline Stats V4.5.12 — Play-Call Tracking
+
+## V4.5.12 changes
+- Adds an optional offensive playbook with a play number and name.
+- The statkeeper can attach a play call to the next rush or pass; its saved snapshot remains available for future coach analytics.
+- Viewer accounts open the newest Live game first and fall back to the newest completed game when no game is Live.
+- Voice field positions recognize “are” as “our” and “there/they’re” as “their” when followed by a yard line.
+- The Snaps layout stacks jersey number over player name and narrows the progress area to prevent phone-screen overlap.
 
 ## V4.5.11 changes
 - Adds a deterministic lookup table connecting every digit from 0–99 to its full English spelling.

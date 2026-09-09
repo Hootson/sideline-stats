@@ -26,7 +26,7 @@
     }
     return found.sort((a,b)=>a.index-b.index).filter((x,i,a)=>a.findIndex(q=>q.player.id===x.player.id)===i);
   }
-  function sideAliases(team,opp){const out={our:"ours",ours:"ours",own:"ours",their:"opp",theirs:"opp",opponent:"opp"};for(const word of normalize(team).split(" "))if(word.length>2)out[word]="ours";for(const word of normalize(opp).split(" "))if(word.length>2)out[word]="opp";return out}
+  function sideAliases(team,opp){const out={our:"ours",ours:"ours",own:"ours",are:"ours",their:"opp",theirs:"opp",there:"opp","they're":"opp",opponent:"opp"};for(const word of normalize(team).split(" "))if(word.length>2)out[word]="ours";for(const word of normalize(opp).split(" "))if(word.length>2)out[word]="opp";return out}
   function parsePositions(text,context){
     const clean=normalize(text),aliases=sideAliases(context.teamName,context.opponentName),words=Object.keys(aliases).sort((a,b)=>b.length-a.length).join("|");
     const num="(?:\\d+|(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty)(?:\\s+(?:one|two|three|four|five|six|seven|eight|nine))?)";

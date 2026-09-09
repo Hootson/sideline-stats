@@ -194,12 +194,15 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
 
 
-.snap-player{grid-template-columns:auto minmax(62px,1fr) minmax(92px,120px) minmax(58px,70px)}
-.snap-player-main{min-width:0}
+.snap-player{grid-template-columns:34px minmax(64px,82px) minmax(86px,1fr) minmax(52px,62px);gap:7px;padding:10px 8px}
+.snap-player-main{min-width:0;overflow:hidden}
+.snap-player-name{line-height:1.05;overflow-wrap:anywhere}
+.snap-player-name .num{display:block;margin:0 0 4px;font-size:19px}
+.snap-player-name .name{display:block;font-size:13px}
 .snap-progress-wrap{display:flex;flex-direction:column;gap:6px}
-.snap-progress-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.snap-progress-count{font-size:16px;font-weight:950;color:var(--p);white-space:nowrap}
-.snap-progress-status{font-size:10px;font-weight:950;border-radius:999px;padding:3px 6px;background:#fff4ed;color:#9b4300}
+.snap-progress-top{display:flex;align-items:center;justify-content:space-between;gap:4px}
+.snap-progress-count{font-size:15px;font-weight:950;color:var(--p);white-space:nowrap}
+.snap-progress-status{font-size:9px;font-weight:950;border-radius:999px;padding:3px 5px;background:#fff4ed;color:#9b4300;white-space:nowrap}
 .snap-progress-status.done{background:#eef5f0;color:var(--p)}
 .snap-bar{height:10px;border-radius:999px;background:#e9eeeb;overflow:hidden;border:1px solid var(--line)}
 .snap-bar-fill{height:100%;background:var(--s);border-radius:999px;transition:width .15s ease}
@@ -214,6 +217,16 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 .snap-usage strong{display:block;color:var(--p);font-size:17px;font-weight:950}
 .snap-usage span{display:block;margin-top:4px;font-size:10px;font-weight:850;white-space:nowrap;color:var(--muted)}
 .snap-usage small{display:block;margin-top:4px;font-size:8px;font-weight:950;letter-spacing:.06em;color:var(--muted)}
+
+.playbook-entry-row{display:grid;grid-template-columns:minmax(78px,1fr) minmax(0,2fr);gap:8px;margin-top:12px}
+.playbook-list{display:flex;flex-direction:column;gap:7px;margin-top:12px}
+.playbook-item{display:grid;grid-template-columns:58px minmax(0,1fr) auto;align-items:center;gap:9px;padding:9px 10px;border:1px solid var(--line);border-radius:11px;background:#fff}
+.playbook-number{font-weight:950;color:var(--p)}
+.playbook-name{font-weight:850;min-width:0;overflow-wrap:anywhere}
+.playbook-remove{border:0;background:#fff0ed;color:#9d281a;border-radius:9px;padding:7px 9px;font-weight:950;cursor:pointer}
+.play-call-picker{margin:-2px 0 12px;padding:10px;border:1px solid var(--line);border-radius:12px;background:#f7faf8}
+.play-call-picker label{margin-top:0}
+.play-call-picker .muted{margin-top:5px;font-size:10px}
 
 
 /* Current data + analytics */

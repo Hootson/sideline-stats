@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V4.5.11</title>
+<title>Sideline Stats V4.5.12</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -32,7 +32,7 @@
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V4.5.11 • NUMBER LOOKUP • GRIDIRON EDITION</div>
+      <div class="muted" style="color:#dfe9e2">V4.5.12 • PLAY CALLS • GRIDIRON EDITION</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -123,6 +123,16 @@
       <button class="btn" id="addPlayer" style="margin-top:10px">Add Player</button>
     </div>
     <div class="card" id="rosterList"></div>
+    <div class="card" id="playbookCard">
+      <h2>Offensive Playbook <span class="badge" id="playbookCount">0 plays</span></h2>
+      <div class="muted">Optional. Add the calls you want available during offensive play entry. Previously recorded calls keep their original name if the playbook changes later.</div>
+      <div class="playbook-entry-row">
+        <input id="playNumber" inputmode="numeric" placeholder="Play #" aria-label="Play number">
+        <input id="playName" placeholder="Play name" maxlength="48" aria-label="Play name">
+      </div>
+      <button class="btn" id="addPlaybookPlay" type="button" style="margin-top:10px">Add Play</button>
+      <div id="playbookList" class="playbook-list"><span class="muted">No plays added yet.</span></div>
+    </div>
     <button class="btn alt" id="goGames">Continue to Games</button>
   </section>
 
@@ -261,6 +271,11 @@
       <div id="fieldPositionBar" class="field-position-bar"><div><strong>Ball position</strong><span id="fieldPositionText">Starting position needed</span></div><button id="correctFieldPosition" type="button">Set / Correct</button></div>
 <div class="card" id="stepMain">
         <h2>What happened?</h2>
+        <div id="offensivePlayCall" class="play-call-picker hidden">
+          <label for="nextPlayCallSelect">Play called <span class="muted">(optional)</span></label>
+          <select id="nextPlayCallSelect"><option value="">No play selected</option></select>
+          <div class="muted">The selection applies to the next offensive rush or pass, then clears.</div>
+        </div>
         <div class="grid2">
           <button class="choice action" id="actionRush" data-action="Rush">🏃<br>RUSH</button>
           <button class="choice action" id="actionPass" data-action="Pass">🏈<br>PASS</button>

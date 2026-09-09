@@ -29,14 +29,15 @@ assert.match(app, /cloudRevision:Number\(g\.revision\|\|1\)/, 'cloud-loaded game
 assert.match(app, /else setTimeout\(checkLiveGameRevisions,100\)/, 'viewers must check immediately after reconnecting or returning to the page');
 assert.match(sql, /security invoker/, 'publish RPC must preserve RLS authorization');
 assert.match(app, /if\(teamExists\(\)&&isCloudViewer\(\)&&name!=="stats"\)/, 'viewer navigation must be restricted to Stats');
-assert.match(app, /selectedStatsGameId=selectedStatsGameId\|\|latestGame\(\)\?\.id/, 'viewer entry must default to the newest game');
+assert.match(app, /selectedStatsGameId=selectedStatsGameId\|\|preferredViewerGame\(\)\?\.id/, 'viewer entry must prefer a live game');
+assert.match(app, /find\(g=>g\.status==="live"\)\|\|latestGame\(\)/, 'viewer fallback must use the newest completed game when none are live');
 assert.match(app, /if\(!isCloudViewer\(\)&&currentGame\(\)\)selectedStatsGameId=currentGame\(\)\.id/, 'a statkeeper active game must not override a viewer game selection');
 assert.match(app, /bottomNav"\)\.classList\.toggle\("hidden",!teamExists\(\)\|\|viewer\)/, 'viewer navigation tabs must be hidden');
 assert.match(app, /analyticsExportCard"\)\?\.classList\.toggle\("hidden",viewer\)/, 'viewer analytics exports must be hidden');
 assert.match(app, /function renderViewerGameSummary\(\)/, 'viewer Game Center must render its scoreboard');
 assert.match(html, /id="viewerGameSummary"/, 'Stats must contain the viewer scoreboard destination');
 assert.match(html, /id="shareStatsBtn"/, 'Stats sharing must remain available');
-assert.match(sw, /v4-5-11-number-lookup/, 'service worker cache must be bumped');
+assert.match(sw, /v4-5-12-play-calls/, 'service worker cache must be bumped');
 assert.match(app, /Resume the game vs \$\{g\.opponent\} and mark it Live\?/, 'opening a final game must offer to resume it live');
 assert.match(app, /Finalize the game vs \$\{g\.opponent\}\?/, 'finalizing a game must require confirmation');
 assert.match(app, /async function syncDeletedCloudGames\(\)/, 'deleted local games must be reconciled to Supabase');
@@ -46,5 +47,11 @@ assert.match(app, /function finishDefenseAtEndSpot\(\)/, 'manual defense must de
 assert.match(app, /ensureDriveStart\(\(\)=>showDefenseTacklers\(\)\)/, 'manual defense must collect tacklers before the ending spot');
 assert.match(app, /voiceRecognition\.continuous=true/, 'voice listening must tolerate pauses');
 assert.match(app, /Stop & Transcribe/, 'voice recording must use an explicit stop action');
+assert.match(app, /function teamPlaybook\(\)/, 'team playbook data must remain optional');
+assert.match(app, /S\.flow\.playCall=selectedPlayCallSnapshot\(\)/, 'offensive entry must snapshot the selected play call');
+assert.match(app, /playbook:teamPlaybook\(\)/, 'the reusable playbook must sync with the team');
+assert.match(app, /p_event_data:\{local_id:p\.id,local_index:index,raw:/, 'the play-call snapshot must sync inside the raw play event');
+assert.match(html, /id="playbookCard"/, 'the roster screen must expose playbook management');
+assert.match(html, /id="nextPlayCallSelect"/, 'offensive entry must expose an optional play-call selector');
 
 console.log('live cloud sync checks passed');
