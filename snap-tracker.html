@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats Snap Tracker</title>
+<title>Sideline Stats V4.5.13 Snap Tracker</title>
 <meta name="theme-color" content="#177b46">
 <style>
 :root{--p:#177b46;--a:#f0b33b;--bg:#f4f6f5;--ink:#142019;--muted:#68736b;--line:#dce5df}
@@ -12,15 +12,15 @@
 .hero h1{margin:4px 0 6px;font-size:28px}.eyebrow{font-size:12px;font-weight:900;letter-spacing:.08em;color:var(--a)}.meta{font-size:14px;color:#dce4df}
 .status{display:flex;justify-content:space-between;gap:10px;align-items:center;background:#fff;border-radius:14px;padding:12px 14px;margin-bottom:12px;box-shadow:0 1px 8px #0001}.status strong{display:block}.small{font-size:13px;color:var(--muted)}
 .summary{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 12px}.pill{background:#eef5f0;color:var(--p);border-radius:999px;padding:5px 8px;font-size:12px;font-weight:900}.minimum-card{border:2px solid var(--a);background:#fffaf6;border-radius:14px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:10px}.minimum-card strong{display:block}.minimum-count{font-size:28px;font-weight:950;color:var(--p)}
-.grid{display:flex;flex-direction:column;gap:8px}.player{display:grid;grid-template-columns:auto 1fr minmax(84px,120px);align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer;user-select:none}.player.in.needs{border-color:var(--a)}.player.in.complete{border-color:#cfe2d5;background:#fbfdfb}.player:not(.in){opacity:.68}.player input{width:26px;height:26px;accent-color:var(--p)}.player-main{min-width:0}.player-name{font-weight:900}.num{font-weight:950;color:var(--p);font-size:20px;margin-right:6px}.name{font-weight:900}.progress{display:flex;flex-direction:column;gap:6px}.progress-top{display:flex;align-items:center;justify-content:space-between;gap:8px}.progress-count{font-size:16px;font-weight:950;color:var(--p);white-space:nowrap}.progress-status{font-size:10px;font-weight:950;border-radius:999px;padding:3px 6px;background:#fff4ed;color:#9b4300}.progress-status.done{background:#eef5f0;color:var(--p)}.bar{height:10px;border-radius:999px;background:#e9eeeb;overflow:hidden;border:1px solid var(--line)}.bar-fill{height:100%;background:var(--a);border-radius:999px;transition:width .15s ease}.bar-fill.done{background:var(--p)}
+.grid{display:flex;flex-direction:column;gap:8px}.player{display:grid;grid-template-columns:34px minmax(64px,82px) minmax(86px,1fr) minmax(52px,62px);align-items:center;gap:7px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 8px;cursor:pointer;user-select:none}.player.in.needs{border-color:var(--a)}.player.in.complete{border-color:#cfe2d5;background:#fbfdfb}.player:not(.in){opacity:.68}.player input{width:26px;height:26px;accent-color:var(--p)}.player-main{min-width:0;overflow:hidden}.player-name{font-weight:900;line-height:1.05;overflow-wrap:anywhere}.num{display:block;font-weight:950;color:var(--p);font-size:19px;margin:0 0 4px}.name{display:block;font-size:13px;font-weight:900}.progress{display:flex;min-width:0;flex-direction:column;gap:6px}.progress-top{display:flex;align-items:center;justify-content:space-between;gap:4px}.progress-count{font-size:15px;font-weight:950;color:var(--p);white-space:nowrap}.progress-status{font-size:9px;font-weight:950;border-radius:999px;padding:3px 5px;background:#fff4ed;color:#9b4300;text-align:center}.progress-status.done{background:#eef5f0;color:var(--p)}.bar{height:10px;border-radius:999px;background:#e9eeeb;overflow:hidden;border:1px solid var(--line)}.bar-fill{height:100%;background:var(--a);border-radius:999px;transition:width .15s ease}.bar-fill.done{background:var(--p)}.usage{border-left:1px solid var(--line);padding-left:7px;text-align:right;line-height:1.05}.usage strong{display:block;color:var(--p);font-size:17px;font-weight:950}.usage span{display:block;margin-top:4px;font-size:10px;font-weight:850;white-space:nowrap;color:var(--muted)}.usage small{display:block;margin-top:4px;font-size:8px;font-weight:950;letter-spacing:.06em;color:var(--muted)}
 .actions{position:fixed;left:0;right:0;bottom:0;background:#fff;padding:12px 14px calc(12px + env(safe-area-inset-bottom));box-shadow:0 -4px 18px #0002}.actions-inner{max-width:760px;margin:auto;display:grid;grid-template-columns:1fr 2fr;gap:10px}.btn{border:0;border-radius:14px;padding:16px;font-size:17px;font-weight:900}.ghost{background:#e9eeeb;color:#17221c}.primary{background:var(--p);color:#fff}.primary:disabled{opacity:.45}.notice{background:#fff6df;border:1px solid #ead08a;padding:10px 12px;border-radius:12px;margin:10px 0;font-size:13px}.hidden{display:none}.err{background:#ffe8e8;border-color:#efb0b0}.topline{display:flex;justify-content:space-between;align-items:center;gap:12px}.big{font-size:22px;font-weight:950}
-@media(max-width:520px){.player{min-height:58px}}
+@media(max-width:520px){.wrap{padding-left:10px;padding-right:10px}.player{min-height:74px}}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="hero">
-    <div class="eyebrow">SIDELINE STATS • SNAP TRACKER</div>
+    <div class="eyebrow">SIDELINE STATS • SHARED SNAP TRACKER</div>
     <h1 id="teamName">Loading game…</h1>
     <div class="meta" id="gameMeta">Open this link before kickoff when possible.</div>
   </div>

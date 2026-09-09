@@ -133,6 +133,18 @@ test('in-app snaps expose the team minimum and current-game participation percen
   assert.match(sql,/'snapMinimum', coalesce\(v_team\.snap_minimum, 10\)/,'Snap Tracker invitations must use the team minimum stored in Supabase');
 });
 
+test('shared tracker matches the in-app snap progress and usage view',()=>{
+  const tracker=fs.readFileSync(new URL('../snap-tracker.js',`file://${__filename}`),'utf8');
+  const html=fs.readFileSync(new URL('../snap-tracker.html',`file://${__filename}`),'utf8');
+  assert.match(tracker,/gameTotal=Number\(game\?\.snapCount\|\|0\)/);
+  assert.match(tracker,/snapPct=gameTotal\?Math\.round\(\(count\/gameTotal\)\*100\):0/);
+  assert.match(tracker,/aria-label="\$\{count\} of \$\{gameTotal\} total snaps, \$\{snapPct\} percent"/);
+  assert.match(tracker,/\$\{count\} \/ \$\{min\}/);
+  assert.match(tracker,/NEEDS \$\{Math\.max\(0,min-count\)\}/);
+  assert.match(html,/grid-template-columns:34px minmax\(64px,82px\) minmax\(86px,1fr\) minmax\(52px,62px\)/);
+  assert.match(html,/\.usage strong/);
+});
+
 test('service worker serves the Snap Tracker shell for an offline token URL',async()=>{
   const worker=fs.readFileSync(new URL('../service-worker.js',`file://${__filename}`),'utf8');
   const listeners={};
