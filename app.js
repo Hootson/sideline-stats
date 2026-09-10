@@ -51,8 +51,8 @@ function normalizePlaybook(){
   if(!S.team)return;
   const seenIds=new Set(),clean=[];
   for(const item of teamPlaybook()){
-    const number=Number(item?.number),name=String(item?.name||"").trim();
-    if(!Number.isInteger(number)||number<1||number>999||!name)continue;
+    const number=item?.number===""||item?.number==null?NaN:Number(item.number),name=String(item?.name||"").trim();
+    if(!Number.isInteger(number)||number<0||number>99||!name)continue;
     let id=String(item.id||uid());if(seenIds.has(id))id=uid();seenIds.add(id);
     clean.push({id,number,name:name.slice(0,48),active:item.active!==false});
   }
@@ -60,14 +60,14 @@ function normalizePlaybook(){
   if(JSON.stringify(clean)!==JSON.stringify(teamPlaybook())){S.team.playbook=clean;persist()}
 }
 function defaultGamePlan(){
-  const used=new Set();return activeTeamPlaybook().map(p=>{let number=Number(p.number);while(used.has(number)&&number<=999)number++;if(number>999)return null;used.add(number);return {playId:p.id,number}}).filter(Boolean);
+  const used=new Set();return activeTeamPlaybook().map(p=>{let number=Number(p.number);while(used.has(number)&&number<=99)number++;if(number>99)return null;used.add(number);return {playId:p.id,number}}).filter(Boolean);
 }
 function normalizeGamePlan(g,{useDefaults=false}={}){
   if(!g)return [];
   const concepts=new Map(teamPlaybook().map(p=>[String(p.id),p])),usedNumbers=new Set(),usedIds=new Set(),clean=[];
   for(const item of Array.isArray(g.gamePlan)?g.gamePlan:[]){
-    const playId=String(item?.playId||item?.id||""),number=Number(item?.number);
-    if(!concepts.has(playId)||usedIds.has(playId)||usedNumbers.has(number)||!Number.isInteger(number)||number<1||number>999)continue;
+    const playId=String(item?.playId||item?.id||""),number=item?.number===""||item?.number==null?NaN:Number(item.number);
+    if(!concepts.has(playId)||usedIds.has(playId)||usedNumbers.has(number)||!Number.isInteger(number)||number<0||number>99)continue;
     usedIds.add(playId);usedNumbers.add(number);clean.push({playId,number});
   }
   if(!clean.length&&useDefaults)clean.push(...defaultGamePlan());
@@ -1171,7 +1171,7 @@ function renderPlaybook(){
 function editMasterPlay(id){
   const play=teamPlaybook().find(p=>p.id===id);if(!play)return;
   const name=prompt("Play name:",play.name);if(name===null)return;const cleanName=name.trim().slice(0,48);if(!cleanName)return toast("Enter a play name");
-  const raw=prompt("Default number for new game plans:",String(play.number));if(raw===null)return;const number=Number(raw);if(!Number.isInteger(number)||number<1||number>999)return toast("Enter a play number from 1 to 999");
+  const raw=prompt("Default number for new game plans:",String(play.number));if(raw===null)return;const number=raw.trim()===""?NaN:Number(raw);if(!Number.isInteger(number)||number<0||number>99)return toast("Enter a play number from 0 to 99");
   if(activeTeamPlaybook().some(p=>p.id!==id&&p.number===number))return toast("That default number is already in use");
   play.name=cleanName;play.number=number;persist();normalizePlaybook();renderPlaybook();renderGamePlanManager();renderNextPlayCallOptions();toast("Play updated — analytics history preserved");
 }
@@ -1180,8 +1180,8 @@ function toggleMasterPlayArchive(id){
   play.active=play.active===false;persist();normalizePlaybook();renderPlaybook();renderGamePlanManager();renderNextPlayCallOptions();toast(play.active===false?"Play archived — prior analytics preserved":"Play restored");
 }
 $("#addPlaybookPlay")?.addEventListener("click",()=>{
-  const number=Number($("#playNumber").value),name=$("#playName").value.trim();
-  if(!Number.isInteger(number)||number<1||number>999)return toast("Enter a play number from 1 to 999");
+  const rawNumber=$("#playNumber").value,number=rawNumber===""?NaN:Number(rawNumber),name=$("#playName").value.trim();
+  if(!Number.isInteger(number)||number<0||number>99)return toast("Enter a play number from 0 to 99");
   if(!name)return toast("Enter a play name");
   if(activeTeamPlaybook().some(p=>p.number===number))return toast("That default number already exists");
   S.team.playbook=[...teamPlaybook(),{id:uid(),number,name:name.slice(0,48),active:true}];
@@ -1206,14 +1206,15 @@ function renderGameArea(){
 }
 function renderNewGamePlanSources(){
   const select=$("#newGamePlanSource");if(!select)return;const prior=select.value;
-  const games=[...(S.games||[])].filter(g=>Array.isArray(g.gamePlan)&&g.gamePlan.length).sort((a,b)=>Number(b.week||0)-Number(a.week||0)||Number(b.createdAt||0)-Number(a.createdAt||0));
-  select.innerHTML='<option value="defaults">Use current playbook defaults</option>'+games.map(g=>`<option value="game:${g.id}">Copy Week ${Number(g.week||1)} vs ${esc(g.opponent)}</option>`).join("")+'<option value="blank">Start with a blank game plan</option>';
+  const games=[...(S.games||[])].filter(g=>Array.isArray(g.gamePlan)&&g.gamePlan.length).sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0)||Number(b.week||0)-Number(a.week||0));
+  select.innerHTML=`<option value="auto">${games.length?`Automatically copy Week ${Number(games[0].week||1)} vs ${esc(games[0].opponent)}`:"Use current playbook defaults"}</option>`+'<option value="defaults">Use current playbook defaults</option>'+games.map(g=>`<option value="game:${g.id}">Copy Week ${Number(g.week||1)} vs ${esc(g.opponent)}</option>`).join("")+'<option value="blank">Start with a blank game plan</option>';
   if([...select.options].some(o=>o.value===prior))select.value=prior;
 }
 function planFromNewGameSource(){
-  const source=$("#newGamePlanSource")?.value||"defaults";
+  const source=$("#newGamePlanSource")?.value||"auto";
   if(source==="blank")return [];
   if(source.startsWith("game:")){const prior=gameById(source.slice(5));if(prior)return cloneJson(normalizeGamePlan(prior))}
+  if(source==="auto"){const prior=[...(S.games||[])].filter(g=>Array.isArray(g.gamePlan)&&g.gamePlan.length).sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0)||Number(b.week||0)-Number(a.week||0))[0];if(prior)return cloneJson(normalizeGamePlan(prior))}
   return cloneJson(defaultGamePlan());
 }
 function renderGamePlanManager(){
@@ -1227,8 +1228,8 @@ function renderGamePlanManager(){
 }
 function renumberGamePlanPlay(playId){
   const g=currentGame(),entry=g?.gamePlan?.find(x=>x.playId===playId);if(!entry)return;
-  const raw=prompt("Number for this game:",String(entry.number));if(raw===null)return;const number=Number(raw);
-  if(!Number.isInteger(number)||number<1||number>999)return toast("Enter a number from 1 to 999");
+  const raw=prompt("Number for this game:",String(entry.number));if(raw===null)return;const number=raw.trim()===""?NaN:Number(raw);
+  if(!Number.isInteger(number)||number<0||number>99)return toast("Enter a number from 0 to 99");
   if(g.gamePlan.some(x=>x.playId!==playId&&x.number===number))return toast("That number is already assigned in this game");
   entry.number=number;normalizeGamePlan(g);persist();renderGamePlanManager();renderNextPlayCallOptions();toast("Weekly number updated");
 }
@@ -1236,8 +1237,8 @@ function removeGamePlanPlay(playId){
   const g=currentGame();if(!g)return;g.gamePlan=normalizeGamePlan(g).filter(x=>x.playId!==playId);persist();renderGamePlanManager();renderNextPlayCallOptions();toast("Removed from this game only");
 }
 $("#assignGamePlanPlayBtn")?.addEventListener("click",()=>{
-  const g=currentGame(),playId=$("#gamePlanPlaySelect")?.value,number=Number($("#gamePlanNumber")?.value);if(!g||!playId)return toast("Choose a play");
-  if(!Number.isInteger(number)||number<1||number>999)return toast("Enter a number from 1 to 999");
+  const g=currentGame(),playId=$("#gamePlanPlaySelect")?.value,rawNumber=$("#gamePlanNumber")?.value??"",number=rawNumber===""?NaN:Number(rawNumber);if(!g||!playId)return toast("Choose a play");
+  if(!Number.isInteger(number)||number<0||number>99)return toast("Enter a number from 0 to 99");
   if(normalizeGamePlan(g).some(x=>x.number===number))return toast("That number is already assigned in this game");
   g.gamePlan.push({playId,number});normalizeGamePlan(g);$("#gamePlanNumber").value="";persist();renderGamePlanManager();renderNextPlayCallOptions();toast("Play assigned to this game");
 });

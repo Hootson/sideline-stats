@@ -130,7 +130,7 @@
       <h2>Offensive Playbook <span class="badge" id="playbookCount">0 plays</span></h2>
       <div class="muted">Add each named play once. Weekly play numbers are assigned separately for each game, so the same play can use different numbers without splitting its season analytics.</div>
       <div class="playbook-entry-row">
-        <input id="playNumber" inputmode="numeric" placeholder="Default #" aria-label="Default play number">
+        <input id="playNumber" type="number" inputmode="numeric" min="0" max="99" placeholder="Default #" aria-label="Default play number">
         <input id="playName" placeholder="Play name" maxlength="48" aria-label="Play name">
       </div>
       <button class="btn" id="addPlaybookPlay" type="button" style="margin-top:10px">Add Play</button>
@@ -169,6 +169,7 @@
         <div class="inline-note" style="margin-top:6px">Choose this once. Possession will track itself from here.</div>
         <label>Weekly game plan</label>
         <select id="newGamePlanSource">
+          <option value="auto">Automatically copy the most recent game plan</option>
           <option value="defaults">Use current playbook defaults</option>
           <option value="blank">Start with a blank game plan</option>
         </select>
@@ -267,7 +268,7 @@
         </div>
         <div class="game-plan-entry-row">
           <select id="gamePlanPlaySelect" aria-label="Play from master library"></select>
-          <input id="gamePlanNumber" inputmode="numeric" placeholder="#" aria-label="Weekly play number">
+          <input id="gamePlanNumber" type="number" inputmode="numeric" min="0" max="99" placeholder="#" aria-label="Weekly play number">
           <button class="btn" id="assignGamePlanPlayBtn" type="button">Assign</button>
         </div>
         <div id="gamePlanList" class="game-plan-list"></div>
