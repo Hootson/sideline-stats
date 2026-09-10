@@ -694,8 +694,10 @@ nav.five-items,#bottomNav:has(#statkeeperAnalyticsNav:not(.hidden)){grid-templat
 
 @media (min-width:760px){
   body.coach-mode .app{max-width:1180px}
-  body.coach-mode .top{max-height:255px;background-size:cover}
+  body.coach-mode .top{height:150px;max-height:150px;aspect-ratio:auto;background-size:cover;background-position:center center}
   body.coach-mode nav{width:min(920px,100%)}
+  body.coach-mode .coach-section-tabs{top:150px}
+  body.coach-mode .heat-head{top:205px}
   .coach-screen{padding-left:24px;padding-right:24px}
   .coach-metric-grid{grid-template-columns:repeat(3,1fr)}
   .coach-chart-grid{grid-template-columns:1fr 1fr}

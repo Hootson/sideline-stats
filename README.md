@@ -1,4 +1,10 @@
-# Sideline Stats V4.5.16 — Play Library & Coach Context
+# Sideline Stats V4.5.17 — Responsive Analytics & Defensive Summary Fix
+
+## V4.5.17 changes
+
+- Corrects the team Defense summary so TFL plays recorded through `tackleKind` are included.
+- Preserves the accepted iPhone masthead while using a shorter Analytics masthead on tablets and computers.
+- Keeps Analytics navigation and heat-map headings aligned beneath the responsive masthead.
 
 ## V4.5.16 changes
 
