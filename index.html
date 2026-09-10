@@ -613,12 +613,20 @@
     <button id="statkeeperAnalyticsNav" class="hidden" data-go="coach">📈<br>Analytics</button>
   </nav>
   <nav id="coachNav" class="hidden coach-nav">
-    <button class="active" data-coach-go="overview">⌂<br>Overview</button>
-    <button data-coach-go="playcalls">▦<br>Play Calls</button>
-    <button data-coach-go="players">★<br>Players</button>
-    <button data-coach-go="trends">↗<br>Trends</button>
-    <button data-coach-go="debrief">✎<br>Debrief</button>
+    <button class="active" data-go="stats">📊<br>Stats</button>
+    <button data-go="coach">📈<br>Analytics</button>
   </nav>
+</div>
+<div id="coachDebriefPromptModal" class="modal-backdrop hidden">
+  <div class="modal-card coach-debrief-prompt-card">
+    <div class="muted">Coach Pro</div>
+    <h2>Complete your game debrief?</h2>
+    <p id="coachDebriefPromptText" class="muted">Add your observations while the game is still fresh.</p>
+    <div class="modal-actions">
+      <button class="btn" id="startCoachDebriefBtn" type="button">Start Debrief</button>
+      <button class="btn ghost" id="coachDebriefLaterBtn" type="button">View Stats First</button>
+    </div>
+  </div>
 </div>
 <div id="voicePlayModal" class="modal-backdrop hidden">
   <div class="modal-card voice-play-modal">

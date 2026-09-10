@@ -3,6 +3,7 @@
   const number=value=>Number.isFinite(Number(value))?Number(value):0;
   const pct=value=>`${Math.round(number(value)*100)}%`;
   const avg=(total,count)=>count?(total/count).toFixed(1):"0.0";
+  const half=value=>{const rounded=Math.round(number(value)*2)/2;return Number.isInteger(rounded)?String(rounded):rounded.toFixed(1)};
   const ordinal=n=>({1:"1ST",2:"2ND",3:"3RD",4:"4TH"}[Number(n)]||`${n}TH`);
   const possession=play=>play?.stateBefore?.possession||(play?.type==="Rush"||play?.type==="Pass"?"ours":play?.type==="Defense"?"opp":null);
   const offense=plays=>(plays||[]).filter(play=>possession(play)==="ours"&&(play.type==="Rush"||play.type==="Pass"));
@@ -53,6 +54,16 @@
     if(metrics.turnoverMargin>0)parts.push(`The team is +${metrics.turnoverMargin} in turnover margin.`);
     return parts.slice(0,3).join(" ")||"The current sample is still developing; keep recording down, distance and play calls.";
   }
+  function staffContext(debriefs){
+    const shared=(debriefs||[]).filter(d=>d.status==="submitted"),fields=shared.map(d=>d.structured_context||{}),parts=[];
+    const first=key=>fields.map(f=>String(f[key]||"").trim()).find(Boolean)||"";
+    const trim=value=>value.length>125?`${value.slice(0,122)}…`:value;
+    if(first("what_worked"))parts.push(`Staff highlighted: ${trim(first("what_worked"))}`);
+    if(first("needs_attention"))parts.push(`Needs attention: ${trim(first("needs_attention"))}`);
+    if(first("practice_priorities"))parts.push(`Practice priority: ${trim(first("practice_priorities"))}`);
+    if(!parts.length&&first("voice_notes"))parts.push(`Staff observation: ${trim(first("voice_notes"))}`);
+    return parts.slice(0,3).join(" ");
+  }
   function bar(label,value,max,color="primary",detail=""){
     const width=max?Math.max(3,Math.min(100,(number(value)/max)*100)):0;
     return `<div class="coach-bar-row"><div class="coach-bar-label"><strong>${esc(label)}</strong><span>${esc(detail||String(value))}</span></div><div class="coach-bar-track"><div class="coach-bar-fill ${color}" style="width:${width}%"></div></div></div>`;
@@ -60,10 +71,12 @@
   function renderOverview(ctx){
     const metrics=metricSet(selectedGames(ctx.games,ctx.selection));
     const total=metrics.rush.length+metrics.pass.length,rushPct=total?metrics.rush.length/total:0,passPct=total?metrics.pass.length/total:0;
+    const humanRead=staffContext(ctx.debriefs);
     const quarter=[1,2,3,4].map(q=>({q,yards:metrics.off.filter(p=>number(p.quarter)===q).reduce((s,p)=>s+playYards(p),0)}));
     const maxQuarter=Math.max(1,...quarter.map(x=>x.yards));
     return `<div class="coach-title-block"><div class="coach-kicker">COACH PRO</div><h2>GAME OVERVIEW</h2></div>
       <div class="coach-read"><div class="coach-read-icon">↗</div><div><strong>COACH READ</strong><p>${esc(coachRead(metrics))}</p></div></div>
+      ${humanRead?`<div class="coach-read staff-context"><div class="coach-read-icon">✎</div><div><strong>STAFF CONTEXT</strong><p>${esc(humanRead)}</p></div></div>`:""}
       <div class="coach-metric-grid">
         <div class="coach-metric"><strong>${metrics.yardsPerPlay.toFixed(1)}</strong><span>YDS / PLAY</span></div>
         <div class="coach-metric"><strong>${pct(metrics.successRate)}</strong><span>SUCCESSFUL PLAYS</span></div>
@@ -86,6 +99,20 @@
       groups.get(key).plays.push(play);
     }
     return [...groups.values()].sort((a,b)=>b.plays.length-a.plays.length||number(a.number)-number(b.number));
+  }
+  function callSortScore(list,metric){
+    if(!list.length)return -Infinity;
+    if(metric==="calls")return list.length;
+    if(metric==="yards")return list.reduce((sum,p)=>sum+playYards(p),0)/list.length;
+    const hits=metric==="explosive"?list.filter(explosive).length:list.filter(successful).length;
+    return (hits+1)/(list.length+2);
+  }
+  function sortedCallGroups(groups,metric,bucket){
+    const listFor=group=>bucket==="overall"?group.plays:group.plays.filter(p=>distanceBucket(p)===bucket);
+    return [...groups].sort((a,b)=>{
+      const al=listFor(a),bl=listFor(b),as=callSortScore(al,metric),bs=callSortScore(bl,metric);
+      return bs-as||bl.length-al.length||number(a.number)-number(b.number);
+    });
   }
   function cellClass(plays){
     if(plays.length<2)return "low";
@@ -112,14 +139,14 @@
     return `Best call: ${best.group.name} with ${labels[best.key]} needed — ${pct(best.rate)} success across ${best.plays.length} calls.`;
   }
   function renderPlayCalls(ctx){
-    const games=selectedGames(ctx.games,ctx.selection),selectedDown=number(ctx.down)||1,metric=ctx.metric||"success";
-    const plays=offense(allPlays(games)).filter(p=>down(p)===selectedDown&&p.playCall),groups=callGroups(plays).slice(0,15),buckets=[{key:"short",label:"1–3 YDS"},{key:"medium",label:"4–6 YDS"},{key:"long",label:"7+ YDS"}];
+    const games=selectedGames(ctx.games,ctx.selection),selectedDown=number(ctx.down)||1,metric=ctx.metric||"success",sortBucket=ctx.callSortBucket||"overall";
+    const plays=offense(allPlays(games)).filter(p=>down(p)===selectedDown&&p.playCall),buckets=[{key:"short",label:"1–3"},{key:"medium",label:"4–6"},{key:"long",label:"7+"}],groups=sortedCallGroups(callGroups(plays),metric,sortBucket).slice(0,15);
     const zones=["own","mid","opp","red"].map(key=>{const list=plays.filter(p=>fieldZone(p)===key);return {key,list,rate:list.length?list.filter(successful).length/list.length:null}});
     const playbookCount=(ctx.playbook||[]).length,usedCount=new Set(offense(allPlays(games)).filter(p=>p.playCall).map(p=>p.playCall.id||`${p.playCall.number}:${p.playCall.name}`)).size;
     return `<div class="coach-title-block"><div class="coach-kicker">COACH PRO • ${playbookCount} PLAYBOOK CALLS • ${usedCount} USED</div><h2>PLAY CALLS</h2></div>
       <div class="coach-control-row"><label>Down<select id="coachDownSelect"><option value="1" ${selectedDown===1?"selected":""}>1st Down</option><option value="2" ${selectedDown===2?"selected":""}>2nd Down</option><option value="3" ${selectedDown===3?"selected":""}>3rd Down</option><option value="4" ${selectedDown===4?"selected":""}>4th Down</option></select></label><label>Show<select id="coachMetricSelect"><option value="success" ${metric==="success"?"selected":""}>Success %</option><option value="calls" ${metric==="calls"?"selected":""}>Calls</option><option value="yards" ${metric==="yards"?"selected":""}>Average Yards</option><option value="explosive" ${metric==="explosive"?"selected":""}>Explosive %</option></select></label></div>
       <div class="heat-legend"><span><i class="strong"></i>Strong</span><span><i class="mixed"></i>Mixed</span><span><i class="weak"></i>Needs Work</span><span><i class="low"></i>Low Sample</span></div>
-      <section class="coach-panel heat-panel"><h3>WHAT’S WORKED ON ${ordinal(selectedDown)} DOWN</h3>${groups.length?`<div class="heat-table"><div class="heat-head">PLAY CALL</div>${buckets.map(b=>`<div class="heat-head">${b.label}</div>`).join("")}${groups.map(group=>`<div class="heat-name"><b>${esc(group.number)}</b> ${esc(group.name)}</div>${buckets.map(bucket=>{const list=group.plays.filter(p=>distanceBucket(p)===bucket.key);return `<button class="heat-cell ${cellClass(list)}" data-call-id="${esc(group.id)}" data-bucket="${bucket.key}">${cellValue(list,metric)}</button>`}).join("")}`).join("")}</div>`:`<div class="coach-empty">No play calls have been recorded for ${ordinal(selectedDown).toLowerCase()} down in this view.</div>`}</section>
+      <section class="coach-panel heat-panel"><h3>WHAT’S WORKED ON ${ordinal(selectedDown)} DOWN</h3><div class="heat-sort-note">Tap a heading to rank that distance. The active column is sorted best-first.</div>${groups.length?`<div class="heat-table"><button class="heat-head ${sortBucket==="overall"?"active":""}" data-call-sort="overall">PLAY CALL${sortBucket==="overall"?" ▼":""}</button>${buckets.map(b=>`<button class="heat-head ${sortBucket===b.key?"active":""}" data-call-sort="${b.key}">${b.label}${sortBucket===b.key?" ▼":""}</button>`).join("")}${groups.map(group=>`<div class="heat-name"><b>${esc(group.number)}</b><span>${esc(group.name)}</span></div>${buckets.map(bucket=>{const list=group.plays.filter(p=>distanceBucket(p)===bucket.key);return `<button class="heat-cell ${cellClass(list)}" data-call-id="${esc(group.id)}" data-bucket="${bucket.key}">${cellValue(list,metric)}</button>`}).join("")}`).join("")}</div>`:`<div class="coach-empty">No play calls have been recorded for ${ordinal(selectedDown).toLowerCase()} down in this view.</div>`}</section>
       <div class="coach-read compact"><div class="coach-read-icon">↗</div><div><strong>COACH READ</strong><p>${esc(playCallRead(groups,selectedDown))}</p></div></div>
       <section class="coach-panel"><h3>BEST FIELD ZONE</h3><div class="field-zone-strip">${zones.map(zone=>`<div class="${zone.rate===null?"low":zone.rate>=.6?"strong":zone.rate>=.4?"mixed":"weak"}"><strong>${{own:"OWN",mid:"MIDFIELD",opp:"OPP",red:"RED ZONE"}[zone.key]}</strong><span>${zone.rate===null?"—":pct(zone.rate)}</span><small>${zone.list.length} calls</small></div>`).join("")}</div></section>`;
   }
@@ -133,17 +160,29 @@
     const data=playerMetrics(ctx),mode=ctx.playerMode||"offense";
     const tabs=`<div class="coach-segments"><button data-player-mode="offense" class="${mode==="offense"?"active":""}">Offense</button><button data-player-mode="defense" class="${mode==="defense"?"active":""}">Defense</button><button data-player-mode="snaps" class="${mode==="snaps"?"active":""}">Snaps</button></div>`;
     let rows=[];
-    if(mode==="defense")rows=data.players.filter(p=>p.tackles+p.tfl+p.sacks+p.int+p.ff+p.fr).sort((a,b)=>(b.tackles+b.tfl*2+b.sacks*2+b.int*3)-(a.tackles+a.tfl*2+a.sacks*2+a.int*3)).map(p=>`<div class="coach-player-row"><div><b>#${esc(p.jersey)} ${esc(p.name)}</b><small>${p.tackles} TKL • ${p.tfl} TFL • ${p.sacks} SACK</small></div><strong>${p.int+p.ff+p.fr}</strong><span>TAKEAWAY PLAYS</span></div>`);
+    if(mode==="defense")rows=data.players.filter(p=>p.tackles+p.tfl+p.sacks+p.int+p.ff+p.fr).sort((a,b)=>(b.tackles+b.tfl*2+b.sacks*2+b.int*3)-(a.tackles+a.tfl*2+a.sacks*2+a.int*3)).map(p=>`<div class="coach-player-row"><div><b>#${esc(p.jersey)} ${esc(p.name)}</b><small>${half(p.tackles)} TKL • ${half(p.tfl)} TFL • ${half(p.sacks)} SACK</small></div><strong>${p.int+p.ff+p.fr}</strong><span>TAKEAWAY PLAYS</span></div>`);
     else if(mode==="snaps")rows=data.players.sort((a,b)=>b.snaps-a.snaps).map(p=>`<div class="coach-player-row"><div><b>#${esc(p.jersey)} ${esc(p.name)}</b><small>${p.snaps} of ${data.snapTotal} snaps</small><div class="coach-mini-track"><i style="width:${data.snapTotal?Math.min(100,p.snaps/data.snapTotal*100):0}%"></i></div></div><strong>${data.snapTotal?pct(p.snaps/data.snapTotal):"0%"}</strong><span>SNAP RATE</span></div>`);
     else rows=data.players.filter(p=>p.rushes+p.targets+p.passAtt).sort((a,b)=>(b.rushYards+b.recYards+b.passYards)-(a.rushYards+a.recYards+a.passYards)).map(p=>`<div class="coach-player-row"><div><b>#${esc(p.jersey)} ${esc(p.name)}</b><small>${p.rushes} CAR • ${p.receptions}/${p.targets} REC • ${p.passCmp}/${p.passAtt} PASS</small></div><strong>${p.rushYards+p.recYards+p.passYards}</strong><span>TOTAL YARDS</span></div>`);
     return `<div class="coach-title-block"><div class="coach-kicker">COACH PRO</div><h2>PLAYERS</h2></div>${tabs}<section class="coach-panel coach-player-list">${rows.length?rows.join(""):'<div class="coach-empty">No player data is available in this view.</div>'}</section>`;
   }
+  function trendArea(rows){
+    if(!rows.length)return '<div class="coach-empty">No games yet.</div>';
+    const list=rows.slice(-8),w=320,h=122,left=18,right=302,top=15,base=94,span=Math.max(1,list.length-1),points=list.map((x,i)=>({x:left+(right-left)*(i/span),y:base-(base-top)*x.metrics.successRate,value:Math.round(x.metrics.successRate*100),week:x.game.week}));
+    if(list.length===1)points[0].x=160;
+    const line=points.map(p=>`${p.x},${p.y}`).join(" "),area=`${points[0].x},${base} ${line} ${points[points.length-1].x},${base}`;
+    return `<div class="trend-area"><svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Offensive success rate by game"><line x1="${left}" y1="${base}" x2="${right}" y2="${base}" class="trend-grid"/><line x1="${left}" y1="${top+(base-top)/2}" x2="${right}" y2="${top+(base-top)/2}" class="trend-grid"/><polygon points="${area}" class="trend-area-fill"/><polyline points="${line}" class="trend-area-line"/>${points.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="4"/><text x="${p.x}" y="${Math.max(11,p.y-8)}">${p.value}%</text><text class="week" x="${p.x}" y="113">W${esc(p.week)}</text>`).join("")}</svg></div>`;
+  }
+  function pairedColumns(rows,a,b,aLabel,bLabel,format=value=>String(value)){
+    const max=Math.max(1,...rows.flatMap(x=>[a.value(x),b.value(x)]));
+    return `<div class="trend-legend"><span><i class="primary"></i>${esc(aLabel)}</span><span><i class="accent"></i>${esc(bLabel)}</span></div><div class="trend-columns">${rows.map(x=>`<div class="trend-column-game"><div class="trend-column-bars"><div><span>${esc(format(a.value(x)))}</span><i class="primary" style="height:${Math.max(4,a.value(x)/max*88)}px"></i></div><div><span>${esc(format(b.value(x)))}</span><i class="accent" style="height:${Math.max(4,b.value(x)/max*88)}px"></i></div></div><small>W${esc(x.game.week)}</small></div>`).join("")}</div>`;
+  }
   function renderTrends(ctx){
-    const games=[...(ctx.games||[])].sort((a,b)=>number(a.week)-number(b.week)),rows=games.map(game=>({game,metrics:metricSet([game])})),maxYpp=Math.max(1,...rows.map(x=>x.metrics.yardsPerPlay)),maxPoints=Math.max(1,...rows.map(x=>number(x.game.displayScore??x.game.ourScore)));
+    const games=[...(ctx.games||[])].sort((a,b)=>number(a.week)-number(b.week)),rows=games.map(game=>({game,metrics:metricSet([game])}));
     return `<div class="coach-title-block"><div class="coach-kicker">COACH PRO</div><h2>SEASON TRENDS</h2></div>
-      <section class="coach-panel"><h3>YARDS PER PLAY</h3>${rows.map(x=>bar(`W${x.game.week} vs ${x.game.opponent}`,x.metrics.yardsPerPlay,maxYpp,"primary",`${x.metrics.yardsPerPlay.toFixed(1)} yds`)).join("")||'<div class="coach-empty">No games yet.</div>'}</section>
-      <section class="coach-panel"><h3>SUCCESSFUL PLAYS</h3>${rows.map(x=>bar(`W${x.game.week} vs ${x.game.opponent}`,x.metrics.successRate,1,x.metrics.successRate>=.6?"good":x.metrics.successRate>=.4?"warn":"bad",pct(x.metrics.successRate))).join("")}</section>
-      <section class="coach-panel"><h3>POINTS BY GAME</h3>${rows.map(x=>bar(`W${x.game.week} vs ${x.game.opponent}`,number(x.game.displayScore??x.game.ourScore),maxPoints,"accent",`${number(x.game.displayScore??x.game.ourScore)} points`)).join("")}</section>`;
+      <section class="coach-panel"><h3>OFFENSIVE SUCCESS RATE</h3>${trendArea(rows)}</section>
+      <section class="coach-panel"><h3>RUN / PASS MIX BY GAME</h3><div class="trend-stack-list">${rows.map(x=>{const total=x.metrics.rush.length+x.metrics.pass.length,run=total?Math.round(x.metrics.rush.length/total*100):0;return `<div class="trend-stack-row"><strong>W${esc(x.game.week)}</strong><div class="trend-stack"><i class="run" style="width:${run}%"></i><i class="pass" style="width:${100-run}%"></i></div><span>${run}% R • ${100-run}% P</span></div>`}).join("")||'<div class="coach-empty">No games yet.</div>'}</div></section>
+      <section class="coach-panel"><h3>EFFICIENCY: OFFENSE VS DEFENSE</h3>${rows.length?pairedColumns(rows,{value:x=>x.metrics.yardsPerPlay},{value:x=>x.metrics.defYardsPerPlay},"Offense YPP","Defense YPP",value=>number(value).toFixed(1)):'<div class="coach-empty">No games yet.</div>'}</section>
+      <section class="coach-panel"><h3>SCORE BY GAME</h3>${rows.length?pairedColumns(rows,{value:x=>number(x.game.displayScore??x.game.ourScore)},{value:x=>number(x.game.displayOppScore??x.game.oppScore)},ctx.teamName||"Team","Opponent",value=>String(Math.round(number(value)))):'<div class="coach-empty">No games yet.</div>'}</section>`;
   }
   function debriefField(label,key,value,placeholder){return `<label class="debrief-field">${label}<textarea data-debrief-field="${key}" rows="3" placeholder="${esc(placeholder)}">${esc(value||"")}</textarea></label>`}
   function renderDebrief(ctx){
@@ -153,6 +192,7 @@
     return `<div class="coach-title-block"><div class="coach-kicker">COACH PRO</div><h2>GAME DEBRIEF</h2></div>
       <section class="coach-panel"><h3>YOUR DEBRIEF • WEEK ${esc(game.week)} VS ${esc(game.opponent)}</h3>
         <div class="debrief-ratings"><label>Energy<select id="debriefEnergy"><option value="">—</option>${[1,2,3,4,5].map(n=>`<option value="${n}" ${number(own.energy_rating)===n?"selected":""}>${n}</option>`).join("")}</select></label><label>Execution<select id="debriefExecution"><option value="">—</option>${[1,2,3,4,5].map(n=>`<option value="${n}" ${number(own.execution_rating)===n?"selected":""}>${n}</option>`).join("")}</select></label></div>
+        <div class="debrief-voice"><button class="btn" id="debriefVoiceBtn" type="button">🎙️ Record Debrief by Voice</button><div class="muted" id="debriefVoiceStatus">Voice is transcribed into notes; no audio recording is saved.</div><textarea id="debriefVoiceNotes" data-debrief-field="voice_notes" rows="5" placeholder="Talk through the game, or type general observations here.">${esc(fields.voice_notes||"")}</textarea></div>
         ${debriefField("What worked","what_worked",fields.what_worked,"What should we repeat?")}${debriefField("What needs attention","needs_attention",fields.needs_attention,"What should we correct?")}${debriefField("Offensive tendencies","offensive_tendencies",fields.offensive_tendencies,"Calls, situations or formations")}${debriefField("Defensive tendencies","defensive_tendencies",fields.defensive_tendencies,"Fits, pressure or coverage")}${debriefField("Personnel observations","personnel_observations",fields.personnel_observations,"Player or position observations")}${debriefField("Practice priorities","practice_priorities",fields.practice_priorities,"Next practice priorities")}${debriefField("Questions for staff","questions",fields.questions,"Topics to discuss together")}
         <div class="debrief-actions"><button class="btn ghost" id="saveDebriefDraft">Save Draft</button><button class="btn" id="submitDebrief">Share With Coaches</button></div><div class="muted debrief-status">${own.updated_at?`Last saved ${esc(new Date(own.updated_at).toLocaleString())}`:"Not saved yet"}</div>
       </section>

@@ -8,7 +8,7 @@ const sql=fs.readFileSync('supabase-team-invites.sql','utf8');
 assert.match(app,/SB\.auth\.signUp\(\{email,password,options:\{emailRedirectTo:redirectTo\}\}\)/,'email account creation must remain enabled');
 assert.match(app,/redirectUrl\.searchParams\.set\("teamInvite",inviteToken\)/,'email confirmation must preserve the team invitation');
 assert.match(app,/SB\.rpc\("redeem_team_invite",\{p_token:token\}\)/,'signed-in users must redeem the invitation');
-assert.match(app,/destination:joinedRole==="coach"\?"coach":"stats"/,'a redeemed invitation must open the correct viewer or coach destination');
+assert.match(app,/destination:"stats"/,'a redeemed invitation must open on the team stats screen');
 assert.match(app,/p_role:"viewer"/,'parent links must grant viewer access only');
 assert.match(app,/p_role:"coach"/,'coach links must grant coach access only');
 assert.match(html,/id="createViewerInviteBtn"/,'statkeepers need a parent-link control');

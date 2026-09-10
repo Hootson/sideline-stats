@@ -2,6 +2,12 @@
 
 ## V4.5.15 changes
 
+- Refines coach accounts to two destinations only: Stats and Analytics.
+- Keeps the analytics section buttons visible while scrolling and makes the Play Calls headings and play names sticky.
+- Ranks Play Calls best-first overall or by the selected distance heading and compacts the table for iPhone screens.
+- Rounds shared defensive credits to the nearest half tackle in Coach Pro.
+- Replaces basic season bars with richer success-rate, run/pass, efficiency, and scoring trend charts.
+- Prompts coaches for a postgame debrief, supports voice-to-text notes without storing audio, and adds submitted observations to Staff Context.
 - Adds responsive Coach Pro Overview, Play Calls, Players, Trends, and shared Game Debrief screens.
 - Adds the “WHAT’S WORKED ON 1ST DOWN” traffic-light heat map with down, metric, distance, and field-zone views.
 - Adds coach invitation links and enforces viewer, coach, and statkeeper navigation permissions.

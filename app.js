@@ -32,13 +32,14 @@ if(S.cloud.entitlementTier===undefined)S.cloud.entitlementTier=null;
 if(S.cloud.hashVersion===undefined)S.cloud.hashVersion=1;
 let statsScope="game";
 let selectedStatsGameId=null;
-let coachTab="overview",coachSelection=null,coachDown=1,coachMetric="success",coachPlayerMode="offense",coachDebriefs=[],coachOwnDebrief=null;
+let coachTab="overview",coachSelection=null,coachDown=1,coachMetric="success",coachCallSortBucket="overall",coachPlayerMode="offense",coachDebriefs=[],coachOwnDebrief=null;
 let pendingNewOpponentLogo=null;
 let pendingEditOpponentLogo=undefined;
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const Field=window.SidelineFieldPosition;
 let pendingFieldSpotHandler=null,pendingFieldSpotMode=null,pendingVoiceResult=null;
 let voiceRecognition=null,voiceListening=false,voiceStopRequested=false,voiceInterpretOnStop=false,voiceSafetyTimer=null,lastVoiceTranscriptRaw="",voiceSessionBase="";
+let debriefRecognition=null,debriefListening=false,debriefSafetyTimer=null,debriefVoiceBase="",pendingDebriefGameId=null;
 
 function teamSnapMinimum(){
   const n=Number(S.team?.snapMinimum);
@@ -202,7 +203,7 @@ async function initCloud(){
     if(!window.supabase?.createClient){updateCloudUI("unavailable");return}
     SB=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
     const {data}=await SB.auth.getSession();cloudUser=data?.session?.user||null;cloudReady=true;
-    if(cloudUser){rebaseCloudHashesV443();if(!await redeemPendingTeamInvite())await restoreRememberedTeam()}else{updateCloudUI();if(pendingTeamInviteToken()){openAuth();$("#authMessage").textContent="Create an account or sign in to join this team as a viewer."}}
+    if(cloudUser){rebaseCloudHashesV443();if(!await redeemPendingTeamInvite())await restoreRememberedTeam()}else{updateCloudUI();if(pendingTeamInviteToken()){openAuth();$("#authMessage").textContent="Create an account or sign in to accept this team invitation."}}
     if(isCloudStatkeeper())scheduleCloudSync(300);else setTimeout(checkCloudForUpdates,500);
     setTimeout(startCloudRealtime,800);
     SB.auth.onAuthStateChange((_event,session)=>{
@@ -230,6 +231,7 @@ async function restoreRememberedTeam(){
       }catch(e){console.warn("Startup cloud refresh check failed",e)}
     }
     updateCloudUI();
+    if(isCloudCoach())setTimeout(maybePromptCoachDebrief,250);
     return;
   }
   if(teamExists()){updateCloudUI();return}
@@ -306,7 +308,7 @@ async function redeemPendingTeamInvite(){
       rememberTeam(joined.team_id);clearPendingTeamInvite();
       const {data:team,error:teamError}=await SB.from("teams").select("id,name,team_identifier,grade,primary_color,accent_color,logo_data,snap_minimum,playbook,timezone,created_at,updated_at").eq("id",joined.team_id).single();if(teamError)throw teamError;
       const joinedRole=joined.role||joined.member_role||"viewer";
-      await loadTeamFromCloud({team,auto:true,skipReplaceConfirm:true,destination:joinedRole==="coach"?"coach":"stats"});
+      await loadTeamFromCloud({team,auto:true,skipReplaceConfirm:true,destination:"stats"});
       closeAuth();toast(`Joined ${joined.team_name||team.name} as a ${joinedRole}`);return true;
     }catch(e){
       console.error("Team invitation failed",e);
@@ -446,6 +448,7 @@ async function loadTeamFromCloud(options={}){
     cloudRemoteUpdates=false;rememberTeam(team.id);coachSelection=null;coachDebriefs=[];coachOwnDebrief=null;
     persist({skipCloud:true});await resolveCloudDeviceRole();normalizeRoster();normalizeGames();normalizePlaybook();syncChrome();populateSetup();initializeSnapSelections();renderRoster();renderGameArea();renderSnaps();renderStats();updateCloudUI();
     go(refreshing?priorScreen:(options.destination||"roster"));
+    if(isCloudCoach())setTimeout(maybePromptCoachDebrief,250);
     if(!autoRefresh)toast(refreshing?"Latest cloud changes loaded":"Cloud team loaded on this device");
     // Recheck membership after every load so an owner/statkeeper cannot remain stuck in viewer mode.
     setTimeout(checkCloudForUpdates,1200);startCloudRealtime({preserveRefresh:true});
@@ -885,18 +888,20 @@ function renderLogoPreview(targetId,data){
 
 function go(name){
   if(!teamExists() && name!=="setup"){toast("Create your team first");name="setup"}
-  if(teamExists()&&isCloudCoach()&&name!=="coach")name=hasCoachAccess()?"coach":"stats";
+  if(teamExists()&&isCloudCoach()&&!['stats','coach'].includes(name))name="stats";
+  if(teamExists()&&isCloudCoach()&&name==="coach"&&!hasCoachAccess())name="stats";
   if(teamExists()&&isCloudViewer()&&name!=="stats"){
     name="stats";statsScope="game";selectedStatsGameId=selectedStatsGameId||preferredViewerGame()?.id||null;
   }
   $$(".screen").forEach(x=>x.classList.remove("active"));$(`[data-screen="${name}"]`).classList.add("active");
   $$("#bottomNav [data-go]").forEach(b=>b.classList.toggle("active",b.dataset.go===name));
+  $$("#coachNav [data-go]").forEach(b=>b.classList.toggle("active",b.dataset.go===name));
   document.body.classList.toggle("coach-mode",name==="coach");
   $("#topTitle").textContent={setup:"Sideline Stats",roster:"Roster",game:"Game",snaps:"Snaps",stats:isCloudViewer()?"Game Center":"Team Stats",coach:"Coach Pro",share:"Share"}[name];
   if(name==="game")renderGameArea();
   if(name==="snaps")renderSnaps();
   if(name==="stats"){if(!isCloudViewer()&&currentGame())selectedStatsGameId=currentGame().id;renderStats();}
-  if(name==="coach")renderCoach();
+  if(name==="coach"){renderCoach();if(hasCoachAccess()&&["overview","debrief"].includes(coachTab))loadCoachDebriefs().then(renderCoach)}
   
 }
 $$("[data-go]").forEach(b=>b.addEventListener("click",()=>go(b.dataset.go)));
@@ -906,7 +911,7 @@ function syncChrome(){
   const viewer=teamExists()&&isCloudViewer();
   const coach=teamExists()&&isCloudCoach();
   $("#bottomNav").classList.toggle("hidden",!teamExists()||viewer||coach);
-  $("#coachNav")?.classList.toggle("hidden",!teamExists()||!coach||!hasCoachAccess());
+  $("#coachNav")?.classList.toggle("hidden",!teamExists()||!coach);
   $("#statkeeperAnalyticsNav")?.classList.toggle("hidden",!teamExists()||!isCloudStatkeeper()||!hasCoachAccess());
   $("#bottomNav")?.classList.toggle("five-items",isCloudStatkeeper()&&hasCoachAccess());
   $("#editTeamBtn").classList.toggle("hidden",!teamExists()||viewer||coach);
@@ -914,7 +919,7 @@ function syncChrome(){
   if(teamExists()) $("#editTeamBtn").textContent=`Edit ${S.team.name}`;
   const activeScreen=$(".screen.active")?.dataset?.screen;
   if(viewer&&activeScreen&&activeScreen!=="stats")go("stats");
-  if(coach&&activeScreen&&activeScreen!=="coach")go(hasCoachAccess()?"coach":"stats");
+  if(coach&&activeScreen&&!['stats','coach'].includes(activeScreen))go("stats");
 }
 function defaultCoachSelection(){const game=preferredViewerGame();return game?`game:${game.id}`:"season"}
 function coachSelectedGame(){if(!String(coachSelection).startsWith("game:"))return null;return gameById(String(coachSelection).slice(5))}
@@ -927,7 +932,7 @@ function renderCoachGameSelect(){
   select.value=coachSelection;
 }
 function coachContext(){
-  return {games:S.games||[],roster:S.roster||[],playbook:S.team?.coachDemoPlaybook?.length?S.team.coachDemoPlaybook:teamPlaybook(),selection:coachSelection,down:coachDown,metric:coachMetric,playerMode:coachPlayerMode,debriefs:coachDebriefs,ownDebrief:coachOwnDebrief,userId:cloudUser?.id||null};
+  return {games:S.games||[],roster:S.roster||[],playbook:S.team?.coachDemoPlaybook?.length?S.team.coachDemoPlaybook:teamPlaybook(),teamName:S.team?.name||"Team",selection:coachSelection,down:coachDown,metric:coachMetric,callSortBucket:coachCallSortBucket,playerMode:coachPlayerMode,debriefs:coachDebriefs,ownDebrief:coachOwnDebrief,userId:cloudUser?.id||null};
 }
 function renderCoach(){
   const content=$("#coachAnalyticsContent");if(!content)return;
@@ -950,17 +955,59 @@ async function saveCoachDebrief(status){
   const structured={coach_name:cloudUser.email||"Coach"};
   $$('[data-debrief-field]').forEach(el=>structured[el.dataset.debriefField]=el.value.trim());
   const transcript=Object.entries(structured).filter(([k,v])=>k!=="coach_name"&&v).map(([k,v])=>`${k.replaceAll("_"," ")}: ${v}`).join("\n");
-  const payload={game_id:S.cloud?.gameIds?.[game.id]||game.id,coach_user_id:cloudUser.id,input_method:"form",transcript_text:transcript,structured_context:structured,energy_rating:Number($("#debriefEnergy")?.value)||null,execution_rating:Number($("#debriefExecution")?.value)||null,status,revision:Number(coachOwnDebrief?.revision||0)+1,submitted_at:status==="submitted"?new Date().toISOString():null};
+  const payload={game_id:S.cloud?.gameIds?.[game.id]||game.id,coach_user_id:cloudUser.id,input_method:structured.voice_notes?"voice":"form",transcript_text:transcript,structured_context:structured,energy_rating:Number($("#debriefEnergy")?.value)||null,execution_rating:Number($("#debriefExecution")?.value)||null,status,revision:Number(coachOwnDebrief?.revision||0)+1,submitted_at:status==="submitted"?new Date().toISOString():null};
   const {error}=await SB.from("coach_debriefs").upsert(payload,{onConflict:"game_id,coach_user_id"});if(error)return toast(error.message||"Could not save debrief");
   await loadCoachDebriefs();renderCoach();toast(status==="submitted"?"Debrief shared with coaches":"Debrief draft saved");
 }
-$("#coachGameSelect")?.addEventListener("change",async e=>{coachSelection=e.target.value;if(coachTab==="debrief")await loadCoachDebriefs();renderCoach()});
+function coachDebriefPromptKey(gameId){return `sideline_stats_coach_debrief_prompt_${cloudUser?.id||"user"}_${gameId}`}
+async function maybePromptCoachDebrief(){
+  if(!isCloudCoach()||!hasCoachAccess()||!SB||!cloudUser||$("#coachDebriefPromptModal")&&!$("#coachDebriefPromptModal").classList.contains("hidden"))return;
+  const game=sortedGames().find(g=>g.status==="complete");if(!game)return;
+  const cloudGameId=S.cloud?.gameIds?.[game.id]||game.id,key=coachDebriefPromptKey(cloudGameId);
+  try{if(sessionStorage.getItem(key)==="dismissed")return}catch(_){ }
+  const {data,error}=await SB.from("coach_debriefs").select("status").eq("game_id",cloudGameId).eq("coach_user_id",cloudUser.id).maybeSingle();
+  if(error){console.warn("Could not check coach debrief prompt",error);return}
+  if(data?.status==="submitted")return;
+  pendingDebriefGameId=game.id;
+  $("#coachDebriefPromptText").textContent=`Week ${Number(game.week||1)} vs ${game.opponent}: ${data?"continue and share your observations":"add your observations while the game is still fresh"}.`;
+  $("#coachDebriefPromptModal").classList.remove("hidden");
+}
+function closeCoachDebriefPrompt(){
+  const game=pendingDebriefGameId&&gameById(pendingDebriefGameId),cloudGameId=game&&(S.cloud?.gameIds?.[game.id]||game.id);
+  if(cloudGameId)try{sessionStorage.setItem(coachDebriefPromptKey(cloudGameId),"dismissed")}catch(_){ }
+  $("#coachDebriefPromptModal")?.classList.add("hidden");
+}
+async function openPromptedCoachDebrief(){
+  const game=pendingDebriefGameId&&gameById(pendingDebriefGameId);closeCoachDebriefPrompt();if(!game)return;
+  coachSelection=`game:${game.id}`;coachTab="debrief";await loadCoachDebriefs();go("coach");renderCoach();
+}
+function resetDebriefVoice(){
+  debriefListening=false;debriefRecognition=null;clearTimeout(debriefSafetyTimer);debriefSafetyTimer=null;
+  const btn=$("#debriefVoiceBtn");if(btn){btn.disabled=false;btn.textContent="🎙️ Record Debrief by Voice"}
+  if($("#debriefVoiceStatus"))$("#debriefVoiceStatus").textContent="Voice is transcribed into notes; no audio recording is saved.";
+}
+function stopDebriefVoice(){if(!debriefListening)return;debriefListening=false;clearTimeout(debriefSafetyTimer);try{debriefRecognition?.stop()}catch(_){resetDebriefVoice()}}
+function startDebriefVoice(continuing=false){
+  const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;if(!Recognition)return toast("Voice recognition is not available here. You can type the debrief instead.");
+  debriefRecognition=new Recognition();debriefRecognition.lang="en-US";debriefRecognition.interimResults=true;debriefRecognition.continuous=true;debriefRecognition.maxAlternatives=1;debriefListening=true;debriefVoiceBase=$("#debriefVoiceNotes")?.value.trim()||"";
+  $("#debriefVoiceBtn").textContent="⏹ Stop & Transcribe";$("#debriefVoiceStatus").textContent="Listening… take your time, then tap Stop & Transcribe.";
+  debriefRecognition.onresult=e=>{let words="";for(let i=0;i<e.results.length;i++)words+=`${e.results[i]?.[0]?.transcript||""} `;const box=$("#debriefVoiceNotes");if(box)box.value=`${debriefVoiceBase} ${words}`.trim()};
+  debriefRecognition.onerror=e=>{if(e.error==="not-allowed"){debriefListening=false;toast("Microphone permission was not allowed")}else if(!["no-speech","aborted"].includes(e.error))toast("I couldn't clearly hear the debrief. Try again or type it.")};
+  debriefRecognition.onend=()=>{debriefRecognition=null;if(debriefListening){debriefVoiceBase=$("#debriefVoiceNotes")?.value.trim()||debriefVoiceBase;setTimeout(()=>{if(debriefListening)startDebriefVoice(true)},150)}else resetDebriefVoice()};
+  debriefRecognition.start();if(!continuing){clearTimeout(debriefSafetyTimer);debriefSafetyTimer=setTimeout(stopDebriefVoice,120000)}
+}
+$("#coachGameSelect")?.addEventListener("change",async e=>{coachSelection=e.target.value;if(["overview","debrief"].includes(coachTab))await loadCoachDebriefs();renderCoach()});
 document.addEventListener("click",async e=>{
-  const tab=e.target.closest("[data-coach-tab],[data-coach-go]");if(tab){coachTab=tab.dataset.coachTab||tab.dataset.coachGo;go("coach");if(coachTab==="debrief"){await loadCoachDebriefs();renderCoach()}return}
+  const tab=e.target.closest("[data-coach-tab],[data-coach-go]");if(tab){coachTab=tab.dataset.coachTab||tab.dataset.coachGo;go("coach");return}
   const mode=e.target.closest("[data-player-mode]");if(mode){coachPlayerMode=mode.dataset.playerMode;renderCoach();return}
+  const callSort=e.target.closest("[data-call-sort]");if(callSort){coachCallSortBucket=callSort.dataset.callSort;renderCoach();return}
+  if(e.target.closest("#debriefVoiceBtn")){debriefListening?stopDebriefVoice():startDebriefVoice();return}
   if(e.target.closest("#saveDebriefDraft"))await saveCoachDebrief("draft");
   if(e.target.closest("#submitDebrief"))await saveCoachDebrief("submitted");
 });
+$("#startCoachDebriefBtn")?.addEventListener("click",openPromptedCoachDebrief);
+$("#coachDebriefLaterBtn")?.addEventListener("click",()=>{closeCoachDebriefPrompt();go("stats")});
+$("#coachDebriefPromptModal")?.addEventListener("click",e=>{if(e.target.id==="coachDebriefPromptModal"){closeCoachDebriefPrompt();go("stats")}});
 $("#coachAnalyticsContent")?.addEventListener("change",e=>{
   if(e.target.id==="coachDownSelect"){coachDown=Number(e.target.value);renderCoach()}
   if(e.target.id==="coachMetricSelect"){coachMetric=e.target.value;renderCoach()}
