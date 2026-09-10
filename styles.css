@@ -649,6 +649,15 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 .team-invite-pane>.btn{width:100%}
 .team-invite-pane input{margin-top:10px;font-size:12px}
 
+/* V4.5.16 master play library and weekly game plans */
+.playbook-item{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.playbook-item:last-child{border-bottom:0}.playbook-item.archived{opacity:.6}.playbook-name{min-width:0;overflow-wrap:anywhere;font-weight:800}.playbook-number{font-weight:950;color:var(--p)}
+.playbook-item-actions{display:flex;gap:5px}.playbook-item-actions button{border:1px solid var(--line);border-radius:8px;background:#fff;padding:6px 7px;font-size:10px;font-weight:900;color:var(--p)}
+.game-plan-card summary{cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:10px}.game-plan-card summary::-webkit-details-marker{display:none}.game-plan-card summary:after{content:"▾";font-weight:950}.game-plan-card[open] summary:after{content:"▴"}
+.game-plan-help{margin:10px 0}.game-plan-actions{margin-bottom:9px}.game-plan-actions .btn{font-size:13px;padding:10px}
+.game-plan-entry-row{display:grid;grid-template-columns:minmax(0,1fr) 58px 74px;gap:6px;align-items:center}.game-plan-entry-row select,.game-plan-entry-row input,.game-plan-entry-row .btn{margin:0;padding:10px 7px;font-size:12px}.game-plan-entry-row .btn{height:100%}
+.game-plan-list{margin-top:10px}.game-plan-item{display:grid;grid-template-columns:50px minmax(0,1fr) auto;gap:7px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}.game-plan-item:last-child{border-bottom:0}.game-plan-item strong{color:var(--p);font-size:16px}.game-plan-item span{min-width:0;overflow-wrap:anywhere;font-size:12px;font-weight:800}.game-plan-item-actions{display:flex;gap:4px}.game-plan-item-actions button{border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--p);font-weight:900;font-size:10px;padding:6px}
+
 /* V4.5.15 Coach Pro */
 nav.five-items,#bottomNav:has(#statkeeperAnalyticsNav:not(.hidden)){grid-template-columns:repeat(5,1fr)}
 .coach-nav{grid-template-columns:repeat(2,1fr)}

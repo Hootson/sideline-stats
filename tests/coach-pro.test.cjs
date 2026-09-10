@@ -28,7 +28,7 @@ assert.match(analytics, /trend-area/, 'season trends must include a responsive a
 assert.match(analytics, /RUN \/ PASS MIX BY GAME/, 'season trends must compare run and pass mix by game');
 assert.match(app, /maybePromptCoachDebrief/, 'coach startup must check for an unfinished game debrief');
 assert.match(app, /webkitSpeechRecognition/, 'coach debrief voice entry must use the existing browser speech capability');
-assert.match(analytics, /STAFF CONTEXT/, 'submitted coach observations must appear alongside data-derived commentary');
+assert.match(analytics, /Coach-provided context:/, 'submitted coach observations must be labeled separately inside Coach Read');
 assert.match(css, /\.coach-section-tabs\{position:sticky/, 'analytics section controls must remain visible while scrolling');
 assert.match(css, /\.heat-name\{position:sticky;left:0/, 'play names must remain visible in the play-call table');
 assert.match(css, /@media \(max-width:560px\)/, 'phone-specific responsive rules must remain available');
@@ -45,9 +45,18 @@ const demoGame={id:'g1',week:2,opponent:'Bears',gameType:'regular',plays:[
   {id:'p2',type:'Rush',yards:5,playCall:{id:'c1',number:1,name:'Power Right'},stateBefore:{possession:'ours',down:1,distance:3,ballSpot:33}},
   {id:'p3',type:'Pass',sub:'Complete',yards:18,playCall:{id:'c2',number:15,name:'Quick Slant'},stateBefore:{possession:'ours',down:1,distance:6,ballSpot:38}}
 ]};
-const rendered=api.render('playcalls',{games:[demoGame],selection:'season',down:1,metric:'success',playbook:Array.from({length:25})});
+const rendered=api.render('playcalls',{games:[demoGame],selection:'season',down:1,metric:'success',playbook:[{id:'c1',number:7,name:'Power Right Renamed'},...Array.from({length:24},(_,i)=>({id:`x${i}`,number:i+20,name:`Play ${i}`}))]});
 assert.match(rendered,/WHAT’S WORKED ON 1ST DOWN/,'the approved play-call headline must render with its apostrophe');
 assert.match(rendered,/25 PLAYBOOK CALLS • 2 USED/,'play-call usage must compare the full playbook with calls used');
-assert.match(rendered,/Power Right/,'the heat map must group recorded plays by call');
+assert.match(rendered,/Power Right Renamed/,'the heat map must use the permanent play concept’s current name');
+
+const contextRead=api.render('overview',{games:[demoGame],selection:'season',debriefs:[
+  {status:'draft',structured_context:{voice_notes:'Private draft must not appear'}},
+  {status:'submitted',structured_context:{what_worked:'Our protection held up'}}
+]});
+assert.match(contextRead,/Data-supported:/,'Coach Read must identify data-derived commentary');
+assert.match(contextRead,/Coach-provided context:/,'Coach Read must incorporate submitted debrief context');
+assert.match(contextRead,/Our protection held up/,'submitted observations must influence Coach Read');
+assert.doesNotMatch(contextRead,/Private draft/,'draft debriefs must remain private and excluded from Coach Read');
 
 console.log('coach pro checks passed');

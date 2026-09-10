@@ -1,4 +1,15 @@
-# Sideline Stats V4.5.15 — Coach Pro
+# Sideline Stats V4.5.16 — Play Library & Coach Context
+
+## V4.5.16 changes
+
+- Keeps each named play as a permanent master concept with a stable internal ID.
+- Adds a separate weekly game plan, so a number can point to different plays in different games.
+- Copies any prior game plan into a new or active game, then allows weekly renumbering.
+- Adds edit, archive and restore controls without breaking historical analytics.
+- Groups Coach Pro play-call analytics by permanent play ID while displaying every weekly number used.
+- Blends submitted coach debrief observations into Coach Read with explicit data-supported and coach-provided labels; drafts remain private.
+
+Existing team playbooks and recorded play snapshots are migrated in place. V4.5.16 does not recreate the app or replace existing team data.
 
 ## V4.5.15 changes
 

@@ -39,7 +39,7 @@ assert.match(app, /analyticsExportCard"\)\?\.classList\.toggle\("hidden",viewer\
 assert.match(app, /function renderViewerGameSummary\(\)/, 'viewer Game Center must render its scoreboard');
 assert.match(html, /id="viewerGameSummary"/, 'Stats must contain the viewer scoreboard destination');
 assert.match(html, /id="shareStatsBtn"/, 'Stats sharing must remain available');
-assert.match(sw, /v4-5-15-coach-refinements-1/, 'service worker cache must be bumped');
+assert.match(sw, /v4-5-16-play-library/, 'service worker cache must be bumped');
 assert.match(styles, /nav\{[^}]*background:var\(--p\)/, 'the statkeeper bottom navigation must use the team primary color');
 assert.match(styles, /nav button\.active\{[^}]*var\(--nav-active\)/, 'the active statkeeper tab must use the team accent treatment');
 assert.match(app, /#bottomNav \[data-go\][\s\S]*classList\.toggle\("active"/, 'the current statkeeper tab must receive an active state');
@@ -60,5 +60,9 @@ assert.match(app, /playbook:teamPlaybook\(\)/, 'the reusable playbook must sync 
 assert.match(app, /p_event_data:\{local_id:p\.id,local_index:index,raw:/, 'the play-call snapshot must sync inside the raw play event');
 assert.match(html, /id="playbookCard"/, 'the roster screen must expose playbook management');
 assert.match(html, /id="nextPlayCallSelect"/, 'offensive entry must expose an optional play-call selector');
+assert.match(html, /id="gamePlanCard"/, 'active games must expose weekly game-plan management');
+assert.match(app, /game_plan:normalizeGamePlan\(g\)/, 'weekly game plans must sync with each cloud game');
+assert.match(app, /gamePlan:planFromNewGameSource\(\)/, 'new games must receive the selected weekly plan');
+assert.match(app, /play\.active=play\.active===false/, 'master plays must archive and restore without deletion');
 
 console.log('live cloud sync checks passed');

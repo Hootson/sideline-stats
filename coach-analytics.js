@@ -75,8 +75,7 @@
     const quarter=[1,2,3,4].map(q=>({q,yards:metrics.off.filter(p=>number(p.quarter)===q).reduce((s,p)=>s+playYards(p),0)}));
     const maxQuarter=Math.max(1,...quarter.map(x=>x.yards));
     return `<div class="coach-title-block"><div class="coach-kicker">COACH PRO</div><h2>GAME OVERVIEW</h2></div>
-      <div class="coach-read"><div class="coach-read-icon">↗</div><div><strong>COACH READ</strong><p>${esc(coachRead(metrics))}</p></div></div>
-      ${humanRead?`<div class="coach-read staff-context"><div class="coach-read-icon">✎</div><div><strong>STAFF CONTEXT</strong><p>${esc(humanRead)}</p></div></div>`:""}
+      <div class="coach-read"><div class="coach-read-icon">↗</div><div><strong>COACH READ</strong><p><b>Data-supported:</b> ${esc(coachRead(metrics))}</p>${humanRead?`<p class="staff-context"><b>Coach-provided context:</b> ${esc(humanRead)}</p>`:""}</div></div>
       <div class="coach-metric-grid">
         <div class="coach-metric"><strong>${metrics.yardsPerPlay.toFixed(1)}</strong><span>YDS / PLAY</span></div>
         <div class="coach-metric"><strong>${pct(metrics.successRate)}</strong><span>SUCCESSFUL PLAYS</span></div>
@@ -90,15 +89,16 @@
         <section class="coach-panel"><h3>YARDS BY QUARTER</h3><div class="coach-quarter-chart">${quarter.map(x=>`<div><span>${x.yards}</span><i style="height:${Math.max(5,(x.yards/maxQuarter)*105)}px"></i><small>Q${x.q}</small></div>`).join("")}</div></section>
       </div>`;
   }
-  function callGroups(plays){
-    const groups=new Map();
+  function callGroups(plays,playbook=[]){
+    const groups=new Map(),concepts=new Map(playbook.map(p=>[String(p.id),p]));
     for(const play of plays){
       if(!play.playCall)continue;
       const key=String(play.playCall.id||`${play.playCall.number}:${play.playCall.name}`);
-      if(!groups.has(key))groups.set(key,{id:key,number:play.playCall.number,name:play.playCall.name,plays:[]});
-      groups.get(key).plays.push(play);
+      const concept=concepts.get(key);
+      if(!groups.has(key))groups.set(key,{id:key,name:concept?.name||play.playCall.name,numbers:new Set(),plays:[]});
+      const group=groups.get(key);group.numbers.add(play.playCall.number);group.plays.push(play);
     }
-    return [...groups.values()].sort((a,b)=>b.plays.length-a.plays.length||number(a.number)-number(b.number));
+    return [...groups.values()].sort((a,b)=>b.plays.length-a.plays.length||a.name.localeCompare(b.name));
   }
   function callSortScore(list,metric){
     if(!list.length)return -Infinity;
@@ -111,7 +111,7 @@
     const listFor=group=>bucket==="overall"?group.plays:group.plays.filter(p=>distanceBucket(p)===bucket);
     return [...groups].sort((a,b)=>{
       const al=listFor(a),bl=listFor(b),as=callSortScore(al,metric),bs=callSortScore(bl,metric);
-      return bs-as||bl.length-al.length||number(a.number)-number(b.number);
+      return bs-as||bl.length-al.length||a.name.localeCompare(b.name);
     });
   }
   function cellClass(plays){
@@ -140,13 +140,13 @@
   }
   function renderPlayCalls(ctx){
     const games=selectedGames(ctx.games,ctx.selection),selectedDown=number(ctx.down)||1,metric=ctx.metric||"success",sortBucket=ctx.callSortBucket||"overall";
-    const plays=offense(allPlays(games)).filter(p=>down(p)===selectedDown&&p.playCall),buckets=[{key:"short",label:"1–3"},{key:"medium",label:"4–6"},{key:"long",label:"7+"}],groups=sortedCallGroups(callGroups(plays),metric,sortBucket).slice(0,15);
+    const plays=offense(allPlays(games)).filter(p=>down(p)===selectedDown&&p.playCall),buckets=[{key:"short",label:"1–3"},{key:"medium",label:"4–6"},{key:"long",label:"7+"}],groups=sortedCallGroups(callGroups(plays,ctx.playbook),metric,sortBucket).slice(0,15);
     const zones=["own","mid","opp","red"].map(key=>{const list=plays.filter(p=>fieldZone(p)===key);return {key,list,rate:list.length?list.filter(successful).length/list.length:null}});
     const playbookCount=(ctx.playbook||[]).length,usedCount=new Set(offense(allPlays(games)).filter(p=>p.playCall).map(p=>p.playCall.id||`${p.playCall.number}:${p.playCall.name}`)).size;
     return `<div class="coach-title-block"><div class="coach-kicker">COACH PRO • ${playbookCount} PLAYBOOK CALLS • ${usedCount} USED</div><h2>PLAY CALLS</h2></div>
       <div class="coach-control-row"><label>Down<select id="coachDownSelect"><option value="1" ${selectedDown===1?"selected":""}>1st Down</option><option value="2" ${selectedDown===2?"selected":""}>2nd Down</option><option value="3" ${selectedDown===3?"selected":""}>3rd Down</option><option value="4" ${selectedDown===4?"selected":""}>4th Down</option></select></label><label>Show<select id="coachMetricSelect"><option value="success" ${metric==="success"?"selected":""}>Success %</option><option value="calls" ${metric==="calls"?"selected":""}>Calls</option><option value="yards" ${metric==="yards"?"selected":""}>Average Yards</option><option value="explosive" ${metric==="explosive"?"selected":""}>Explosive %</option></select></label></div>
       <div class="heat-legend"><span><i class="strong"></i>Strong</span><span><i class="mixed"></i>Mixed</span><span><i class="weak"></i>Needs Work</span><span><i class="low"></i>Low Sample</span></div>
-      <section class="coach-panel heat-panel"><h3>WHAT’S WORKED ON ${ordinal(selectedDown)} DOWN</h3><div class="heat-sort-note">Tap a heading to rank that distance. The active column is sorted best-first.</div>${groups.length?`<div class="heat-table"><button class="heat-head ${sortBucket==="overall"?"active":""}" data-call-sort="overall">PLAY CALL${sortBucket==="overall"?" ▼":""}</button>${buckets.map(b=>`<button class="heat-head ${sortBucket===b.key?"active":""}" data-call-sort="${b.key}">${b.label}${sortBucket===b.key?" ▼":""}</button>`).join("")}${groups.map(group=>`<div class="heat-name"><b>${esc(group.number)}</b><span>${esc(group.name)}</span></div>${buckets.map(bucket=>{const list=group.plays.filter(p=>distanceBucket(p)===bucket.key);return `<button class="heat-cell ${cellClass(list)}" data-call-id="${esc(group.id)}" data-bucket="${bucket.key}">${cellValue(list,metric)}</button>`}).join("")}`).join("")}</div>`:`<div class="coach-empty">No play calls have been recorded for ${ordinal(selectedDown).toLowerCase()} down in this view.</div>`}</section>
+      <section class="coach-panel heat-panel"><h3>WHAT’S WORKED ON ${ordinal(selectedDown)} DOWN</h3><div class="heat-sort-note">Tap a heading to rank that distance. The active column is sorted best-first.</div>${groups.length?`<div class="heat-table"><button class="heat-head ${sortBucket==="overall"?"active":""}" data-call-sort="overall">PLAY CALL${sortBucket==="overall"?" ▼":""}</button>${buckets.map(b=>`<button class="heat-head ${sortBucket===b.key?"active":""}" data-call-sort="${b.key}">${b.label}${sortBucket===b.key?" ▼":""}</button>`).join("")}${groups.map(group=>{const nums=[...group.numbers].filter(n=>n!==undefined&&n!==null).sort((a,b)=>number(a)-number(b));const label=nums.length?nums.map(n=>`#${n}`).join(" / "):"—";return `<div class="heat-name"><b>${esc(label)}</b><span>${esc(group.name)}</span></div>${buckets.map(bucket=>{const list=group.plays.filter(p=>distanceBucket(p)===bucket.key);return `<button class="heat-cell ${cellClass(list)}" data-call-id="${esc(group.id)}" data-bucket="${bucket.key}">${cellValue(list,metric)}</button>`}).join("")}`}).join("")}</div>`:`<div class="coach-empty">No play calls have been recorded for ${ordinal(selectedDown).toLowerCase()} down in this view.</div>`}</section>
       <div class="coach-read compact"><div class="coach-read-icon">↗</div><div><strong>COACH READ</strong><p>${esc(playCallRead(groups,selectedDown))}</p></div></div>
       <section class="coach-panel"><h3>BEST FIELD ZONE</h3><div class="field-zone-strip">${zones.map(zone=>`<div class="${zone.rate===null?"low":zone.rate>=.6?"strong":zone.rate>=.4?"mixed":"weak"}"><strong>${{own:"OWN",mid:"MIDFIELD",opp:"OPP",red:"RED ZONE"}[zone.key]}</strong><span>${zone.rate===null?"—":pct(zone.rate)}</span><small>${zone.list.length} calls</small></div>`).join("")}</div></section>`;
   }
