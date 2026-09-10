@@ -371,16 +371,18 @@ async function createCoachInvite(){
   if(!SB||!cloudUser||!cloudLinked())return toast("Connect this team first");
   if(await resolveCloudDeviceRole()!=="statkeeper")return toast("Only a team statkeeper can create coach links");
   if(!hasCoachAccess())return toast("Coach invitations require an active Team Pro trial or plan");
+  const email=$("#coachInviteEmail")?.value.trim().toLowerCase()||"";
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return toast("Enter the coach’s email address");
   const btn=$("#createCoachInviteBtn");if(btn){btn.disabled=true;btn.textContent="Creating Link…"}
   try{
-    const {data,error}=await SB.rpc("create_team_invite",{p_team_id:S.cloud.teamId,p_role:"coach",p_expires_days:7});if(error)throw error;
+    const {data,error}=await SB.rpc("create_coach_invite",{p_team_id:S.cloud.teamId,p_email:email,p_expires_days:7});if(error)throw error;
     const token=String(data||"");if(!token)throw new Error("No invitation link was returned");
     const u=new URL("https://hootson.github.io/sideline-stats/");u.searchParams.set("teamInvite",token);
     const label=`${S.team.name}${S.team.identifier?` — ${S.team.identifier}`:""}`;
-    coachInviteShareData={title:`Join ${label} Coach Pro`,text:`Create or sign in to your Sideline Stats coach account for ${label}.`,url:u.href};
+    coachInviteShareData={title:`Join ${label} Coach Pro`,text:`This Coach Pro invitation is for ${email}. Create or sign in using that exact email address to join ${label}.`,url:u.href};
     $("#coachInviteUrl").value=u.href;$("#coachInviteResult").classList.remove("hidden");
   }catch(e){console.error("Coach invitation failed",e);toast(e?.message||"Could not create coach link")}
-  finally{if(btn){btn.disabled=false;btn.textContent="Create New Coach Link"}}
+  finally{if(btn){btn.disabled=false;btn.textContent="Create Email-Locked Coach Link"}}
 }
 function copyCoachInvite(){
   const url=$("#coachInviteUrl")?.value;if(!url)return;

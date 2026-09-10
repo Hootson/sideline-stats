@@ -706,8 +706,9 @@
         </div>
         <div class="invite-divider"></div>
         <strong>Invite Coaches</strong>
-        <div class="muted">A coach link gives eligible Team Pro coaches analytics and shared debrief access, but no stat-entry controls.</div>
-        <button class="btn" id="createCoachInviteBtn" type="button">Create Coach Link</button>
+        <div class="muted">Enter the coach’s email. The link can only be accepted while signed in with that exact address. Coach access is limited to five accounts.</div>
+        <input id="coachInviteEmail" type="email" autocomplete="email" placeholder="coach@example.com" aria-label="Coach email address">
+        <button class="btn" id="createCoachInviteBtn" type="button">Create Email-Locked Coach Link</button>
         <div id="coachInviteResult" class="hidden">
           <input id="coachInviteUrl" type="text" readonly aria-label="Coach invitation link">
           <div class="modal-actions">

@@ -8,6 +8,7 @@
 - Adds edit, archive and restore controls without breaking historical analytics.
 - Groups Coach Pro play-call analytics by permanent play ID while displaying every weekly number used.
 - Blends submitted coach debrief observations into Coach Read with explicit data-supported and coach-provided labels; drafts remain private.
+- Locks every coach invitation to one email address, makes it single-use, and enforces the five-coach limit in Supabase.
 
 Existing team playbooks and recorded play snapshots are migrated in place. V4.5.16 does not recreate the app or replace existing team data.
 
