@@ -1,4 +1,16 @@
-# Sideline Stats V4.5.20 — Easy Trial Onboarding
+# Sideline Stats V4.5.21 — Customer Onboarding & Traction
+
+## V4.5.21 changes
+
+- Opens first-time visitors directly into a clear seven-day trial signup experience.
+- Shows Statkeeper and Team Pro trial choices with visible seasonal pricing, no card requirement and no automatic charge.
+- Hides cloud-management controls until a team exists, keeping initial team creation simple.
+- Stores the selected future plan with the team for trial-interest reporting.
+- Adds a secure, owner-only traction dashboard backed by an authenticated Supabase Edge Function.
+
+The existing Stripe checkout remains available when a team decides to purchase after its trial.
+
+## Previous release
 
 ## V4.5.20 changes
 

@@ -1,4 +1,8 @@
--- Sideline Stats V4.5.20 commercial access and trial onboarding.
+-- Sideline Stats V4.5.21 commercial access and trial onboarding.
+alter table public.teams add column if not exists intended_plan text;
+alter table public.teams drop constraint if exists teams_intended_plan_check;
+alter table public.teams add constraint teams_intended_plan_check check (intended_plan in ('statkeeper','team_pro')) not valid;
+alter table public.teams validate constraint teams_intended_plan_check;
 alter table public.team_entitlements add column if not exists access_source text not null default 'standard';
 alter table public.team_entitlements add column if not exists complimentary boolean not null default false;
 alter table public.team_entitlements alter column coach_seat_limit set default 5;

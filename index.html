@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V4.5.20</title>
+<title>Sideline Stats V4.5.21</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -32,11 +32,11 @@
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V4.5.20 • EASY TRIAL ONBOARDING • GRIDIRON EDITION</div>
+      <div class="muted" style="color:#dfe9e2">V4.5.21 • CUSTOMER ONBOARDING • GRIDIRON EDITION</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
-    <div class="card cloud-card">
+    <div class="card cloud-card" id="cloudSetupCard">
       <div class="cloud-row">
         <div>
           <div class="cloud-status"><span id="cloudDot" class="cloud-dot"></span><span id="cloudStatusText">Local mode</span></div>
@@ -683,20 +683,21 @@
   <div class="modal-card">
     <button id="authCloseBtn" class="modal-close" aria-label="Close">×</button>
     <div id="signedOutAccountPane">
-      <h2>Sideline Stats Account</h2>
-      <div class="muted">Sign in once on this device. Sideline Stats will remember you and reopen your team automatically.</div>
+      <h2 id="authHeading">Try Sideline Stats Free for 7 Days</h2>
+      <div id="authIntro" class="muted">No credit card. No automatic charge. Choose the team-season plan you may want after your trial.</div>
       <label>Email</label><input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com">
       <label>Password</label><input id="authPassword" type="password" autocomplete="current-password" placeholder="At least 6 characters">
       <div id="signupPlanChooser" class="signup-plan-chooser">
-        <strong>Starting a new team?</strong>
-        <div class="muted">Choose what you may want after your free seven-day Team Pro trial. No card and no automatic charge.</div>
+        <strong>Choose your trial</strong>
+        <div class="muted">Your choice is free for seven days. Pay only if you decide to continue afterward.</div>
         <div class="signup-plan-grid">
-          <button type="button" class="signup-plan-choice" data-signup-plan="statkeeper"><b>Statkeeper</b><span>$14.99 / team season</span></button>
-          <button type="button" class="signup-plan-choice selected" data-signup-plan="team_pro"><b>Team Pro</b><span>$39.99 / team season</span></button>
+          <button type="button" class="signup-plan-choice" data-signup-plan="statkeeper"><b>7-Day Statkeeper Trial</b><span>Then $14.99 / team season</span></button>
+          <button type="button" class="signup-plan-choice selected" data-signup-plan="team_pro"><b>7-Day Team Pro Trial</b><span>Then $39.99 / team season</span></button>
         </div>
       </div>
-      <div class="modal-actions"><button class="btn" id="authSignInBtn" type="button">Sign In</button><button class="btn ghost" id="authCreateBtn" type="button">Create Account</button></div>
-      <div id="authMessage" class="inline-note" style="margin-top:12px">Your game data remains available offline after the first cloud load.</div>
+      <button class="btn" id="authCreateBtn" type="button" style="margin-top:14px">Create Account &amp; Start Free Trial</button>
+      <button class="btn ghost" id="authSignInBtn" type="button" style="margin-top:8px">Already Have an Account? Sign In</button>
+      <div id="authMessage" class="inline-note" style="margin-top:12px">Your team data remains saved if you choose not to purchase after the trial.</div>
     </div>
     <div id="signedInAccountPane" class="hidden">
       <h2>Settings</h2>
@@ -730,6 +731,7 @@
         </div>
       </div>
       <div class="account-actions">
+        <button class="btn hidden" id="ownerDashboardBtn" type="button">Owner Dashboard</button>
         <button class="btn ghost" id="switchTeamBtn" type="button">Switch Team</button>
         <button class="btn danger" id="accountSignOutBtn" type="button">Sign Out</button>
       </div>
@@ -737,6 +739,7 @@
   </div>
 </div>
 <div id="plansModal" class="modal-backdrop hidden"><div class="modal-card plans-modal-card"><button id="plansCloseBtn" class="modal-close" aria-label="Close">×</button><h2 id="plansHeading">Choose your team plan</h2><div id="plansSubheading" class="muted">One team, one season. Manual renewal.</div><div class="plan-grid"><article class="plan-option" data-plan-card="statkeeper"><h3>Statkeeper</h3><b>$14.99</b><p>Stats, snaps and live updates.</p><button class="btn ghost plan-checkout" data-plan="statkeeper">Choose Statkeeper</button></article><article class="plan-option recommended" data-plan-card="team_pro"><small>FULL TRIAL ACCESS</small><h3>Team Pro</h3><b>$39.99</b><p>Everything plus analytics, debriefs and five coaches.</p><button class="btn plan-checkout" data-plan="team_pro">Choose Team Pro</button></article></div><div id="plansMessage" class="inline-note">Try every Team Pro feature free for seven days. No card and no automatic charge.</div></div></div>
+<div id="ownerDashboardModal" class="modal-backdrop hidden"><div class="modal-card owner-dashboard-modal"><button id="ownerDashboardCloseBtn" class="modal-close" aria-label="Close">×</button><h2>Sideline Stats Traction</h2><div class="muted">Private owner view • live production activity</div><div id="ownerMetrics" class="owner-metrics"><div class="inline-note">Loading traction data…</div></div></div></div>
 <div class="toast" id="toast"></div>
 
 <script src="./field-position.js"></script>

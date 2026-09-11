@@ -230,7 +230,7 @@ async function initCloud(){
     if(!window.supabase?.createClient){updateCloudUI("unavailable");return}
     SB=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
     const {data}=await SB.auth.getSession();cloudUser=data?.session?.user||null;cloudReady=true;
-    if(cloudUser){rebaseCloudHashesV443();if(!await redeemPendingTeamInvite())await restoreRememberedTeam();await handleCheckoutReturn()}else{updateCloudUI();if(pendingTeamInviteToken()){openAuth();$("#authMessage").textContent="Create an account or sign in to accept this team invitation."}}
+    if(cloudUser){rebaseCloudHashesV443();if(!await redeemPendingTeamInvite())await restoreRememberedTeam();await handleCheckoutReturn()}else{updateCloudUI();if(pendingTeamInviteToken()){openAuth();$("#authMessage").textContent="Create an account or sign in to accept this team invitation."}else if(!teamExists())setTimeout(openAuth,250)}
     if(isCloudStatkeeper())scheduleCloudSync(300);else setTimeout(checkCloudForUpdates,500);
     setTimeout(startCloudRealtime,800);
     SB.auth.onAuthStateChange((_event,session)=>{
@@ -283,6 +283,7 @@ async function restoreRememberedTeam(){
 function cloudLinked(){return !!(teamExists()&&S.cloud?.teamId&&S.cloud?.seasonId)}
 function updateCloudUI(force){
   const dot=$("#cloudDot"), text=$("#cloudStatusText"), meta=$("#cloudMeta"), acct=$("#cloudAccountBtn"); if(!dot||!text)return;
+  $("#cloudSetupCard")?.classList.toggle("hidden",!teamExists());
   dot.className="cloud-dot"; acct?.classList.remove("connected");
   $("#cloudSignInBtn")?.classList.toggle("hidden",!!cloudUser); $("#cloudSignOutBtn")?.classList.toggle("hidden",!cloudUser);
   $("#cloudConnectTeamBtn")?.classList.toggle("hidden",!cloudUser||!teamExists()||cloudLinked()); $("#cloudLoadTeamBtn")?.classList.toggle("hidden",!cloudUser||cloudLinked()); $("#cloudRefreshBtn")?.classList.toggle("hidden",!cloudUser||!cloudLinked());
@@ -316,11 +317,25 @@ function openAuth(){
     if($("#accountPlanDetail"))$("#accountPlanDetail").textContent=access.complimentary?"Founder access is active. No payment is required.":access.status==="trial"?"Full Team Pro trial is active.":access.active?"Season access is active.":"Choose a plan when you are ready.";
     $("#viewPlansBtn")?.classList.toggle("hidden",isCloudViewer()||access.complimentary);
     $("#teamInvitePane")?.classList.toggle("hidden",!cloudLinked()||!isCloudStatkeeper());
+    $("#ownerDashboardBtn")?.classList.toggle("hidden",cloudUser?.app_metadata?.platform_admin!==true);
   }
   $("#authModal").classList.remove("hidden");
   $("#signupPlanChooser")?.classList.toggle("hidden",!!pendingTeamInviteToken());
   renderPlanSelection(onboardingPlan);
   if(!cloudUser)setTimeout(()=>$("#authEmail")?.focus(),50);
+}
+function closeOwnerDashboard(){$("#ownerDashboardModal")?.classList.add("hidden")}
+function ownerMetric(label,value,detail=""){return `<article class="owner-metric-card"><small>${label}</small><strong>${value}</strong>${detail?`<span>${detail}</span>`:""}</article>`}
+async function openOwnerDashboard(){
+  if(cloudUser?.app_metadata?.platform_admin!==true)return toast("Owner access is required");
+  closeAuth();$("#ownerDashboardModal")?.classList.remove("hidden");const target=$("#ownerMetrics");target.innerHTML='<div class="inline-note">Loading traction data…</div>';
+  try{
+    const {data:{session},error:sessionError}=await SB.auth.getSession();if(sessionError||!session?.access_token)throw new Error("Sign in again to view traction");
+    const {data,error}=await SB.functions.invoke("owner-metrics",{headers:{Authorization:`Bearer ${session.access_token}`}});if(error)throw error;if(!data)throw new Error("No metrics were returned");
+    const planRows=(data.planIntent||[]).map(x=>`<div class="owner-plan-row"><b>${x.plan==="team_pro"?"Team Pro":"Statkeeper"}</b><span>${x.count}</span></div>`).join("")||'<div class="muted">No plan choices yet.</div>';
+    const activity=(data.recentSignups||[]).map(x=>`<div class="owner-trend-row"><span>${x.day}</span><i style="width:${Math.max(4,Math.min(100,x.percent||0))}%"></i><b>${x.count}</b></div>`).join("")||'<div class="muted">No recent signups.</div>';
+    target.innerHTML=`<div class="owner-metric-grid">${ownerMetric("Accounts",data.accounts)}${ownerMetric("Teams",data.teams)}${ownerMetric("Trials",data.trialsStarted,`${data.activeTrials} active`)}${ownerMetric("Paid teams",data.paidTeams,`${data.conversionRate}% trial conversion`)}${ownerMetric("Games",data.games)}${ownerMetric("Recorded plays",data.plays)}</div><section class="owner-metric-section"><h3>Trial plan interest</h3>${planRows}</section><section class="owner-metric-section"><h3>New accounts — last 14 days</h3>${activity}</section>`;
+  }catch(e){console.error("Owner metrics failed",e);target.innerHTML=`<div class="inline-note error">${e?.message||"Could not load traction data"}</div>`}
 }
 function closeAuth(){$("#authModal").classList.add("hidden")}
 function renderPlanSelection(plan){
@@ -368,7 +383,7 @@ async function authCreate(){
   const redirectUrl=new URL((location.hostname==="localhost"||location.hostname==="127.0.0.1")?location.origin+location.pathname:"https://hootson.github.io/sideline-stats/");
   const inviteToken=pendingTeamInviteToken();if(inviteToken)redirectUrl.searchParams.set("teamInvite",inviteToken);
   const redirectTo=redirectUrl.href;
-  const {data,error}=await SB.auth.signUp({email,password,options:{emailRedirectTo:redirectTo}}); if(error){$("#authMessage").textContent=error.message;return}
+  const {data,error}=await SB.auth.signUp({email,password,options:{emailRedirectTo:redirectTo,data:{intended_plan:onboardingPlan}}}); if(error){$("#authMessage").textContent=error.message;return}
   if(data?.session){closeAuth();toast("Account created") } else $("#authMessage").textContent="Account created. Check your email to confirm it, then sign in here.";
 }
 async function redeemPendingTeamInvite(){
@@ -380,7 +395,7 @@ async function redeemPendingTeamInvite(){
       const {data,error}=await SB.rpc("redeem_team_invite",{p_token:token});if(error)throw error;
       const joined=Array.isArray(data)?data[0]:data;if(!joined?.team_id)throw new Error("This team invitation could not be completed");
       rememberTeam(joined.team_id);clearPendingTeamInvite();
-      const {data:team,error:teamError}=await SB.from("teams").select("id,name,team_identifier,grade,primary_color,accent_color,logo_data,snap_minimum,playbook,timezone,created_at,updated_at").eq("id",joined.team_id).single();if(teamError)throw teamError;
+      const {data:team,error:teamError}=await SB.from("teams").select("id,name,team_identifier,grade,primary_color,accent_color,logo_data,snap_minimum,playbook,intended_plan,timezone,created_at,updated_at").eq("id",joined.team_id).single();if(teamError)throw teamError;
       const joinedRole=joined.role||joined.member_role||"viewer";
       await loadTeamFromCloud({team,auto:true,skipReplaceConfirm:true,destination:"stats"});
       closeAuth();toast(`Joined ${joined.team_name||team.name} as a ${joinedRole}`);return true;
@@ -481,7 +496,7 @@ function restoreCloudPlayWithDemo(row,credits,penalty,demo){
   return play;
 }
 async function chooseCloudTeam(options={}){
-  const {data,error}=await SB.from("teams").select("id,name,team_identifier,grade,primary_color,accent_color,logo_data,snap_minimum,playbook,timezone,created_at,updated_at").order("created_at",{ascending:true});if(error)throw error;if(!data?.length)throw new Error("No cloud teams found for this account");if(data.length===1)return data[0];
+  const {data,error}=await SB.from("teams").select("id,name,team_identifier,grade,primary_color,accent_color,logo_data,snap_minimum,playbook,intended_plan,timezone,created_at,updated_at").order("created_at",{ascending:true});if(error)throw error;if(!data?.length)throw new Error("No cloud teams found for this account");if(data.length===1)return data[0];
   if(options.preferredId){const preferred=data.find(t=>t.id===options.preferredId);if(preferred)return preferred}
   if(options.onlyAutomatic)return null;
   const lines=data.map((t,i)=>`${i+1}. ${t.name}${t.team_identifier?` — ${t.team_identifier}`:""}${t.grade?` — ${t.grade}`:""}`).join("\n");const ans=prompt(`Choose a team to load:\n\n${lines}\n\nEnter 1-${data.length}`);if(ans===null)return null;const n=Number(ans);if(!Number.isInteger(n)||n<1||n>data.length)throw new Error("That team number was not valid");return data[n-1];
@@ -495,7 +510,7 @@ async function loadTeamFromCloud(options={}){
   const priorActiveCloudId=S.activeGameId?(S.cloud?.gameIds?.[S.activeGameId]||S.activeGameId):null;
   try{
     let team=options.team||null;
-    if(!team&&refreshing&&S.cloud?.teamId){const q=await SB.from("teams").select("id,name,team_identifier,grade,primary_color,accent_color,logo_data,snap_minimum,playbook,timezone,created_at,updated_at").eq("id",S.cloud.teamId).single();if(q.error)throw q.error;team=q.data}
+    if(!team&&refreshing&&S.cloud?.teamId){const q=await SB.from("teams").select("id,name,team_identifier,grade,primary_color,accent_color,logo_data,snap_minimum,playbook,intended_plan,timezone,created_at,updated_at").eq("id",S.cloud.teamId).single();if(q.error)throw q.error;team=q.data}
     if(!team)team=await chooseCloudTeam();if(!team)return;
     const {data:seasons,error:se}=await SB.from("seasons").select("*").eq("team_id",team.id).order("created_at",{ascending:false});if(se)throw se;const season=seasons?.find(x=>x.status==="active")||seasons?.[0];if(!season)throw new Error("This cloud team has no season yet");
     const [pr,gr]=await Promise.all([SB.from("players").select("*").eq("season_id",season.id).order("created_at"),SB.from("games").select("*").eq("season_id",season.id).neq("status","archived").order("created_at")]);if(pr.error)throw pr.error;if(gr.error)throw gr.error;
@@ -517,7 +532,7 @@ async function loadTeamFromCloud(options={}){
     const localGames=games.map(g=>{const gp=plays.filter(x=>x.game_id===g.id).sort((a,b)=>a.sequence-b.sequence).map(r=>restoreCloudPlayWithDemo(r,credits.filter(c=>c.play_id===r.id&&c.metadata?.active!==false),penalties.find(q=>q.play_id===r.id),demoByPlay.get(r.id)));const sr=snaps.filter(x=>x.game_id===g.id).sort((a,b)=>a.snap_number-b.snap_number).map(x=>({id:x.id,ts:x.client_created_at?Date.parse(x.client_created_at):Date.parse(x.created_at),quarter:Number(x.quarter||1),playerIds:snapParts.filter(q=>q.snap_event_id===x.id).map(q=>q.player_id)}));const auto=gp.reduce((sum,p)=>sum+pointsFromPlay(p),0);const firstBefore=gp[0]?.stateBefore,lastAfter=gp[gp.length-1]?.stateAfter;return {id:g.id,opponent:g.opponent_name||"Opponent",opponentLogoData:g.opponent_logo_data||null,week:Number(g.week_number||1),date:`Week ${Number(g.week_number||1)}`,createdAt:Date.parse(g.created_at||new Date().toISOString()),location:g.location_type||"home",gameType:g.game_type||"regular",status:g.status==="final"?"complete":(g.status||"live"),ourScore:Number(g.team_score||0),scoreAdjustment:Number(g.team_score||0)-auto,scoreModelVersion:2,oppScore:Number(g.opponent_score||0),openingKickoff:g.opening_kickoff||"receive",initialPossession:firstBefore?.possession||((g.opening_kickoff||"receive")==="kick"?"opp":"ours"),initialDown:1,initialDistance:10,initialBallSpot:Field.validSpot(firstBefore?.ballSpot),ballSpot:Field.validSpot(lastAfter?.ballSpot??g.current_state?.ballSpot),down:Number(g.current_down||1),distance:Number(g.current_distance||10),possession:localPossession(g.possession||"ours"),quarter:Number(g.current_quarter||1),cloudRevision:Number(g.revision||1),gamePlan:Array.isArray(g.game_plan)?g.game_plan:null,plays:gp,snapRecords:sr};});
     const cloud={teamId:team.id,seasonId:season.id,teamHash:null,playerIds:Object.fromEntries(players.map(x=>[x.id,x.id])),playerHashes:{},gameIds:Object.fromEntries(games.map(x=>[x.id,x.id])),playIds:Object.fromEntries(plays.map(x=>[x.id,x.id])),playHashes:{},gameHashes:{},creditIds:{},creditHashes:{},penaltyIds:{},penaltyHashes:{},snapIds:Object.fromEntries(snaps.map(x=>[x.id,x.id])),snapHashes:{},connectedAt:new Date().toISOString(),lastSyncAt:new Date().toISOString(),lastSyncError:null,remoteFingerprint:fingerprintLoadedCloudSnapshot(team,players,games,plays,credits,penalties,snaps,snapParts,demoPlayCalls,coachDemoPlaybook),hashVersion:2,deviceRole:"viewer"};
     const voiceCorrections=S.cloud?.teamId===team.id&&S.team?.voiceCorrections?{...S.team.voiceCorrections}:{};
-    S={team:{name:team.name,identifier:team.team_identifier||"",grade:team.grade||"5th Grade",season:season.name||String(season.season_year||"Season"),primary:team.primary_color||"#177b46",secondary:team.accent_color||"#f0b33b",logoData:team.logo_data||null,snapMinimum:Number(team.snap_minimum||10),playbook:Array.isArray(team.playbook)?team.playbook:[],coachDemoPlaybook,voiceCorrections},roster,games:localGames,activeGameId:(refreshing&&priorActiveCloudId&&localGames.some(x=>x.id===priorActiveCloudId))?priorActiveCloudId:null,flow:{},editingPlayId:null,cloud};
+    S={team:{name:team.name,identifier:team.team_identifier||"",grade:team.grade||"5th Grade",season:season.name||String(season.season_year||"Season"),primary:team.primary_color||"#177b46",secondary:team.accent_color||"#f0b33b",logoData:team.logo_data||null,snapMinimum:Number(team.snap_minimum||10),playbook:Array.isArray(team.playbook)?team.playbook:[],coachDemoPlaybook,voiceCorrections,planIntent:team.intended_plan||"team_pro"},roster,games:localGames,activeGameId:(refreshing&&priorActiveCloudId&&localGames.some(x=>x.id===priorActiveCloudId))?priorActiveCloudId:null,flow:{},editingPlayId:null,cloud};
     S.cloud.teamHash=simpleHash(buildCloudTeamPayload());for(const p of S.roster)S.cloud.playerHashes[p.id]=simpleHash({season_id:S.cloud.seasonId,jersey_number:String(p.jersey??""),name:p.name||"Player",active:true});
     for(const p of plays){const lp=localGames.flatMap(x=>x.plays).find(x=>x.id===p.id);if(!lp)continue;const g=localGames.find(x=>x.id===p.game_id);const idx=g.plays.findIndex(x=>x.id===p.id);S.cloud.playHashes[p.id]=simpleHash(buildCloudPlayPayload(g,lp,idx,g.id));for(const c of buildCloudCredits(lp)){const row=credits.find(x=>x.play_id===p.id&&x.player_id===c.playerLocalId&&x.credit_type===c.credit_type&&x.metadata?.active!==false);if(row){const key=creditKey(lp.id,c);S.cloud.creditIds[key]=row.id;S.cloud.creditHashes[key]=simpleHash(c)}}const pen=penalties.find(x=>x.play_id===p.id);if(pen){S.cloud.penaltyIds[lp.id]=pen.id;S.cloud.penaltyHashes[lp.id]=simpleHash(buildCloudPenaltyPayload(g,lp,g.id,p.id))}}
     for(const g of localGames)S.cloud.gameHashes[g.id]=simpleHash(buildCloudGamePayload(g));for(const g of localGames)(g.snapRecords||[]).forEach((r,i)=>S.cloud.snapHashes[r.id]=simpleHash(buildCloudSnapPayload(g,r,i,g.id)));
@@ -560,10 +575,10 @@ async function connectTeamToCloud(options={}){
   try{
     let teamId=S.cloud?.teamId, seasonId=S.cloud?.seasonId;
     if(!teamId){
-      const {data,error}=await SB.from("teams").insert({owner_user_id:cloudUser.id,name:S.team.name,team_identifier:S.team.identifier||null,grade:S.team.grade||null,primary_color:S.team.primary||null,accent_color:S.team.secondary||null,logo_data:S.team.logoData||null,snap_minimum:teamSnapMinimum(),playbook:teamPlaybook(),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||"UTC"}).select("id").single();
+      const {data,error}=await SB.from("teams").insert({owner_user_id:cloudUser.id,name:S.team.name,team_identifier:S.team.identifier||null,grade:S.team.grade||null,primary_color:S.team.primary||null,accent_color:S.team.secondary||null,logo_data:S.team.logoData||null,snap_minimum:teamSnapMinimum(),playbook:teamPlaybook(),intended_plan:S.team.planIntent||onboardingPlan,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||"UTC"}).select("id").single();
       if(error)throw error; teamId=data.id;
     }else{
-      const {error}=await SB.from("teams").update({name:S.team.name,team_identifier:S.team.identifier||null,grade:S.team.grade||null,primary_color:S.team.primary||null,accent_color:S.team.secondary||null,logo_data:S.team.logoData||null,snap_minimum:teamSnapMinimum(),playbook:teamPlaybook()}).eq("id",teamId); if(error)throw error;
+      const {error}=await SB.from("teams").update({name:S.team.name,team_identifier:S.team.identifier||null,grade:S.team.grade||null,primary_color:S.team.primary||null,accent_color:S.team.secondary||null,logo_data:S.team.logoData||null,snap_minimum:teamSnapMinimum(),playbook:teamPlaybook(),intended_plan:S.team.planIntent||onboardingPlan}).eq("id",teamId); if(error)throw error;
     }
     if(!seasonId){
       const yr=parseInt(S.team.season,10); const {data,error}=await SB.from("seasons").insert({team_id:teamId,name:String(S.team.season||"Season"),season_year:Number.isFinite(yr)?yr:null}).select("id").single(); if(error)throw error; seasonId=data.id;
@@ -811,7 +826,7 @@ async function ensureCloudRoster(){
   for(const [localId,cloudId] of Object.entries(S.cloud.playerIds||{})){if(localIds.has(localId))continue;const {error}=await SB.from("players").update({active:false}).eq("id",cloudId);if(error)throw error;delete S.cloud.playerHashes[localId]}
   persist({skipCloud:true});
 }
-function buildCloudTeamPayload(){return {name:S.team.name,team_identifier:S.team.identifier||null,grade:S.team.grade||null,primary_color:S.team.primary||null,accent_color:S.team.secondary||null,logo_data:S.team.logoData||null,snap_minimum:teamSnapMinimum(),playbook:teamPlaybook()}}
+function buildCloudTeamPayload(){return {name:S.team.name,team_identifier:S.team.identifier||null,grade:S.team.grade||null,primary_color:S.team.primary||null,accent_color:S.team.secondary||null,logo_data:S.team.logoData||null,snap_minimum:teamSnapMinimum(),playbook:teamPlaybook(),intended_plan:S.team.planIntent||onboardingPlan}}
 async function ensureCloudTeam(){
   if(!cloudLinked())return;
   const payload=buildCloudTeamPayload(),h=simpleHash(payload);if(S.cloud.teamHash===h)return;
@@ -922,6 +937,7 @@ $("#cloudAccountBtn")?.addEventListener("click",openAuth);
 $("#cloudSignInBtn")?.addEventListener("click",openAuth); $("#cloudSignOutBtn")?.addEventListener("click",cloudSignOut); $("#cloudConnectTeamBtn")?.addEventListener("click",connectTeamToCloud); $("#cloudLoadTeamBtn")?.addEventListener("click",()=>loadTeamFromCloud()); $("#cloudRefreshBtn")?.addEventListener("click",refreshFromCloud);
 $("#authCloseBtn")?.addEventListener("click",closeAuth); $("#authSignInBtn")?.addEventListener("click",authSignIn); $("#authCreateBtn")?.addEventListener("click",authCreate);
 $("#viewPlansBtn")?.addEventListener("click",()=>openPlans());$("#plansCloseBtn")?.addEventListener("click",closePlans);$("#plansModal")?.addEventListener("click",e=>{if(e.target.id==="plansModal")closePlans()});$$('.plan-checkout').forEach(btn=>btn.addEventListener('click',()=>beginPlanCheckout(btn.dataset.plan,btn)));
+$("#ownerDashboardBtn")?.addEventListener("click",openOwnerDashboard);$("#ownerDashboardCloseBtn")?.addEventListener("click",closeOwnerDashboard);$("#ownerDashboardModal")?.addEventListener("click",e=>{if(e.target.id==="ownerDashboardModal")closeOwnerDashboard()});
 $$('[data-signup-plan]').forEach(btn=>btn.addEventListener('click',()=>renderPlanSelection(btn.dataset.signupPlan)));
 $("#switchTeamBtn")?.addEventListener("click",switchCloudTeam); $("#accountSignOutBtn")?.addEventListener("click",cloudSignOut);
 $("#createViewerInviteBtn")?.addEventListener("click",createViewerInvite);$("#copyTeamInviteBtn")?.addEventListener("click",copyTeamInvite);$("#shareTeamInviteBtn")?.addEventListener("click",shareTeamInvite);
@@ -1189,7 +1205,7 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
-$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"4.5.20",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
+$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"4.5.21",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
 $("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
 $("#restoreDataInput").addEventListener("change",async()=>{
   const f=$("#restoreDataInput").files?.[0];if(!f)return;

@@ -5,7 +5,7 @@ const app=fs.readFileSync('app.js','utf8');
 const html=fs.readFileSync('index.html','utf8');
 const sql=fs.readFileSync('supabase-team-invites.sql','utf8');
 
-assert.match(app,/SB\.auth\.signUp\(\{email,password,options:\{emailRedirectTo:redirectTo\}\}\)/,'email account creation must remain enabled');
+assert.match(app,/SB\.auth\.signUp\(\{email,password,options:\{emailRedirectTo:redirectTo,data:\{intended_plan:onboardingPlan\}\}\}\)/,'email account creation must remain enabled and remember trial intent');
 assert.match(app,/redirectUrl\.searchParams\.set\("teamInvite",inviteToken\)/,'email confirmation must preserve the team invitation');
 assert.match(app,/SB\.rpc\("redeem_team_invite",\{p_token:token\}\)/,'signed-in users must redeem the invitation');
 assert.match(app,/destination:"stats"/,'a redeemed invitation must open on the team stats screen');
