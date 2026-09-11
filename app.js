@@ -926,7 +926,7 @@ function go(name){
   if(name==="game")renderGameArea();
   if(name==="snaps")renderSnaps();
   if(name==="stats"){if(!isCloudViewer()&&currentGame())selectedStatsGameId=currentGame().id;renderStats();}
-  if(name==="coach"){renderCoach();if(hasCoachAccess()&&["overview","debrief"].includes(coachTab))loadCoachDebriefs().then(renderCoach)}
+  if(name==="coach"){renderCoach();if(hasCoachAccess()&&["overview","offense","defense","debrief"].includes(coachTab))loadCoachDebriefs().then(renderCoach)}
   
 }
 $$("[data-go]").forEach(b=>b.addEventListener("click",()=>go(b.dataset.go)));
@@ -1021,7 +1021,7 @@ function startDebriefVoice(continuing=false){
   debriefRecognition.onend=()=>{debriefRecognition=null;if(debriefListening){debriefVoiceBase=$("#debriefVoiceNotes")?.value.trim()||debriefVoiceBase;setTimeout(()=>{if(debriefListening)startDebriefVoice(true)},150)}else resetDebriefVoice()};
   debriefRecognition.start();if(!continuing){clearTimeout(debriefSafetyTimer);debriefSafetyTimer=setTimeout(stopDebriefVoice,120000)}
 }
-$("#coachGameSelect")?.addEventListener("change",async e=>{coachSelection=e.target.value;if(["overview","debrief"].includes(coachTab))await loadCoachDebriefs();renderCoach()});
+$("#coachGameSelect")?.addEventListener("change",async e=>{coachSelection=e.target.value;if(["overview","offense","defense","debrief"].includes(coachTab))await loadCoachDebriefs();renderCoach()});
 document.addEventListener("click",async e=>{
   const tab=e.target.closest("[data-coach-tab],[data-coach-go]");if(tab){coachTab=tab.dataset.coachTab||tab.dataset.coachGo;go("coach");return}
   const mode=e.target.closest("[data-player-mode]");if(mode){coachPlayerMode=mode.dataset.playerMode;renderCoach();return}
@@ -1130,7 +1130,7 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
-$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"4.5.17",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
+$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"4.5.18",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
 $("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
 $("#restoreDataInput").addEventListener("change",async()=>{
   const f=$("#restoreDataInput").files?.[0];if(!f)return;
@@ -1209,11 +1209,11 @@ function renderGameArea(){
 function renderNewGamePlanSources(){
   const select=$("#newGamePlanSource");if(!select)return;const prior=select.value;
   const games=[...(S.games||[])].filter(g=>Array.isArray(g.gamePlan)&&g.gamePlan.length).sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0)||Number(b.week||0)-Number(a.week||0));
-  select.innerHTML=`<option value="auto">${games.length?`Automatically copy Week ${Number(games[0].week||1)} vs ${esc(games[0].opponent)}`:"Use current playbook defaults"}</option>`+'<option value="defaults">Use current playbook defaults</option>'+games.map(g=>`<option value="game:${g.id}">Copy Week ${Number(g.week||1)} vs ${esc(g.opponent)}</option>`).join("")+'<option value="blank">Start with a blank game plan</option>';
-  if([...select.options].some(o=>o.value===prior))select.value=prior;
+  select.innerHTML='<option value="defaults">Use current playbook defaults</option>'+`<option value="auto">${games.length?`Copy Week ${Number(games[0].week||1)} vs ${esc(games[0].opponent)}`:"Copy the most recent game plan"}</option>`+games.map(g=>`<option value="game:${g.id}">Copy Week ${Number(g.week||1)} vs ${esc(g.opponent)}</option>`).join("")+'<option value="blank">Start with a blank game plan</option>';
+  select.value=[...select.options].some(o=>o.value===prior)?prior:"defaults";
 }
 function planFromNewGameSource(){
-  const source=$("#newGamePlanSource")?.value||"auto";
+  const source=$("#newGamePlanSource")?.value||"defaults";
   if(source==="blank")return [];
   if(source.startsWith("game:")){const prior=gameById(source.slice(5));if(prior)return cloneJson(normalizeGamePlan(prior))}
   if(source==="auto"){const prior=[...(S.games||[])].filter(g=>Array.isArray(g.gamePlan)&&g.gamePlan.length).sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0)||Number(b.week||0)-Number(a.week||0))[0];if(prior)return cloneJson(normalizeGamePlan(prior))}
@@ -1245,6 +1245,12 @@ $("#assignGamePlanPlayBtn")?.addEventListener("click",()=>{
   g.gamePlan.push({playId,number});normalizeGamePlan(g);$("#gamePlanNumber").value="";persist();renderGamePlanManager();renderNextPlayCallOptions();toast("Play assigned to this game");
 });
 $("#gamePlanPlaySelect")?.addEventListener("change",e=>{const p=teamPlaybook().find(x=>x.id===e.target.value);if(p&&$("#gamePlanNumber"))$("#gamePlanNumber").value=String(p.number)});
+$("#loadCurrentPlaybookBtn")?.addEventListener("click",()=>{
+  const g=currentGame(),plan=defaultGamePlan();if(!g)return;
+  if(!plan.length)return toast("Add plays to the Offensive Playbook first");
+  if(g.gamePlan?.length&&!confirm(`Replace this game plan with the ${plan.length} active plays in the current playbook?`))return;
+  g.gamePlan=cloneJson(plan);normalizeGamePlan(g);persist();renderGamePlanManager();renderNextPlayCallOptions();toast(`Loaded ${g.gamePlan.length} plays from the current playbook`);
+});
 $("#copyPreviousGamePlanBtn")?.addEventListener("click",()=>{
   const g=currentGame(),prior=priorGameWithPlan(g);if(!g)return;if(!prior)return toast("No earlier game plan is available");
   if(g.gamePlan?.length&&!confirm(`Replace this game plan with Week ${prior.week} vs ${prior.opponent}?`))return;

@@ -16,12 +16,17 @@ assert.match(app, /restoreCloudPlayWithDemo/, 'isolated demo play calls must be 
 assert.match(app, /if\(raw\.playCall\?\.demo\)delete raw\.playCall/, 'demo calls must never write into real play events');
 assert.match(html, /data-screen="coach"/, 'Coach Pro needs its own restricted screen');
 assert.match(html, /data-coach-tab="playcalls"/, 'Coach Pro must include Play Calls');
+assert.match(html, /data-coach-tab="offense"/, 'Coach Pro must include Offense analytics');
+assert.match(html, /data-coach-tab="defense"/, 'Coach Pro must include Defense analytics');
 assert.match(html, /data-coach-tab="debrief"/, 'Coach Pro must include Debrief');
 assert.match(html, /id="coachNav"[\s\S]*data-go="stats"[\s\S]*data-go="coach"/, 'coach navigation must expose only Stats and Analytics');
 assert.doesNotMatch(html, /data-coach-go=/, 'individual analytics sections must not replace the coach Stats and Analytics navigation');
 assert.match(analytics, /WHAT’S WORKED ON \$\{ordinal\(selectedDown\)\} DOWN/, 'approved play-call heading must use the apostrophe');
 assert.match(analytics, /coach-donut/, 'overview must include a visual run/pass chart');
 assert.match(analytics, /heat-cell/, 'play calls must render as a traffic-light heat map');
+assert.match(analytics, /SUCCESS BY DISTANCE/, 'offense analytics must include distance buckets');
+assert.match(analytics, /SITUATION BY DOWN/, 'offense analytics must include run-pass tendencies by down');
+assert.match(analytics, /OPPONENT OFFENSE BY QUARTER/, 'defense analytics must include opponent quarter splits');
 assert.match(analytics, /sortedCallGroups/, 'play calls must support success-based sorting');
 assert.match(analytics, /Math\.round\(number\(value\)\*2\)\/2/, 'defensive credits must round to the nearest half');
 assert.match(analytics, /trend-area/, 'season trends must include a responsive area chart');
@@ -34,6 +39,7 @@ assert.match(css, /\.heat-name\{position:sticky;left:0/, 'play names must remain
 assert.match(css, /@media \(max-width:560px\)/, 'phone-specific responsive rules must remain available');
 assert.match(app, /x\.sub==="TFL"\|\|x\.tackleKind==="TFL"/, 'team summary must count legacy and current TFL representations');
 assert.match(css, /body\.coach-mode \.top\{height:150px;max-height:150px;aspect-ratio:auto/, 'tablet and desktop analytics must use a compact masthead');
+assert.match(css, /body\.coach-mode \.top\{[^}]*background-size:100% 100%/, 'tablet and desktop masthead must fit the complete branded header without cropping');
 assert.match(css, /body\.coach-mode \.coach-section-tabs\{top:150px\}/, 'tablet and desktop analytics tabs must stay beneath the compact masthead');
 assert.match(sql, /team_identifier/, 'database setup must support duplicate public team names');
 assert.match(sql, /status = 'submitted'/, 'shared coach notes must expose submitted debriefs only');
@@ -61,5 +67,18 @@ assert.match(contextRead,/Data-supported:/,'Coach Read must identify data-derive
 assert.match(contextRead,/Coach-provided context:/,'Coach Read must incorporate submitted debrief context');
 assert.match(contextRead,/Our protection held up/,'submitted observations must influence Coach Read');
 assert.doesNotMatch(contextRead,/Private draft/,'draft debriefs must remain private and excluded from Coach Read');
+
+const situationalGame={...demoGame,displayOppScore:0,plays:[...demoGame.plays,
+  {id:'d1',type:'Defense',sub:'Opponent Run',yards:-3,tackleKind:'TFL',quarter:1,stateBefore:{possession:'opp',down:1,distance:10}},
+  {id:'d2',type:'Defense',sub:'Complete Pass',yards:12,quarter:3,interceptionPlayerId:'r1',stateBefore:{possession:'opp',down:2,distance:8}}
+]};
+const offenseView=api.render('offense',{games:[situationalGame],selection:'season',debriefs:[]});
+assert.match(offenseView,/SUCCESS BY DISTANCE/,'Offense screen must render success by distance');
+assert.match(offenseView,/1 play<br>5\.0 yards\/play/,'distance buckets must show play count and yards per play');
+assert.match(offenseView,/Balanced/,'Offense screen must classify down-and-distance tendencies');
+const defenseView=api.render('defense',{games:[situationalGame],selection:'season',debriefs:[]});
+assert.match(defenseView,/OPPONENT OFFENSE BY QUARTER/,'Defense screen must render opponent offense by quarter');
+assert.match(defenseView,/1 TFL • 0 sacks/,'Defense havoc must count recorded tackles for loss');
+assert.match(defenseView,/Q3/,'Defense quarter cards must include the third quarter');
 
 console.log('coach pro checks passed');

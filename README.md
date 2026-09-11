@@ -1,4 +1,13 @@
-# Sideline Stats V4.5.17 — Responsive Analytics & Defensive Summary Fix
+# Sideline Stats V4.5.18 — Situational Coach Analytics
+
+## V4.5.18 changes
+
+- Added dedicated **Offense** and **Defense** sections between Play Calls and Players.
+- Offense now shows identity, success by distance with play counts and yards per play, and run/pass tendencies by down.
+- Defense now shows play-depth distribution, situational results, havoc by down, and opponent offense by quarter.
+- Submitted coach debrief context appears beside the data-supported Coach Read on both new screens.
+- The iPad/desktop masthead stays condensed while fitting the complete Sideline Stats header without cropping.
+- New games automatically use the current Master Playbook numbers; existing games can load the full current playbook with one tap or copy a prior week when numbering changes.
 
 ## V4.5.17 changes
 

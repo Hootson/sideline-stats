@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V4.5.17</title>
+<title>Sideline Stats V4.5.18</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -32,7 +32,7 @@
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V4.5.17 • RESPONSIVE ANALYTICS • GRIDIRON EDITION</div>
+      <div class="muted" style="color:#dfe9e2">V4.5.18 • SITUATIONAL ANALYTICS • GRIDIRON EDITION</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -169,8 +169,8 @@
         <div class="inline-note" style="margin-top:6px">Choose this once. Possession will track itself from here.</div>
         <label>Weekly game plan</label>
         <select id="newGamePlanSource">
-          <option value="auto">Automatically copy the most recent game plan</option>
           <option value="defaults">Use current playbook defaults</option>
+          <option value="auto">Copy the most recent game plan</option>
           <option value="blank">Start with a blank game plan</option>
         </select>
         <div class="inline-note" style="margin-top:6px">You can copy a prior game’s number assignments, then adjust them without changing season analytics.</div>
@@ -264,6 +264,7 @@
         <summary><strong>Weekly Game Plan</strong> <span class="badge" id="gamePlanCount">0 plays</span></summary>
         <div class="muted game-plan-help">Numbers apply only to this game. Analytics follow the named play across the season.</div>
         <div class="game-plan-actions">
+          <button class="btn" id="loadCurrentPlaybookBtn" type="button">Load Current Playbook</button>
           <button class="btn ghost" id="copyPreviousGamePlanBtn" type="button">Copy Previous Game Plan</button>
         </div>
         <div class="game-plan-entry-row">
@@ -618,6 +619,8 @@
       <div id="coachSectionTabs" class="coach-section-tabs" aria-label="Coach analytics sections">
         <button type="button" data-coach-tab="overview" class="active">Overview</button>
         <button type="button" data-coach-tab="playcalls">Play Calls</button>
+        <button type="button" data-coach-tab="offense">Offense</button>
+        <button type="button" data-coach-tab="defense">Defense</button>
         <button type="button" data-coach-tab="players">Players</button>
         <button type="button" data-coach-tab="trends">Trends</button>
         <button type="button" data-coach-tab="debrief">Debrief</button>
