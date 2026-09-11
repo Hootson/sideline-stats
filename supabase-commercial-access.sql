@@ -1,4 +1,4 @@
--- Sideline Stats V4.5.19 commercial access foundation.
+-- Sideline Stats V4.5.20 commercial access and trial onboarding.
 alter table public.team_entitlements add column if not exists access_source text not null default 'standard';
 alter table public.team_entitlements add column if not exists complimentary boolean not null default false;
 alter table public.team_entitlements alter column coach_seat_limit set default 5;
@@ -31,6 +31,30 @@ end;$$;
 drop trigger if exists start_trial_after_first_game on public.games;
 create trigger start_trial_after_first_game after insert on public.games for each row execute function private.start_trial_on_first_game();
 revoke all on function private.start_trial_on_first_game() from public,anon,authenticated;
+
+-- New-team onboarding must also work for users manually confirmed in the Auth dashboard.
+create or replace function private.handle_new_team() returns trigger language plpgsql security definer set search_path='' as $$
+declare already_used boolean;
+begin
+  insert into public.profiles(id) values(new.owner_user_id) on conflict(id) do nothing;
+  insert into public.team_members(team_id,user_id,is_admin,is_statkeeper,is_coach,status,joined_at)
+  values(new.id,new.owner_user_id,true,true,true,'active',now())
+  on conflict(team_id,user_id) do update set is_admin=true,is_statkeeper=true,status='active',joined_at=coalesce(public.team_members.joined_at,now());
+
+  select coach_trial_used into already_used from public.profiles where id=new.owner_user_id for update;
+  if not coalesce(already_used,false) then
+    update public.profiles set coach_trial_used=true,updated_at=now() where id=new.owner_user_id;
+    insert into public.team_entitlements(team_id,tier,trial_used,trial_started_at,trial_ends_at,coach_seat_limit,access_source,complimentary)
+    values(new.id,'trial',true,now(),now()+interval '7 days',5,'standard',false)
+    on conflict(team_id) do update set tier='trial',trial_used=true,trial_started_at=now(),trial_ends_at=now()+interval '7 days',coach_seat_limit=5,access_source='standard',complimentary=false,updated_at=now();
+  else
+    insert into public.team_entitlements(team_id,tier,trial_used,coach_seat_limit,access_source,complimentary)
+    values(new.id,'free',true,5,'standard',false)
+    on conflict(team_id) do nothing;
+  end if;
+  return new;
+end;$$;
+revoke all on function private.handle_new_team() from public,anon,authenticated;
 
 -- Founder/test access is team-level, so all properly invited Erie users bypass checkout.
 insert into public.team_entitlements(team_id,tier,trial_used,paid_access_starts_at,paid_access_ends_at,coach_seat_limit,access_source,complimentary)

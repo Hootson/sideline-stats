@@ -3,6 +3,7 @@ const KEY="sidelineStatsData";
 const RECOVERY_KEY="sidelineStatsRecovery";
 const LAST_TEAM_KEY_PREFIX="sidelineStatsLastTeam:";
 const PENDING_TEAM_INVITE_KEY="sidelineStatsPendingTeamInvite";
+const ONBOARDING_PLAN_KEY="sidelineStatsOnboardingPlan";
 const MIGRATION_KEYS=["sidelineStatsV23","sidelineStatsV20","sidelineStatsV19","sidelineStatsV18","sidelineStatsV17","sidelineStatsV16","sidelineStatsV15","sidelineStatsV14","sidelineStatsV13","sidelineStatsV12","sidelineStatsV11","sidelineStatsV10","sidelineStatsV09","sidelineStatsV08","sidelineStatsV07","sidelineStatsV06","sidelineStatsV05","sidelineStatsV04","sidelineStatsV03","sidelineStatsV02"];
 
 const SUPABASE_URL="https://eyuvgzhkhcpwtcbmsvct.supabase.co";
@@ -36,6 +37,7 @@ let selectedStatsGameId=null;
 let coachTab="overview",coachSelection=null,coachDown=1,coachMetric="success",coachCallSortBucket="overall",coachPlayerMode="offense",coachDebriefs=[],coachOwnDebrief=null;
 let pendingNewOpponentLogo=null;
 let pendingEditOpponentLogo=undefined;
+let onboardingPlan=localStorage.getItem(ONBOARDING_PLAN_KEY)==="statkeeper"?"statkeeper":"team_pro";
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const Field=window.SidelineFieldPosition;
 let pendingFieldSpotHandler=null,pendingFieldSpotMode=null,pendingVoiceResult=null;
@@ -316,20 +318,41 @@ function openAuth(){
     $("#teamInvitePane")?.classList.toggle("hidden",!cloudLinked()||!isCloudStatkeeper());
   }
   $("#authModal").classList.remove("hidden");
+  $("#signupPlanChooser")?.classList.toggle("hidden",!!pendingTeamInviteToken());
+  renderPlanSelection(onboardingPlan);
   if(!cloudUser)setTimeout(()=>$("#authEmail")?.focus(),50);
 }
 function closeAuth(){$("#authModal").classList.add("hidden")}
-function openPlans(){closeAuth();$("#plansModal")?.classList.remove("hidden")}
+function renderPlanSelection(plan){
+  onboardingPlan=plan==="statkeeper"?"statkeeper":"team_pro";localStorage.setItem(ONBOARDING_PLAN_KEY,onboardingPlan);
+  $$('[data-signup-plan]').forEach(x=>x.classList.toggle('selected',x.dataset.signupPlan===onboardingPlan));
+  $$('[data-plan-card]').forEach(x=>x.classList.toggle('selected',x.dataset.planCard===onboardingPlan));
+}
+function openPlans(trialWelcome=false){
+  closeAuth();const access=commercialAccess(),heading=$("#plansHeading"),sub=$("#plansSubheading"),message=$("#plansMessage");
+  renderPlanSelection(S.team?.planIntent||onboardingPlan);
+  if(heading)heading.textContent=trialWelcome||access.status==="trial"?"Your Team Pro trial is active":"Choose your team plan";
+  if(sub)sub.textContent=trialWelcome||access.status==="trial"?`Explore every feature free${access.daysRemaining?` for ${access.daysRemaining} more day${access.daysRemaining===1?'':'s'}`:' for seven days'}.`:"One team, one season. Manual renewal.";
+  if(message){message.classList.remove("error");message.textContent="No card and no automatic charge. Choose a seasonal plan now or any time before the trial ends."}
+  $$('.plan-checkout').forEach(btn=>{const plan=btn.dataset.plan;btn.disabled=access.active&&access.status==="active"&&access.tier===plan;btn.textContent=btn.disabled?"Current Plan":access.tier==="statkeeper"&&plan==="team_pro"?"Upgrade to Team Pro — $25":plan==="statkeeper"?"Buy Statkeeper — $14.99":"Buy Team Pro — $39.99"});
+  $("#plansModal")?.classList.remove("hidden");
+}
 function closePlans(){$("#plansModal")?.classList.add("hidden")}
+async function checkoutErrorMessage(error){
+  try{if(error?.context instanceof Response){const body=await error.context.clone().json();if(body?.error)return body.error}}catch(_e){}
+  return error?.message||"Could not open secure checkout";
+}
 async function beginPlanCheckout(plan,button){
   if(!SB||!cloudUser||!cloudLinked())return toast("Sign in and connect your team first");
   if(await resolveCloudDeviceRole()!=="statkeeper")return toast("Only the team statkeeper can purchase a plan");
+  renderPlanSelection(plan);const message=$("#plansMessage");if(message){message.classList.remove("error");message.textContent="Connecting securely to Stripe…"}
   button.disabled=true;const prior=button.textContent;button.textContent="Opening secure checkout…";
   try{
-    const {data,error}=await SB.functions.invoke("create-stripe-checkout",{body:{teamId:S.cloud.teamId,plan}});if(error)throw error;
+    const {data:{session},error:sessionError}=await SB.auth.getSession();if(sessionError||!session?.access_token)throw new Error("Your sign-in expired. Sign in again, then choose a plan.");
+    const {data,error}=await SB.functions.invoke("create-stripe-checkout",{body:{teamId:S.cloud.teamId,plan},headers:{Authorization:`Bearer ${session.access_token}`}});if(error)throw error;
     if(!data?.url)throw new Error(data?.error||"Stripe checkout did not return a link");
     location.href=data.url;
-  }catch(e){console.error("Stripe checkout failed",e);toast(e?.context?.error||e?.message||"Could not open Stripe checkout")}
+  }catch(e){console.error("Stripe checkout failed",e);const detail=await checkoutErrorMessage(e);if(message){message.classList.add("error");message.textContent=detail}toast(detail)}
   finally{button.disabled=false;button.textContent=prior}
 }
 async function authSignIn(){
@@ -341,6 +364,7 @@ async function authSignIn(){
 async function authCreate(){
   if(!SB)return toast("Cloud connection is not ready"); const email=$("#authEmail").value.trim(),password=$("#authPassword").value;
   if(!email||password.length<6)return toast("Use an email and password of at least 6 characters"); $("#authMessage").textContent="Creating account…";
+  localStorage.setItem(ONBOARDING_PLAN_KEY,onboardingPlan);
   const redirectUrl=new URL((location.hostname==="localhost"||location.hostname==="127.0.0.1")?location.origin+location.pathname:"https://hootson.github.io/sideline-stats/");
   const inviteToken=pendingTeamInviteToken();if(inviteToken)redirectUrl.searchParams.set("teamInvite",inviteToken);
   const redirectTo=redirectUrl.href;
@@ -530,7 +554,7 @@ async function refreshFromCloud(){
 }
 
 
-async function connectTeamToCloud(){
+async function connectTeamToCloud(options={}){
   if(!SB||!cloudUser)return openAuth(); if(!teamExists())return toast("Create your team first");
   const btn=$("#cloudConnectTeamBtn"); if(btn){btn.disabled=true;btn.textContent="Connecting…"}
   try{
@@ -549,8 +573,8 @@ async function connectTeamToCloud(){
       if(playerIds[p.id]){const {error}=await SB.from("players").update({jersey_number:String(p.jersey),name:p.name,active:true}).eq("id",playerIds[p.id]);if(error)throw error}
       else{const {data,error}=await SB.from("players").insert({season_id:seasonId,jersey_number:String(p.jersey),name:p.name,active:true}).select("id").single();if(error)throw error;playerIds[p.id]=data.id}
     }
-    S.cloud={...(S.cloud||{}),teamId,seasonId,playerIds,playerHashes:S.cloud?.playerHashes||{},gameIds:S.cloud?.gameIds||{},playIds:S.cloud?.playIds||{},playHashes:S.cloud?.playHashes||{},gameHashes:S.cloud?.gameHashes||{},creditIds:S.cloud?.creditIds||{},creditHashes:S.cloud?.creditHashes||{},penaltyIds:S.cloud?.penaltyIds||{},penaltyHashes:S.cloud?.penaltyHashes||{},snapIds:S.cloud?.snapIds||{},snapHashes:S.cloud?.snapHashes||{},connectedAt:new Date().toISOString(),lastSyncError:null,remoteFingerprint:S.cloud?.remoteFingerprint||null,hashVersion:2,deviceRole:"statkeeper",coachAccess:false,entitlementTier:null};S.cloud.teamHash=simpleHash(buildCloudTeamPayload());for(const p of S.roster||[])S.cloud.playerHashes[p.id]=simpleHash({season_id:seasonId,jersey_number:String(p.jersey??""),name:p.name||"Player",active:true});rememberTeam(teamId);persist();await resolveCloudDeviceRole();updateCloudUI();toast("Team connected — this device is the statkeeper")
-  }catch(e){console.error("Cloud team connect failed",e);toast(e?.message||"Could not connect team")}
+    S.cloud={...(S.cloud||{}),teamId,seasonId,playerIds,playerHashes:S.cloud?.playerHashes||{},gameIds:S.cloud?.gameIds||{},playIds:S.cloud?.playIds||{},playHashes:S.cloud?.playHashes||{},gameHashes:S.cloud?.gameHashes||{},creditIds:S.cloud?.creditIds||{},creditHashes:S.cloud?.creditHashes||{},penaltyIds:S.cloud?.penaltyIds||{},penaltyHashes:S.cloud?.penaltyHashes||{},snapIds:S.cloud?.snapIds||{},snapHashes:S.cloud?.snapHashes||{},connectedAt:new Date().toISOString(),lastSyncError:null,remoteFingerprint:S.cloud?.remoteFingerprint||null,hashVersion:2,deviceRole:"statkeeper",coachAccess:false,entitlementTier:null};S.cloud.teamHash=simpleHash(buildCloudTeamPayload());for(const p of S.roster||[])S.cloud.playerHashes[p.id]=simpleHash({season_id:seasonId,jersey_number:String(p.jersey??""),name:p.name||"Player",active:true});rememberTeam(teamId);persist();await resolveCloudDeviceRole();updateCloudUI();if(!options.silent)toast("Team connected — this device is the statkeeper");return true
+  }catch(e){console.error("Cloud team connect failed",e);toast(e?.message||"Could not connect team");return false}
   finally{if(btn){btn.disabled=false;btn.textContent="Connect Team"}updateCloudUI()}
 }
 
@@ -897,7 +921,8 @@ document.addEventListener("visibilitychange",()=>{if(document.visibilityState===
 $("#cloudAccountBtn")?.addEventListener("click",openAuth);
 $("#cloudSignInBtn")?.addEventListener("click",openAuth); $("#cloudSignOutBtn")?.addEventListener("click",cloudSignOut); $("#cloudConnectTeamBtn")?.addEventListener("click",connectTeamToCloud); $("#cloudLoadTeamBtn")?.addEventListener("click",()=>loadTeamFromCloud()); $("#cloudRefreshBtn")?.addEventListener("click",refreshFromCloud);
 $("#authCloseBtn")?.addEventListener("click",closeAuth); $("#authSignInBtn")?.addEventListener("click",authSignIn); $("#authCreateBtn")?.addEventListener("click",authCreate);
-$("#viewPlansBtn")?.addEventListener("click",openPlans);$("#plansCloseBtn")?.addEventListener("click",closePlans);$("#plansModal")?.addEventListener("click",e=>{if(e.target.id==="plansModal")closePlans()});$$('.plan-checkout').forEach(btn=>btn.addEventListener('click',()=>beginPlanCheckout(btn.dataset.plan,btn)));
+$("#viewPlansBtn")?.addEventListener("click",()=>openPlans());$("#plansCloseBtn")?.addEventListener("click",closePlans);$("#plansModal")?.addEventListener("click",e=>{if(e.target.id==="plansModal")closePlans()});$$('.plan-checkout').forEach(btn=>btn.addEventListener('click',()=>beginPlanCheckout(btn.dataset.plan,btn)));
+$$('[data-signup-plan]').forEach(btn=>btn.addEventListener('click',()=>renderPlanSelection(btn.dataset.signupPlan)));
 $("#switchTeamBtn")?.addEventListener("click",switchCloudTeam); $("#accountSignOutBtn")?.addEventListener("click",cloudSignOut);
 $("#createViewerInviteBtn")?.addEventListener("click",createViewerInvite);$("#copyTeamInviteBtn")?.addEventListener("click",copyTeamInvite);$("#shareTeamInviteBtn")?.addEventListener("click",shareTeamInvite);
 $("#createCoachInviteBtn")?.addEventListener("click",createCoachInvite);$("#copyCoachInviteBtn")?.addEventListener("click",copyCoachInvite);$("#shareCoachInviteBtn")?.addEventListener("click",shareCoachInvite);
@@ -1140,7 +1165,8 @@ $("#removeLogoBtn").addEventListener("click",()=>{
   S.team.logoData=null;$("#teamLogoInput").value="";renderLogoPreview(null);
 });
 
-$("#saveTeam").addEventListener("click",()=>{
+$("#saveTeam").addEventListener("click",async()=>{
+  const creating=!teamExists();
   const name=$("#teamName").value.trim();if(!name)return toast("Enter a team name");
   const nextSeason=$("#season").value.trim()||"2026";
   const snapMinimum=Number($("#snapMinimum").value);if(!Number.isInteger(snapMinimum)||snapMinimum<1||snapMinimum>100)return toast("Enter a snap minimum from 1 to 100");
@@ -1148,9 +1174,14 @@ $("#saveTeam").addEventListener("click",()=>{
     const ok=confirm(`New season: ${nextSeason}. In the production app, starting a new season will require a new season purchase. Continue in test mode?`);
     if(!ok)return;
   }
-  S.team={name,identifier:$("#teamIdentifier").value.trim().slice(0,60),grade:$("#grade").value,season:nextSeason,primary:$("#primary").value,secondary:$("#secondary").value,logoData:S.team?.logoData||null,snapMinimum,playbook:[...teamPlaybook()],voiceCorrections:{...(S.team?.voiceCorrections||{})}};
-  persist();syncChrome();normalizeRoster();initializeSnapSelections();renderRoster();updateCloudUI();toast("Team saved");
-  go("roster");
+  S.team={name,identifier:$("#teamIdentifier").value.trim().slice(0,60),grade:$("#grade").value,season:nextSeason,primary:$("#primary").value,secondary:$("#secondary").value,logoData:S.team?.logoData||null,snapMinimum,playbook:[...teamPlaybook()],voiceCorrections:{...(S.team?.voiceCorrections||{})},planIntent:S.team?.planIntent||onboardingPlan};
+  persist();syncChrome();normalizeRoster();initializeSnapSelections();renderRoster();updateCloudUI();
+  if(creating&&cloudUser&&!pendingTeamInviteToken()){
+    toast("Creating your team and starting the free trial…");
+    const connected=await connectTeamToCloud({silent:true});
+    if(connected){go("roster");openPlans(true);return}
+  }
+  toast("Team saved");go("roster");
 });
 
 
@@ -1158,7 +1189,7 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
-$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"4.5.18",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
+$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"4.5.20",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
 $("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
 $("#restoreDataInput").addEventListener("change",async()=>{
   const f=$("#restoreDataInput").files?.[0];if(!f)return;

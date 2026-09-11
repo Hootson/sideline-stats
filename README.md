@@ -1,4 +1,13 @@
-# Sideline Stats V4.5.19 — Stripe Sandbox Checkout
+# Sideline Stats V4.5.20 — Easy Trial Onboarding
+
+## V4.5.20 changes
+
+- Lets a new team owner choose Statkeeper or Team Pro while creating an account.
+- Clearly explains the seven-day full Team Pro trial, seasonal price, manual renewal, and no automatic charge.
+- Automatically connects a signed-in owner's newly saved team to Supabase and starts the eligible trial.
+- Makes plan selection visible and highlights whichever plan the customer taps.
+- Explicitly sends the signed-in session to checkout and keeps actionable Stripe errors visible in the plan window.
+- Makes trial creation work for accounts manually confirmed from the Supabase Auth dashboard.
 
 ## V4.5.19 changes
 
@@ -8,9 +17,7 @@
 - Activates access only after a signature-verified Stripe webhook confirms payment and verifies the purchased Price ID.
 - Keeps all Stripe secret keys out of the browser and GitHub.
 - Preserves permanent complimentary Team Pro access for Erie Tigers and its invited staff.
-- Starts a one-time seven-day Team Pro trial when a new team's first cloud game is created.
-
-## V4.5.18 changes
+- Provides the Stripe Sandbox checkout and webhook foundation.
 
 ## V4.5.18 changes
 

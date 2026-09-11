@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V4.5.19</title>
+<title>Sideline Stats V4.5.20</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -32,7 +32,7 @@
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V4.5.19 • STRIPE SANDBOX • GRIDIRON EDITION</div>
+      <div class="muted" style="color:#dfe9e2">V4.5.20 • EASY TRIAL ONBOARDING • GRIDIRON EDITION</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -687,6 +687,14 @@
       <div class="muted">Sign in once on this device. Sideline Stats will remember you and reopen your team automatically.</div>
       <label>Email</label><input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com">
       <label>Password</label><input id="authPassword" type="password" autocomplete="current-password" placeholder="At least 6 characters">
+      <div id="signupPlanChooser" class="signup-plan-chooser">
+        <strong>Starting a new team?</strong>
+        <div class="muted">Choose what you may want after your free seven-day Team Pro trial. No card and no automatic charge.</div>
+        <div class="signup-plan-grid">
+          <button type="button" class="signup-plan-choice" data-signup-plan="statkeeper"><b>Statkeeper</b><span>$14.99 / team season</span></button>
+          <button type="button" class="signup-plan-choice selected" data-signup-plan="team_pro"><b>Team Pro</b><span>$39.99 / team season</span></button>
+        </div>
+      </div>
       <div class="modal-actions"><button class="btn" id="authSignInBtn" type="button">Sign In</button><button class="btn ghost" id="authCreateBtn" type="button">Create Account</button></div>
       <div id="authMessage" class="inline-note" style="margin-top:12px">Your game data remains available offline after the first cloud load.</div>
     </div>
@@ -728,7 +736,7 @@
     </div>
   </div>
 </div>
-<div id="plansModal" class="modal-backdrop hidden"><div class="modal-card plans-modal-card"><button id="plansCloseBtn" class="modal-close" aria-label="Close">×</button><h2>Choose your team plan</h2><div class="muted">One team, one season. Manual renewal.</div><div class="plan-grid"><article class="plan-option"><h3>Viewer</h3><b>Free</b><p>Live and previous team statistics.</p></article><article class="plan-option"><h3>Statkeeper</h3><b>$14.99</b><p>Stats, snaps and live updates.</p><button class="btn ghost plan-checkout" data-plan="statkeeper">Choose Statkeeper</button></article><article class="plan-option featured"><h3>Team Pro</h3><b>$39.99</b><p>Everything plus analytics, debriefs and five coaches.</p><button class="btn plan-checkout" data-plan="team_pro">Choose Team Pro</button></article></div><div class="inline-note">Seven-day Team Pro trial starts with the first game. No card required.</div></div></div>
+<div id="plansModal" class="modal-backdrop hidden"><div class="modal-card plans-modal-card"><button id="plansCloseBtn" class="modal-close" aria-label="Close">×</button><h2 id="plansHeading">Choose your team plan</h2><div id="plansSubheading" class="muted">One team, one season. Manual renewal.</div><div class="plan-grid"><article class="plan-option" data-plan-card="statkeeper"><h3>Statkeeper</h3><b>$14.99</b><p>Stats, snaps and live updates.</p><button class="btn ghost plan-checkout" data-plan="statkeeper">Choose Statkeeper</button></article><article class="plan-option recommended" data-plan-card="team_pro"><small>FULL TRIAL ACCESS</small><h3>Team Pro</h3><b>$39.99</b><p>Everything plus analytics, debriefs and five coaches.</p><button class="btn plan-checkout" data-plan="team_pro">Choose Team Pro</button></article></div><div id="plansMessage" class="inline-note">Try every Team Pro feature free for seven days. No card and no automatic charge.</div></div></div>
 <div class="toast" id="toast"></div>
 
 <script src="./field-position.js"></script>

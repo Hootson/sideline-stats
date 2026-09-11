@@ -4,8 +4,15 @@ assert.equal(Access.resolve({tier:'trial',trial_used:true,trial_started_at:'2026
 assert.equal(Access.resolve({tier:'trial',trial_used:true,trial_ends_at:'2026-09-08T12:00:00Z'},now).active,false);
 assert.equal(Access.resolve({tier:'statkeeper',paid_access_starts_at:'2026-08-01T00:00:00Z',paid_access_ends_at:'2027-01-01T00:00:00Z'},now).recordAccess,true);
 assert.equal(Access.resolve({tier:'free',access_source:'founder_comp',complimentary:true},now).coachAccess,true);
-const checkout=fs.readFileSync('supabase/functions/create-stripe-checkout/index.ts','utf8'),webhook=fs.readFileSync('supabase/functions/stripe-webhook/index.ts','utf8'),app=fs.readFileSync('app.js','utf8');
+const checkout=fs.readFileSync('supabase/functions/create-stripe-checkout/index.ts','utf8'),webhook=fs.readFileSync('supabase/functions/stripe-webhook/index.ts','utf8'),app=fs.readFileSync('app.js','utf8'),html=fs.readFileSync('index.html','utf8'),sql=fs.readFileSync('supabase-commercial-access.sql','utf8');
 assert.match(checkout,/price_1UEMQ23e6AZi8Uuzv3iUo0uL/);assert.match(checkout,/team_pro_upgrade/);assert.match(checkout,/Only this team's statkeeper/);assert.doesNotMatch(checkout,/sk_test_/);
 assert.match(webhook,/verifyStripeSignature/);assert.match(webhook,/Checkout price verification failed/);assert.match(webhook,/provider_event_id/);assert.doesNotMatch(webhook,/whsec_/);
 assert.match(app,/SB\.functions\.invoke\("create-stripe-checkout"/);assert.match(app,/handleCheckoutReturn/);
+assert.match(app,/Authorization:`Bearer \$\{session\.access_token\}`/,'checkout must explicitly send the signed-in user JWT');
+assert.match(app,/connectTeamToCloud\(\{silent:true\}\)/,'saving a new signed-in team must connect it automatically');
+assert.match(app,/openPlans\(true\)/,'successful team creation must open the trial welcome');
+assert.match(html,/data-signup-plan="statkeeper"/);assert.match(html,/data-signup-plan="team_pro"/);
+assert.match(html,/No card and no automatic charge/,'trial terms must be explicit during signup');
+assert.match(sql,/insert into public\.profiles\(id\)/,'manual Auth confirmation must not prevent trial creation');
+assert.match(sql,/now\(\)\+interval '7 days'/,'new eligible teams must receive seven trial days');
 console.log('commercial access checks passed');
