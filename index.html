@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V4.5.18</title>
+<title>Sideline Stats V4.5.19</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -32,7 +32,7 @@
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V4.5.18 • SITUATIONAL ANALYTICS • GRIDIRON EDITION</div>
+      <div class="muted" style="color:#dfe9e2">V4.5.19 • STRIPE SANDBOX • GRIDIRON EDITION</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -695,6 +695,7 @@
       <div id="accountTeamName" class="account-team-name">Erie</div>
       <div id="accountEmail" class="muted"></div>
       <div id="accountRole" class="account-role">Viewer access</div>
+      <div id="accountPlanCard" class="account-plan-card hidden"><div><small>TEAM PLAN</small><strong id="accountPlanName">Free Viewer</strong><div id="accountPlanDetail" class="muted"></div></div><button class="btn small" id="viewPlansBtn" type="button">View Plans</button></div>
       <div class="inline-note account-remember-note">This device will keep you signed in and open this team automatically.</div>
       <div id="teamInvitePane" class="team-invite-pane hidden">
         <strong>Invite Parents</strong>
@@ -727,11 +728,13 @@
     </div>
   </div>
 </div>
+<div id="plansModal" class="modal-backdrop hidden"><div class="modal-card plans-modal-card"><button id="plansCloseBtn" class="modal-close" aria-label="Close">×</button><h2>Choose your team plan</h2><div class="muted">One team, one season. Manual renewal.</div><div class="plan-grid"><article class="plan-option"><h3>Viewer</h3><b>Free</b><p>Live and previous team statistics.</p></article><article class="plan-option"><h3>Statkeeper</h3><b>$14.99</b><p>Stats, snaps and live updates.</p><button class="btn ghost plan-checkout" data-plan="statkeeper">Choose Statkeeper</button></article><article class="plan-option featured"><h3>Team Pro</h3><b>$39.99</b><p>Everything plus analytics, debriefs and five coaches.</p><button class="btn plan-checkout" data-plan="team_pro">Choose Team Pro</button></article></div><div class="inline-note">Seven-day Team Pro trial starts with the first game. No card required.</div></div></div>
 <div class="toast" id="toast"></div>
 
 <script src="./field-position.js"></script>
 <script src="./voice-play.js"></script>
 <script src="./coach-analytics.js"></script>
+<script src="./commercial-access.js"></script>
 <script src="./app.js"></script>
 
 <script src="./pwa.js"></script>

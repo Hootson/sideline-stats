@@ -6,7 +6,7 @@ const analytics = fs.readFileSync('coach-analytics.js', 'utf8');
 const html = fs.readFileSync('index.html', 'utf8');
 const sql = fs.readFileSync('supabase-play-library.sql', 'utf8');
 
-assert.match(html, /V4\.5\.18/, 'the visible build label must identify V4.5.18');
+assert.match(html, /V4\.5\.19/, 'the visible build label must identify V4.5.19');
 assert.match(app, /function defaultGamePlan\(\)/, 'master plays must produce a default weekly plan');
 assert.match(app, /number<0\|\|number>99/, 'master and weekly play numbers must allow zero and stop at 99');
 assert.match(app, /function priorGameWithPlan\(g\)/, 'a prior weekly plan must be discoverable for copying');

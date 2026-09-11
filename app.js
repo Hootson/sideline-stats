@@ -10,7 +10,7 @@ const SUPABASE_PUBLISHABLE_KEY="sb_publishable_uMOkwO4jyHen4pz4zCkIuQ_Ss-wUf2l";
 let SB=null, cloudUser=null, cloudReady=false, cloudRemoteUpdates=false, cloudRemoteCheckRunning=false, cloudAutoRefreshRunning=false;
 let cloudAutoTeamLoadRunning=false;
 let teamInviteRedeemPromise=null,teamInviteShareData=null,coachInviteShareData=null;
-const empty={team:null,roster:[],games:[],activeGameId:null,flow:{},editingPlayId:null,cloud:{teamId:null,seasonId:null,teamHash:null,playerIds:{},playerHashes:{},gameIds:{},playIds:{},playHashes:{},gameHashes:{},creditIds:{},creditHashes:{},penaltyIds:{},penaltyHashes:{},snapIds:{},snapHashes:{},connectedAt:null,lastSyncAt:null,lastSyncError:null,remoteFingerprint:null,hashVersion:2,deviceRole:null,coachAccess:false,entitlementTier:null}};
+const empty={team:null,roster:[],games:[],activeGameId:null,flow:{},editingPlayId:null,cloud:{teamId:null,seasonId:null,teamHash:null,playerIds:{},playerHashes:{},gameIds:{},playIds:{},playHashes:{},gameHashes:{},creditIds:{},creditHashes:{},penaltyIds:{},penaltyHashes:{},snapIds:{},snapHashes:{},connectedAt:null,lastSyncAt:null,lastSyncError:null,remoteFingerprint:null,hashVersion:2,deviceRole:null,coachAccess:false,entitlementTier:null,access:null}};
 let S=load();
 if(!S.cloud)S.cloud={teamId:null,seasonId:null,playerIds:{},gameIds:{},playIds:{},playHashes:{},gameHashes:{},connectedAt:null,lastSyncAt:null,lastSyncError:null};
 if(!S.cloud.playerIds)S.cloud.playerIds={};
@@ -29,6 +29,7 @@ if(S.cloud.remoteFingerprint===undefined)S.cloud.remoteFingerprint=null;
 if(S.cloud.deviceRole===undefined)S.cloud.deviceRole=null;
 if(S.cloud.coachAccess===undefined)S.cloud.coachAccess=false;
 if(S.cloud.entitlementTier===undefined)S.cloud.entitlementTier=null;
+if(S.cloud.access===undefined)S.cloud.access=null;
 if(S.cloud.hashVersion===undefined)S.cloud.hashVersion=1;
 let statsScope="game";
 let selectedStatsGameId=null;
@@ -140,6 +141,7 @@ function cloudDeviceRole(){return inferCloudDeviceRole()||"viewer"}
 function isCloudStatkeeper(){return cloudDeviceRole()==="statkeeper"}
 function isCloudCoach(){return cloudDeviceRole()==="coach"}
 function hasCoachAccess(){return !!S.cloud?.coachAccess&&(isCloudStatkeeper()||isCloudCoach())}
+function commercialAccess(){return window.SidelineCommercialAccess?.resolve(S.cloud?.access)||{status:'not_started',active:false,complimentary:false,coachAccess:false}}
 
 async function resolveCloudDeviceRole(){
   if(!SB||!cloudUser||!S.cloud?.teamId||!S.cloud?.seasonId)return cloudDeviceRole();
@@ -153,13 +155,13 @@ async function resolveCloudDeviceRole(){
       if(member?.status==="active"&&(member.is_admin||member.is_statkeeper))role="statkeeper";
       else if(member?.status==="active"&&member.is_coach)role="coach";
     }
-    const {data:entitlement,error:entitlementErr}=await SB.from("team_entitlements").select("tier,trial_started_at,trial_ends_at,paid_access_starts_at,paid_access_ends_at").eq("team_id",S.cloud.teamId).maybeSingle();
+    const {data:entitlement,error:entitlementErr}=await SB.from("team_entitlements").select("tier,trial_used,trial_started_at,trial_ends_at,paid_access_starts_at,paid_access_ends_at,coach_seat_limit,access_source,complimentary").eq("team_id",S.cloud.teamId).maybeSingle();
     if(entitlementErr)throw entitlementErr;
-    const now=Date.now(),trialActive=entitlement?.tier==="trial"&&entitlement?.trial_started_at&&entitlement?.trial_ends_at&&Date.parse(entitlement.trial_started_at)<=now&&Date.parse(entitlement.trial_ends_at)>now;
-    const paidCoach=["coach","team_pro","pro"].includes(entitlement?.tier)&&entitlement?.paid_access_starts_at&&Date.parse(entitlement.paid_access_starts_at)<=now&&(!entitlement?.paid_access_ends_at||Date.parse(entitlement.paid_access_ends_at)>now);
+    const access=window.SidelineCommercialAccess?.resolve(entitlement);
     S.cloud.deviceRole=role;
     S.cloud.entitlementTier=entitlement?.tier||null;
-    S.cloud.coachAccess=!!(trialActive||paidCoach);
+    S.cloud.access=entitlement||null;
+    S.cloud.coachAccess=!!access?.coachAccess;
     persist({skipCloud:true});
     syncChrome();
     updateCloudUI();
@@ -226,7 +228,7 @@ async function initCloud(){
     if(!window.supabase?.createClient){updateCloudUI("unavailable");return}
     SB=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
     const {data}=await SB.auth.getSession();cloudUser=data?.session?.user||null;cloudReady=true;
-    if(cloudUser){rebaseCloudHashesV443();if(!await redeemPendingTeamInvite())await restoreRememberedTeam()}else{updateCloudUI();if(pendingTeamInviteToken()){openAuth();$("#authMessage").textContent="Create an account or sign in to accept this team invitation."}}
+    if(cloudUser){rebaseCloudHashesV443();if(!await redeemPendingTeamInvite())await restoreRememberedTeam();await handleCheckoutReturn()}else{updateCloudUI();if(pendingTeamInviteToken()){openAuth();$("#authMessage").textContent="Create an account or sign in to accept this team invitation."}}
     if(isCloudStatkeeper())scheduleCloudSync(300);else setTimeout(checkCloudForUpdates,500);
     setTimeout(startCloudRealtime,800);
     SB.auth.onAuthStateChange((_event,session)=>{
@@ -238,6 +240,14 @@ async function initCloud(){
       },0);
     });
   }catch(e){console.error("Cloud init failed",e);updateCloudUI("unavailable")}
+}
+async function handleCheckoutReturn(){
+  const url=new URL(location.href),result=url.searchParams.get("checkout");if(!result)return;
+  url.searchParams.delete("checkout");url.searchParams.delete("session_id");history.replaceState({},"",url.href);
+  if(result==="cancelled")return toast("Checkout cancelled — nothing was charged");
+  toast("Payment received — activating your team plan…");
+  for(let i=0;i<5;i++){await new Promise(r=>setTimeout(r,i?1200:500));await resolveCloudDeviceRole();if(commercialAccess().active){syncChrome();toast(`${window.SidelineCommercialAccess.label(commercialAccess())} is active`);return}}
+  toast("Payment is processing. Reopen Settings in a moment.");
 }
 async function restoreRememberedTeam(){
   if(!cloudUser||cloudAutoTeamLoadRunning)return;
@@ -299,12 +309,29 @@ function openAuth(){
     if($("#accountTeamName"))$("#accountTeamName").textContent=`${teamName}${S.team?.identifier?` — ${S.team.identifier}`:""}`;
     if($("#accountEmail"))$("#accountEmail").textContent=cloudUser.email||"Signed in";
     if($("#accountRole"))$("#accountRole").textContent=isCloudStatkeeper()?(hasCoachAccess()?"Statkeeper + Coach Pro access":"Statkeeper access"):isCloudCoach()?(hasCoachAccess()?"Coach Pro access":"Coach access — plan inactive"):"Viewer access";
+    const access=commercialAccess();$("#accountPlanCard")?.classList.toggle("hidden",!cloudLinked());
+    if($("#accountPlanName"))$("#accountPlanName").textContent=window.SidelineCommercialAccess?.label(access)||"Free Viewer";
+    if($("#accountPlanDetail"))$("#accountPlanDetail").textContent=access.complimentary?"Founder access is active. No payment is required.":access.status==="trial"?"Full Team Pro trial is active.":access.active?"Season access is active.":"Choose a plan when you are ready.";
+    $("#viewPlansBtn")?.classList.toggle("hidden",isCloudViewer()||access.complimentary);
     $("#teamInvitePane")?.classList.toggle("hidden",!cloudLinked()||!isCloudStatkeeper());
   }
   $("#authModal").classList.remove("hidden");
   if(!cloudUser)setTimeout(()=>$("#authEmail")?.focus(),50);
 }
 function closeAuth(){$("#authModal").classList.add("hidden")}
+function openPlans(){closeAuth();$("#plansModal")?.classList.remove("hidden")}
+function closePlans(){$("#plansModal")?.classList.add("hidden")}
+async function beginPlanCheckout(plan,button){
+  if(!SB||!cloudUser||!cloudLinked())return toast("Sign in and connect your team first");
+  if(await resolveCloudDeviceRole()!=="statkeeper")return toast("Only the team statkeeper can purchase a plan");
+  button.disabled=true;const prior=button.textContent;button.textContent="Opening secure checkout…";
+  try{
+    const {data,error}=await SB.functions.invoke("create-stripe-checkout",{body:{teamId:S.cloud.teamId,plan}});if(error)throw error;
+    if(!data?.url)throw new Error(data?.error||"Stripe checkout did not return a link");
+    location.href=data.url;
+  }catch(e){console.error("Stripe checkout failed",e);toast(e?.context?.error||e?.message||"Could not open Stripe checkout")}
+  finally{button.disabled=false;button.textContent=prior}
+}
 async function authSignIn(){
   if(!SB)return toast("Cloud connection is not ready"); const email=$("#authEmail").value.trim(),password=$("#authPassword").value;
   if(!email||!password)return toast("Enter email and password"); $("#authMessage").textContent="Signing in…";
@@ -870,6 +897,7 @@ document.addEventListener("visibilitychange",()=>{if(document.visibilityState===
 $("#cloudAccountBtn")?.addEventListener("click",openAuth);
 $("#cloudSignInBtn")?.addEventListener("click",openAuth); $("#cloudSignOutBtn")?.addEventListener("click",cloudSignOut); $("#cloudConnectTeamBtn")?.addEventListener("click",connectTeamToCloud); $("#cloudLoadTeamBtn")?.addEventListener("click",()=>loadTeamFromCloud()); $("#cloudRefreshBtn")?.addEventListener("click",refreshFromCloud);
 $("#authCloseBtn")?.addEventListener("click",closeAuth); $("#authSignInBtn")?.addEventListener("click",authSignIn); $("#authCreateBtn")?.addEventListener("click",authCreate);
+$("#viewPlansBtn")?.addEventListener("click",openPlans);$("#plansCloseBtn")?.addEventListener("click",closePlans);$("#plansModal")?.addEventListener("click",e=>{if(e.target.id==="plansModal")closePlans()});$$('.plan-checkout').forEach(btn=>btn.addEventListener('click',()=>beginPlanCheckout(btn.dataset.plan,btn)));
 $("#switchTeamBtn")?.addEventListener("click",switchCloudTeam); $("#accountSignOutBtn")?.addEventListener("click",cloudSignOut);
 $("#createViewerInviteBtn")?.addEventListener("click",createViewerInvite);$("#copyTeamInviteBtn")?.addEventListener("click",copyTeamInvite);$("#shareTeamInviteBtn")?.addEventListener("click",shareTeamInvite);
 $("#createCoachInviteBtn")?.addEventListener("click",createCoachInvite);$("#copyCoachInviteBtn")?.addEventListener("click",copyCoachInvite);$("#shareCoachInviteBtn")?.addEventListener("click",shareCoachInvite);

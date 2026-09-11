@@ -1,4 +1,16 @@
-# Sideline Stats V4.5.18 — Situational Coach Analytics
+# Sideline Stats V4.5.19 — Stripe Sandbox Checkout
+
+## V4.5.19 changes
+
+- Adds one-time seasonal plan selection for $14.99 Statkeeper and $39.99 Team Pro.
+- Uses a $25 Team Pro upgrade price only when the team already has active Statkeeper access.
+- Creates Checkout Sessions only inside an authenticated Supabase Edge Function.
+- Activates access only after a signature-verified Stripe webhook confirms payment and verifies the purchased Price ID.
+- Keeps all Stripe secret keys out of the browser and GitHub.
+- Preserves permanent complimentary Team Pro access for Erie Tigers and its invited staff.
+- Starts a one-time seven-day Team Pro trial when a new team's first cloud game is created.
+
+## V4.5.18 changes
 
 ## V4.5.18 changes
 
