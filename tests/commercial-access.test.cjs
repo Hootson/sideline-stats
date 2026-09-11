@@ -10,7 +10,9 @@ assert.match(webhook,/verifyStripeSignature/);assert.match(webhook,/Checkout pri
 assert.match(app,/SB\.functions\.invoke\("create-stripe-checkout"/);assert.match(app,/handleCheckoutReturn/);
 assert.match(app,/Authorization:`Bearer \$\{session\.access_token\}`/,'checkout must explicitly send the signed-in user JWT');
 assert.match(app,/connectTeamToCloud\(\{silent:true\}\)/,'saving a new signed-in team must connect it automatically');
-assert.match(app,/openPlans\(true\)/,'successful team creation must open the trial welcome');
+assert.doesNotMatch(app,/openPlans\(true\)/,'successful team creation must not reopen the purchase-choice screen');
+assert.match(app,/redirectUrl\.searchParams\.set\("accountConfirmed","1"\)/,'new accounts must return to the confirmation landing page');
+assert.match(html,/id="accountConfirmationPage"/,'the email confirmation return needs a dedicated success page');
 assert.match(html,/data-signup-plan="statkeeper"/);assert.match(html,/data-signup-plan="team_pro"/);
 assert.match(html,/No card and no automatic charge/,'trial terms must be explicit during signup');
 assert.match(sql,/insert into public\.profiles\(id\)/,'manual Auth confirmation must not prevent trial creation');

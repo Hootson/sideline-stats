@@ -382,6 +382,7 @@ async function authCreate(){
   localStorage.setItem(ONBOARDING_PLAN_KEY,onboardingPlan);
   const redirectUrl=new URL((location.hostname==="localhost"||location.hostname==="127.0.0.1")?location.origin+location.pathname:"https://hootson.github.io/sideline-stats/");
   const inviteToken=pendingTeamInviteToken();if(inviteToken)redirectUrl.searchParams.set("teamInvite",inviteToken);
+  else redirectUrl.searchParams.set("accountConfirmed","1");
   const redirectTo=redirectUrl.href;
   const {data,error}=await SB.auth.signUp({email,password,options:{emailRedirectTo:redirectTo,data:{intended_plan:onboardingPlan}}}); if(error){$("#authMessage").textContent=error.message;return}
   if(data?.session){closeAuth();toast("Account created") } else $("#authMessage").textContent="Account created. Check your email to confirm it, then sign in here.";
@@ -1195,7 +1196,7 @@ $("#saveTeam").addEventListener("click",async()=>{
   if(creating&&cloudUser&&!pendingTeamInviteToken()){
     toast("Creating your team and starting the free trial…");
     const connected=await connectTeamToCloud({silent:true});
-    if(connected){go("roster");openPlans(true);return}
+    if(connected){go("roster");toast("Team created — your seven-day trial is active");return}
   }
   toast("Team saved");go("roster");
 });
@@ -1205,7 +1206,7 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
-$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"4.5.21",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
+$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"4.5.22",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
 $("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
 $("#restoreDataInput").addEventListener("change",async()=>{
   const f=$("#restoreDataInput").files?.[0];if(!f)return;
@@ -3679,5 +3680,6 @@ function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&l
 
 normalizePlaybook();normalizeRoster();normalizeGames();populateSetup();syncChrome();renderRoster();initializeSnapSelections();
 if(teamExists())go("roster");else go("setup");
+$("#continueAfterConfirmationBtn")?.addEventListener("click",()=>{const clean=new URL(location.href);clean.searchParams.delete("accountConfirmed");clean.hash="";location.replace(clean.href)});
 initCloud();
 })();

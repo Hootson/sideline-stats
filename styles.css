@@ -1,6 +1,7 @@
 :root{--p:#177b46;--s:#f0b33b;--nav-text:#fff;--nav-muted:#ffffffb8;--nav-active:#f0b33b;--bg:#f4f6f5;--card:#fff;--text:#122018;--muted:#68736b;--line:#dbe3de;--danger:#b42318}
 *{box-sizing:border-box}
 body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
+.account-confirmation-page{display:none}.confirmation-mode{background:#07130e}.confirmation-mode .app{display:none}.confirmation-mode .account-confirmation-page{min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;background:radial-gradient(circle at 50% 0,#183b2b 0,#07130e 48%,#030806 100%);color:#fff}.confirmation-brand{text-align:center;margin-bottom:24px}.confirmation-football{font-size:44px;filter:grayscale(1) brightness(2)}.confirmation-product{font-size:36px;font-weight:950;line-height:.88;letter-spacing:-.04em}.confirmation-product span,.confirmation-product b{display:block}.confirmation-product b{color:#65b946}.confirmation-edition{display:inline-block;margin-top:9px;padding:4px 12px;background:#65b946;color:#07130e;font-size:11px;font-weight:950;letter-spacing:.15em}.confirmation-card{width:min(100%,460px);text-align:center;background:#fff;color:#102019;border-radius:24px;padding:30px 24px;box-shadow:0 22px 70px #0009;border-bottom:7px solid #65b946}.confirmation-check{width:62px;height:62px;margin:0 auto 14px;display:grid;place-items:center;border-radius:50%;background:#eaf7ed;color:#177b46;font-size:36px;font-weight:950}.confirmation-eyebrow{margin:0;color:#177b46;font-size:12px;font-weight:950;letter-spacing:.14em}.confirmation-card h1{margin:7px 0 10px;font-size:30px}.confirmation-card p:not(.confirmation-eyebrow){color:#5f6d66;line-height:1.45}.confirmation-card .btn{margin-top:10px}.confirmation-card small{display:block;margin-top:16px;color:#748078;line-height:1.4}
 .app{max-width:540px;margin:0 auto;min-height:100vh;background:var(--bg)}
 .top{position:sticky;top:0;z-index:20;background:var(--p);color:white;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 1px 7px #0002}
 .brand{font-weight:900;font-size:18px}
@@ -32,7 +33,7 @@ input,select{width:100%;font-size:16px;padding:12px;border:1px solid var(--line)
 .playactions .del{color:var(--danger)}
 nav{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:min(540px,100%);display:grid;grid-template-columns:repeat(4,1fr);background:var(--p);border-top:3px solid var(--s);padding:8px 8px calc(8px + env(safe-area-inset-bottom));z-index:30;box-shadow:0 -4px 18px #0003}
 nav button{border:0;background:transparent;color:var(--nav-muted);font-size:12px;padding:7px;cursor:pointer;border-radius:9px}
-nav button.active{color:var(--nav-active);font-weight:900;box-shadow:inset 0 3px 0 var(--nav-active)}
+nav button.active{color:var(--nav-active);font-weight:900;box-shadow:inset 0 0 0 3px var(--nav-active);background:#ffffff0d}
 nav.hidden{display:none}
 .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:10px 14px;border-radius:999px;display:none;z-index:50;font-size:13px}
 table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;border-bottom:1px solid var(--line);text-align:right}th:first-child,td:first-child{text-align:left}

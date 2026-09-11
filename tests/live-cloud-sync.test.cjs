@@ -39,7 +39,7 @@ assert.match(app, /analyticsExportCard"\)\?\.classList\.toggle\("hidden",viewer\
 assert.match(app, /function renderViewerGameSummary\(\)/, 'viewer Game Center must render its scoreboard');
 assert.match(html, /id="viewerGameSummary"/, 'Stats must contain the viewer scoreboard destination');
 assert.match(html, /id="shareStatsBtn"/, 'Stats sharing must remain available');
-assert.match(sw, /v4-5-21-customer-onboarding/, 'service worker cache must be bumped');
+assert.match(sw, /v4-5-22-confirmation-flow/, 'service worker cache must be bumped');
 assert.match(styles, /nav\{[^}]*background:var\(--p\)/, 'the statkeeper bottom navigation must use the team primary color');
 assert.match(styles, /nav button\.active\{[^}]*var\(--nav-active\)/, 'the active statkeeper tab must use the team accent treatment');
 assert.match(app, /#bottomNav \[data-go\][\s\S]*classList\.toggle\("active"/, 'the current statkeeper tab must receive an active state');

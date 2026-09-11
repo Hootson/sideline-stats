@@ -1,4 +1,12 @@
-# Sideline Stats V4.5.21 — Customer Onboarding & Traction
+# Sideline Stats V4.5.22 — Email Confirmation Flow
+
+## V4.5.22 changes
+
+- Sends new-account email confirmations to a clean Sideline Stats success screen instead of revealing locally stored team colors or pages.
+- Gives confirmed users one clear route back to Sideline Stats, with Home Screen guidance.
+- Removes the duplicate plan/purchase chooser after a new team is saved; the seven-day no-card trial simply begins.
+
+## Previous release
 
 ## V4.5.21 changes
 
@@ -10,7 +18,7 @@
 
 The existing Stripe checkout remains available when a team decides to purchase after its trial.
 
-## Previous release
+## Earlier releases
 
 ## V4.5.20 changes
 
