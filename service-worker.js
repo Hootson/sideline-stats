@@ -1,5 +1,5 @@
-const CACHE='sideline-stats-v4-5-24-score-isolation';
-const ASSETS=['./','./index.html','./styles.css','./field-position.js','./voice-play.js','./coach-analytics.js','./commercial-access.js','./app.js','./pwa.js','./brand-header.png','./brand-field.png','./icon.png','./snap-tracker.html','./snap-tracker.js'];
+const CACHE='sideline-stats-v4-5-25-parent-viewer';
+const ASSETS=['./','./index.html','./styles.css','./field-position.js','./voice-play.js','./coach-analytics.js','./commercial-access.js','./app.js','./pwa.js','./brand-header.png','./brand-field.png','./icon.png','./snap-tracker.html','./snap-tracker.js','./parent-viewer.html','./parent-viewer.js'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
 self.addEventListener('fetch',event=>{
@@ -9,6 +9,7 @@ self.addEventListener('fetch',event=>{
   event.respondWith(fetch(event.request).then(res=>{const copy=res.clone();caches.open(CACHE).then(c=>c.put(event.request,copy));return res}).catch(async()=>{
     const exact=await caches.match(event.request);if(exact)return exact;
     if(url.pathname.endsWith('/snap-tracker.html'))return caches.match('./snap-tracker.html');
+    if(url.pathname.endsWith('/parent-viewer.html'))return caches.match('./parent-viewer.html');
     return caches.match('./index.html');
   }));
 });
