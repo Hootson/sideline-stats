@@ -1,12 +1,18 @@
-# Sideline Stats V4.5.23 — Point-After Options
+# Sideline Stats V4.5.24 — Score Isolation
+
+## V4.5.24 changes
+
+- Prevents an opponent touchdown recorded through the Defense flow from also adding six points to the team's score.
+- Keeps offensive touchdowns and defensive return touchdowns credited only to the correct team.
+- Verifies that manually correcting the opponent score cannot alter the team's score.
+
+## Previous release
 
 ## V4.5.23 changes
 
 - Adds one-point run and one-point pass choices after a touchdown.
 - Keeps the existing two-point kick, run and pass choices.
 - Records the selected conversion value with the player attempt, result and awarded points.
-
-## Previous release
 
 ## V4.5.22 changes
 

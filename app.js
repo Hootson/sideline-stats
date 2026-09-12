@@ -1206,7 +1206,7 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
-$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"4.5.23",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
+$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"4.5.24",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
 $("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
 $("#restoreDataInput").addEventListener("change",async()=>{
   const f=$("#restoreDataInput").files?.[0];if(!f)return;
@@ -1470,7 +1470,10 @@ $("#setOppScore").addEventListener("click",()=>{
 function legacyPointsFromPlay(p){
   if(!p||!p.extras)return 0;
   let pts=0;
-  if(p.extras.includes("TD"))pts+=6;
+  // A Defense entry describes the opponent's offensive play. Its TD marker
+  // belongs only to the opponent; our defensive return TDs use the dedicated
+  // defensiveTouchdownPlayerId field and are counted below in pointsFromPlay.
+  if(p.type!=="Defense"&&p.extras.includes("TD"))pts+=6;
   if(p.extras.includes("1PT"))pts+=1;
   if(p.extras.includes("2PT"))pts+=2;
   return pts;
