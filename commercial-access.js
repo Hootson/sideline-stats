@@ -1,3 +1,13 @@
+(function(){
+  try{
+    const params=new URLSearchParams(location.search);
+    const token=params.get('teamInvite')||'';
+    if(token && /^[a-z0-9_-]{32,}$/i.test(token) && !/\/parent-viewer\.html$/i.test(location.pathname)){
+      location.replace(`./parent-viewer.html?teamInvite=${encodeURIComponent(token)}`);
+      return;
+    }
+  }catch(_){}
+})();
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;if(root)root.SidelineCommercialAccess=api})(typeof window!=='undefined'?window:globalThis,function(){
   function time(v){const n=v?Date.parse(v):NaN;return Number.isFinite(n)?n:null}
   function resolve(row,now=Date.now()){
