@@ -1206,7 +1206,7 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
-$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"4.5.22",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
+$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"4.5.23",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
 $("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
 $("#restoreDataInput").addEventListener("change",async()=>{
   const f=$("#restoreDataInput").files?.[0];if(!f)return;
@@ -2243,11 +2243,11 @@ function pick(id,mode){
     recordNow();
   }
   else if(mode==="kickoffKicker"){S.flow.player=id;$("#stepKickoffResult").classList.remove("hidden");}
-  else if(mode==="tryKicker"){S.flow.player=id;showTryResult("2-point kick");}
+  else if(mode==="tryKicker"){S.flow.player=id;showTryResult(`${S.flow.tryValue}-point kick`);}
   else if(mode==="fieldGoalKicker"){S.flow.player=id;showFieldGoalDistance();}
-  else if(mode==="tryRunner"){S.flow.player=id;showTryResult("2-point run");}
-  else if(mode==="tryQB"){S.flow.player=id;showPlayers("2-point pass — select receiver","tryReceiver");}
-  else if(mode==="tryReceiver"){S.flow.player2=id;showTryResult("2-point pass");}
+  else if(mode==="tryRunner"){S.flow.player=id;showTryResult(`${S.flow.tryValue}-point run`);}
+  else if(mode==="tryQB"){S.flow.player=id;showPlayers(`${S.flow.tryValue}-point pass — select receiver`,"tryReceiver");}
+  else if(mode==="tryReceiver"){S.flow.player2=id;showTryResult(`${S.flow.tryValue}-point pass`);}
   else if(mode==="runner"||mode==="special"||mode==="punter"||mode==="kickReturner"){
     S.flow.player=id;showYards();
   }
@@ -2309,9 +2309,9 @@ $$(".incomplete-drop").forEach(b=>b.addEventListener("click",()=>{
 }));
 
 function showTryMenu(){S.flow={type:"Try",extras:[]};$("#stepMain").classList.add("hidden");$("#stepTryType").classList.remove("hidden");}
-function showTryResult(label){$("#tryResultLabel").textContent=label;$("#stepTryResult").classList.remove("hidden");}
-$$(".try-type").forEach(b=>b.addEventListener("click",()=>{const t=b.dataset.try;$("#stepTryType").classList.add("hidden");if(t==="None")return resetFlow();S.flow={type:"Try",sub:t,tryType:t,extras:[]};if(t==="Kick")showPlayers("2-point kick — select kicker","tryKicker");else if(t==="Run")showPlayers("2-point run — select runner","tryRunner");else showPlayers("2-point pass — select QB","tryQB");}));
-$$(".try-result").forEach(b=>b.addEventListener("click",()=>{S.flow.tryResult=b.dataset.result;S.flow.points=S.flow.tryResult==="Good"?2:0;$("#stepTryResult").classList.add("hidden");recordNow()}));
+function showTryResult(label){$("#tryResultLabel").textContent=label;const good=$(".try-result[data-result='Good']");if(good)good.textContent=`GOOD +${S.flow.tryValue}`;$("#stepTryResult").classList.remove("hidden");}
+$$(".try-type").forEach(b=>b.addEventListener("click",()=>{const t=b.dataset.try,tryValue=Number(b.dataset.points||0);$("#stepTryType").classList.add("hidden");if(t==="None")return resetFlow();S.flow={type:"Try",sub:t,tryType:t,tryValue,extras:[]};if(t==="Kick")showPlayers(`${tryValue}-point kick — select kicker`,"tryKicker");else if(t==="Run")showPlayers(`${tryValue}-point run — select runner`,"tryRunner");else showPlayers(`${tryValue}-point pass — select QB`,"tryQB");}));
+$$(".try-result").forEach(b=>b.addEventListener("click",()=>{S.flow.tryResult=b.dataset.result;S.flow.points=S.flow.tryResult==="Good"?Number(S.flow.tryValue||2):0;$("#stepTryResult").classList.add("hidden");recordNow()}));
 $$(".kickoff-result").forEach(b=>b.addEventListener("click",()=>{S.flow.kickoffResult=b.dataset.result;$("#stepKickoffResult").classList.add("hidden");if(S.flow.kickoffResult==="Touchback")return recordNow();showYards()}));
 
 $$(".fumble-recovery-choice").forEach(b=>b.addEventListener("click",()=>{
@@ -2368,7 +2368,7 @@ function ptext(p){
     const receiver=p.receivingSide==="ours"?S.team.name:(currentGame()?.opponent||"Opponent");
     return `Kickoff — ${p.player?pname(p.player)+" — ":""}${p.kickoffResult||""}${p.kickoffResult?" — ":""}${receiver} receives`;
   }
-  if(p.type==="Try"){const who=p.player?pname(p.player):"";const to=p.player2?` → ${pname(p.player2)}`:"";return `${p.sub} 2-point try — ${who}${to} — ${p.tryResult||""}${p.tryResult==="Good"?" +2":""}`;}
+  if(p.type==="Try"){const who=p.player?pname(p.player):"",to=p.player2?` → ${pname(p.player2)}`:"",value=Number(p.tryValue||p.points||2);return `${p.sub} ${value}-point try — ${who}${to} — ${p.tryResult||""}${p.tryResult==="Good"?` +${value}`:""}`;}
   if(p.type==="Field Goal")return `Field Goal — ${pname(p.player)} — ${Number(p.fieldGoalDistance||p.yards||0)} yds — ${p.fieldGoalResult||""}${p.fieldGoalResult==="Good"?" +3":""}`;
   if(p.type==="Rush")return `${playCallPrefix(p)}Rush ${pname(p.player)} ${sgn(p.yards)} yds${ex(p)}${p.extras?.includes("Fumble Lost")?" — LOST":""}`;
   if(p.type==="Pass"){if(p.sub==="Complete")return `${playCallPrefix(p)}Pass ${pname(p.player)} → ${pname(p.player2)} ${sgn(p.yards)} yds${ex(p)}${p.extras?.includes("Fumble Lost")?" — LOST":""}`;return `${playCallPrefix(p)}Pass ${pname(p.player)} — ${p.sub}`}
@@ -3522,8 +3522,9 @@ function playRows(){
       PassDefended:p.passDefendedPlayerId?1:0,
       PassDefendedPlayer:p.passDefendedPlayerId?pname(p.passDefendedPlayerId):"",
       ReturnYards:Number(p.returnYards||0),
-      TryType:p.type==="Try"?(p.tryType||p.sub||""):"",
-      TryResult:p.type==="Try"?(p.tryResult||""):"",
+     TryType:p.type==="Try"?(p.tryType||p.sub||""):"",
+      TryValue:p.type==="Try"?Number(p.tryValue||p.points||2):0,
+     TryResult:p.type==="Try"?(p.tryResult||""):"",
       TryPoints:p.type==="Try"?Number(p.points||0):0,
       KickoffResult:p.type==="Kickoff"?(p.kickoffResult||""):"",
       FieldGoalAttempt:p.type==="Field Goal"?1:0,
@@ -3574,9 +3575,10 @@ function dataDictionaryRows(){return [
   {Field:"RawSubtype",Meaning:"Original stored subtype before compound defensive event labels are added for export."},
   {Field:"PassDefendedPlayer",Meaning:"Defender credited with a pass breakup on an opponent incomplete pass."},
   {Field:"ReturnYards",Meaning:"Return yards after a defensive interception or fumble recovery."},
-  {Field:"TryType",Meaning:"Post-touchdown 2-point try type: Kick, Run or Pass."},
+  {Field:"TryType",Meaning:"Post-touchdown try type: Kick, Run or Pass."},
+  {Field:"TryValue",Meaning:"Points available if the post-touchdown try succeeds: 1 or 2."},
   {Field:"TryResult",Meaning:"Good or No Good for a post-touchdown try."},
-  {Field:"TryPoints",Meaning:"Points awarded by the try; currently 2 when successful."},
+  {Field:"TryPoints",Meaning:"Points awarded by the try: 0, 1 or 2."},
   {Field:"KickoffResult",Meaning:"Our kickoff result: Touchback, Returned, Out of Bounds or Onside."},
   {Field:"FieldGoalResult",Meaning:"Field goal attempt result: Good or No Good."},
   {Field:"FieldGoalDistance",Meaning:"Recorded distance in yards of the field goal attempt."},

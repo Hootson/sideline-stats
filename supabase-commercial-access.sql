@@ -14,6 +14,49 @@ alter table public.billing_products drop constraint if exists billing_products_e
 alter table public.billing_products add constraint billing_products_entitlement_tier_check check (entitlement_tier in ('free','statkeeper','coach','team_pro')) not valid;
 alter table public.billing_products validate constraint billing_products_entitlement_tier_check;
 
+-- Keep RLS write access aligned with every supported paid or complimentary tier.
+-- Without this, Team Pro and founder/test teams can appear connected while their
+-- game-day writes remain stuck in the device's pending sync queue.
+create or replace function private.team_has_statkeeping_access(target_team_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path=''
+as $$
+  select exists (
+    select 1
+    from public.team_entitlements te
+    where te.team_id=target_team_id
+      and (
+        te.complimentary=true
+        or te.access_source in ('founder_comp','internal_test')
+        or (
+          te.tier='trial'
+          and te.trial_started_at is not null
+          and te.trial_ends_at is not null
+          and now() >= te.trial_started_at
+          and now() < te.trial_ends_at
+        )
+        or (
+          te.tier in ('statkeeper','coach','team_pro')
+          and te.paid_access_starts_at is not null
+          and now() >= te.paid_access_starts_at
+          and (te.paid_access_ends_at is null or now() < te.paid_access_ends_at)
+        )
+      )
+  ) or exists (
+    select 1
+    from public.promo_redemptions pr
+    where pr.team_id=target_team_id
+      and pr.granted_tier in ('statkeeper','coach','team_pro')
+      and now() >= pr.granted_starts_at
+      and now() < pr.granted_ends_at
+  );
+$$;
+revoke all on function private.team_has_statkeeping_access(uuid) from public,anon;
+grant execute on function private.team_has_statkeeping_access(uuid) to authenticated;
+
 update public.billing_products set code='statkeeper_season',name='Sideline Stats Statkeeper',price_cents=1499,billing_interval='one_time',entitlement_tier='statkeeper',coach_seat_limit=null,active=true,updated_at=now() where code='statkeeper_annual';
 update public.billing_products set code='team_pro_season',name='Sideline Stats Team Pro',price_cents=3999,billing_interval='one_time',entitlement_tier='team_pro',coach_seat_limit=5,active=true,updated_at=now() where code='coach_annual';
 

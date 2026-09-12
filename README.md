@@ -1,12 +1,18 @@
-# Sideline Stats V4.5.22 — Email Confirmation Flow
+# Sideline Stats V4.5.23 — Point-After Options
+
+## V4.5.23 changes
+
+- Adds one-point run and one-point pass choices after a touchdown.
+- Keeps the existing two-point kick, run and pass choices.
+- Records the selected conversion value with the player attempt, result and awarded points.
+
+## Previous release
 
 ## V4.5.22 changes
 
 - Sends new-account email confirmations to a clean Sideline Stats success screen instead of revealing locally stored team colors or pages.
 - Gives confirmed users one clear route back to Sideline Stats, with Home Screen guidance.
 - Removes the duplicate plan/purchase chooser after a new team is saved; the seven-day no-card trial simply begins.
-
-## Previous release
 
 ## V4.5.21 changes
 

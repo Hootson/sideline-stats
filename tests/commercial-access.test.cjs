@@ -17,4 +17,7 @@ assert.match(html,/data-signup-plan="statkeeper"/);assert.match(html,/data-signu
 assert.match(html,/No card and no automatic charge/,'trial terms must be explicit during signup');
 assert.match(sql,/insert into public\.profiles\(id\)/,'manual Auth confirmation must not prevent trial creation');
 assert.match(sql,/now\(\)\+interval '7 days'/,'new eligible teams must receive seven trial days');
+assert.match(sql,/te\.complimentary=true/,'complimentary teams must retain statkeeping access');
+assert.match(sql,/te\.access_source in \('founder_comp','internal_test'\)/,'founder and internal-test teams must retain statkeeping access');
+assert.match(sql,/te\.tier in \('statkeeper','coach','team_pro'\)/,'Team Pro must be recognized as a paid statkeeping tier');
 console.log('commercial access checks passed');
