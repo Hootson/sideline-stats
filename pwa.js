@@ -1,4 +1,4 @@
-const SIDELINE_STATS_VERSION="4.5.30";
+const SIDELINE_STATS_VERSION="4.5.31";
 
 document.title=`Sideline Stats V${SIDELINE_STATS_VERSION}`;
 window.addEventListener("DOMContentLoaded",()=>{
