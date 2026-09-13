@@ -1,9 +1,9 @@
-const SIDELINE_STATS_VERSION="4.5.26";
+const SIDELINE_STATS_VERSION="4.5.27";
 
 document.title=`Sideline Stats V${SIDELINE_STATS_VERSION}`;
 window.addEventListener("DOMContentLoaded",()=>{
   const heroVersion=document.querySelector('[data-screen="setup"] .hero .muted');
-  if(heroVersion)heroVersion.textContent=`V${SIDELINE_STATS_VERSION} • LIVE FIELD TRACKER • GRIDIRON EDITION`;
+  if(heroVersion)heroVersion.textContent=`V${SIDELINE_STATS_VERSION} • SMART VOICE ENTRY • GRIDIRON EDITION`;
 });
 
 if ("serviceWorker" in navigator) {
