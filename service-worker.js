@@ -1,4 +1,4 @@
-const CACHE='sideline-stats-v4-5-31-export-defense-edit';
+const CACHE='sideline-stats-v4-5-32-score-recovery';
 const ASSETS=['./','./index.html','./styles.css','./field-position.js','./voice-play.js','./coach-analytics.js','./commercial-access.js','./pwa.js','./brand-header.png','./brand-field.png','./icon.png','./snap-tracker.html','./snap-tracker.js','./parent-viewer.html','./parent-viewer.js'];
 
 function patchAppJs(src){
@@ -19,6 +19,12 @@ function patchAppJs(src){
   // Include the called play in every raw play export row.
   src=src.replace('PlaySequence:i+1,\n      Timestamp:', 'PlaySequence:i+1,\n      PlayNumber:p.playCall?.number??"",\n      PlayName:p.playCall?.name||"",\n      Timestamp:');
   src=src.replace('{Field:"GameType",Meaning:"regular or playoff"},','{Field:"GameType",Meaning:"regular or playoff"},\n  {Field:"PlayNumber",Meaning:"Offensive play-call number selected from the game plan when the play was recorded."},\n  {Field:"PlayName",Meaning:"Offensive play-call name selected from the game plan when the play was recorded."},');
+
+  // Recover the authoritative score from reconstructed play state. This prevents a stale
+  // 0-0 games-table snapshot from overriding a completed game's actual scoring plays.
+  src=src.replace('rebuildGameState(g);g.ourScore=displayedOurScore(g);','rebuildGameState(g);g.ourScore=displayedOurScore(g);');
+  src=src.replace('restorePlayFromCloud', 'restorePlayFromCloud');
+  src=src.replace(/(rebuildGameState\(g\);)(?!g\.ourScore=displayedOurScore\(g\);)/g,'$1g.ourScore=displayedOurScore(g);');
 
   // Full defensive editor: tackles plus all event credits and return/yardage fields.
   src=src.replace(/if\(p\.type==="Defense"&&p\.defCredits\)\{let html=.*?scrollIntoView\(\{behavior:"smooth",block:"center"\}\);return;\}/s,
