@@ -1,32 +1,27 @@
-const CACHE='sideline-stats-v4-5-32-score-recovery';
+const CACHE='sideline-stats-v4-5-33-cloud-final-score';
 const ASSETS=['./','./index.html','./styles.css','./field-position.js','./voice-play.js','./coach-analytics.js','./commercial-access.js','./pwa.js','./brand-header.png','./brand-field.png','./icon.png','./snap-tracker.html','./snap-tracker.js','./parent-viewer.html','./parent-viewer.js'];
 
 function patchAppJs(src){
-  // Completed games intentionally have no activeGameId. Keep historical snap context read-only.
   src=src.replace('function currentGameSnapCount(playerId){\n  const g=currentGame();','function snapViewGame(){return currentGame()||selectedStatsGame()||latestGame()}\nfunction currentGameSnapCount(playerId){\n  const g=snapViewGame();');
   src=src.replace('const gameTotal=currentGame()?.snapRecords?.length||0;','const snapGame=snapViewGame();const gameTotal=snapGame?.snapRecords?.length||0;$("#recordSnapBtn").disabled=!currentGame()||currentGame()?.status==="complete";');
   src=src.replace('const g=currentGame();const total=g&&Array.isArray(g.snapRecords)?g.snapRecords.length:0;','const g=snapViewGame();const total=g&&Array.isArray(g.snapRecords)?g.snapRecords.length:0;');
 
-  // Reconcile edited snaps in place rather than creating a second row with the same snap number.
   src=src.replace('else{\n    const {error}=await SB.from("snap_events").update({active:false}).eq("id",id);if(error)throw error;\n    id=await createCloudSnapEvent(payload,cloudGameId);S.cloud.snapIds[r.id]=id;\n  }','else{\n    const {error}=await SB.from("snap_events").update({snap_number:payload.snap_number||1,quarter:payload.quarter,client_created_at:payload.client_created_at,active:true}).eq("id",id);if(error)throw error;\n    const {error:de}=await SB.from("snap_participants").delete().eq("snap_event_id",id);if(de)throw de;\n    for(const localPid of payload.playerIds){const playerId=S.cloud.playerIds?.[localPid];if(!playerId)continue;const {error:pe}=await SB.from("snap_participants").insert({snap_event_id:id,player_id:playerId});if(pe)throw pe}\n  }');
 
-  // Preserve valid raw defensive event fields if an older cloud credit row is absent.
   for(const field of ['passDefendedPlayerId','interceptionPlayerId','forcedFumblePlayerId','fumbleRecoveryPlayerId','defensiveTouchdownPlayerId']){
     const credit={passDefendedPlayerId:'pass_defended',interceptionPlayerId:'def_interception',forcedFumblePlayerId:'forced_fumble',fumbleRecoveryPlayerId:'fumble_recovery',defensiveTouchdownPlayerId:'defensive_td'}[field];
     src=src.replace(`p.${field}=firstCreditPlayer(c,["${credit}"]);`,`p.${field}=firstCreditPlayer(c,["${credit}"])||p.${field}||null;`);
   }
 
-  // Include the called play in every raw play export row.
   src=src.replace('PlaySequence:i+1,\n      Timestamp:', 'PlaySequence:i+1,\n      PlayNumber:p.playCall?.number??"",\n      PlayName:p.playCall?.name||"",\n      Timestamp:');
   src=src.replace('{Field:"GameType",Meaning:"regular or playoff"},','{Field:"GameType",Meaning:"regular or playoff"},\n  {Field:"PlayNumber",Meaning:"Offensive play-call number selected from the game plan when the play was recorded."},\n  {Field:"PlayName",Meaning:"Offensive play-call name selected from the game plan when the play was recorded."},');
 
-  // Recover the authoritative score from reconstructed play state. This prevents a stale
-  // 0-0 games-table snapshot from overriding a completed game's actual scoring plays.
-  src=src.replace('rebuildGameState(g);g.ourScore=displayedOurScore(g);','rebuildGameState(g);g.ourScore=displayedOurScore(g);');
-  src=src.replace('restorePlayFromCloud', 'restorePlayFromCloud');
-  src=src.replace(/(rebuildGameState\(g\);)(?!g\.ourScore=displayedOurScore\(g\);)/g,'$1g.ourScore=displayedOurScore(g);');
+  // Cloud restore previously converted a stale final 0 into a -auto scoreAdjustment,
+  // which forced a completed 62-point game back to 0. For a FINAL game whose stored
+  // team score is zero but whose scoring plays reconstruct a positive score, trust the plays.
+  src=src.replace('ourScore:Number(g.team_score||0),scoreAdjustment:Number(g.team_score||0)-auto,scoreModelVersion:2,oppScore:Number(g.opponent_score||0)',
+    'ourScore:(g.status==="final"&&Number(g.team_score||0)===0&&auto>0)?auto:Number(g.team_score||0),scoreAdjustment:(g.status==="final"&&Number(g.team_score||0)===0&&auto>0)?0:Number(g.team_score||0)-auto,scoreModelVersion:2,oppScore:Number(g.opponent_score||0)');
 
-  // Full defensive editor: tackles plus all event credits and return/yardage fields.
   src=src.replace(/if\(p\.type==="Defense"&&p\.defCredits\)\{let html=.*?scrollIntoView\(\{behavior:"smooth",block:"center"\}\);return;\}/s,
 `if(p.type==="Defense"&&p.defCredits){
     const opt=(sel,blank="None")=>\`<option value="">\${blank}</option>\`+playerOptions(sel);
@@ -47,8 +42,7 @@ function patchAppJs(src){
 
   src=src.replace(/if\(p\.type==="Defense"&&p\.defCredits\)\{const credits=.*?toast\("Play updated"\);return;\}/s,
 `if(p.type==="Defense"&&p.defCredits){
-    const credits=JSON.parse($("#editPlayCard").dataset.defCredits||"{}");
-    p.defCredits=credits;
+    const credits=JSON.parse($("#editPlayCard").dataset.defCredits||"{}");p.defCredits=credits;
     const kind=$("#editDefKind")?.value||p.tackleKind||"Tackle";p.tackleKind=kind==="Sack"?"TFL":kind;if(kind==="Sack")p.sub="Sack";else if(p.sub==="Sack")p.sub=kind;
     p.passDefendedPlayerId=$("#editDefPD")?.value||null;p.interceptionPlayerId=$("#editDefINT")?.value||null;p.forcedFumblePlayerId=$("#editDefFF")?.value||null;p.fumbleRecoveryPlayerId=$("#editDefFR")?.value||null;p.defensiveTouchdownPlayerId=$("#editDefTD")?.value||null;
     const ry=parseInt($("#editDefReturn")?.value||"0",10),y=parseInt($("#editDefYards")?.value||"0",10);if(Number.isNaN(ry)||Number.isNaN(y))return toast("Enter valid yards");p.returnYards=ry;p.yards=y;
