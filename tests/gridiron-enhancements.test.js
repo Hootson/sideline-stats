@@ -7,14 +7,7 @@ assert.equal(C.canWrite({revision:2},{revision:3}).ok,false);assert.equal(C.canW
 const a={team_id:'t',season_id:'s',week:4,opponent_name:'Raiders',game_type:'regular',status:'live'};assert.ok(G.findDuplicate({...a,opponent_name:' raiders '},[a]));assert.equal(G.normalizeStatus('complete'),'final');assert.equal(G.canTransition('live','final'),true);assert.equal(G.canTransition('final','scheduled'),false);
 let p=V.merge({type:'Run',yards:5},{playerNumber:4});assert.equal(p.yards,5);assert.equal(V.next(p),null);p=V.applyAnswer(V.merge({type:'Run',yards:5},{}),'player',{playerId:'abe'});assert.equal(V.next(p),null);
 assert.equal(E.phase({type:'Punt'}),'special');assert.ok(E.fields({type:'Punt'}).includes('punterId'));assert.ok(E.fields({type:'Defense'}).includes('forcedFumblePlayerId'));assert.ok(E.fields({type:'Pass'}).includes('receiverId'));
-const app=fs.readFileSync('app.js','utf8');
-assert.ok(app.includes('id="editFGDistance"'),'field goal Edit Play integration missing');
-assert.ok(app.includes('id="editKickoffResult"'),'kickoff Edit Play integration missing');
-assert.ok(app.includes('id="editTryType"'),'try Edit Play integration missing');
-assert.ok(app.includes('id="editStartSpot"')&&app.includes('id="editEndSpot"'),'field spot Edit Play integration missing');
-assert.ok(app.includes('renderVoiceMissingFollowup(result,transcript)'),'voice missing-info integration missing');
-assert.ok(app.includes('Final confirmation: this historical game cannot be restored'),'final-game deletion safeguard missing');
-assert.ok(app.includes('team_voice_corrections'),'team voice correction cloud integration missing');
-assert.ok(app.includes('viewer_events'),'anonymous viewer analytics integration missing');
-assert.ok(app.includes('sidelineViewerSession'),'viewer analytics session id missing');
+const app=fs.readFileSync('app.js','utf8'),field=fs.readFileSync('field-position.js','utf8');
+assert.ok(app.includes('id="editFGDistance"'),'field goal Edit Play integration missing');assert.ok(app.includes('id="editKickoffResult"'),'kickoff Edit Play integration missing');assert.ok(app.includes('id="editTryType"'),'try Edit Play integration missing');assert.ok(app.includes('id="editStartSpot"')&&app.includes('id="editEndSpot"'),'field spot Edit Play integration missing');assert.ok(app.includes('renderVoiceMissingFollowup(result,transcript)'),'voice missing-info integration missing');assert.ok(app.includes('Final confirmation: this historical game cannot be restored'),'final-game deletion safeguard missing');assert.ok(app.includes('team_voice_corrections'),'team voice correction cloud integration missing');assert.ok(app.includes('viewer_events'),'anonymous viewer analytics integration missing');assert.ok(app.includes('sidelineViewerSession'),'viewer analytics session id missing');
+assert.ok(field.includes('.quarter-btn.active'),'field UI must read the actual active quarter button');assert.ok(field.includes('physicalEnds()'),'quarter-aware physical end zones missing');assert.ok(field.includes('directionArrow(poss)'),'quarter-aware attack arrow missing');
 console.log('Gridiron enhancement regression tests passed');
