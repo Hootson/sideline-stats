@@ -61,10 +61,23 @@ if 'Newer cloud edit detected — refresh before overwriting' not in x:
     if x.count(old_cloud)!=1: raise SystemExit(f'cloud update block count={x.count(old_cloud)}')
     x=x.replace(old_cloud,new_cloud,1)
 
+# Team-specific voice corrections: hydrate from Supabase and persist learned corrections.
+old_voice_load='''    const voiceCorrections=S.cloud?.teamId===team.id&&S.team?.voiceCorrections?{...S.team.voiceCorrections}:{};'''
+new_voice_load='''    let voiceCorrections=S.cloud?.teamId===team.id&&S.team?.voiceCorrections?{...S.team.voiceCorrections}:{};\n    const vcq=await SB.from("team_voice_corrections").select("heard_text,resolved_value").eq("team_id",team.id);\n    if(!vcq.error)for(const row of vcq.data||[]){const value=row.resolved_value?.value??row.resolved_value?.text??row.resolved_value;if(typeof value==="string"&&row.heard_text)voiceCorrections[row.heard_text]=value}else console.warn("Voice corrections could not be loaded",vcq.error);'''
+if 'Voice corrections could not be loaded' not in x:
+    if x.count(old_voice_load)!=1: raise SystemExit(f'voice correction load count={x.count(old_voice_load)}')
+    x=x.replace(old_voice_load,new_voice_load,1)
+
+old_learn='''function learnVoiceCorrection(){const heard=window.SidelineVoice?.normalize(lastVoiceTranscriptRaw).split(" ").filter(Boolean)||[],edited=window.SidelineVoice?.normalize($("#voiceTranscript")?.value).split(" ").filter(Boolean)||[];if(!lastVoiceTranscriptRaw||heard.length!==edited.length)return "";const changes=heard.map((word,i)=>word!==edited[i]?[word,edited[i]]:null).filter(Boolean);if(changes.length!==1)return "";const [from,to]=changes[0];S.team.voiceCorrections={...(S.team.voiceCorrections||{}),[from]:to};lastVoiceTranscriptRaw=$("#voiceTranscript").value;persist();return ` Remembering “${from}” as “${to}” for ${S.team.name}.`}'''
+new_learn='''async function persistVoiceCorrection(from,to){if(!SB||!cloudUser||!cloudLinked()||!isCloudStatkeeper())return;try{const {data:existing,error:readError}=await SB.from("team_voice_corrections").select("id,use_count").eq("team_id",S.cloud.teamId).eq("heard_text",from).maybeSingle();if(readError)throw readError;const payload={team_id:S.cloud.teamId,heard_text:from,resolved_value:{value:to},use_count:Number(existing?.use_count||0)+1,updated_at:new Date().toISOString()};const q=existing?.id?await SB.from("team_voice_corrections").update(payload).eq("id",existing.id):await SB.from("team_voice_corrections").insert(payload);if(q.error)throw q.error}catch(e){console.warn("Team voice correction cloud save failed",e)}}\nfunction learnVoiceCorrection(){const heard=window.SidelineVoice?.normalize(lastVoiceTranscriptRaw).split(" ").filter(Boolean)||[],edited=window.SidelineVoice?.normalize($("#voiceTranscript")?.value).split(" ").filter(Boolean)||[];if(!lastVoiceTranscriptRaw||heard.length!==edited.length)return "";const changes=heard.map((word,i)=>word!==edited[i]?[word,edited[i]]:null).filter(Boolean);if(changes.length!==1)return "";const [from,to]=changes[0];S.team.voiceCorrections={...(S.team.voiceCorrections||{}),[from]:to};lastVoiceTranscriptRaw=$("#voiceTranscript").value;persist();persistVoiceCorrection(from,to);return ` Remembering “${from}” as “${to}” for ${S.team.name}.`}'''
+if 'persistVoiceCorrection(from,to)' not in x:
+    if x.count(old_learn)!=1: raise SystemExit(f'voice learn function count={x.count(old_learn)}')
+    x=x.replace(old_learn,new_learn,1)
+
 a.write_text(x)
 
 sw=Path('service-worker.js');w=sw.read_text();needle="'./field-position.js'";assets="'./field-orientation.js','./cloud-conflict.js','./game-lifecycle.js','./voice-workflow.js','./edit-play-model.js'"
 if assets not in w:
     if w.count(needle)!=1: raise SystemExit(f'SW field-position asset count={w.count(needle)}')
     w=w.replace(needle,needle+','+assets,1);sw.write_text(w)
-print('Gridiron red integrations including revision-aware cloud protection applied safely')
+print('Gridiron red integrations including Supabase team voice learning applied safely')
