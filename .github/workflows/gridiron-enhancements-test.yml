@@ -8,6 +8,7 @@ on:
       - 'game-lifecycle.js'
       - 'voice-workflow.js'
       - 'edit-play-model.js'
+      - 'service-worker.js'
       - 'tests/gridiron-enhancements.test.js'
       - '.github/gridiron-red-integrate.py'
       - '.github/workflows/gridiron-enhancements-test.yml'
@@ -36,6 +37,7 @@ jobs:
           grep -q 'SidelineFieldOrientation' field-position.js
           grep -q 'viewer_events' app.js
           grep -q 'team_voice_corrections' app.js
+          ! grep -q 'editDefPD' service-worker.js
       - name: Commit integration changes
         run: |
           if git diff --quiet; then echo 'No integration changes'; exit 0; fi
