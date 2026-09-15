@@ -144,6 +144,10 @@ function isCloudStatkeeper(){return cloudDeviceRole()==="statkeeper"}
 function isCloudCoach(){return cloudDeviceRole()==="coach"}
 function hasCoachAccess(){return !!S.cloud?.coachAccess&&(isCloudStatkeeper()||isCloudCoach())}
 function commercialAccess(){return window.SidelineCommercialAccess?.resolve(S.cloud?.access)||{status:'not_started',active:false,complimentary:false,coachAccess:false}}
+const VIEWER_SESSION_KEY="sidelineViewerSession";
+function viewerSessionId(){try{let id=sessionStorage.getItem(VIEWER_SESSION_KEY);if(!id){id=cloudUuid();sessionStorage.setItem(VIEWER_SESSION_KEY,id)}return id}catch(_){return cloudUuid()}}
+let lastViewerGameEvent="";
+async function recordViewerEvent(eventType,gameId=null){if(!SB||!cloudLinked()||isCloudStatkeeper()||isCloudCoach()||navigator.onLine===false)return;const allowed=["open","game_view","refresh"];if(!allowed.includes(eventType))return;const cloudGameId=gameId?(S.cloud?.gameIds?.[gameId]||gameId):null;const dedupe=eventType==="game_view"?`${viewerSessionId()}:${cloudGameId||"none"}`:"";if(dedupe&&dedupe===lastViewerGameEvent)return;if(dedupe)lastViewerGameEvent=dedupe;try{const {error}=await SB.from("viewer_events").insert({team_id:S.cloud.teamId,game_id:cloudGameId,session_id:viewerSessionId(),event_type:eventType});if(error)throw error}catch(e){console.warn("Viewer analytics event skipped",e)}}
 
 async function resolveCloudDeviceRole(){
   if(!SB||!cloudUser||!S.cloud?.teamId||!S.cloud?.seasonId)return cloudDeviceRole();
@@ -167,6 +171,7 @@ async function resolveCloudDeviceRole(){
     persist({skipCloud:true});
     syncChrome();
     updateCloudUI();
+    if(role==="viewer")setTimeout(()=>recordViewerEvent("open",S.activeGameId||selectedStatsGameId),0);
     return role;
   }catch(e){console.warn("Could not resolve cloud role",e);return cloudDeviceRole()}
 }
@@ -568,7 +573,7 @@ async function refreshFromCloud(){
   if(navigator.onLine===false)return toast("Connect to the internet to refresh");
   const pending=cloudPendingCount();
   if(pending>0){const role=await resolveCloudDeviceRole();if(role==="statkeeper"){scheduleCloudSync(0);return toast("Sync retry started")}const detail=cloudPendingItems().slice(0,2).join(", ");return toast(`${pending} viewer change${pending===1?"":"s"} cannot upload${detail?`: ${detail}`:""}`)};
-  await loadTeamFromCloud({refresh:true});cloudRemoteUpdates=false;updateCloudUI();
+  await loadTeamFromCloud({refresh:true});cloudRemoteUpdates=false;updateCloudUI();recordViewerEvent("refresh",S.activeGameId||selectedStatsGameId);
 }
 
 
@@ -2827,7 +2832,8 @@ $("#recordSnapBtn").addEventListener("click",()=>{
 });
 
 
-function renderStats(){document.documentElement.style.setProperty("--team-primary",S.team?.primary||"#111111");document.documentElement.style.setProperty("--team-accent",S.team?.secondary||"#f26a00");
+function renderStats(){
+  if(selectedStatsGameId)setTimeout(()=>recordViewerEvent("game_view",selectedStatsGameId),0);document.documentElement.style.setProperty("--team-primary",S.team?.primary||"#111111");document.documentElement.style.setProperty("--team-accent",S.team?.secondary||"#f26a00");
   renderGameHistoryPicker();
   renderViewerGameSummary();
   const src=statsSource(statsScope);
