@@ -1,0 +1,66 @@
+name: Gridiron enhancement tests
+on:
+  push:
+    branches: [feature/gridiron-red-enhancements]
+    paths:
+      - 'app.js'
+      - 'index.html'
+      - 'field-position.js'
+      - 'field-orientation.js'
+      - 'cloud-conflict.js'
+      - 'game-lifecycle.js'
+      - 'voice-workflow.js'
+      - 'edit-play-model.js'
+      - 'coach-analytics.js'
+      - 'service-worker.js'
+      - 'supabase-gridiron-hardening.sql'
+      - 'tests/gridiron-enhancements.test.js'
+      - '.github/gridiron-red-integrate.py'
+      - '.github/workflows/gridiron-enhancements-test.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  test-and-integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/gridiron-red-enhancements
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Apply safe browser integration
+        run: python .github/gridiron-red-integrate.py
+      - name: Check JavaScript syntax
+        run: |
+          node --check app.js
+          node --check field-position.js
+          node --check field-orientation.js
+          node --check cloud-conflict.js
+          node --check game-lifecycle.js
+          node --check voice-workflow.js
+          node --check edit-play-model.js
+          node --check coach-analytics.js
+          node --check service-worker.js
+      - name: Run regression tests
+        run: node tests/gridiron-enhancements.test.js
+      - name: Verify integration
+        run: |
+          grep -q 'field-orientation.js' index.html
+          grep -q 'voice-workflow.js' index.html
+          grep -q 'edit-play-model.js' index.html
+          grep -q 'SidelineFieldOrientation' field-position.js
+          grep -q 'viewer_events' app.js
+          grep -q 'team_voice_corrections' app.js
+          grep -q 'includes("1st Down")' coach-analytics.js
+          ! grep -q 'editDefPD' service-worker.js
+          ! grep -q 'function patchAppJs' service-worker.js
+      - name: Commit integration changes
+        run: |
+          if git diff --quiet; then echo 'No integration changes'; exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html field-position.js service-worker.js app.js coach-analytics.js
+          git commit -m 'Integrate Gridiron red enhancement modules'
+          git push origin HEAD:feature/gridiron-red-enhancements
