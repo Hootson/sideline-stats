@@ -74,10 +74,36 @@ if 'persistVoiceCorrection(from,to)' not in x:
     if x.count(old_learn)!=1: raise SystemExit(f'voice learn function count={x.count(old_learn)}')
     x=x.replace(old_learn,new_learn,1)
 
+# Privacy-minimal viewer analytics. Track a random session ID, team/game and event only.
+telemetry_anchor='''function commercialAccess(){return window.SidelineCommercialAccess?.resolve(S.cloud?.access)||{status:'not_started',active:false,complimentary:false,coachAccess:false}}\n'''
+telemetry_helper='''const VIEWER_SESSION_KEY="sidelineViewerSession";\nfunction viewerSessionId(){try{let id=sessionStorage.getItem(VIEWER_SESSION_KEY);if(!id){id=cloudUuid();sessionStorage.setItem(VIEWER_SESSION_KEY,id)}return id}catch(_){return cloudUuid()}}\nlet lastViewerGameEvent="";\nasync function recordViewerEvent(eventType,gameId=null){if(!SB||!cloudLinked()||isCloudStatkeeper()||isCloudCoach()||navigator.onLine===false)return;const allowed=["open","game_view","refresh"];if(!allowed.includes(eventType))return;const cloudGameId=gameId?(S.cloud?.gameIds?.[gameId]||gameId):null;const dedupe=eventType==="game_view"?`${viewerSessionId()}:${cloudGameId||"none"}`:"";if(dedupe&&dedupe===lastViewerGameEvent)return;if(dedupe)lastViewerGameEvent=dedupe;try{const {error}=await SB.from("viewer_events").insert({team_id:S.cloud.teamId,game_id:cloudGameId,session_id:viewerSessionId(),event_type:eventType});if(error)throw error}catch(e){console.warn("Viewer analytics event skipped",e)}}\n'''
+if 'sidelineViewerSession' not in x:
+    if x.count(telemetry_anchor)!=1: raise SystemExit('viewer telemetry anchor missing')
+    x=x.replace(telemetry_anchor,telemetry_anchor+telemetry_helper,1)
+
+# Record a viewer open after cloud role/team resolution and a refresh when cloud updates are loaded.
+role_return='''    updateCloudUI();\n    return role;'''
+role_return_new='''    updateCloudUI();\n    if(role==="viewer")setTimeout(()=>recordViewerEvent("open",S.activeGameId||selectedStatsGameId),0);\n    return role;'''
+if 'recordViewerEvent("open"' not in x:
+    if x.count(role_return)!=1: raise SystemExit(f'viewer open role anchor count={x.count(role_return)}')
+    x=x.replace(role_return,role_return_new,1)
+
+refresh_line='''  await loadTeamFromCloud({refresh:true});cloudRemoteUpdates=false;updateCloudUI();'''
+refresh_new='''  await loadTeamFromCloud({refresh:true});cloudRemoteUpdates=false;updateCloudUI();recordViewerEvent("refresh",S.activeGameId||selectedStatsGameId);'''
+if 'recordViewerEvent("refresh"' not in x:
+    if x.count(refresh_line)!=1: raise SystemExit(f'viewer refresh anchor count={x.count(refresh_line)}')
+    x=x.replace(refresh_line,refresh_new,1)
+
+# Count game views when the stats game changes/rendering lands on a specific game.
+stats_anchor='''function renderStats(){'''
+if 'recordViewerEvent("game_view"' not in x:
+    if x.count(stats_anchor)!=1: raise SystemExit(f'renderStats anchor count={x.count(stats_anchor)}')
+    x=x.replace(stats_anchor,'''function renderStats(){\n  if(selectedStatsGameId)setTimeout(()=>recordViewerEvent("game_view",selectedStatsGameId),0);''',1)
+
 a.write_text(x)
 
 sw=Path('service-worker.js');w=sw.read_text();needle="'./field-position.js'";assets="'./field-orientation.js','./cloud-conflict.js','./game-lifecycle.js','./voice-workflow.js','./edit-play-model.js'"
 if assets not in w:
     if w.count(needle)!=1: raise SystemExit(f'SW field-position asset count={w.count(needle)}')
     w=w.replace(needle,needle+','+assets,1);sw.write_text(w)
-print('Gridiron red integrations including Supabase team voice learning applied safely')
+print('Gridiron red integrations including viewer analytics applied safely')
