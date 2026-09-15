@@ -26,6 +26,7 @@ if(!S.cloud.penaltyIds)S.cloud.penaltyIds={};
 if(!S.cloud.penaltyHashes)S.cloud.penaltyHashes={};
 if(!S.cloud.snapIds)S.cloud.snapIds={};
 if(!S.cloud.snapHashes)S.cloud.snapHashes={};
+if(!S.cloud.deleteRevisions)S.cloud.deleteRevisions={};
 if(S.cloud.remoteFingerprint===undefined)S.cloud.remoteFingerprint=null;
 if(S.cloud.deviceRole===undefined)S.cloud.deviceRole=null;
 if(S.cloud.coachAccess===undefined)S.cloud.coachAccess=false;
@@ -889,11 +890,18 @@ async function syncOnePlay(g,p,index,cloudGameId){
   await syncPenalty(g,p,cloudGameId,payload.p_id);
   persist({skipCloud:true});
 }
+async function assertCloudDeleteSafe(table,id,localLabel){
+  const {data,error}=await SB.from(table).select("revision,updated_at,client_updated_at").eq("id",id).maybeSingle();
+  if(error)throw error;if(!data)return;
+  const remoteRevision=Number(data.revision||0),knownRevision=Number(S.cloud?.deleteRevisions?.[`${table}:${id}`]||0);
+  if(knownRevision&&remoteRevision>knownRevision){const msg=`${localLabel} changed in the cloud after this device last saw it — refresh before deleting`;S.cloud.lastSyncError=msg;throw new Error(msg)}
+}
 async function syncDeletedCloudPlays(){
   let changed=false;
   const localPlayIds=new Set((S.games||[]).flatMap(g=>(g.plays||[]).map(p=>p.id)));
   for(const [localId,cloudId] of Object.entries(S.cloud.playIds||{})){
     if(localPlayIds.has(localId))continue;
+    await assertCloudDeleteSafe("plays",cloudId,"Play");
     const {error}=await SB.from("plays").update({deleted_at:new Date().toISOString()}).eq("id",cloudId);if(error)throw error;
     if(S.cloud.penaltyIds?.[localId]){const {error:pe}=await SB.from("penalties").update({accepted:false,metadata:{local_play_id:localId,active:false}}).eq("id",S.cloud.penaltyIds[localId]);if(pe)throw pe}
     for(const [key,id] of Object.entries(S.cloud.creditIds||{})){if(key.startsWith(`${localId}::`)){const {error:ce}=await SB.from("play_credits").update({value:0,metadata:{local_play_id:localId,active:false}}).eq("id",id);if(ce)throw ce;S.cloud.creditHashes[key]="inactive"}}
@@ -906,6 +914,7 @@ async function syncDeletedCloudSnaps(){
   const localSnapIds=new Set((S.games||[]).flatMap(g=>(g.snapRecords||[]).map(r=>r.id)));
   for(const [localId,cloudId] of Object.entries(S.cloud.snapIds||{})){
     if(localSnapIds.has(localId))continue;
+    await assertCloudDeleteSafe("snap_events",cloudId,"Snap");
     const {error}=await SB.from("snap_events").update({active:false}).eq("id",cloudId);if(error)throw error;
     delete S.cloud.snapIds[localId];delete S.cloud.snapHashes[localId];persist({skipCloud:true});changed=true;
   }
@@ -916,6 +925,7 @@ async function syncDeletedCloudGames(){
   const localGameIds=new Set((S.games||[]).map(g=>g.id));
   for(const [localId,cloudId] of Object.entries(S.cloud.gameIds||{})){
     if(localGameIds.has(localId))continue;
+    await assertCloudDeleteSafe("games",cloudId,"Game");
     const {error}=await SB.from("games").update({status:"archived"}).eq("id",cloudId);if(error)throw error;
     delete S.cloud.gameIds[localId];delete S.cloud.gameHashes[localId];persist({skipCloud:true});changed=true;
   }
