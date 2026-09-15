@@ -1,0 +1,22 @@
+name: Gridiron enhancement tests
+on:
+  push:
+    branches: [feature/gridiron-red-enhancements]
+    paths:
+      - 'field-orientation.js'
+      - 'cloud-conflict.js'
+      - 'game-lifecycle.js'
+      - 'voice-workflow.js'
+      - 'edit-play-model.js'
+      - 'tests/gridiron-enhancements.test.js'
+      - '.github/workflows/gridiron-enhancements-test.yml'
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node tests/gridiron-enhancements.test.js
