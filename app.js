@@ -487,7 +487,7 @@ function restorePlayFromCloud(row,credits,penalty){
   else if(p.type==="Pass"){p.player=firstCreditPlayer(c,["pass_attempt","qb_sacked"]);p.player2=firstCreditPlayer(c,["target"])}
   else if(p.type==="Defense"){
     const d={};for(const x of c.filter(x=>["tackle","tfl","sack"].includes(x.credit_type)&&Number(x.value)!==0))d[x.player_id]=Number(x.value);if(Object.keys(d).length)p.defCredits=d;
-    p.passDefendedPlayerId=firstCreditPlayer(c,["pass_defended"]);p.interceptionPlayerId=firstCreditPlayer(c,["def_interception"]);p.forcedFumblePlayerId=firstCreditPlayer(c,["forced_fumble"]);p.fumbleRecoveryPlayerId=firstCreditPlayer(c,["fumble_recovery"]);p.defensiveTouchdownPlayerId=firstCreditPlayer(c,["defensive_td"]);
+    p.passDefendedPlayerId=firstCreditPlayer(c,["pass_defended"])||p.passDefendedPlayerId||null;p.interceptionPlayerId=firstCreditPlayer(c,["def_interception"])||p.interceptionPlayerId||null;p.forcedFumblePlayerId=firstCreditPlayer(c,["forced_fumble"])||p.forcedFumblePlayerId||null;p.fumbleRecoveryPlayerId=firstCreditPlayer(c,["fumble_recovery"])||p.fumbleRecoveryPlayerId||null;p.defensiveTouchdownPlayerId=firstCreditPlayer(c,["defensive_td"])||p.defensiveTouchdownPlayerId||null;
   }else if(p.type==="Special")p.player=firstCreditPlayer(c,["kick_return","punt_return","st_forced_fumble","st_fumble_recovery"]);
   else if(p.type==="Kickoff")p.player=firstCreditPlayer(c,["kickoff"]);
   else if(p.type==="Kickoff Return")p.player=firstCreditPlayer(c,["kick_return"]);
@@ -536,7 +536,7 @@ async function loadTeamFromCloud(options={}){
     demoPlayCalls=demoCallsQ.data||[];coachDemoPlaybook=(demoBookQ.data||[]).map(x=>({id:`demo-play-${String(x.call_number).padStart(2,"0")}`,number:x.call_number,name:x.call_name,demo:true}));
     const demoByPlay=new Map(demoPlayCalls.map(x=>[x.play_id,x]));
     const roster=players.filter(x=>x.active!==false).map(x=>({id:x.id,jersey:x.jersey_number??"",name:x.name||"Player",snaps:0}));
-    const localGames=games.map(g=>{const gp=plays.filter(x=>x.game_id===g.id).sort((a,b)=>a.sequence-b.sequence).map(r=>restoreCloudPlayWithDemo(r,credits.filter(c=>c.play_id===r.id&&c.metadata?.active!==false),penalties.find(q=>q.play_id===r.id),demoByPlay.get(r.id)));const sr=snaps.filter(x=>x.game_id===g.id).sort((a,b)=>a.snap_number-b.snap_number).map(x=>({id:x.id,ts:x.client_created_at?Date.parse(x.client_created_at):Date.parse(x.created_at),quarter:Number(x.quarter||1),playerIds:snapParts.filter(q=>q.snap_event_id===x.id).map(q=>q.player_id)}));const auto=gp.reduce((sum,p)=>sum+pointsFromPlay(p),0);const firstBefore=gp[0]?.stateBefore,lastAfter=gp[gp.length-1]?.stateAfter;return {id:g.id,opponent:g.opponent_name||"Opponent",opponentLogoData:g.opponent_logo_data||null,week:Number(g.week_number||1),date:`Week ${Number(g.week_number||1)}`,createdAt:Date.parse(g.created_at||new Date().toISOString()),location:g.location_type||"home",gameType:g.game_type||"regular",status:g.status==="final"?"complete":(g.status||"live"),ourScore:Number(g.team_score||0),scoreAdjustment:Number(g.team_score||0)-auto,scoreModelVersion:2,oppScore:Number(g.opponent_score||0),openingKickoff:g.opening_kickoff||"receive",initialPossession:firstBefore?.possession||((g.opening_kickoff||"receive")==="kick"?"opp":"ours"),initialDown:1,initialDistance:10,initialBallSpot:Field.validSpot(firstBefore?.ballSpot),ballSpot:Field.validSpot(lastAfter?.ballSpot??g.current_state?.ballSpot),down:Number(g.current_down||1),distance:Number(g.current_distance||10),possession:localPossession(g.possession||"ours"),quarter:Number(g.current_quarter||1),cloudRevision:Number(g.revision||1),gamePlan:Array.isArray(g.game_plan)?g.game_plan:null,plays:gp,snapRecords:sr};});
+    const localGames=games.map(g=>{const gp=plays.filter(x=>x.game_id===g.id).sort((a,b)=>a.sequence-b.sequence).map(r=>restoreCloudPlayWithDemo(r,credits.filter(c=>c.play_id===r.id&&c.metadata?.active!==false),penalties.find(q=>q.play_id===r.id),demoByPlay.get(r.id)));const sr=snaps.filter(x=>x.game_id===g.id).sort((a,b)=>a.snap_number-b.snap_number).map(x=>({id:x.id,ts:x.client_created_at?Date.parse(x.client_created_at):Date.parse(x.created_at),quarter:Number(x.quarter||1),playerIds:snapParts.filter(q=>q.snap_event_id===x.id).map(q=>q.player_id)}));const auto=gp.reduce((sum,p)=>sum+pointsFromPlay(p),0);const firstBefore=gp[0]?.stateBefore,lastAfter=gp[gp.length-1]?.stateAfter;return {id:g.id,opponent:g.opponent_name||"Opponent",opponentLogoData:g.opponent_logo_data||null,week:Number(g.week_number||1),date:`Week ${Number(g.week_number||1)}`,createdAt:Date.parse(g.created_at||new Date().toISOString()),location:g.location_type||"home",gameType:g.game_type||"regular",status:g.status==="final"?"complete":(g.status||"live"),ourScore:(g.status==="final"&&Number(g.team_score||0)===0&&auto>0)?auto:Number(g.team_score||0),scoreAdjustment:(g.status==="final"&&Number(g.team_score||0)===0&&auto>0)?0:Number(g.team_score||0)-auto,scoreModelVersion:2,oppScore:Number(g.opponent_score||0),openingKickoff:g.opening_kickoff||"receive",initialPossession:firstBefore?.possession||((g.opening_kickoff||"receive")==="kick"?"opp":"ours"),initialDown:1,initialDistance:10,initialBallSpot:Field.validSpot(firstBefore?.ballSpot),ballSpot:Field.validSpot(lastAfter?.ballSpot??g.current_state?.ballSpot),down:Number(g.current_down||1),distance:Number(g.current_distance||10),possession:localPossession(g.possession||"ours"),quarter:Number(g.current_quarter||1),cloudRevision:Number(g.revision||1),gamePlan:Array.isArray(g.game_plan)?g.game_plan:null,plays:gp,snapRecords:sr};});
     const cloud={teamId:team.id,seasonId:season.id,teamHash:null,playerIds:Object.fromEntries(players.map(x=>[x.id,x.id])),playerHashes:{},gameIds:Object.fromEntries(games.map(x=>[x.id,x.id])),playIds:Object.fromEntries(plays.map(x=>[x.id,x.id])),playHashes:{},gameHashes:{},creditIds:{},creditHashes:{},penaltyIds:{},penaltyHashes:{},snapIds:Object.fromEntries(snaps.map(x=>[x.id,x.id])),snapHashes:{},connectedAt:new Date().toISOString(),lastSyncAt:new Date().toISOString(),lastSyncError:null,remoteFingerprint:fingerprintLoadedCloudSnapshot(team,players,games,plays,credits,penalties,snaps,snapParts,demoPlayCalls,coachDemoPlaybook),hashVersion:2,deviceRole:"viewer"};
     let voiceCorrections=S.cloud?.teamId===team.id&&S.team?.voiceCorrections?{...S.team.voiceCorrections}:{};
     const vcq=await SB.from("team_voice_corrections").select("heard_text,resolved_value").eq("team_id",team.id);
@@ -821,8 +821,9 @@ async function syncSnapRecord(g,r,index,cloudGameId){
   if(!r.id)r.id=uid();const payload=buildCloudSnapPayload(g,r,index,cloudGameId),h=simpleHash(payload);payload.snap_number=index+1;if(S.cloud.snapHashes[r.id]===h)return;let id=S.cloud.snapIds[r.id];
   if(!id){id=await createCloudSnapEvent(payload,cloudGameId);S.cloud.snapIds[r.id]=id}
   else{
-    const {error}=await SB.from("snap_events").update({active:false}).eq("id",id);if(error)throw error;
-    id=await createCloudSnapEvent(payload,cloudGameId);S.cloud.snapIds[r.id]=id;
+    const {error}=await SB.from("snap_events").update({snap_number:payload.snap_number||1,quarter:payload.quarter,client_created_at:payload.client_created_at,active:true}).eq("id",id);if(error)throw error;
+    const {error:de}=await SB.from("snap_participants").delete().eq("snap_event_id",id);if(de)throw de;
+    for(const localPid of payload.playerIds){const playerId=S.cloud.playerIds?.[localPid];if(!playerId)continue;const {error:pe}=await SB.from("snap_participants").insert({snap_event_id:id,player_id:playerId});if(pe)throw pe}
   }
   S.cloud.snapHashes[r.id]=h;
 }
@@ -2703,8 +2704,9 @@ function initializeSnapSelections(){
 function snapRecordsForGames(games){return (games||[]).flatMap(g=>(g.snapRecords||[]).map((r,i)=>({...r,gameId:g.id,gameDate:g.date,opponent:g.opponent,gameType:g.gameType||"regular",snapSequence:i+1})))}
 function playerSnapCountForGames(playerId,games){return snapRecordsForGames(games).reduce((a,r)=>a+((r.playerIds||[]).includes(playerId)?1:0),0)}
 
+function snapViewGame(){return currentGame()||selectedStatsGame()||latestGame()}
 function currentGameSnapCount(playerId){
-  const g=currentGame();
+  const g=snapViewGame();
   if(!g||!Array.isArray(g.snapRecords))return 0;
   return g.snapRecords.reduce((sum,r)=>sum+(r.playerIds||[]).includes(playerId),0);
 }
@@ -2725,7 +2727,7 @@ function renderSnaps(){
   }
   $("#recordSnapBtn").disabled=false;
 
-  const gameTotal=currentGame()?.snapRecords?.length||0;
+  const snapGame=snapViewGame();const gameTotal=snapGame?.snapRecords?.length||0;$("#recordSnapBtn").disabled=!currentGame()||currentGame()?.status==="complete";
   const ordered=[...S.roster].sort((a,b)=>a.jersey-b.jersey);
   box.innerHTML=ordered.map(p=>{
     const snaps=currentGameSnapCount(p.id);
@@ -2762,7 +2764,7 @@ function renderSnaps(){
 
 function updateSnapSummary(){
   const on=(S.roster||[]).filter(p=>snapSelections[p.id]!==false).length;
-  const g=currentGame();const total=g&&Array.isArray(g.snapRecords)?g.snapRecords.length:0;
+  const g=snapViewGame();const total=g&&Array.isArray(g.snapRecords)?g.snapRecords.length:0;
   const under=(S.roster||[]).filter(p=>currentGameSnapCount(p.id)<teamSnapMinimum()).length;
   $("#snapOnFieldCount").textContent=`${on} on field`;
   $("#snapTotalCount").textContent=`${total} total snap${total===1?"":"s"}`;
@@ -3561,6 +3563,8 @@ function playRows(){
       GameType:g.gameType||"regular",
       Location:g.location,
       PlaySequence:i+1,
+      PlayNumber:p.playCall?.number??"",
+      PlayName:p.playCall?.name||"",
       Timestamp:p.ts?new Date(p.ts).toISOString():"",
       Possession:p.stateBefore?.possession||"",
       Down:p.stateBefore?.down||"",
@@ -3624,6 +3628,8 @@ function penaltyRowsExport(){const out=[];(S.games||[]).forEach(g=>(g.plays||[])
 function seasonRows(){return ["regular","playoff","season"].map(scope=>{const games=scopeGames(scope),plays=games.flatMap(g=>g.plays||[]),m=calcTeamMetrics(plays,games);return {Scope:scope,Games:games.length,Record:recordFor(games),...m}})}
 function dataDictionaryRows(){return [
   {Field:"GameType",Meaning:"regular or playoff"},
+  {Field:"PlayNumber",Meaning:"Offensive play-call number selected from the game plan when the play was recorded."},
+  {Field:"PlayName",Meaning:"Offensive play-call name selected from the game plan when the play was recorded."},
   {Field:"Possession",Meaning:"ours = our offense; opp = opponent offense / our defense"},
   {Field:"Down",Meaning:"Down at the start of the recorded play"},
   {Field:"Distance",Meaning:"Yards to go at the start of the recorded play"},
