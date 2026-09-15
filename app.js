@@ -3633,10 +3633,24 @@ function closeVoicePlay(){
   stopVoiceListening(false);
   $("#voicePlayModal")?.classList.add("hidden");pendingVoiceResult=null;
   if($("#voiceConfirmBtn"))$("#voiceConfirmBtn").disabled=true;
-  $("#voiceConflictActions")?.classList.add("hidden");
+  $("#voiceConflictActions")?.classList.add("hidden");clearVoiceMissingFollowup();
 }
 function voiceContext(){const g=currentGame();return {possession:g?.possession||"ours",ballSpot:g?.ballSpot,teamName:S.team?.name||"Our",opponentName:g?.opponent||"Opponent",voiceCorrections:S.team?.voiceCorrections||{}}}
 function voiceSpotWords(spot){const n=Field.validSpot(spot),g=currentGame();if(n===(g?.possession==="opp"?0:100))return "end zone touchdown";if(n===50)return "midfield";if(n<50)return `${S.team.name} ${n}`;return `${g?.opponent||"opponent"} ${100-n}`}
+function clearVoiceMissingFollowup(){document.getElementById("voiceMissingFollowup")?.remove()}
+function renderVoiceMissingFollowup(result,transcript){
+  clearVoiceMissingFollowup();const modal=document.querySelector("#voicePlayModal .voice-play-modal");if(!modal||!result?.missing)return;
+  const box=document.createElement("div");box.id="voiceMissingFollowup";box.className="voice-preview ready";box.style.marginTop="10px";
+  const add=(label,fn)=>{const b=document.createElement("button");b.type="button";b.className="btn ghost";b.style.margin="4px";b.textContent=label;b.addEventListener("click",fn);box.appendChild(b)};
+  const append=words=>{$("#voiceTranscript").value=`${transcript} ${words}`.trim();clearVoiceMissingFollowup();interpretVoicePlay()};
+  if(result.missing==="playType"){add("Run",()=>append("run"));add("Pass",()=>append("pass"))}
+  else if(["runner","tackler","players"].includes(result.missing)){
+    const roster=[...(S.roster||[])].sort((a,b)=>Number(a.jersey)-Number(b.jersey));
+    roster.forEach(p=>add(`#${p.jersey} ${p.name}`,()=>append(`number ${p.jersey}`)));
+  }else if(result.missing==="passResult"){add("Complete",()=>append("complete"));add("Incomplete",()=>append("incomplete"));add("Intercepted",()=>append("intercepted"))}
+  else return;
+  modal.insertBefore(box,$("#voiceConfirmBtn"));
+}
 function interpretVoicePlay(){
   const transcript=$("#voiceTranscript")?.value||"",result=window.SidelineVoice?.interpretVoiceCommand(transcript,S.roster,voiceContext());
   pendingVoiceResult=null;$("#voiceConfirmBtn").disabled=true;$("#voicePlayPreview").classList.remove("ready");$("#voiceConflictActions").classList.add("hidden");
@@ -3649,7 +3663,11 @@ function interpretVoicePlay(){
     $("#voicePlayStatus").textContent=result.error;$("#voicePlayModal").classList.add("hidden");
     requestFieldSpot("end",spot=>{$("#voiceTranscript").value=`${transcript} to ${voiceSpotWords(spot)}`;$("#voicePlayModal").classList.remove("hidden");interpretVoicePlay()});return;
   }
-  if(!result.ok){$("#voicePlayStatus").textContent=result.error;$("#voicePlayPreview").textContent=`I heard: “${transcript}”`;return}
+  if(!result.ok){
+    $("#voicePlayStatus").textContent=result.error;$("#voicePlayPreview").textContent=`I heard: “${transcript}”`;
+    renderVoiceMissingFollowup(result,transcript);return
+  }
+  clearVoiceMissingFollowup();
   pendingVoiceResult=result;$("#voicePlayPreview").textContent=result.summary;$("#voicePlayPreview").classList.add("ready");
   if(result.conflict){$("#voicePlayStatus").textContent=`You said ${Field.label(result.conflict.spoken,S.team.name,currentGame().opponent)}, but the app currently has ${Field.label(result.conflict.current,S.team.name,currentGame().opponent)}. Which is correct?`;$("#voiceConflictActions").classList.remove("hidden")}else{$("#voicePlayStatus").textContent="Ready to confirm";$("#voiceConfirmBtn").disabled=false}
 }
