@@ -3,6 +3,9 @@ on:
   push:
     branches: [feature/gridiron-red-enhancements]
     paths:
+      - 'app.js'
+      - 'index.html'
+      - 'field-position.js'
       - 'field-orientation.js'
       - 'cloud-conflict.js'
       - 'game-lifecycle.js'
@@ -10,6 +13,7 @@ on:
       - 'edit-play-model.js'
       - 'coach-analytics.js'
       - 'service-worker.js'
+      - 'supabase-gridiron-hardening.sql'
       - 'tests/gridiron-enhancements.test.js'
       - '.github/gridiron-red-integrate.py'
       - '.github/workflows/gridiron-enhancements-test.yml'
@@ -28,6 +32,17 @@ jobs:
           node-version: '24'
       - name: Apply safe browser integration
         run: python .github/gridiron-red-integrate.py
+      - name: Check JavaScript syntax
+        run: |
+          node --check app.js
+          node --check field-position.js
+          node --check field-orientation.js
+          node --check cloud-conflict.js
+          node --check game-lifecycle.js
+          node --check voice-workflow.js
+          node --check edit-play-model.js
+          node --check coach-analytics.js
+          node --check service-worker.js
       - name: Run regression tests
         run: node tests/gridiron-enhancements.test.js
       - name: Verify integration
