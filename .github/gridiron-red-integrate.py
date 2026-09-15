@@ -9,13 +9,11 @@ if block not in s:
 p=Path('field-position.js');f=p.read_text()
 old='''  function currentPossession(){return /OUR DEFENSE/i.test(document.getElementById("possessionMain")?.textContent||"")?"opp":"ours"}\n  function visualPercent(spot,poss=currentPossession()){const n=validSpot(spot);if(n===null)return 50;return poss==="opp"?100-n:n}\n  function underlyingFromVisual(percent,poss=currentPossession()){const p=Math.max(0,Math.min(100,percent));return poss==="opp"?100-p:p}'''
 new='''  function currentPossession(){return /OUR DEFENSE/i.test(document.getElementById("possessionMain")?.textContent||"")?"opp":"ours"}\n  function currentQuarter(){const raw=document.getElementById("quarterSelect")?.value||document.getElementById("quarter")?.value||document.getElementById("quarterMain")?.textContent||"1";const m=String(raw).match(/([1-4])/);return m?Number(m[1]):1}\n  function visualPercent(spot,poss=currentPossession()){const n=validSpot(spot);if(n===null)return 50;const canonical=poss==="opp"?100-n:n;return window.SidelineFieldOrientation?window.SidelineFieldOrientation.visualPercent(canonical,currentQuarter()):canonical}\n  function underlyingFromVisual(percent,poss=currentPossession()){const p=Math.max(0,Math.min(100,percent));const canonical=window.SidelineFieldOrientation?window.SidelineFieldOrientation.canonicalPercent(p,currentQuarter()):p;return poss==="opp"?100-canonical:canonical}'''
-# Newer field-position.js already contains the quarter-aware implementation; only patch legacy source.
 if 'SidelineFieldOrientation' not in f:
     if f.count(old)!=1: raise SystemExit(f'field visual conversion block count={f.count(old)}')
     f=f.replace(old,new,1);p.write_text(f)
 
 a=Path('app.js');x=a.read_text()
-# Voice missing-info integration
 old_voice='''  if(!result.ok){$("#voicePlayStatus").textContent=result.error;$("#voicePlayPreview").textContent=`I heard: “${transcript}”`;return}\n  pendingVoiceResult=result;'''
 new_voice='''  if(!result.ok){\n    $("#voicePlayStatus").textContent=result.error;$("#voicePlayPreview").textContent=`I heard: “${transcript}”`;\n    renderVoiceMissingFollowup(result,transcript);return\n  }\n  clearVoiceMissingFollowup();\n  pendingVoiceResult=result;'''
 if 'renderVoiceMissingFollowup(result,transcript)' not in x:
@@ -26,9 +24,18 @@ if 'renderVoiceMissingFollowup(result,transcript)' not in x:
     if x.count(anchor)!=1: raise SystemExit('voice helper anchor missing')
     x=x.replace(anchor,anchor+helper,1)
 
-# Existing app integrations below are intentionally idempotent: the workflow may run after direct feature-branch source improvements.
-# Verify the integrated red-feature markers rather than rewriting already-updated blocks.
-required=['renderVoiceMissingFollowup(result,transcript)','Final confirmation: this historical game cannot be restored','id="editFGDistance"','Newer cloud edit detected — refresh before overwriting','team_voice_corrections','viewer_events','sidelineViewerSession']
+# Full Penalty Edit Play: preserve the app's existing penalty schema exactly.
+if 'id="editPenaltyType"' not in x:
+    anchor='''  const optPlayer=(selected,blank="None")=>`<option value="">${blank}</option>`+playerOptions(selected);\n'''
+    add='''  if(p.type==="Penalty"){const types=[...PENALTY_TYPES];if(p.penaltyType&&!types.includes(p.penaltyType))types.push(p.penaltyType);html+=`<label>Penalty type</label><select id="editPenaltyType">${types.map(v=>`<option value="${esc(v)}" ${v===p.penaltyType?"selected":""}>${esc(v)}</option>`).join("")}</select><label>Player / team</label><select id="editPenaltyPlayer"><option value="UNKNOWN" ${!p.penaltyPlayer||p.penaltyPlayer==="UNKNOWN"?"selected":""}>Unknown / Team</option>${playerOptions(p.penaltyPlayer)}</select><label>Penalty yards</label><input id="editPenaltyYards" inputmode="numeric" value="${Number(p.penaltyYards||0)}"><label>Down result</label><select id="editPenaltyDown"><option value="unchanged" ${p.penaltyDownResult==="unchanged"?"selected":""}>Down unchanged / advance normally</option><option value="replay" ${p.penaltyDownResult==="replay"?"selected":""}>Replay down</option><option value="firstDown" ${p.penaltyDownResult==="firstDown"?"selected":""}>Automatic first down</option><option value="lossOfDown" ${p.penaltyDownResult==="lossOfDown"?"selected":""}>Loss of down</option></select>`;}\n'''
+    if x.count(anchor)!=1: raise SystemExit('edit penalty UI anchor missing')
+    x=x.replace(anchor,anchor+add,1)
+    save='''  if($("#editPlayer"))p.player=$("#editPlayer").value||null;if($("#editPlayer2"))p.player2=$("#editPlayer2").value||null;\n'''
+    save_add='''  if($("#editPenaltyType")){p.penaltyType=$("#editPenaltyType").value||"Other";p.penaltyPlayer=$("#editPenaltyPlayer").value||"UNKNOWN";const py=parseInt($("#editPenaltyYards").value,10);if(Number.isNaN(py))return toast("Enter valid penalty yards");p.penaltyYards=py;p.penaltyDownResult=$("#editPenaltyDown").value||"unchanged";}\n'''
+    if x.count(save)!=1: raise SystemExit('edit penalty save anchor missing')
+    x=x.replace(save,save+save_add,1)
+
+required=['renderVoiceMissingFollowup(result,transcript)','Final confirmation: this historical game cannot be restored','id="editFGDistance"','id="editPenaltyType"','id="editPenaltyPlayer"','id="editPenaltyYards"','id="editPenaltyDown"','Newer cloud edit detected — refresh before overwriting','team_voice_corrections','viewer_events','sidelineViewerSession']
 missing=[m for m in required if m not in x]
 if missing: raise SystemExit('app integration marker missing: '+', '.join(missing))
 a.write_text(x)
