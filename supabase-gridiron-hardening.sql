@@ -1,4 +1,4 @@
--- Gridiron hardening migration. Designed to be additive/idempotent.
+-- Gridiron hardening migration. Additive/idempotent and aligned with production schema.
 create table if not exists public.team_voice_corrections (
   id uuid primary key default gen_random_uuid(),
   team_id uuid not null references public.teams(id) on delete cascade,
@@ -20,21 +20,65 @@ create table if not exists public.viewer_events (
 create index if not exists viewer_events_team_created_idx on public.viewer_events(team_id,created_at desc);
 create index if not exists viewer_events_game_created_idx on public.viewer_events(game_id,created_at desc);
 
--- Prevent duplicate non-archived games for the same team/season/week/opponent/type.
--- Keep archived history from blocking a replacement game.
+-- Production games belong to a team through seasons.team_id. There is no games.team_id.
+-- Archived history does not block creation of a replacement game.
 create unique index if not exists games_active_identity_unique
-on public.games(team_id,season_id,week,lower(trim(opponent_name)),game_type)
+on public.games(season_id,week_number,lower(trim(opponent_name)),game_type)
 where status <> 'archived';
 
 alter table public.team_voice_corrections enable row level security;
 alter table public.viewer_events enable row level security;
 
--- Authenticated team members can read learned corrections. Writes should be performed
--- by the existing authenticated statkeeper path / service layer after membership checks.
 drop policy if exists team_voice_corrections_member_read on public.team_voice_corrections;
-create policy team_voice_corrections_member_read on public.team_voice_corrections for select to authenticated
-using (exists (select 1 from public.team_members tm where tm.team_id=team_voice_corrections.team_id and tm.user_id=auth.uid()));
+create policy team_voice_corrections_member_read on public.team_voice_corrections
+for select to authenticated
+using (
+  exists (
+    select 1 from public.team_members tm
+    where tm.team_id=team_voice_corrections.team_id
+      and tm.user_id=auth.uid()
+      and coalesce(tm.active,true)=true
+  )
+);
 
--- Anonymous viewer telemetry: insert-only. No public select/update/delete access.
+drop policy if exists team_voice_corrections_statkeeper_write on public.team_voice_corrections;
+create policy team_voice_corrections_statkeeper_write on public.team_voice_corrections
+for all to authenticated
+using (
+  exists (
+    select 1 from public.team_members tm
+    where tm.team_id=team_voice_corrections.team_id
+      and tm.user_id=auth.uid()
+      and coalesce(tm.active,true)=true
+      and tm.role in ('statkeeper','admin')
+  )
+)
+with check (
+  exists (
+    select 1 from public.team_members tm
+    where tm.team_id=team_voice_corrections.team_id
+      and tm.user_id=auth.uid()
+      and coalesce(tm.active,true)=true
+      and tm.role in ('statkeeper','admin')
+  )
+);
+
+-- Privacy-minimal viewer telemetry: insert-only for clients. If a game is supplied,
+-- require the event team to match that game's season/team relationship.
 drop policy if exists viewer_events_anon_insert on public.viewer_events;
-create policy viewer_events_anon_insert on public.viewer_events for insert to anon, authenticated with check (session_id <> '' and event_type in ('open','game_view','refresh'));
+create policy viewer_events_anon_insert on public.viewer_events
+for insert to anon, authenticated
+with check (
+  session_id <> ''
+  and event_type in ('open','game_view','refresh')
+  and (
+    game_id is null
+    or exists (
+      select 1
+      from public.games g
+      join public.seasons s on s.id=g.season_id
+      where g.id=viewer_events.game_id
+        and s.team_id=viewer_events.team_id
+    )
+  )
+);
