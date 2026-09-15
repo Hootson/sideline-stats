@@ -14,4 +14,7 @@ assert.ok(app.includes('id="editTryType"'),'try Edit Play integration missing');
 assert.ok(app.includes('id="editStartSpot"')&&app.includes('id="editEndSpot"'),'field spot Edit Play integration missing');
 assert.ok(app.includes('renderVoiceMissingFollowup(result,transcript)'),'voice missing-info integration missing');
 assert.ok(app.includes('Final confirmation: this historical game cannot be restored'),'final-game deletion safeguard missing');
+assert.ok(app.includes('team_voice_corrections'),'team voice correction cloud integration missing');
+assert.ok(app.includes('viewer_events'),'anonymous viewer analytics integration missing');
+assert.ok(app.includes('sidelineViewerSession'),'viewer analytics session id missing');
 console.log('Gridiron enhancement regression tests passed');
