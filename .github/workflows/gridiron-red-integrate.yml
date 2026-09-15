@@ -1,6 +1,11 @@
 name: Integrate Gridiron red enhancements
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - feature/gridiron-red-enhancements
+    paths:
+      - .github/gridiron-red-integrate-trigger.txt
 permissions:
   contents: write
 jobs:
