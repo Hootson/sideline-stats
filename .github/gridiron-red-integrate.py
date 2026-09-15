@@ -9,37 +9,17 @@ if block not in s:
     s=s.replace(marker,marker+'\n'+block,1)
     idx.write_text(s)
 
-# Integrate quarter-aware field rendering without changing canonical stored spots.
+# Quarter-aware visual conversion. Stored/canonical spots remain unchanged.
 p=Path('field-position.js')
 f=p.read_text()
-old='''function visualPercent(spot,poss=currentPossession()){
-  const n=validSpot(spot);if(n===null)return 50;
-  return poss==="opp"?100-n:n
-}
-function underlyingFromVisual(percent,poss=currentPossession()){
-  const p=Math.max(0,Math.min(100,percent));
-  return poss==="opp"?100-p:p
-}'''
-new='''function currentQuarter(){
-  const raw=document.getElementById("quarterSelect")?.value||document.getElementById("quarter")?.value||document.getElementById("quarterMain")?.textContent||"1";
-  const m=String(raw).match(/([1-4])/);return m?Number(m[1]):1
-}
-function visualPercent(spot,poss=currentPossession()){
-  const n=validSpot(spot);if(n===null)return 50;
-  const canonical=poss==="opp"?100-n:n;
-  return window.SidelineFieldOrientation?window.SidelineFieldOrientation.visualPercent(canonical,currentQuarter()):canonical
-}
-function underlyingFromVisual(percent,poss=currentPossession()){
-  const p=Math.max(0,Math.min(100,percent));
-  const canonical=window.SidelineFieldOrientation?window.SidelineFieldOrientation.canonicalPercent(p,currentQuarter()):p;
-  return poss==="opp"?100-canonical:canonical
-}'''
+old='''  function currentPossession(){return /OUR DEFENSE/i.test(document.getElementById("possessionMain")?.textContent||"")?"opp":"ours"}\n  function visualPercent(spot,poss=currentPossession()){const n=validSpot(spot);if(n===null)return 50;return poss==="opp"?100-n:n}\n  function underlyingFromVisual(percent,poss=currentPossession()){const p=Math.max(0,Math.min(100,percent));return poss==="opp"?100-p:p}'''
+new='''  function currentPossession(){return /OUR DEFENSE/i.test(document.getElementById("possessionMain")?.textContent||"")?"opp":"ours"}\n  function currentQuarter(){const raw=document.getElementById("quarterSelect")?.value||document.getElementById("quarter")?.value||document.getElementById("quarterMain")?.textContent||"1";const m=String(raw).match(/([1-4])/);return m?Number(m[1]):1}\n  function visualPercent(spot,poss=currentPossession()){const n=validSpot(spot);if(n===null)return 50;const canonical=poss==="opp"?100-n:n;return window.SidelineFieldOrientation?window.SidelineFieldOrientation.visualPercent(canonical,currentQuarter()):canonical}\n  function underlyingFromVisual(percent,poss=currentPossession()){const p=Math.max(0,Math.min(100,percent));const canonical=window.SidelineFieldOrientation?window.SidelineFieldOrientation.canonicalPercent(p,currentQuarter()):p;return poss==="opp"?100-canonical:canonical}'''
 if new not in f:
     if f.count(old)!=1: raise SystemExit(f'field visual conversion block count={f.count(old)}')
     f=f.replace(old,new,1)
     p.write_text(f)
 
-# Make the browser modules available offline. Preserve the current cache label/version.
+# Cache the enhancement modules for game-day/offline use.
 sw=Path('service-worker.js')
 w=sw.read_text()
 needle="'./field-position.js'"
