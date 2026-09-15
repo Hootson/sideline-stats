@@ -9,7 +9,6 @@ p=Path('field-position.js');f=p.read_text()
 if 'SidelineFieldOrientation' not in f: raise SystemExit('quarter-aware field source missing')
 a=Path('app.js');x=a.read_text()
 if 'id="editDefPD"' not in x: raise SystemExit('defensive Edit Play source integration missing')
-# Cloud deletion safety.
 if 'async function assertCloudDeleteSafe' not in x:
     anchor='async function syncDeletedCloudPlays(){\n';helper='''async function assertCloudDeleteSafe(table,id,localLabel){\n  const {data,error}=await SB.from(table).select("revision,updated_at,client_updated_at").eq("id",id).maybeSingle();\n  if(error)throw error;if(!data)return;\n  const remoteRevision=Number(data.revision||0),knownRevision=Number(S.cloud?.deleteRevisions?.[`${table}:${id}`]||0);\n  if(knownRevision&&remoteRevision>knownRevision){const msg=`${localLabel} changed in the cloud after this device last saw it — refresh before deleting`;S.cloud.lastSyncError=msg;throw new Error(msg)}\n}\n'''
     if x.count(anchor)!=1: raise SystemExit('deleted-play anchor missing')
@@ -21,7 +20,6 @@ if 'if(!S.cloud.deleteRevisions)S.cloud.deleteRevisions={};' not in x:
     init='if(!S.cloud.snapHashes)S.cloud.snapHashes={};\n'
     if x.count(init)!=1: raise SystemExit('cloud init anchor missing')
     x=x.replace(init,init+'if(!S.cloud.deleteRevisions)S.cloud.deleteRevisions={};\n',1)
-# Migrate every remaining stable service-worker app transform into app.js source.
 if 'function snapViewGame(){' not in x:
     old='function currentGameSnapCount(playerId){\n  const g=currentGame();'
     if x.count(old)!=1: raise SystemExit('snap history source anchor missing')
@@ -55,6 +53,13 @@ required=['renderVoiceMissingFollowup(result,transcript)','id="editDefPD"','Newe
 missing=[m for m in required if m not in x]
 if missing: raise SystemExit('app integration marker missing: '+', '.join(missing))
 a.write_text(x)
+# Coach analytics: TDs and either first-down spelling are successful plays.
+ca=Path('coach-analytics.js');c=ca.read_text()
+old='if(play?.firstDown===true||play?.extras?.includes("First Down"))return true;'
+new='if(play?.extras?.includes("TD")||play?.firstDown===true||play?.extras?.includes("First Down")||play?.extras?.includes("1st Down"))return true;'
+if new not in c:
+    if c.count(old)!=1: raise SystemExit(f'coach success anchor count={c.count(old)}')
+    c=c.replace(old,new,1);ca.write_text(c)
 sw=Path('service-worker.js');w=sw.read_text();needle="'./field-position.js'";assets="'./field-orientation.js','./cloud-conflict.js','./game-lifecycle.js','./voice-workflow.js','./edit-play-model.js'"
 if assets not in w:
     if w.count(needle)!=1: raise SystemExit(f'SW field-position asset count={w.count(needle)}')
