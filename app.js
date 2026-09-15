@@ -1358,7 +1358,10 @@ function renderGameList(){
   }));
   $$(".delete-game").forEach(b=>b.addEventListener("click",()=>{
     const g=gameById(b.dataset.id); if(!g)return;
-    if(!confirm(`Delete the game vs ${g.opponent}? This removes all plays and stats from this game.`))return;
+    const scope=(g.plays?.length||0)+(g.snapRecords?.length||0);
+    const warning=g.status==="complete"?`This is a FINAL game. Delete ${g.opponent} and its ${scope} stored play/snap records?`:`Delete the game vs ${g.opponent}? This removes its ${scope} stored play/snap records.`;
+    if(!confirm(warning))return;
+    if(g.status==="complete"&&!confirm("Final confirmation: this historical game cannot be restored from the app after deletion. Continue?"))return;
     S.games=S.games.filter(x=>x.id!==g.id); if(S.activeGameId===g.id)S.activeGameId=null;
     persist();renderGameArea();toast("Game deleted");
   }))
@@ -1382,8 +1385,11 @@ $("#newGameBtn").addEventListener("click",()=>{
   if(!S.roster.length)return toast("Add your roster first");
   const opp=$("#newOpponent").value.trim();if(!opp)return toast("Enter an opponent");
   const openingKickoff=$("#newOpeningKickoff")?.value||"receive";
+  const week=Number($("#newGameWeek").value||1),gameType=$("#newGameType").value||"regular";
+  const duplicate=(S.games||[]).find(existing=>existing.status!=="archived"&&Number(existing.week||0)===week&&(existing.gameType||"regular")===gameType&&String(existing.opponent||"").trim().toLowerCase()===opp.toLowerCase());
+  if(duplicate){selectedStatsGameId=duplicate.id;if(confirm(`A Week ${week} game vs ${duplicate.opponent} already exists. Open that game instead?`)){S.activeGameId=duplicate.id;persist();renderGameArea()}return}
   const initialPossession=openingKickoff==="kick"?"opp":"ours";
-  const g={id:uid(),opponent:opp,opponentLogoData:pendingNewOpponentLogo||null,week:Number($("#newGameWeek").value||1),date:`Week ${$("#newGameWeek").value||1}`,createdAt:Date.now(),location:$("#newLocation").value,gameType:$("#newGameType").value||"regular",status:"live",ourScore:0,scoreAdjustment:0,scoreModelVersion:2,oppScore:0,openingKickoff,initialPossession,initialDown:1,initialDistance:10,initialBallSpot:null,ballSpot:null,down:1,distance:10,possession:initialPossession,quarter:1,gamePlan:planFromNewGameSource(),plays:[],snapRecords:[]};
+  const g={id:uid(),opponent:opp,opponentLogoData:pendingNewOpponentLogo||null,week,date:`Week ${week}`,createdAt:Date.now(),location:$("#newLocation").value,gameType,status:"live",ourScore:0,scoreAdjustment:0,scoreModelVersion:2,oppScore:0,openingKickoff,initialPossession,initialDown:1,initialDistance:10,initialBallSpot:null,ballSpot:null,down:1,distance:10,possession:initialPossession,quarter:1,gamePlan:planFromNewGameSource(),plays:[],snapRecords:[]};
   S.games.push(g);S.activeGameId=g.id;selectedStatsGameId=g.id;
   pendingNewOpponentLogo=null;
   $("#newOpponentLogo").value="";
