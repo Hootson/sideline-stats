@@ -1,0 +1,10 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert');
+const ctx={console,Date};ctx.globalThis=ctx;vm.createContext(ctx);
+for(const f of ['field-orientation.js','cloud-conflict.js','game-lifecycle.js','voice-workflow.js','edit-play-model.js'])vm.runInContext(fs.readFileSync(f,'utf8'),ctx,{filename:f});
+const F=ctx.SidelineFieldOrientation,C=ctx.SidelineCloudConflict,G=ctx.SidelineGameLifecycle,V=ctx.SidelineVoiceWorkflow,E=ctx.SidelineEditPlay;
+assert.equal(F.ourAttackDirection(1),'right');assert.equal(F.ourAttackDirection(2),'left');assert.equal(F.visualPercent(25,2),75);assert.equal(F.canonicalPercent(75,2),25);
+assert.equal(C.canWrite({revision:2},{revision:3}).ok,false);assert.equal(C.canWrite({revision:4},{revision:3}).ok,true);assert.equal(C.nextRevision({revision:4},{revision:7}),8);
+const a={team_id:'t',season_id:'s',week:4,opponent_name:'Raiders',game_type:'regular',status:'live'};assert.ok(G.findDuplicate({...a,opponent_name:' raiders '},[a]));assert.equal(G.normalizeStatus('complete'),'final');assert.equal(G.canTransition('live','final'),true);assert.equal(G.canTransition('final','scheduled'),false);
+let p=V.merge({type:'Run',yards:5},{playerNumber:4});assert.equal(p.yards,5);assert.equal(V.next(p).key,'player');p=V.applyAnswer(p,'player',{playerId:'abe'});assert.equal(V.next(p),null);
+assert.equal(E.phase({type:'Punt'}),'special');assert.ok(E.fields({type:'Punt'}).includes('punterId'));assert.ok(E.fields({type:'Defense'}).includes('forcedFumblePlayerId'));assert.ok(E.fields({type:'Pass'}).includes('receiverId'));
+console.log('Gridiron enhancement regression tests passed');
