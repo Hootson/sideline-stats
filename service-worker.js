@@ -1,5 +1,5 @@
 const CACHE='sideline-stats-v4-5-33-cloud-final-score';
-const ASSETS=['./','./index.html','./styles.css','./field-position.js','./voice-play.js','./coach-analytics.js','./commercial-access.js','./pwa.js','./brand-header.png','./brand-field.png','./icon.png','./snap-tracker.html','./snap-tracker.js','./parent-viewer.html','./parent-viewer.js'];
+const ASSETS=['./','./index.html','./styles.css','./field-position.js','./field-orientation.js','./cloud-conflict.js','./game-lifecycle.js','./voice-workflow.js','./edit-play-model.js','./voice-play.js','./coach-analytics.js','./commercial-access.js','./pwa.js','./brand-header.png','./brand-field.png','./icon.png','./snap-tracker.html','./snap-tracker.js','./parent-viewer.html','./parent-viewer.js'];
 
 function patchAppJs(src){
   src=src.replace('function currentGameSnapCount(playerId){\n  const g=currentGame();','function snapViewGame(){return currentGame()||selectedStatsGame()||latestGame()}\nfunction currentGameSnapCount(playerId){\n  const g=snapViewGame();');
