@@ -24,11 +24,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Run module regression tests
-        run: node tests/gridiron-enhancements.test.js
       - name: Apply safe browser integration
         run: python .github/gridiron-red-integrate.py
-      - name: Re-run regression tests
+      - name: Run regression tests
         run: node tests/gridiron-enhancements.test.js
       - name: Verify integration
         run: |
@@ -36,6 +34,8 @@ jobs:
           grep -q 'voice-workflow.js' index.html
           grep -q 'edit-play-model.js' index.html
           grep -q 'SidelineFieldOrientation' field-position.js
+          grep -q 'viewer_events' app.js
+          grep -q 'team_voice_corrections' app.js
       - name: Commit integration changes
         run: |
           if git diff --quiet; then echo 'No integration changes'; exit 0; fi
