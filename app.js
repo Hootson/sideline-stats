@@ -867,8 +867,14 @@ async function syncOnePlay(g,p,index,cloudGameId){
     if(!alreadySynced){
       const {error}=await SB.rpc("sync_play",payload);if(error)throw error;
     }else{
-      const update={quarter:payload.p_quarter,possession:payload.p_possession,down:payload.p_down,distance:payload.p_distance,play_type:payload.p_play_type,subtype:payload.p_subtype,yards:payload.p_yards,first_down:payload.p_first_down,turnover:payload.p_turnover,team_points:payload.p_team_points,opponent_points:payload.p_opponent_points,event_data:payload.p_event_data,state_before:payload.p_state_before,state_after:payload.p_state_after,client_updated_at:payload.p_client_updated_at,revision:(Number(p.cloudRevision||1)+1)};
-      const {error}=await SB.from("plays").update(update).eq("id",payload.p_id);if(error)throw error;p.cloudRevision=update.revision;
+      const {data:remote,error:remoteError}=await SB.from("plays").select("revision,client_updated_at,updated_at").eq("id",payload.p_id).single();if(remoteError)throw remoteError;
+      const localVersion={revision:Number(p.cloudRevision||1),updatedAt:new Date(p.cloudEditedAt||p.ts||Date.now()).toISOString()};
+      const remoteVersion={revision:Number(remote?.revision||0),updated_at:remote?.client_updated_at||remote?.updated_at};
+      const guard=window.SidelineCloudConflict?.canWrite(localVersion,remoteVersion);
+      if(guard&&!guard.ok){S.cloud.lastSyncError="Newer cloud edit detected — refresh before overwriting";throw new Error(S.cloud.lastSyncError)}
+      const nextRevision=window.SidelineCloudConflict?.nextRevision(localVersion,remoteVersion)||Math.max(Number(p.cloudRevision||1),Number(remote?.revision||0))+1;
+      const update={quarter:payload.p_quarter,possession:payload.p_possession,down:payload.p_down,distance:payload.p_distance,play_type:payload.p_play_type,subtype:payload.p_subtype,yards:payload.p_yards,first_down:payload.p_first_down,turnover:payload.p_turnover,team_points:payload.p_team_points,opponent_points:payload.p_opponent_points,event_data:payload.p_event_data,state_before:payload.p_state_before,state_after:payload.p_state_after,client_updated_at:payload.p_client_updated_at,revision:nextRevision};
+      const {data:written,error}=await SB.from("plays").update(update).eq("id",payload.p_id).eq("revision",Number(remote?.revision||0)).select("revision");if(error)throw error;if(!written?.length)throw new Error("Cloud play changed during sync — refresh and retry");p.cloudRevision=update.revision;
     }
     S.cloud.playHashes[p.id]=h;
   }
