@@ -8,6 +8,7 @@ on:
       - 'game-lifecycle.js'
       - 'voice-workflow.js'
       - 'edit-play-model.js'
+      - 'coach-analytics.js'
       - 'service-worker.js'
       - 'tests/gridiron-enhancements.test.js'
       - '.github/gridiron-red-integrate.py'
@@ -37,12 +38,14 @@ jobs:
           grep -q 'SidelineFieldOrientation' field-position.js
           grep -q 'viewer_events' app.js
           grep -q 'team_voice_corrections' app.js
+          grep -q 'includes("1st Down")' coach-analytics.js
           ! grep -q 'editDefPD' service-worker.js
+          ! grep -q 'function patchAppJs' service-worker.js
       - name: Commit integration changes
         run: |
           if git diff --quiet; then echo 'No integration changes'; exit 0; fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add index.html field-position.js service-worker.js app.js
+          git add index.html field-position.js service-worker.js app.js coach-analytics.js
           git commit -m 'Integrate Gridiron red enhancement modules'
           git push origin HEAD:feature/gridiron-red-enhancements
