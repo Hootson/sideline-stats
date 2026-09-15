@@ -9,14 +9,38 @@ on:
       - 'voice-workflow.js'
       - 'edit-play-model.js'
       - 'tests/gridiron-enhancements.test.js'
+      - '.github/gridiron-red-integrate.py'
       - '.github/workflows/gridiron-enhancements-test.yml'
   workflow_dispatch:
+permissions:
+  contents: write
 jobs:
-  test:
+  test-and-integrate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: feature/gridiron-red-enhancements
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - run: node tests/gridiron-enhancements.test.js
+      - name: Run module regression tests
+        run: node tests/gridiron-enhancements.test.js
+      - name: Apply safe browser integration
+        run: python .github/gridiron-red-integrate.py
+      - name: Re-run regression tests
+        run: node tests/gridiron-enhancements.test.js
+      - name: Verify integration
+        run: |
+          grep -q 'field-orientation.js' index.html
+          grep -q 'voice-workflow.js' index.html
+          grep -q 'edit-play-model.js' index.html
+          grep -q 'SidelineFieldOrientation' field-position.js
+      - name: Commit integration changes
+        run: |
+          if git diff --quiet; then echo 'No integration changes'; exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html field-position.js service-worker.js
+          git commit -m 'Integrate Gridiron red enhancement modules'
+          git push origin HEAD:feature/gridiron-red-enhancements
