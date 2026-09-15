@@ -13,7 +13,7 @@
   const distance=play=>Math.max(1,number(play?.stateBefore?.distance)||10);
   const successful=play=>{
     const gained=playYards(play),needed=distance(play),d=down(play);
-    if(play?.firstDown===true||play?.extras?.includes("First Down"))return true;
+    if(play?.extras?.includes("TD")||play?.firstDown===true||play?.extras?.includes("First Down")||play?.extras?.includes("1st Down"))return true;
     return gained>=needed*(d===1?.4:d===2?.6:1);
   };
   const explosive=play=>play?.type==="Rush"?playYards(play)>=10:play?.type==="Pass"&&play?.sub==="Complete"&&playYards(play)>=15;
