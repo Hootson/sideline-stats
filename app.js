@@ -2402,24 +2402,33 @@ function openEditor(id){
   const g=currentGame(),p=g.plays.find(x=>x.id===id);if(!p)return;S.editingPlayId=id;
   if(p.type==="Defense"&&p.defCredits){let html=`<div class="muted">Defense • ${esc(p.sub)}</div><label>Defender credits</label>`;html+=S.roster.map(r=>{const cur=Number(p.defCredits[r.id]||0);return `<div class="def-credit-row"><div class="def-credit-player"><span>#${r.jersey}</span> ${esc(r.name)}</div><button type="button" class="credit-btn edit-def-credit ${cur===0.5?"active":""}" data-id="${r.id}" data-v="0.5">0.5</button><button type="button" class="credit-btn edit-def-credit ${cur===1?"active":""}" data-id="${r.id}" data-v="1">1.0</button></div>`;}).join("");$("#editFields").innerHTML=html;$("#editPlayCard").classList.remove("hidden");const temp={...p.defCredits};$$(".edit-def-credit").forEach(b=>b.addEventListener("click",()=>{const pid=b.dataset.id,v=Number(b.dataset.v);if(Number(temp[pid])===v){delete temp[pid];b.classList.remove("active")}else{temp[pid]=v;document.querySelectorAll(`.edit-def-credit[data-id="${pid}"]`).forEach(x=>x.classList.remove("active"));b.classList.add("active")}$("#editPlayCard").dataset.defCredits=JSON.stringify(temp);}));$("#editPlayCard").dataset.defCredits=JSON.stringify(temp);$("#editPlayCard").scrollIntoView({behavior:"smooth",block:"center"});return;}
   let html=`<div class="muted">${esc(p.type)}${p.sub?" • "+esc(p.sub):""}</div>`;
+  const optPlayer=(selected,blank="None")=>`<option value="">${blank}</option>`+playerOptions(selected);
   if(p.type==="Rush"||p.type==="Pass")html+=`<label>Play called <span class="muted">(optional)</span></label><select id="editPlayCall">${playCallOptions(p.playCall)}</select>`;
-  if(p.player)html+=`<label>${p.type==="Pass"?"QB / Player":"Player"}</label><select id="editPlayer">${playerOptions(p.player)}</select>`;
-  if(p.player2)html+=`<label>Receiver</label><select id="editPlayer2">${playerOptions(p.player2)}</select>`;
-  if(p.type==="Rush"||p.type==="Special"||(p.type==="Pass"&&p.sub==="Complete"))html+=`<label>Yards</label><input id="editYards" inputmode="numeric" value="${p.yards||0}">`;
-  if(p.type==="Rush"||p.type==="Special"||(p.type==="Pass"&&p.sub==="Complete")){
-    const choices=["TD","Fumble","1PT","2PT"];
-    html+=`<label>Extras</label><div class="checks">${choices.map(x=>`<label class="check"><input type="checkbox" class="editExtra" value="${x}" ${p.extras?.includes(x)?"checked":""}>${x}</label>`).join("")}</div>`;
-  }
+  if(p.type==="Pass")html+=`<label>Pass result</label><select id="editSub"><option ${p.sub==="Complete"?"selected":""}>Complete</option><option ${p.sub==="Incomplete"?"selected":""}>Incomplete</option><option ${p.sub==="Intercepted"?"selected":""}>Intercepted</option><option ${p.sub==="Sack"?"selected":""}>Sack</option></select>`;
+  if(p.player||["Rush","Pass","Punt","Kickoff","Kickoff Return","Field Goal","Try","Special"].includes(p.type))html+=`<label>${p.type==="Pass"?"QB / Player":"Player"}</label><select id="editPlayer">${optPlayer(p.player)}</select>`;
+  if(p.type==="Pass")html+=`<label>Receiver / intended receiver</label><select id="editPlayer2">${optPlayer(p.player2)}</select><label><input type="checkbox" id="editDrop" ${p.drop?"checked":""}> Drop</label>`;
+  if(["Rush","Pass","Special","Kickoff","Kickoff Return","Punt"].includes(p.type))html+=`<label>Yards</label><input id="editYards" inputmode="numeric" value="${Number(p.yards||0)}">`;
+  if(p.type==="Kickoff")html+=`<label>Kickoff result</label><select id="editKickoffResult"><option value="" ${!p.kickoffResult?"selected":""}>Normal</option><option ${p.kickoffResult==="Touchback"?"selected":""}>Touchback</option><option ${p.kickoffResult==="Out of Bounds"?"selected":""}>Out of Bounds</option><option ${p.kickoffResult==="Onside"?"selected":""}>Onside</option></select>`;
+  if(p.type==="Field Goal")html+=`<label>Distance</label><input id="editFGDistance" inputmode="numeric" value="${Number(p.fieldGoalDistance||p.yards||0)}"><label>Result</label><select id="editFGResult"><option ${p.fieldGoalResult==="Good"?"selected":""}>Good</option><option ${p.fieldGoalResult==="Missed"?"selected":""}>Missed</option><option ${p.fieldGoalResult==="Blocked"?"selected":""}>Blocked</option></select>`;
+  if(p.type==="Try")html+=`<label>Try type</label><select id="editTryType"><option ${p.tryType==="Kick"?"selected":""}>Kick</option><option ${p.tryType==="Run"?"selected":""}>Run</option><option ${p.tryType==="Pass"?"selected":""}>Pass</option></select><label>Result</label><select id="editTryResult"><option ${p.tryResult==="Good"?"selected":""}>Good</option><option ${p.tryResult==="No Good"?"selected":""}>No Good</option></select><label>Point value</label><input id="editTryValue" inputmode="numeric" value="${Number(p.tryValue||p.points||2)}">`;
+  if(["Rush","Pass","Special","Kickoff Return"].includes(p.type)){const choices=["TD","Fumble","Fumble Lost","1PT","2PT"];html+=`<label>Extras</label><div class="checks">${choices.map(x=>`<label class="check"><input type="checkbox" class="editExtra" value="${x}" ${p.extras?.includes(x)?"checked":""}>${x}</label>`).join("")}</div>`;}
+  if(["Rush","Pass","Special","Kickoff Return","Punt"].includes(p.type))html+=`<label>Start spot</label><input id="editStartSpot" inputmode="numeric" value="${p.startSpot??p.stateBefore?.ballSpot??""}"><label>End spot</label><input id="editEndSpot" inputmode="numeric" value="${p.endSpot??p.stateAfter?.ballSpot??""}">`;
   $("#editFields").innerHTML=html;$("#editPlayCard").classList.remove("hidden");$("#editPlayCard").scrollIntoView({behavior:"smooth",block:"center"})
 }
 $("#cancelEdit").addEventListener("click",()=>{$("#editPlayCard").classList.add("hidden");S.editingPlayId=null});
 $("#saveEdit").addEventListener("click",()=>{
   const g=currentGame(),p=g?.plays.find(x=>x.id===S.editingPlayId);if(!p)return;
   if(p.type==="Defense"&&p.defCredits){const credits=JSON.parse($("#editPlayCard").dataset.defCredits||"{}");if(!Object.keys(credits).length)return toast("Select at least one defender");p.defCredits=credits;p.cloudEditedAt=Date.now();rebuildGameState(g);g.ourScore=displayedOurScore(g);persist();$("#editPlayCard").classList.add("hidden");S.editingPlayId=null;renderLiveGame();toast("Play updated");return;}
-  if($("#editPlayer"))p.player=$("#editPlayer").value;if($("#editPlayer2"))p.player2=$("#editPlayer2").value;
+  if($("#editPlayer"))p.player=$("#editPlayer").value||null;if($("#editPlayer2"))p.player2=$("#editPlayer2").value||null;
   if($("#editPlayCall")){const id=$("#editPlayCall").value,found=gamePlanChoices(g).find(x=>x.id===id);p.playCall=id?(found?{id:found.id,number:found.number,name:found.name}:p.playCall):null}
+  if($("#editSub"))p.sub=$("#editSub").value;if($("#editDrop"))p.drop=$("#editDrop").checked;
   p.cloudEditedAt=Date.now();
   if($("#editYards")){const y=parseInt($("#editYards").value,10);if(Number.isNaN(y))return toast("Enter valid yards");p.yards=y}
+  if($("#editKickoffResult"))p.kickoffResult=$("#editKickoffResult").value||null;
+  if($("#editFGDistance")){const d=parseInt($("#editFGDistance").value,10);if(Number.isNaN(d)||d<0)return toast("Enter valid field goal distance");p.fieldGoalDistance=d;p.yards=d;p.fieldGoalResult=$("#editFGResult").value}
+  if($("#editTryType")){p.tryType=$("#editTryType").value;p.sub=p.tryType;p.tryResult=$("#editTryResult").value;const v=parseInt($("#editTryValue").value,10);if(Number.isNaN(v)||v<0)return toast("Enter valid try points");p.tryValue=v;p.points=p.tryResult==="Good"?v:0}
+  if($("#editStartSpot")){const v=$("#editStartSpot").value;p.startSpot=v===""?null:Field.validSpot(Number(v));if(v!==""&&p.startSpot===null)return toast("Enter a start spot from 0 to 100")}
+  if($("#editEndSpot")){const v=$("#editEndSpot").value;p.endSpot=v===""?null:Field.validSpot(Number(v));if(v!==""&&p.endSpot===null)return toast("Enter an end spot from 0 to 100")}
   if($$(".editExtra").length)p.extras=$$(".editExtra").filter(x=>x.checked).map(x=>x.value);
   rebuildGameState(g);g.ourScore=displayedOurScore(g);persist();$("#editPlayCard").classList.add("hidden");S.editingPlayId=null;renderLiveGame();toast("Play updated")
 });
