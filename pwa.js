@@ -1,4 +1,5 @@
-const SIDELINE_STATS_VERSION="4.5.34";
+const SIDELINE_STATS_VERSION="4.5.35";
+window.SIDELINE_STATS_VERSION=SIDELINE_STATS_VERSION;
 
 document.title=`Sideline Stats V${SIDELINE_STATS_VERSION}`;
 window.addEventListener("DOMContentLoaded",()=>{
@@ -7,5 +8,12 @@ window.addEventListener("DOMContentLoaded",()=>{
   const voicePlayBtn=document.querySelector("#voicePlayBtn");
   const voiceStartBtn=document.querySelector("#voiceStartBtn");
   if(voicePlayBtn&&voiceStartBtn){voicePlayBtn.addEventListener("click",()=>{window.setTimeout(()=>{const modal=document.querySelector("#voicePlayModal");if(modal&&!modal.classList.contains("hidden")&&/Start Listening/i.test(voiceStartBtn.textContent||""))voiceStartBtn.click()},80)})}
+  if(!document.querySelector('link[data-ss-followup-css]')){
+    const link=document.createElement('link');
+    link.rel='stylesheet';
+    link.href='./voice-followup.css';
+    link.dataset.ssFollowupCss='1';
+    document.head.appendChild(link);
+  }
 });
 if("serviceWorker" in navigator){window.addEventListener("load",()=>{navigator.serviceWorker.register("./service-worker.js").catch(err=>console.warn("Offline cache registration failed",err))})}

@@ -1,0 +1,9 @@
+/* V4.5.35: keep long player-choice grids usable inside phone modals. */
+.modal .player-grid{
+  max-height:min(48dvh,420px);
+  overflow-y:auto;
+  overflow-x:hidden;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+  padding-right:2px;
+}
