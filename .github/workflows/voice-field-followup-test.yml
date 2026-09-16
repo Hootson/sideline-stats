@@ -17,5 +17,6 @@ jobs:
           node --check voice-play.js
           node --check field-position.js
           node --check field-orientation.js
-      - name: Regression tests
-        run: node --test tests/*.test.cjs tests/gridiron-enhancements.test.js
+          node --check followup-loader.js
+      - name: Follow-up regression tests
+        run: node --test tests/voice-play.test.cjs tests/voice-playcall-followup.test.cjs tests/field-position.test.cjs tests/field-visual-conversion.test.cjs tests/followup-assets.test.cjs
