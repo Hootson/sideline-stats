@@ -1,8 +1,20 @@
-const SIDELINE_STATS_VERSION="4.5.40";
+const SIDELINE_STATS_VERSION="4.5.41";
 window.SIDELINE_STATS_VERSION=SIDELINE_STATS_VERSION;
+const CHECKOUT_CANCEL_KEY="sidelinePendingCheckoutCancellation";
+try{const q=new URLSearchParams(location.search);if(q.get("checkout")==="cancelled"&&/^[0-9a-f-]{36}$/i.test(q.get("subscription_id")||""))sessionStorage.setItem(CHECKOUT_CANCEL_KEY,q.get("subscription_id"))}catch(_){}
+async function recordPendingCheckoutCancellation(){
+  try{
+    const subscriptionId=sessionStorage.getItem(CHECKOUT_CANCEL_KEY);if(!subscriptionId||!window.supabase?.createClient)return;
+    const sb=window.supabase.createClient("https://eyuvgzhkhcpwtcbmsvct.supabase.co","sb_publishable_uMOkwO4jyHen4pz4zCkIuQ_Ss-wUf2l",{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+    const {data:{session}}=await sb.auth.getSession();if(!session?.access_token)return;
+    const {error}=await sb.functions.invoke("cancel-stripe-checkout",{body:{subscriptionId},headers:{Authorization:`Bearer ${session.access_token}`}});if(error)throw error;
+    sessionStorage.removeItem(CHECKOUT_CANCEL_KEY);
+  }catch(e){console.warn("Checkout cancellation analytics skipped",e)}
+}
 
 document.title=`Sideline Stats V${SIDELINE_STATS_VERSION}`;
 window.addEventListener("DOMContentLoaded",()=>{
+  setTimeout(recordPendingCheckoutCancellation,600);
   const heroVersion=document.querySelector('[data-screen="setup"] .hero .muted');
   if(heroVersion)heroVersion.textContent=`V${SIDELINE_STATS_VERSION} • SMART VOICE ENTRY • GRIDIRON EDITION`;
   const voicePlayBtn=document.querySelector("#voicePlayBtn");
