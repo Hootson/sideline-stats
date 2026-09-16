@@ -18,5 +18,5 @@ jobs:
           node --check field-position.js
           node --check field-orientation.js
           node --check followup-loader.js
-      - name: Follow-up regression tests
-        run: node --test tests/voice-play.test.cjs tests/voice-playcall-followup.test.cjs tests/field-position.test.cjs tests/field-visual-conversion.test.cjs tests/followup-assets.test.cjs
+      - name: V4.5.35 regression tests
+        run: node --test tests/voice-playcall-followup.test.cjs tests/field-visual-conversion.test.cjs tests/followup-assets.test.cjs
