@@ -1,0 +1,11 @@
+/* V4.5.35: keep voice player clarification usable on phone-sized screens. */
+#voiceMissingFollowup .player-grid,
+.voice-missing-followup .player-grid,
+[data-voice-followup] .player-grid{
+  max-height:min(48dvh,420px);
+  overflow-y:auto;
+  overflow-x:hidden;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+  padding-right:2px;
+}
