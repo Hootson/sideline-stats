@@ -21,26 +21,33 @@ Deno.serve(async (req) => {
     }
 
     const admin = createClient(url, serviceRole, { auth: { persistSession: false } });
-    const [usersResult, teamsResult, entitlementsResult, gamesResult, playsResult] = await Promise.all([
+    const [usersResult, teamsResult, entitlementsResult, subscriptionsResult, gamesResult, playsResult] = await Promise.all([
       admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
-      admin.from("teams").select("id,intended_plan,created_at", { count: "exact" }),
-      admin.from("team_entitlements").select("tier,trial_started_at,trial_ends_at,paid_access_starts_at,complimentary"),
+      admin.from("teams").select("id,name,intended_plan,created_at", { count: "exact" }),
+      admin.from("team_entitlements").select("team_id,tier,trial_used,trial_started_at,trial_ends_at,paid_access_starts_at,paid_access_ends_at,complimentary,access_source"),
+      admin.from("team_subscriptions").select("team_id,status,created_at,current_period_start,current_period_end"),
       admin.from("games").select("id", { count: "exact", head: true }),
       admin.from("plays").select("id", { count: "exact", head: true }).is("deleted_at", null),
     ]);
-    if (usersResult.error) throw usersResult.error;
-    if (teamsResult.error) throw teamsResult.error;
-    if (entitlementsResult.error) throw entitlementsResult.error;
-    if (gamesResult.error) throw gamesResult.error;
-    if (playsResult.error) throw playsResult.error;
+    for (const result of [usersResult, teamsResult, entitlementsResult, subscriptionsResult, gamesResult, playsResult]) if (result.error) throw result.error;
 
     const users = usersResult.data.users || [];
     const teams = teamsResult.data || [];
     const entitlements = entitlementsResult.data || [];
+    const subscriptions = subscriptionsResult.data || [];
     const now = Date.now();
-    const trialsStarted = entitlements.filter((x) => x.trial_started_at).length;
-    const activeTrials = entitlements.filter((x) => x.tier === "trial" && new Date(x.trial_ends_at || 0).getTime() > now).length;
-    const paidTeams = entitlements.filter((x) => !x.complimentary && ["statkeeper", "team_pro"].includes(x.tier) && x.paid_access_starts_at).length;
+    const trialRows = entitlements.filter((x) => !!x.trial_started_at && !x.complimentary);
+    const trialsStarted = trialRows.length;
+    const convertedRows = trialRows.filter((x) => !!x.paid_access_starts_at && ["statkeeper", "team_pro"].includes(x.tier));
+    const paidTeams = entitlements.filter((x) => !x.complimentary && !!x.paid_access_starts_at && ["statkeeper", "team_pro"].includes(x.tier)).length;
+    const activeTrials = trialRows.filter((x) => !x.paid_access_starts_at && new Date(x.trial_ends_at || 0).getTime() > now).length;
+    const expiredNoPurchase = trialRows.filter((x) => !x.paid_access_starts_at && new Date(x.trial_ends_at || 0).getTime() <= now).length;
+    const conversionRate = trialsStarted ? Math.round((convertedRows.length / trialsStarted) * 1000) / 10 : 0;
+    const conversionHours = convertedRows.map((x) => (new Date(x.paid_access_starts_at).getTime() - new Date(x.trial_started_at).getTime()) / 3600000).filter((x) => Number.isFinite(x) && x >= 0);
+    const averageHoursToPurchase = conversionHours.length ? Math.round((conversionHours.reduce((a,b)=>a+b,0) / conversionHours.length) * 10) / 10 : null;
+    const checkoutStarted = subscriptions.length;
+    const checkoutCompleted = subscriptions.filter((x) => x.status === "active").length;
+    const checkoutAbandoned = subscriptions.filter((x) => ["expired","cancelled"].includes(x.status)).length;
     const planIntent = ["statkeeper", "team_pro"].map((plan) => ({ plan, count: teams.filter((x) => x.intended_plan === plan).length }));
     const days = Array.from({ length: 14 }, (_, i) => {
       const d = new Date(); d.setUTCHours(0, 0, 0, 0); d.setUTCDate(d.getUTCDate() - (13 - i));
@@ -50,9 +57,22 @@ Deno.serve(async (req) => {
     const max = Math.max(1, ...days.map((x) => x.count));
     const recentSignups = days.map((x) => ({ ...x, percent: Math.round((x.count / max) * 100) }));
     return new Response(JSON.stringify({
-      accounts: users.length, teams: teamsResult.count ?? teams.length, trialsStarted, activeTrials, paidTeams,
-      conversionRate: trialsStarted ? Math.round((paidTeams / trialsStarted) * 100) : 0,
-      games: gamesResult.count || 0, plays: playsResult.count || 0, planIntent, recentSignups,
+      accounts: users.length,
+      teams: teamsResult.count ?? teams.length,
+      trialsStarted,
+      activeTrials,
+      expiredNoPurchase,
+      convertedTrials: convertedRows.length,
+      paidTeams,
+      conversionRate,
+      averageHoursToPurchase,
+      checkoutStarted,
+      checkoutCompleted,
+      checkoutAbandoned,
+      games: gamesResult.count || 0,
+      plays: playsResult.count || 0,
+      planIntent,
+      recentSignups,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error) {
     return new Response(JSON.stringify({ error: error?.message || "Could not load metrics" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
