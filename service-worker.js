@@ -1,4 +1,4 @@
-const CACHE='sideline-stats-v4-5-34-gridiron-red-enhancements';
+const CACHE='sideline-stats-v4-5-35-field-voice-fixes';
 const ASSETS=['./','./index.html','./styles.css','./app.js','./field-position.js','./field-orientation.js','./cloud-conflict.js','./game-lifecycle.js','./voice-workflow.js','./edit-play-model.js','./voice-play.js','./coach-analytics.js','./commercial-access.js','./pwa.js','./brand-header.png','./brand-field.png','./icon.png','./snap-tracker.html','./snap-tracker.js','./parent-viewer.html','./parent-viewer.js'];
 
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()))});
