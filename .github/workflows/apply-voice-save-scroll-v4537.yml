@@ -1,0 +1,48 @@
+name: Apply voice save and scroll V4.5.37 hotfix
+on:
+  push:
+    branches: [fix/voice-save-scroll-v4537]
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/voice-save-scroll-v4537
+      - name: Preserve spoken play call when recording
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('app.js'); s=p.read_text()
+          old='''  if(flow.type==="Rush"||flow.type==="Pass")S.flow.playCall=selectedPlayCallSnapshot();'''
+          new='''  if(flow.type==="Rush"||flow.type==="Pass"){
+    if(S.flow.playCall?.number!==undefined&&S.flow.playCall?.number!==null){
+      const spoken=gamePlanChoices(currentGame()).find(p=>Number(p.number)===Number(S.flow.playCall.number));
+      if(spoken)S.flow.playCall={id:spoken.id,number:spoken.number,name:spoken.name};
+    }else S.flow.playCall=selectedPlayCallSnapshot();
+  }'''
+          if new not in s:
+              if s.count(old)!=1: raise SystemExit(f'voice save anchor count={s.count(old)}')
+              s=s.replace(old,new,1)
+          p.write_text(s)
+          if old in s: raise SystemExit('spoken play call is still overwritten')
+          PY
+      - name: Verify hotfix markers
+        run: |
+          grep -q 'const spoken=gamePlanChoices(currentGame()).find' app.js
+          grep -q '#voiceMissingFollowup' voice-followup.css
+          grep -q 'overflow-y:auto !important' voice-followup.css
+          grep -q 'SIDELINE_STATS_VERSION="4.5.37"' pwa.js
+          grep -q 'sideline-stats-v4-5-37-voice-save-scroll' service-worker.js
+          node --check app.js
+          node --check voice-play.js
+      - name: Commit patch
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add app.js
+          git commit -m 'Preserve spoken play calls when recording voice plays'
+          git push origin HEAD:fix/voice-save-scroll-v4537
