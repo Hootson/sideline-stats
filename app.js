@@ -3755,7 +3755,12 @@ $("#voiceStartBtn")?.addEventListener("click",()=>{
 });
 $("#voiceConfirmBtn")?.addEventListener("click",()=>{
   if(!pendingVoiceResult?.ok)return;const flow=JSON.parse(JSON.stringify(pendingVoiceResult.flow)),useSpoken=!!pendingVoiceResult.useSpokenStart;closeVoicePlay();S.flow=flow;
-  if(flow.type==="Rush"||flow.type==="Pass")S.flow.playCall=selectedPlayCallSnapshot();
+  if(flow.type==="Rush"||flow.type==="Pass"){
+  if(S.flow.playCall?.number!==undefined&&S.flow.playCall?.number!==null){
+    const spoken=gamePlanChoices(currentGame()).find(p=>Number(p.number)===Number(S.flow.playCall.number));
+    if(spoken)S.flow.playCall={id:spoken.id,number:spoken.number,name:spoken.name};
+  }else S.flow.playCall=selectedPlayCallSnapshot();
+}
   if(useSpoken){const g=currentGame();g.ballSpot=flow.startSpot;if(!(g.plays||[]).length)g.initialBallSpot=flow.startSpot}
   if(flow.type==="Defense"){S.flow.tackleKind=Number(flow.yards)<0?"TFL":"Tackle";finishSimpleDefensePlay()}else recordNow();
 });
