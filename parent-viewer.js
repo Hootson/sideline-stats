@@ -5,7 +5,7 @@ const token=new URLSearchParams(location.search).get('teamInvite')||'';
 const VIEWER_ID_KEY='sidelineStatsParentViewerId';
 let data=null,currentGameId=null,timer=null,opened=false,lastTrackedGameId=null;
 const $=s=>document.querySelector(s);
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function viewerId(){try{let id=localStorage.getItem(VIEWER_ID_KEY);if(!id){id=crypto.randomUUID?.()||`${Date.now()}-${Math.random().toString(36).slice(2)}`;localStorage.setItem(VIEWER_ID_KEY,id)}return id}catch(_){return crypto.randomUUID?.()||`${Date.now()}-${Math.random().toString(36).slice(2)}`}}
 async function track(eventType,gameId=null){const teamId=data?.team?.id;if(!teamId)return;try{const r=await fetch(`${SUPABASE_URL}/rest/v1/viewer_events`,{method:'POST',headers:{apikey:KEY,Authorization:`Bearer ${KEY}`,'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({team_id:teamId,game_id:gameId||null,session_id:viewerId(),event_type:eventType})});if(!r.ok)console.warn('Viewer analytics skipped',r.status)}catch(e){console.warn('Viewer analytics skipped',e)}}
 async function rpc(){const r=await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_public_team_viewer`,{method:'POST',headers:{apikey:KEY,Authorization:`Bearer ${KEY}`,'Content-Type':'application/json'},body:JSON.stringify({p_token:token})});const txt=await r.text();if(!r.ok)throw new Error((()=>{try{return JSON.parse(txt).message||txt}catch{return txt}})());return JSON.parse(txt)}
