@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
     const admin = createClient(url, serviceRole, { auth: { persistSession: false } });
     const [usersResult, teamsResult, entitlementsResult, subscriptionsResult, gamesResult, playsResult] = await Promise.all([
       admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
-      admin.from("teams").select("id,name,intended_plan,created_at", { count: "exact" }),
+      admin.from("teams").select("id,name,owner_user_id,intended_plan,created_at", { count: "exact" }),
       admin.from("team_entitlements").select("team_id,tier,trial_used,trial_started_at,trial_ends_at,paid_access_starts_at,paid_access_ends_at,complimentary,access_source"),
       admin.from("team_subscriptions").select("team_id,status,created_at,current_period_start,current_period_end"),
       admin.from("games").select("id", { count: "exact", head: true }),
@@ -49,6 +49,27 @@ Deno.serve(async (req) => {
     const checkoutCompleted = subscriptions.filter((x) => x.status === "active").length;
     const checkoutAbandoned = subscriptions.filter((x) => ["expired","cancelled"].includes(x.status)).length;
     const planIntent = ["statkeeper", "team_pro"].map((plan) => ({ plan, count: teams.filter((x) => x.intended_plan === plan).length }));
+    const emailByUser = new Map(users.map((x) => [x.id, x.email || null]));
+    const teamById = new Map(teams.map((x) => [x.id, x]));
+    const recentTrials = trialRows
+      .map((x) => {
+        const team = teamById.get(x.team_id);
+        const paid = !!x.paid_access_starts_at && ["statkeeper", "team_pro"].includes(x.tier);
+        const ended = new Date(x.trial_ends_at || 0).getTime() <= now;
+        return {
+          teamId: x.team_id,
+          teamName: team?.name || "Unknown team",
+          ownerEmail: team?.owner_user_id ? emailByUser.get(team.owner_user_id) || null : null,
+          planIntent: team?.intended_plan || null,
+          tier: x.tier,
+          trialStartedAt: x.trial_started_at,
+          trialEndsAt: x.trial_ends_at,
+          paidAt: x.paid_access_starts_at,
+          status: paid ? "purchased" : ended ? "expired" : "active_trial",
+        };
+      })
+      .sort((a,b) => new Date(b.trialStartedAt || 0).getTime() - new Date(a.trialStartedAt || 0).getTime())
+      .slice(0,50);
     const days = Array.from({ length: 14 }, (_, i) => {
       const d = new Date(); d.setUTCHours(0, 0, 0, 0); d.setUTCDate(d.getUTCDate() - (13 - i));
       const next = new Date(d); next.setUTCDate(next.getUTCDate() + 1);
@@ -73,6 +94,7 @@ Deno.serve(async (req) => {
       plays: playsResult.count || 0,
       planIntent,
       recentSignups,
+      recentTrials,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error) {
     return new Response(JSON.stringify({ error: error?.message || "Could not load metrics" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
