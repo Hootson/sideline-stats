@@ -1,7 +1,5 @@
-/* V4.5.35: keep voice player clarification usable on phone-sized screens. */
-#voiceMissingFollowup .player-grid,
-.voice-missing-followup .player-grid,
-[data-voice-followup] .player-grid{
+/* V4.5.35: keep long player-choice grids usable inside phone modals. */
+.modal .player-grid{
   max-height:min(48dvh,420px);
   overflow-y:auto;
   overflow-x:hidden;
