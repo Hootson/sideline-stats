@@ -1005,6 +1005,20 @@ function renderLogoPreview(targetId,data){
   el.innerHTML=data?`<img src="${data}" alt="Opponent logo preview">`:"";
 }
 
+function quickStartRole(){if(!teamExists())return "statkeeper-new";if(isCloudCoach())return "coach";if(isCloudViewer())return "viewer";return "statkeeper"}
+function renderQuickStart(){
+  const card=$("#quickStartCard"),title=$("#quickStartTitle"),steps=$("#quickStartSteps");if(!card||!title||!steps)return;
+  const role=quickStartRole(),key=`sideline_quick_start_${role}_v1`;let dismissed=false;try{dismissed=localStorage.getItem(key)==="dismissed"}catch(_){ }
+  card.classList.toggle("hidden",dismissed);card.dataset.role=role;if(dismissed)return;
+  const guides={
+    "statkeeper-new":{title:"Set up your statkeeping account",steps:["Sign in and choose the plan you want to try.","Create the team, add its colors and build the roster.","Start a game, then share the permanent Parent Viewer link."]},
+    statkeeper:{title:"Statkeeper game-day flow",steps:["Open or create today's game before kickoff.","Record plays and snaps; changes sync automatically.","Use Share for the Parent Viewer and Snap Tracker links."]},
+    coach:{title:"Coach account guide",steps:["Choose the current game or season in Coach Pro.","Review the read-only stats and play-call analytics.","Add your postgame debrief while the game is fresh."]},
+    viewer:{title:"Parent viewer guide",steps:["Choose the live or completed game in Team Stats.","Scores and box scores update automatically.","Return with this same account whenever you want to follow the team."]}
+  },guide=guides[role];title.textContent=guide.title;steps.innerHTML=guide.steps.map(x=>`<li>${esc(x)}</li>`).join("");
+}
+$("#quickStartClose")?.addEventListener("click",()=>{const card=$("#quickStartCard"),role=card?.dataset.role||quickStartRole();try{localStorage.setItem(`sideline_quick_start_${role}_v1`,"dismissed")}catch(_){ }card?.classList.add("hidden")});
+
 
 function go(name){
   if(!teamExists() && name!=="setup"){toast("Create your team first");name="setup"}
@@ -1022,6 +1036,7 @@ function go(name){
   if(name==="snaps")renderSnaps();
   if(name==="stats"){if(!isCloudViewer()&&currentGame())selectedStatsGameId=currentGame().id;renderStats();}
   if(name==="coach"){renderCoach();if(hasCoachAccess()&&["overview","offense","defense","debrief"].includes(coachTab))loadCoachDebriefs().then(renderCoach)}
+  renderQuickStart();
   
 }
 $$("[data-go]").forEach(b=>b.addEventListener("click",()=>go(b.dataset.go)));
@@ -1040,6 +1055,7 @@ function syncChrome(){
   const activeScreen=$(".screen.active")?.dataset?.screen;
   if(viewer&&activeScreen&&activeScreen!=="stats")go("stats");
   if(coach&&activeScreen&&!['stats','coach'].includes(activeScreen))go("stats");
+  renderQuickStart();
 }
 function defaultCoachSelection(){const game=preferredViewerGame();return game?`game:${game.id}`:"season"}
 function coachSelectedGame(){if(!String(coachSelection).startsWith("game:"))return null;return gameById(String(coachSelection).slice(5))}

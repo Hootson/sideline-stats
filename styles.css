@@ -2,6 +2,7 @@
 *{box-sizing:border-box}
 body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
 .account-confirmation-page{display:none}.confirmation-mode{background:#07130e}.confirmation-mode .app{display:none}.confirmation-mode .account-confirmation-page{min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;background:radial-gradient(circle at 50% 0,#183b2b 0,#07130e 48%,#030806 100%);color:#fff}.confirmation-brand{text-align:center;margin-bottom:24px}.confirmation-football{font-size:44px;filter:grayscale(1) brightness(2)}.confirmation-product{font-size:36px;font-weight:950;line-height:.88;letter-spacing:-.04em}.confirmation-product span,.confirmation-product b{display:block}.confirmation-product b{color:#65b946}.confirmation-edition{display:inline-block;margin-top:9px;padding:4px 12px;background:#65b946;color:#07130e;font-size:11px;font-weight:950;letter-spacing:.15em}.confirmation-card{width:min(100%,460px);text-align:center;background:#fff;color:#102019;border-radius:24px;padding:30px 24px;box-shadow:0 22px 70px #0009;border-bottom:7px solid #65b946}.confirmation-check{width:62px;height:62px;margin:0 auto 14px;display:grid;place-items:center;border-radius:50%;background:#eaf7ed;color:#177b46;font-size:36px;font-weight:950}.confirmation-eyebrow{margin:0;color:#177b46;font-size:12px;font-weight:950;letter-spacing:.14em}.confirmation-card h1{margin:7px 0 10px;font-size:30px}.confirmation-card p:not(.confirmation-eyebrow){color:#5f6d66;line-height:1.45}.confirmation-card .btn{margin-top:10px}.confirmation-card small{display:block;margin-top:16px;color:#748078;line-height:1.4}
+.quick-start{position:relative;margin:12px 14px 0;padding:14px 42px 14px 15px;border:2px solid var(--s);border-left:7px solid var(--p);border-radius:16px;background:#fff;box-shadow:0 3px 13px #00000010}.quick-start-kicker{font-size:10px;font-weight:950;letter-spacing:.12em;color:var(--p)}.quick-start>strong{display:block;margin-top:3px;font-size:17px}.quick-start ol{margin:8px 0 10px;padding-left:20px;color:var(--muted);font-size:13px;line-height:1.45}.quick-start-close{position:absolute;right:10px;top:8px;border:0;background:transparent;color:var(--muted);font-size:24px}.quick-start-install{border:0;border-radius:9px;padding:9px 11px;background:var(--p);color:var(--nav-text,#fff);font-size:12px;font-weight:900}.quick-start-help{margin-top:8px;color:var(--muted);font-size:12px;line-height:1.35}
 .app{max-width:540px;margin:0 auto;min-height:100vh;background:var(--bg)}
 .top{position:sticky;top:0;z-index:20;background:var(--p);color:white;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 1px 7px #0002}
 .brand{font-weight:900;font-size:18px}
@@ -196,17 +197,17 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 
 
 
-.snap-player{grid-template-columns:34px minmax(64px,82px) minmax(86px,1fr) minmax(52px,62px);gap:7px;padding:10px 8px}
+.snap-player{grid-template-columns:34px minmax(0,1fr) minmax(78px,120px) minmax(52px,62px);gap:7px;padding:10px 8px}
 .snap-player-main{min-width:0;overflow:hidden}
 .snap-player-name{line-height:1.05;overflow-wrap:anywhere}
 .snap-player-name .num{display:block;margin:0 0 4px;font-size:19px}
 .snap-player-name .name{display:block;font-size:13px}
-.snap-progress-wrap{display:flex;flex-direction:column;gap:6px}
+.snap-progress-wrap{display:flex;flex-direction:column;gap:5px;max-width:120px;width:100%}
 .snap-progress-top{display:flex;align-items:center;justify-content:space-between;gap:4px}
-.snap-progress-count{font-size:15px;font-weight:950;color:var(--p);white-space:nowrap}
-.snap-progress-status{font-size:9px;font-weight:950;border-radius:999px;padding:3px 5px;background:#fff4ed;color:#9b4300;white-space:nowrap}
+.snap-progress-count{font-size:14px;font-weight:950;color:var(--p);white-space:nowrap}
+.snap-progress-status{font-size:8px;font-weight:950;border-radius:999px;padding:3px 4px;background:#fff4ed;color:#9b4300;white-space:nowrap}
 .snap-progress-status.done{background:#eef5f0;color:var(--p)}
-.snap-bar{height:10px;border-radius:999px;background:#e9eeeb;overflow:hidden;border:1px solid var(--line)}
+.snap-bar{height:7px;border-radius:999px;background:#e9eeeb;overflow:hidden;border:1px solid var(--line)}
 .snap-bar-fill{height:100%;background:var(--s);border-radius:999px;transition:width .15s ease}
 .snap-bar-fill.done{background:var(--p)}
 .snap-player.needs-snaps{border-color:var(--s)}

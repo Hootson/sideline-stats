@@ -1,6 +1,9 @@
-const SIDELINE_STATS_VERSION="4.5.41";
+const SIDELINE_STATS_VERSION="4.5.42";
 window.SIDELINE_STATS_VERSION=SIDELINE_STATS_VERSION;
 const CHECKOUT_CANCEL_KEY="sidelinePendingCheckoutCancellation";
+let sidelineInstallPrompt=null;
+window.addEventListener("beforeinstallprompt",event=>{event.preventDefault();sidelineInstallPrompt=event;document.querySelector("#installAppBtn")?.classList.remove("hidden")});
+window.addEventListener("appinstalled",()=>{sidelineInstallPrompt=null;document.querySelector("#installAppBtn")?.classList.add("hidden");const help=document.querySelector("#installHelp");if(help){help.textContent="Sideline Stats is installed on this device.";help.classList.remove("hidden")}});
 try{const q=new URLSearchParams(location.search);if(q.get("checkout")==="cancelled"&&/^[0-9a-f-]{36}$/i.test(q.get("subscription_id")||""))sessionStorage.setItem(CHECKOUT_CANCEL_KEY,q.get("subscription_id"))}catch(_){}
 async function recordPendingCheckoutCancellation(){
   try{
@@ -34,5 +37,15 @@ window.addEventListener("DOMContentLoaded",()=>{
   if(!document.querySelector('script[data-owner-business]')){
     const script=document.createElement('script');script.src='./owner-business.js';script.dataset.ownerBusiness='1';document.body.appendChild(script);
   }
+  const installBtn=document.querySelector("#installAppBtn"),installHelp=document.querySelector("#installHelp");
+  const standalone=window.matchMedia?.("(display-mode: standalone)")?.matches||navigator.standalone===true;
+  if(standalone)installBtn?.classList.add("hidden");
+  installBtn?.addEventListener("click",async()=>{
+    if(sidelineInstallPrompt){sidelineInstallPrompt.prompt();await sidelineInstallPrompt.userChoice;sidelineInstallPrompt=null;installBtn.classList.add("hidden");return}
+    if(!installHelp)return;
+    const ios=/iphone|ipad|ipod/i.test(navigator.userAgent||"");
+    installHelp.textContent=ios?"In Safari, tap Share, then Add to Home Screen.":"Open your browser menu and choose Install app or Add to Home screen.";
+    installHelp.classList.remove("hidden");
+  });
 });
 if("serviceWorker" in navigator){window.addEventListener("load",()=>{navigator.serviceWorker.register("./service-worker.js").catch(err=>console.warn("Offline cache registration failed",err))})}

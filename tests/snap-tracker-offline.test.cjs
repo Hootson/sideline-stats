@@ -141,7 +141,7 @@ test('shared tracker matches the in-app snap progress and usage view',()=>{
   assert.match(tracker,/aria-label="\$\{count\} of \$\{gameTotal\} total snaps, \$\{snapPct\} percent"/);
   assert.match(tracker,/\$\{count\} \/ \$\{min\}/);
   assert.match(tracker,/NEEDS \$\{Math\.max\(0,min-count\)\}/);
-  assert.match(html,/grid-template-columns:34px minmax\(64px,82px\) minmax\(86px,1fr\) minmax\(52px,62px\)/);
+  assert.match(html,/grid-template-columns:34px minmax\(0,1fr\) minmax\(78px,120px\) minmax\(52px,62px\)/);
   assert.match(html,/\.usage strong/);
 });
 
