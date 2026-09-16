@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sideline Stats V4.5.24</title>
+<title>Sideline Stats</title>
 <meta name="theme-color" content="#177b46">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -46,7 +46,7 @@
 
   <section class="screen active" data-screen="setup">
     <div class="card hero">
-      <div class="muted" style="color:#dfe9e2">V4.5.24 • SCORE ISOLATION • GRIDIRON EDITION</div>
+      <div class="muted" style="color:#dfe9e2">Loading current release • GRIDIRON EDITION</div>
       <h2 id="setupHeading" style="margin-top:6px">Create your team</h2>
       <div id="setupSub">Set colors, build your roster, then stat a game.</div>
     </div>
@@ -681,7 +681,7 @@
   </div>
 </div>
 <div id="snapInviteModal" class="modal-backdrop hidden">
-  <div class="modal-card">
+  <div class="modal-card account-modal-card">
     <button id="snapInviteCloseBtn" class="modal-close" aria-label="Close">×</button>
     <h2>Snap Tracker Link</h2>
     <div class="muted">This link only allows participation tracking for the open game. No login is required.</div>
@@ -694,7 +694,7 @@
   </div>
 </div>
 <div id="authModal" class="modal-backdrop hidden">
-  <div class="modal-card">
+  <div class="modal-card account-modal-card">
     <button id="authCloseBtn" class="modal-close" aria-label="Close">×</button>
     <div id="signedOutAccountPane">
       <h2 id="authHeading">Try Sideline Stats Free for 7 Days</h2>
@@ -756,6 +756,7 @@
 <div id="ownerDashboardModal" class="modal-backdrop hidden"><div class="modal-card owner-dashboard-modal"><button id="ownerDashboardCloseBtn" class="modal-close" aria-label="Close">×</button><h2>Sideline Stats Traction</h2><div class="muted">Private owner view • live production activity</div><div id="ownerMetrics" class="owner-metrics"><div class="inline-note">Loading traction data…</div></div></div></div>
 <div class="toast" id="toast"></div>
 
+<script src="./version.js"></script>
 <script src="./field-orientation.js"></script>
 <script src="./field-position.js"></script>
 <script src="./cloud-conflict.js"></script>

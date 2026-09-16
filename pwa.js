@@ -1,5 +1,4 @@
-const SIDELINE_STATS_VERSION="4.5.42";
-window.SIDELINE_STATS_VERSION=SIDELINE_STATS_VERSION;
+const SIDELINE_STATS_VERSION=window.SIDELINE_STATS_VERSION||"current";
 const CHECKOUT_CANCEL_KEY="sidelinePendingCheckoutCancellation";
 let sidelineInstallPrompt=null;
 window.addEventListener("beforeinstallprompt",event=>{event.preventDefault();sidelineInstallPrompt=event;document.querySelector("#installAppBtn")?.classList.remove("hidden")});

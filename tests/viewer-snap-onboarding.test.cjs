@@ -8,6 +8,7 @@ const snapHtml=fs.readFileSync('snap-tracker.html','utf8');
 const styles=fs.readFileSync('styles.css','utf8');
 const app=fs.readFileSync('app.js','utf8');
 const pwa=fs.readFileSync('pwa.js','utf8');
+const version=fs.readFileSync('version.js','utf8');
 const index=fs.readFileSync('index.html','utf8');
 
 test('parent viewer scoreboard and box scores use team colors',()=>{
@@ -33,5 +34,17 @@ test('role onboarding and install guidance remain wired',()=>{
   for(const role of ['statkeeper-new','statkeeper','coach','viewer'])assert.match(app,new RegExp(role));
   assert.match(pwa,/beforeinstallprompt/);
   assert.match(pwa,/Add to Home Screen/);
-  assert.match(pwa,/SIDELINE_STATS_VERSION="4\.5\.42"/);
+  assert.match(version,/SIDELINE_STATS_VERSION="4\.5\.43"/);
+  assert.match(pwa,/SIDELINE_STATS_VERSION=window\.SIDELINE_STATS_VERSION\|\|"current"/);
+});
+
+test('new parent and coach links carry the active release and account modal stays closable',()=>{
+  assert.doesNotMatch(index,/V4\.5\.24/);
+  assert.doesNotMatch(app,/appVersion:"4\.5\.24"/);
+  assert.match(app,/function releaseInviteUrl\(token\)/);
+  assert.match(app,/searchParams\.set\("release",window\.SIDELINE_STATS_VERSION\|\|"current"\)/);
+  assert.match(styles,/\.modal-card\{[^}]*max-height:calc\(100dvh/);
+  assert.match(styles,/\.modal-card\{[^}]*overflow-y:auto/);
+  assert.match(styles,/\.modal-close\{[^}]*position:sticky/);
+  assert.match(index,/id="authModal"[\s\S]{0,100}class="modal-card account-modal-card"/);
 });

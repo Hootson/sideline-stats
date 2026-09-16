@@ -423,7 +423,7 @@ async function createViewerInvite(){
   try{
     const {data,error}=await SB.rpc("create_team_invite",{p_team_id:S.cloud.teamId,p_role:"viewer",p_expires_days:7});if(error)throw error;
     const token=String(data||"");if(!token)throw new Error("No invitation link was returned");
-    const u=new URL("https://hootson.github.io/sideline-stats/");u.searchParams.set("teamInvite",token);
+    const u=releaseInviteUrl(token);
     const label=`${S.team.name}${S.team.identifier?` — ${S.team.identifier}`:""}`;
     teamInviteShareData={title:`Join ${label} on Sideline Stats`,text:`Create or sign in to your viewer account for ${label}.`,url:u.href};
     $("#teamInviteUrl").value=u.href;$("#teamInviteResult").classList.remove("hidden");
@@ -450,7 +450,7 @@ async function createCoachInvite(){
   try{
     const {data,error}=await SB.rpc("create_coach_invite",{p_team_id:S.cloud.teamId,p_email:email,p_expires_days:7});if(error)throw error;
     const token=String(data||"");if(!token)throw new Error("No invitation link was returned");
-    const u=new URL("https://hootson.github.io/sideline-stats/");u.searchParams.set("teamInvite",token);
+    const u=releaseInviteUrl(token);
     const label=`${S.team.name}${S.team.identifier?` — ${S.team.identifier}`:""}`;
     coachInviteShareData={title:`Join ${label} Coach Pro`,text:`This Coach Pro invitation is for ${email}. Create or sign in using that exact email address to join ${label}.`,url:u.href};
     $("#coachInviteUrl").value=u.href;$("#coachInviteResult").classList.remove("hidden");
@@ -462,6 +462,7 @@ function copyCoachInvite(){
   const fallback=()=>prompt("Copy this coach invitation link",url);
   if(navigator.clipboard?.writeText)navigator.clipboard.writeText(url).then(()=>toast("Coach link copied")).catch(fallback);else fallback();
 }
+function releaseInviteUrl(token){const u=new URL("https://hootson.github.io/sideline-stats/");u.searchParams.set("teamInvite",token);u.searchParams.set("release",window.SIDELINE_STATS_VERSION||"current");return u}
 async function shareCoachInvite(){
   if(!coachInviteShareData)return copyCoachInvite();
   if(!navigator.share)return copyCoachInvite();
@@ -1247,7 +1248,7 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
-$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:"4.5.24",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
+$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:window.SIDELINE_STATS_VERSION||"current",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
 $("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
 $("#restoreDataInput").addEventListener("change",async()=>{
   const f=$("#restoreDataInput").files?.[0];if(!f)return;

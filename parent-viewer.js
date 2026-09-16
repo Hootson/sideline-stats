@@ -3,6 +3,7 @@ const SUPABASE_URL='https://eyuvgzhkhcpwtcbmsvct.supabase.co';
 const KEY='sb_publishable_uMOkwO4jyHen4pz4zCkIuQ_Ss-wUf2l';
 const token=new URLSearchParams(location.search).get('teamInvite')||'';
 const VIEWER_ID_KEY='sidelineStatsParentViewerId';
+document.title=`Sideline Stats V${window.SIDELINE_STATS_VERSION||'current'} Parent Viewer`;
 let data=null,currentGameId=null,timer=null,opened=false,lastTrackedGameId=null;
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
