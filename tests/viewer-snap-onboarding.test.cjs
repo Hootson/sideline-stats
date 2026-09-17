@@ -34,8 +34,20 @@ test('role onboarding and install guidance remain wired',()=>{
   for(const role of ['statkeeper-new','statkeeper','coach','viewer'])assert.match(app,new RegExp(role));
   assert.match(pwa,/beforeinstallprompt/);
   assert.match(pwa,/Add to Home Screen/);
-  assert.match(version,/SIDELINE_STATS_VERSION="4\.5\.52"/);
+  assert.match(version,/SIDELINE_STATS_VERSION="4\.5\.53"/);
   assert.match(pwa,/SIDELINE_STATS_VERSION=window\.SIDELINE_STATS_VERSION\|\|"current"/);
+});
+
+test('returning accounts see an automatic team-loading message',()=>{
+  assert.match(index,/id="returningTeamLoader"[^>]*role="status"/);
+  assert.match(index,/You’re already signed in\. No need to tap Sign In\./);
+  assert.match(styles,/\.returning-team-loader\{[^}]*position:fixed/);
+  assert.match(app,/if\(cloudUser\)\{showReturningTeamLoader\(\);try\{[\s\S]*?await restoreRememberedTeam\(\)[\s\S]*?\}finally\{await hideReturningTeamLoader\(\)\}\}/);
+});
+
+test('the roster navigation also identifies the playbook',()=>{
+  assert.match(index,/data-go="roster"[^>]*>👥<br><span class="nav-long-label">Roster &amp;<br>Playbook<\/span>/);
+  assert.match(app,/roster:"Roster & Playbook"/);
 });
 
 test('new parent and coach links carry the active release and account modal stays closable',()=>{

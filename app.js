@@ -203,6 +203,17 @@ async function resolveCloudDeviceRole(){
 }
 
 let cloudRealtimeChannel=null,cloudRealtimeTimer=null,cloudRealtimeReconnectTimer=null,cloudRealtimeConnected=false,cloudRealtimeRefreshQueued=false,cloudLiveCheckRunning=false;
+let returningTeamLoaderShownAt=0;
+
+function showReturningTeamLoader(){
+  const loader=$("#returningTeamLoader"),title=$("#returningTeamLoaderTitle");if(!loader)return;
+  if(title)title.textContent=teamExists()?`Welcome back—loading ${S.team.name}…`:"Welcome back—loading your team…";
+  returningTeamLoaderShownAt=Date.now();loader.classList.remove("hidden");
+}
+async function hideReturningTeamLoader(){
+  const elapsed=Date.now()-returningTeamLoaderShownAt,remaining=Math.max(0,500-elapsed);if(remaining)await new Promise(resolve=>setTimeout(resolve,remaining));
+  $("#returningTeamLoader")?.classList.add("hidden");returningTeamLoaderShownAt=0;
+}
 
 function stopCloudRealtime(options={}){
   if(cloudRealtimeTimer){clearTimeout(cloudRealtimeTimer);cloudRealtimeTimer=null}
@@ -261,7 +272,7 @@ async function initCloud(){
     if(!window.supabase?.createClient){updateCloudUI("unavailable");return}
     SB=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
     const {data}=await SB.auth.getSession();cloudUser=data?.session?.user||null;cloudReady=true;
-    if(cloudUser){rebaseCloudHashesV443();if(!await redeemPendingGameStatkeeperInvite()&&!await redeemPendingTeamInvite())await restoreRememberedTeam();await handleCheckoutReturn()}else{updateCloudUI();if(pendingGameStatkeeperInviteToken()){openAuth();$("#authMessage").textContent="Create an account or sign in with the invited email to keep stats for this game."}else if(pendingTeamInviteToken()){openAuth();$("#authMessage").textContent="Create an account or sign in to accept this team invitation."}else if(!teamExists())setTimeout(openAuth,250)}
+    if(cloudUser){showReturningTeamLoader();try{rebaseCloudHashesV443();if(!await redeemPendingGameStatkeeperInvite()&&!await redeemPendingTeamInvite())await restoreRememberedTeam();await handleCheckoutReturn()}finally{await hideReturningTeamLoader()}}else{updateCloudUI();if(pendingGameStatkeeperInviteToken()){openAuth();$("#authMessage").textContent="Create an account or sign in with the invited email to keep stats for this game."}else if(pendingTeamInviteToken()){openAuth();$("#authMessage").textContent="Create an account or sign in to accept this team invitation."}else if(!teamExists())setTimeout(openAuth,250)}
     if(isCloudStatkeeper())scheduleCloudSync(300);else setTimeout(checkCloudForUpdates,500);
     setTimeout(startCloudRealtime,800);
     SB.auth.onAuthStateChange((_event,session)=>{
@@ -272,7 +283,7 @@ async function initCloud(){
         setTimeout(startCloudRealtime,800);
       },0);
     });
-  }catch(e){console.error("Cloud init failed",e);updateCloudUI("unavailable")}
+  }catch(e){console.error("Cloud init failed",e);$("#returningTeamLoader")?.classList.add("hidden");updateCloudUI("unavailable")}
 }
 async function handleCheckoutReturn(){
   const url=new URL(location.href),result=url.searchParams.get("checkout"),sessionId=url.searchParams.get("session_id");if(!result)return;
@@ -1189,7 +1200,7 @@ function go(name){
   $$("#bottomNav [data-go]").forEach(b=>b.classList.toggle("active",b.dataset.go===name));
   $$("#coachNav [data-go]").forEach(b=>b.classList.toggle("active",b.dataset.go===name));
   document.body.classList.toggle("coach-mode",name==="coach");
-  $("#topTitle").textContent={setup:"Sideline Stats",roster:"Roster",game:"Game",snaps:"Snaps",stats:isCloudViewer()?"Game Center":"Team Stats",coach:"Coach Pro",share:"Share"}[name];
+  $("#topTitle").textContent={setup:"Sideline Stats",roster:"Roster & Playbook",game:"Game",snaps:"Snaps",stats:isCloudViewer()?"Game Center":"Team Stats",coach:"Coach Pro",share:"Share"}[name];
   if(name==="game")renderGameArea();
   if(name==="snaps")renderSnaps();
   if(name==="stats"){if(!isCloudViewer()&&currentGame())selectedStatsGameId=currentGame().id;renderStats();}

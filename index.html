@@ -651,7 +651,7 @@
   </section>
 
   <nav id="bottomNav" class="hidden">
-    <button data-go="roster">👥<br>Roster</button>
+    <button data-go="roster">👥<br><span class="nav-long-label">Roster &amp;<br>Playbook</span></button>
     <button data-go="game">🏈<br>Game</button>
     <button data-go="snaps">✅<br>Snaps</button>
     <button data-go="stats">📊<br>Stats</button>
@@ -661,6 +661,15 @@
     <button class="active" data-go="stats">📊<br>Stats</button>
     <button data-go="coach">📈<br>Analytics</button>
   </nav>
+</div>
+<div id="returningTeamLoader" class="returning-team-loader hidden" role="status" aria-live="assertive" aria-label="Loading your saved team">
+  <div class="returning-team-loader-card">
+    <div class="returning-team-spinner" aria-hidden="true"></div>
+    <div>
+      <strong id="returningTeamLoaderTitle">Welcome back—loading your team…</strong>
+      <span>You’re already signed in. No need to tap Sign In.</span>
+    </div>
+  </div>
 </div>
 <div id="coachDebriefPromptModal" class="modal-backdrop hidden">
   <div class="modal-card coach-debrief-prompt-card">
