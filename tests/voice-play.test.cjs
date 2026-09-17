@@ -99,6 +99,25 @@ test('infers the tackler forced a fumble and applies number-before-return yardag
   assert.equal(r.ok,true);assert.equal(r.flow.sub,'Complete Pass');assert.equal(r.flow.yards,10);assert.deepEqual(r.flow.tacklerIds,['defender99']);assert.equal(r.flow.forcedFumblePlayerId,'defender99');assert.equal(r.flow.fumbleRecoveryPlayerId,'abe');assert.equal(r.flow.returnYards,15);assert.equal(r.flow.endSpot,80);
 });
 
+test('recognizes picked off language and assigns interception return roles',()=>{
+  const byPlayer=voice.interpretVoiceCommand('Pass was picked off by number four at their 35 and returned 15 yards',roster,{possession:'opp',ballSpot:75,teamName:'Erie Tigers',opponentName:'Chiefs'});
+  assert.equal(byPlayer.ok,true);assert.equal(byPlayer.flow.sub,'INT');assert.equal(byPlayer.flow.interceptionPlayerId,'abe');assert.equal(byPlayer.flow.returnYards,15);assert.equal(byPlayer.flow.endSpot,80);assert.deepEqual(byPlayer.flow.tacklerIds,[]);
+  const playerFirst=voice.interpretVoiceCommand('Number four picked it off at their 35 and ran it back for 15 yards',roster,{possession:'opp',ballSpot:75,teamName:'Erie Tigers',opponentName:'Chiefs'});
+  assert.equal(playerFirst.ok,true);assert.equal(playerFirst.flow.interceptionPlayerId,'abe');assert.equal(playerFirst.flow.returnYards,15);assert.equal(playerFirst.flow.endSpot,80);
+});
+
+test('records pick six and other defensive interception touchdown language',()=>{
+  for(const spoken of ['Pick six by number four','Number four intercepted the pass and took it to the house']){
+    const r=voice.interpretVoiceCommand(spoken,roster,{possession:'opp',ballSpot:75,teamName:'Erie Tigers',opponentName:'Chiefs'});
+    assert.equal(r.ok,true,spoken);assert.equal(r.flow.sub,'INT',spoken);assert.equal(r.flow.interceptionPlayerId,'abe',spoken);assert.equal(r.flow.defensiveTouchdownPlayerId,'abe',spoken);assert.equal(r.flow.endSpot,100,spoken);assert.deepEqual(r.flow.extras,[],spoken);
+  }
+});
+
+test('asks who made a bare picked interception while preserving its spot',()=>{
+  const r=voice.interpretVoiceCommand('The pass was picked at their 35',roster,{possession:'opp',ballSpot:75,teamName:'Erie Tigers',opponentName:'Chiefs'});
+  assert.equal(r.ok,false);assert.equal(r.missing,'interceptor');assert.equal(r.partial.endSpot,65);assert.equal(r.partial.interception,true);
+});
+
 test('recognizes our/their speech-to-text homophones only as field-side words',()=>{
   const offense=voice.interpretVoiceCommand('Number four runs to are 31',roster,{possession:'ours',ballSpot:25,teamName:'Erie Tigers',opponentName:'Falcons'});
   assert.equal(offense.ok,true);assert.equal(offense.flow.endSpot,31);assert.equal(offense.flow.yards,6);

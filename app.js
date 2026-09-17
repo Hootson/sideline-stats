@@ -3858,7 +3858,7 @@ function renderVoiceMissingFollowup(result,transcript){
   const add=(label,fn)=>{const b=document.createElement("button");b.type="button";b.className="btn ghost";b.style.margin="4px";b.textContent=label;b.addEventListener("click",fn);box.appendChild(b)};
   const append=words=>{$("#voiceTranscript").value=`${transcript} ${words}`.trim();clearVoiceMissingFollowup();interpretVoicePlay()};
   if(result.missing==="playType"){add("Run",()=>append("run"));add("Pass",()=>append("pass"))}
-  else if(["runner","tackler","players"].includes(result.missing)){
+  else if(["runner","tackler","players","interceptor"].includes(result.missing)){
     const roster=[...(S.roster||[])].sort((a,b)=>Number(a.jersey)-Number(b.jersey));
     roster.forEach(p=>add(`#${p.jersey} ${p.name}`,()=>append(`number ${p.jersey}`)));
   }else if(result.missing==="passResult"){add("Complete",()=>append("complete"));add("Incomplete",()=>append("incomplete"));add("Intercepted",()=>append("intercepted"))}
@@ -3875,8 +3875,8 @@ function interpretVoicePlay(){
   }
   if(!result.ok&&result.missing==="endSpot"){
     $("#voicePlayStatus").textContent=result.error;$("#voicePlayModal").classList.add("hidden");
-    const turnoverSpot=!!result.partial?.fumbleRecoveryPlayerId,copy=turnoverSpot?{prompt:"End of play — receiver tackle / fumble spot",title:"Where was the receiver tackled and the fumble recovered?"}:{};
-    requestFieldSpot("end",spot=>{$("#voiceTranscript").value=turnoverSpot?`${transcript} receiver tackled and fumble recovered at ${voiceSpotWords(spot)}`:`${transcript} to ${voiceSpotWords(spot)}`;$("#voicePlayModal").classList.remove("hidden");interpretVoicePlay()},copy);return;
+    const turnoverSpot=!!result.partial?.fumbleRecoveryPlayerId,interceptionSpot=!!result.partial?.interception,copy=turnoverSpot?{prompt:"End of play — receiver tackle / fumble spot",title:"Where was the receiver tackled and the fumble recovered?"}:interceptionSpot?{prompt:"End of play — interception spot",title:"Where was the pass intercepted?"}:{};
+    requestFieldSpot("end",spot=>{$("#voiceTranscript").value=turnoverSpot?`${transcript} receiver tackled and fumble recovered at ${voiceSpotWords(spot)}`:interceptionSpot?`${transcript} pass intercepted at ${voiceSpotWords(spot)}`:`${transcript} to ${voiceSpotWords(spot)}`;$("#voicePlayModal").classList.remove("hidden");interpretVoicePlay()},copy);return;
   }
   if(!result.ok){
     $("#voicePlayStatus").textContent=result.error;$("#voicePlayPreview").textContent=`I heard: “${transcript}”`;
