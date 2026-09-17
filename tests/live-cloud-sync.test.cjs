@@ -35,11 +35,12 @@ assert.match(app, /selectedStatsGameId=selectedStatsGameId\|\|preferredViewerGam
 assert.match(app, /find\(g=>g\.status==="live"\)\|\|latestGame\(\)/, 'viewer fallback must use the newest completed game when none are live');
 assert.match(app, /if\(!isCloudViewer\(\)&&currentGame\(\)\)selectedStatsGameId=currentGame\(\)\.id/, 'a statkeeper active game must not override a viewer game selection');
 assert.match(app, /bottomNav"\)\.classList\.toggle\("hidden",!teamExists\(\)\|\|viewer\|\|coach\)/, 'viewer and coach accounts must not see statkeeper navigation tabs');
-assert.match(app, /analyticsExportCard"\)\?\.classList\.toggle\("hidden",viewer\|\|coach\)/, 'viewer and coach raw analytics exports must be hidden');
+assert.doesNotMatch(html, /id="analyticsExportCard"/, 'raw analytics exports must not be exposed to customers');
+assert.match(app, /platform_admin!==true\)return toast\("Owner access is required"\)/, 'local recovery must remain platform-admin only');
 assert.match(app, /function renderViewerGameSummary\(\)/, 'viewer Game Center must render its scoreboard');
 assert.match(html, /id="viewerGameSummary"/, 'Stats must contain the viewer scoreboard destination');
 assert.match(html, /id="shareStatsBtn"/, 'Stats sharing must remain available');
-assert.match(sw, /sideline-stats-v4-5-43-current-links-mobile-modals/, 'service worker cache must match the current release');
+assert.match(sw, /sideline-stats-v4-5-44-checkout-export-cleanup/, 'service worker cache must match the current release');
 assert.match(styles, /nav\{[^}]*background:var\(--p\)/, 'the statkeeper bottom navigation must use the team primary color');
 assert.match(styles, /nav button\.active\{[^}]*var\(--nav-active\)/, 'the active statkeeper tab must use the team accent treatment');
 assert.match(app, /#bottomNav \[data-go\][\s\S]*classList\.toggle\("active"/, 'the current statkeeper tab must receive an active state');

@@ -250,11 +250,18 @@ async function initCloud(){
   }catch(e){console.error("Cloud init failed",e);updateCloudUI("unavailable")}
 }
 async function handleCheckoutReturn(){
-  const url=new URL(location.href),result=url.searchParams.get("checkout");if(!result)return;
+  const url=new URL(location.href),result=url.searchParams.get("checkout"),sessionId=url.searchParams.get("session_id");if(!result)return;
   url.searchParams.delete("checkout");url.searchParams.delete("session_id");history.replaceState({},"",url.href);
   if(result==="cancelled")return toast("Checkout cancelled — nothing was charged");
   toast("Payment received — activating your team plan…");
-  for(let i=0;i<5;i++){await new Promise(r=>setTimeout(r,i?1200:500));await resolveCloudDeviceRole();if(commercialAccess().active){syncChrome();toast(`${window.SidelineCommercialAccess.label(commercialAccess())} is active`);return}}
+  for(let i=0;i<6;i++){
+    await new Promise(r=>setTimeout(r,i?1200:400));
+    try{
+      const {data:{session}}=await SB.auth.getSession();
+      if(session?.access_token&&sessionId){const {data,error}=await SB.functions.invoke("checkout-status",{body:{sessionId},headers:{Authorization:`Bearer ${session.access_token}`}});if(!error&&data?.active){await resolveCloudDeviceRole();syncChrome();toast(`${window.SidelineCommercialAccess.label(commercialAccess())} is active`);return}}
+    }catch(e){console.warn("Checkout status check failed",e)}
+    await resolveCloudDeviceRole();if(commercialAccess().active){syncChrome();toast(`${window.SidelineCommercialAccess.label(commercialAccess())} is active`);return}
+  }
   toast("Payment is processing. Reopen Settings in a moment.");
 }
 async function restoreRememberedTeam(){
@@ -513,7 +520,7 @@ async function loadTeamFromCloud(options={}){
   if(!SB||!cloudUser)return openAuth();if(navigator.onLine===false)return toast("Connect to the internet to load cloud data");
   const refreshing=!!options.refresh, autoRefresh=!!options.auto;
   const priorScreen=$('.screen.active')?.dataset?.screen||"setup";
-  if(!refreshing&&teamExists()&&!options.skipReplaceConfirm&&!confirm("Load a cloud team on this device? This will replace the current local team, roster and games. Export a backup first if you need to keep them."))return;
+  if(!refreshing&&teamExists()&&!options.skipReplaceConfirm&&!confirm("Load a cloud team on this device? This will replace the current local team, roster and games. Cloud-linked team data remains stored in Supabase."))return;
   const btn=refreshing?$("#cloudRefreshBtn"):$("#cloudLoadTeamBtn");if(btn){btn.disabled=true;btn.textContent=refreshing?"Refreshing…":"Loading…"}
   const priorActiveCloudId=S.activeGameId?(S.cloud?.gameIds?.[S.activeGameId]||S.activeGameId):null;
   try{
@@ -1051,7 +1058,6 @@ function syncChrome(){
   $("#statkeeperAnalyticsNav")?.classList.toggle("hidden",!teamExists()||!isCloudStatkeeper()||!hasCoachAccess());
   $("#bottomNav")?.classList.toggle("five-items",isCloudStatkeeper()&&hasCoachAccess());
   $("#editTeamBtn").classList.toggle("hidden",!teamExists()||viewer||coach);
-  $("#analyticsExportCard")?.classList.toggle("hidden",viewer||coach);
   if(teamExists()) $("#editTeamBtn").textContent=`Edit ${S.team.name}`;
   const activeScreen=$(".screen.active")?.dataset?.screen;
   if(viewer&&activeScreen&&activeScreen!=="stats")go("stats");
@@ -1153,7 +1159,7 @@ $("#editTeamBtn").addEventListener("click",()=>{populateSetup();go("setup")});
 $("#resetAllBtn").addEventListener("click",()=>{
   const first=confirm("Reset ALL Sideline Stats data on this device? This permanently deletes the team, roster, games and stats.");
   if(!first)return;
-  const second=confirm("Are you sure? This cannot be undone unless you exported a backup.");
+  const second=confirm("Are you sure? This removes the local copy from this device. Cloud-linked team data remains stored in Supabase.");
   if(!second)return toast("Reset cancelled");
   try{
     localStorage.removeItem(KEY);
@@ -1248,31 +1254,17 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
-$("#backupDataBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:window.SIDELINE_STATS_VERSION||"current",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_backup.json`));
-$("#restoreDataBtn").addEventListener("click",()=>$("#restoreDataInput").click());
-$("#restoreDataInput").addEventListener("change",async()=>{
-  const f=$("#restoreDataInput").files?.[0];if(!f)return;
+$("#ownerBackupDataBtn")?.addEventListener("click",()=>{if(cloudUser?.app_metadata?.platform_admin!==true)return toast("Owner access is required");downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:window.SIDELINE_STATS_VERSION||"current",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_recovery_backup.json`)});
+$("#ownerRestoreDataBtn")?.addEventListener("click",()=>{if(cloudUser?.app_metadata?.platform_admin!==true)return toast("Owner access is required");$("#ownerRestoreDataInput")?.click()});
+$("#ownerRestoreDataInput")?.addEventListener("change",async()=>{
+  const f=$("#ownerRestoreDataInput").files?.[0];if(!f)return;
   try{
     const obj=JSON.parse(await f.text()),data=obj.data||obj;
     if(!data||!Array.isArray(data.roster)||!Array.isArray(data.games))throw new Error("Invalid backup");
     if(!confirm("Restore this backup and replace the current local team data?"))return;
     S=Object.assign({},empty,data);persist();normalizePlaybook();normalizeRoster();normalizeGames();syncChrome();populateSetup();renderRoster();initializeSnapSelections();go(teamExists()?"roster":"setup");toast("Backup restored");
   }catch(e){toast("That backup file could not be restored")}
-  $("#restoreDataInput").value="";
-});
-$("#exportRosterBtn").addEventListener("click",()=>downloadJson({format:"sideline-stats-roster",team:S.team?.name||"",roster:S.roster},`${(S.team?.name||"team").replace(/[^a-z0-9]/gi,"_")}_roster.json`));
-$("#importRosterBtn").addEventListener("click",()=>$("#importRosterInput").click());
-$("#importRosterInput").addEventListener("change",async()=>{
-  const f=$("#importRosterInput").files?.[0];if(!f)return;
-  try{
-    const obj=JSON.parse(await f.text()),r=obj.roster||obj;
-    if(!Array.isArray(r))throw new Error("Invalid roster");
-    const cleaned=r.slice(0,25).map(p=>({id:p.id||uid(),jersey:Number(p.jersey),name:String(p.name||"").trim(),snaps:0})).filter(p=>Number.isFinite(p.jersey)&&p.name);
-    if(!cleaned.length)throw new Error("No players");
-    if(!confirm(`Replace current roster with ${cleaned.length} imported players?`))return;
-    S.roster=cleaned;persist();initializeSnapSelections();renderRoster();toast("Roster imported");
-  }catch(e){toast("That roster file could not be imported")}
-  $("#importRosterInput").value="";
+  $("#ownerRestoreDataInput").value="";
 });
 
 function renderRoster(){
@@ -3691,20 +3683,6 @@ function dataDictionaryRows(){return [
   {Field:"PenaltyPlayer",Meaning:"Roster player ID or Unknown / Team"}
 ]}
 function analyticsPayload(){return {exportedAt:new Date().toISOString(),team:S.team,games:gameRows(),plays:playRows(),playerGameStats:playerGameRows(),teamGameStats:teamGameRows(),snapCounts:snapCountRows(),snapRecords:snapRecordRows(),specialTeams:specialRowsExport(),penalties:penaltyRowsExport(),seasonTotals:seasonRows(),dataDictionary:dataDictionaryRows()}}
-function csvEscape(v){const s=String(v??"");return /[",\n]/.test(s)?`"${s.replace(/"/g,'""')}"`:s}
-function rowsToCsv(rows){if(!rows.length)return "";const cols=Object.keys(rows[0]);return [cols.join(","),...rows.map(r=>cols.map(c=>csvEscape(r[c])).join(","))].join("\n")}
-$("#exportRawBtn").addEventListener("click",()=>downloadJson(analyticsPayload(),`${(S.team?.name||"team").replace(/[^a-z0-9]/gi,"_")}_raw_analytics.json`));
-$("#exportExcelBtn").addEventListener("click",()=>{
-  const data=analyticsPayload(),safe=(S.team?.name||"team").replace(/[^a-z0-9]/gi,"_");
-  if(window.XLSX){
-    const wb=XLSX.utils.book_new();
-    const sheets=[["Games",data.games],["Plays",data.plays],["Player Game Stats",data.playerGameStats],["Team Game Stats",data.teamGameStats],["Snap Counts",data.snapCounts],["Snap Records",data.snapRecords],["Special Teams",data.specialTeams],["Penalties",data.penalties],["Season Totals",data.seasonTotals],["Data Dictionary",data.dataDictionary]];
-    sheets.forEach(([name,rows])=>{const ws=XLSX.utils.json_to_sheet(rows);XLSX.utils.book_append_sheet(wb,ws,name.slice(0,31))});
-    XLSX.writeFile(wb,`${safe}_sideline_stats_analytics.xlsx`);
-  }else{
-    downloadBlob(new Blob([rowsToCsv(data.plays)],{type:"text/csv"}),`${safe}_plays_fallback.csv`);toast("Excel library unavailable; exported raw plays CSV instead");
-  }
-});
 
 function closeVoicePlay(){
   stopVoiceListening(false);

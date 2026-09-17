@@ -12,7 +12,6 @@
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="icon" type="image/png" href="icon.png">
 <link rel="stylesheet" href="./styles.css">
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -120,15 +119,7 @@
       <div class="data-row">
         <div class="copy"><strong>Clear all test data</strong><span>Deletes this team, roster, every saved game and all stats from this device.</span></div>
       </div>
-      <div class="data-tools">
-        <button class="btn ghost" id="backupDataBtn">Backup Team Data</button>
-        <button class="btn ghost" id="restoreDataBtn">Restore Backup</button>
-        <button class="btn ghost" id="exportRosterBtn">Export Roster</button>
-        <button class="btn ghost" id="importRosterBtn">Import Roster</button>
-      </div>
-      <input id="restoreDataInput" type="file" accept="application/json,.json" class="hidden">
-      <input id="importRosterInput" type="file" accept="application/json,.json" class="hidden">
-      <div class="inline-note" style="margin-top:10px">Your game data auto-saves after every action. Backup/restore is optional insurance.</div>
+      <div class="inline-note" style="margin-top:10px">Your game data auto-saves after every action. Cloud-linked team data remains stored in Supabase.</div>
       <button class="btn danger" id="resetAllBtn" style="margin-top:12px">Reset All Data</button>
     </div>
   </section>
@@ -612,15 +603,6 @@
     </div>
     <button class="btn" id="shareStatsBtn" style="margin-top:14px">Share Game Stats</button>
     <div class="share-tip">Shares a Team Summary plus every Player Box Score page. Long stat sheets automatically continue onto additional images.</div>
-    <div class="card export-card" id="analyticsExportCard">
-      <h3>Analytics Export</h3>
-      <div class="muted">Take the raw game, play and snap data to Excel, ChatGPT, Claude or your own dashboard.</div>
-      <div class="data-tools">
-        <button class="btn" id="exportExcelBtn">Export Excel Analytics</button>
-        <button class="btn ghost" id="exportRawBtn">Export Raw JSON</button>
-      </div>
-      <div class="summary-note">Excel includes Games, Plays, Player Game Stats, Team Game Stats, Snap Counts, Snap Records, Special Teams, Season Totals and a Data Dictionary.</div>
-    </div>
   </section>
 
   <section class="screen coach-screen" data-screen="coach">
@@ -753,7 +735,7 @@
   </div>
 </div>
 <div id="plansModal" class="modal-backdrop hidden"><div class="modal-card plans-modal-card"><button id="plansCloseBtn" class="modal-close" aria-label="Close">×</button><h2 id="plansHeading">Choose your team plan</h2><div id="plansSubheading" class="muted">One team, one season. Manual renewal.</div><div class="plan-grid"><article class="plan-option" data-plan-card="statkeeper"><h3>Statkeeper</h3><b>$14.99</b><p>Stats, snaps and live updates.</p><button class="btn ghost plan-checkout" data-plan="statkeeper">Choose Statkeeper</button></article><article class="plan-option recommended" data-plan-card="team_pro"><small>FULL TRIAL ACCESS</small><h3>Team Pro</h3><b>$39.99</b><p>Everything plus analytics, debriefs and five coaches.</p><button class="btn plan-checkout" data-plan="team_pro">Choose Team Pro</button></article></div><div id="plansMessage" class="inline-note">Try every Team Pro feature free for seven days. No card and no automatic charge.</div></div></div>
-<div id="ownerDashboardModal" class="modal-backdrop hidden"><div class="modal-card owner-dashboard-modal"><button id="ownerDashboardCloseBtn" class="modal-close" aria-label="Close">×</button><h2>Sideline Stats Traction</h2><div class="muted">Private owner view • live production activity</div><div id="ownerMetrics" class="owner-metrics"><div class="inline-note">Loading traction data…</div></div></div></div>
+<div id="ownerDashboardModal" class="modal-backdrop hidden"><div class="modal-card owner-dashboard-modal"><button id="ownerDashboardCloseBtn" class="modal-close" aria-label="Close">×</button><h2>Sideline Stats Traction</h2><div class="muted">Private owner view • live production activity</div><div id="ownerMetrics" class="owner-metrics"><div class="inline-note">Loading traction data…</div></div><section class="owner-metric-section"><h3>Emergency local recovery</h3><div class="muted">Platform-admin only. Supabase remains the authoritative source for cloud-linked teams.</div><div class="data-tools"><button class="btn ghost" id="ownerBackupDataBtn" type="button">Download Recovery Backup</button><button class="btn ghost" id="ownerRestoreDataBtn" type="button">Restore Local Backup</button></div><input id="ownerRestoreDataInput" type="file" accept="application/json,.json" class="hidden"></section></div></div>
 <div class="toast" id="toast"></div>
 
 <script src="./version.js"></script>

@@ -14,7 +14,7 @@ async function analytics(admin:any,event_name:string,user_id:string,team_id:stri
 Deno.serve(async(req)=>{
  if(req.method==="OPTIONS")return new Response("ok",{headers:cors(req)});if(req.method!=="POST")return json(req,{error:"Method not allowed"},405);
  try{
-  const stripeKey=Deno.env.get("STRIPE_SECRET_KEY");if(!stripeKey)return json(req,{error:"Stripe Sandbox is not configured yet"},503);
+  const stripeKey=Deno.env.get("STRIPE_SECRET_KEY");if(!stripeKey)return json(req,{error:"Secure checkout is not configured yet"},503);
   const authHeader=req.headers.get("Authorization")||"";if(!authHeader.startsWith("Bearer "))return json(req,{error:"Sign in before choosing a plan"},401);
   const supabaseUrl=Deno.env.get("SUPABASE_URL")!,anonKey=Deno.env.get("SUPABASE_ANON_KEY")!,serviceKey=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const userClient=createClient(supabaseUrl,anonKey,{global:{headers:{Authorization:authHeader}}}),admin=createClient(supabaseUrl,serviceKey,{auth:{persistSession:false,autoRefreshToken:false}});
@@ -31,6 +31,8 @@ Deno.serve(async(req)=>{
   const appUrl="https://hootson.github.io/sideline-stats/",params=new URLSearchParams();params.set("mode","payment");params.set("line_items[0][price]",priceId);params.set("line_items[0][quantity]","1");params.set("success_url",`${appUrl}?checkout=success&session_id={CHECKOUT_SESSION_ID}`);params.set("cancel_url",`${appUrl}?checkout=cancelled&subscription_id=${encodeURIComponent(subscription.id)}`);params.set("client_reference_id",teamId);if(user.email)params.set("customer_email",user.email);params.set("metadata[team_id]",teamId);params.set("metadata[purchaser_user_id]",user.id);params.set("metadata[subscription_id]",subscription.id);params.set("metadata[purchase_kind]",purchaseKind);params.set("payment_intent_data[metadata][team_id]",teamId);params.set("payment_intent_data[metadata][subscription_id]",subscription.id);params.set("payment_intent_data[metadata][purchase_kind]",purchaseKind);
   const stripeResponse=await fetch("https://api.stripe.com/v1/checkout/sessions",{method:"POST",headers:{Authorization:`Bearer ${stripeKey}`,"Content-Type":"application/x-www-form-urlencoded"},body:params}),session=await stripeResponse.json();
   if(!stripeResponse.ok||!session?.url){await admin.from("team_subscriptions").update({status:"expired",updated_at:new Date().toISOString()}).eq("id",subscription.id);await analytics(admin,"checkout_failed",user.id,teamId,{requested_plan:requestedPlan,purchase_kind:purchaseKind});throw new Error(session?.error?.message||"Stripe could not open checkout")}
-  await admin.from("team_subscriptions").update({provider_subscription_id:session.id,updated_at:new Date().toISOString()}).eq("id",subscription.id);return json(req,{url:session.url});
+  const {error:sessionLinkError}=await admin.from("team_subscriptions").update({provider_subscription_id:session.id,updated_at:new Date().toISOString()}).eq("id",subscription.id);
+  if(sessionLinkError){await fetch(`https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(session.id)}/expire`,{method:"POST",headers:{Authorization:`Bearer ${stripeKey}`}}).catch(()=>null);throw new Error("Checkout could not be linked safely. Please try again.")}
+  return json(req,{url:session.url});
  }catch(error){console.error("create-stripe-checkout",error);return json(req,{error:error instanceof Error?error.message:"Checkout could not be started"},500)}
 });
