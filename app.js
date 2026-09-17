@@ -106,9 +106,9 @@ function persist(opts={}){
     const current=localStorage.getItem(KEY);
     if(current)localStorage.setItem(RECOVERY_KEY,current);
     localStorage.setItem(KEY,JSON.stringify(S));
-    if(typeof updateCloudUI==="function")updateCloudUI();
-    if(!opts.skipCloud && typeof scheduleCloudSync==="function")scheduleCloudSync();
   }catch(e){console.error("Save failed",e);toast("Could not save data")}
+  try{if(typeof updateCloudUI==="function")updateCloudUI()}catch(e){console.warn("Cloud status redraw failed",e)}
+  if(!opts.skipCloud&&typeof scheduleCloudSync==="function")scheduleCloudSync();
 }
 
 function lastTeamStorageKey(){return cloudUser?.id?`${LAST_TEAM_KEY_PREFIX}${cloudUser.id}`:null}
@@ -687,7 +687,17 @@ async function refreshFromCloud(){
   if(!cloudLinked())return toast("Connect or load a cloud team first");
   if(navigator.onLine===false)return toast("Connect to the internet to refresh");
   const pending=cloudPendingCount();
-  if(pending>0){const role=await resolveCloudDeviceRole();if(role==="statkeeper"){scheduleCloudSync(0);return toast("Sync retry started")}const detail=cloudPendingItems().slice(0,2).join(", ");return toast(`${pending} viewer change${pending===1?"":"s"} cannot upload${detail?`: ${detail}`:""}`)};
+  if(pending>0){
+    const role=await resolveCloudDeviceRole();
+    if(role==="statkeeper"||role==="substitute_statkeeper"){
+      const btn=$("#cloudRefreshBtn");if(btn){btn.disabled=true;btn.textContent="Syncing Now…"}
+      const ok=await syncCloudNow({forceRestart:true}),remaining=cloudPendingCount();
+      if(btn)btn.disabled=false;updateCloudUI();
+      if(ok&&remaining===0)return toast("All changes synced to Parent Viewer");
+      return toast(S.cloud.lastSyncError||`${remaining} change${remaining===1?"":"s"} still pending — retrying automatically`);
+    }
+    const detail=cloudPendingItems().slice(0,2).join(", ");return toast(`${pending} viewer change${pending===1?"":"s"} cannot upload${detail?`: ${detail}`:""}`)
+  };
   await loadTeamFromCloud({refresh:true});cloudRemoteUpdates=false;updateCloudUI();recordViewerEvent("refresh",S.activeGameId||selectedStatsGameId);
 }
 
@@ -716,7 +726,7 @@ async function connectTeamToCloud(options={}){
   finally{if(btn){btn.disabled=false;btn.textContent="Connect Team"}updateCloudUI()}
 }
 
-let cloudSyncTimer=null,cloudSyncRunning=false,cloudSyncRequested=false,cloudRoleResolvePromise=null;
+let cloudSyncTimer=null,cloudSyncRunning=false,cloudSyncRequested=false,cloudRoleResolvePromise=null,cloudSyncStartedAt=0,cloudSyncRunId=0,cloudSyncWatchdog=null,cloudSyncFailureCount=0;
 function cloudUuid(){return (crypto?.randomUUID?crypto.randomUUID():"xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,c=>{const r=Math.random()*16|0,v=c==="x"?r:(r&3|8);return v.toString(16)}))}
 function simpleHash(value){
   const str=typeof value==="string"?value:JSON.stringify(value);let h=2166136261;
@@ -764,13 +774,21 @@ function rebaseCloudHashesV443(){
     S.cloud.hashVersion=2;persist({skipCloud:true});
   }catch(e){console.warn("Cloud hash rebase skipped",e)}
 }
-function scheduleCloudSync(delay=350){
+function resetStaleCloudSync(message="Previous sync stalled — retrying"){
+  cloudSyncRunId++;cloudSyncRunning=false;cloudSyncStartedAt=0;cloudSyncRequested=false;
+  if(cloudSyncWatchdog){clearTimeout(cloudSyncWatchdog);cloudSyncWatchdog=null}
+  S.cloud.lastSyncError=message;persist({skipCloud:true});updateCloudUI();
+}
+function scheduleCloudSync(delay=150){
   if(!SB||!cloudUser||!cloudLinked())return;
   if(!isCloudStatkeeper()){
-    if(!cloudRoleResolvePromise)cloudRoleResolvePromise=resolveCloudDeviceRole().then(role=>{cloudRoleResolvePromise=null;if(role==="statkeeper")scheduleCloudSync(delay)}).catch(e=>{cloudRoleResolvePromise=null;console.warn("Could not verify statkeeper role",e)});
+    if(!cloudRoleResolvePromise)cloudRoleResolvePromise=resolveCloudDeviceRole().then(role=>{cloudRoleResolvePromise=null;if(role==="statkeeper"||role==="substitute_statkeeper")scheduleCloudSync(delay)}).catch(e=>{cloudRoleResolvePromise=null;console.warn("Could not verify statkeeper role",e)});
     return;
   }
-  if(cloudSyncRunning){cloudSyncRequested=true;return}
+  if(cloudSyncRunning){
+    if(cloudSyncStartedAt&&Date.now()-cloudSyncStartedAt>15000)resetStaleCloudSync();
+    else{cloudSyncRequested=true;return}
+  }
   if(cloudSyncTimer)clearTimeout(cloudSyncTimer);
   cloudSyncTimer=setTimeout(()=>{cloudSyncTimer=null;syncCloudNow()},delay);
 }
@@ -1046,18 +1064,30 @@ async function syncDeletedCloudGames(){
   }
   return changed;
 }
-async function syncCloudNow(){
-  if(cloudSyncRunning){cloudSyncRequested=true;return}
-  if(!SB||!cloudUser||!cloudLinked()||navigator.onLine===false||!isCloudStatkeeper())return;
-  cloudSyncRunning=true;updateCloudUI();
+async function syncCloudNow(options={}){
+  if(options.forceRestart&&cloudSyncRunning){
+    if(cloudSyncStartedAt&&Date.now()-cloudSyncStartedAt<5000){cloudSyncRequested=true;return false}
+    resetStaleCloudSync("Manual retry restarted a stalled sync");
+  }
+  if(cloudSyncRunning){cloudSyncRequested=true;return false}
+  if(!SB||!cloudUser||!cloudLinked()||navigator.onLine===false||!isCloudStatkeeper())return false;
+  const runId=++cloudSyncRunId;let succeeded=false;
+  cloudSyncRunning=true;cloudSyncStartedAt=Date.now();updateCloudUI();
+  cloudSyncWatchdog=setTimeout(()=>{
+    if(runId!==cloudSyncRunId||!cloudSyncRunning)return;
+    resetStaleCloudSync("Cloud sync timed out — retrying automatically");scheduleCloudSync(250);
+  },15000);
+  const ensureCurrentRun=()=>{if(runId!==cloudSyncRunId)throw new Error("Cloud sync was restarted")};
   try{
     const substitute=isSubstituteStatkeeper();
-    if(!substitute){await ensureCloudTeam();await ensureCloudRoster()}
+    if(!substitute){await ensureCloudTeam();ensureCurrentRun();await ensureCloudRoster();ensureCurrentRun()}
     const ordered=[...(S.games||[])].filter(g=>!substitute||S.cloud.gameIds?.[g.id]===S.cloud.substituteGameId).sort((a,b)=>(b.id===S.activeGameId)-(a.id===S.activeGameId));
     const published=[];
-    for(const g of ordered){if(!cloudGameNeedsSync(g))continue;const cloudGameId=await ensureCloudGame(g);for(let i=0;i<(g.plays||[]).length;i++)await syncOnePlay(g,g.plays[i],i,cloudGameId);for(let i=0;i<(g.snapRecords||[]).length;i++)await syncSnapRecord(g,g.snapRecords[i],i,cloudGameId);await ensureCloudGame(g);await publishCloudGame(cloudGameId);published.push(cloudGameId)}
+    for(const g of ordered){if(!cloudGameNeedsSync(g))continue;const cloudGameId=await ensureCloudGame(g);ensureCurrentRun();for(let i=0;i<(g.plays||[]).length;i++){await syncOnePlay(g,g.plays[i],i,cloudGameId);ensureCurrentRun()}for(let i=0;i<(g.snapRecords||[]).length;i++){await syncSnapRecord(g,g.snapRecords[i],i,cloudGameId);ensureCurrentRun()}await ensureCloudGame(g);ensureCurrentRun();await publishCloudGame(cloudGameId);ensureCurrentRun();published.push(cloudGameId)}
     const deletedPlays=await syncDeletedCloudPlays();
+    ensureCurrentRun();
     const deletedSnaps=await syncDeletedCloudSnaps();
+    ensureCurrentRun();
     if(deletedPlays||deletedSnaps){
       const localGameIds=new Set((S.games||[]).map(g=>g.id));
       for(const [localId,cloudGameId] of Object.entries(S.cloud.gameIds||{}))if(localGameIds.has(localId)&&cloudGameId&&!published.includes(cloudGameId))await publishCloudGame(cloudGameId);
@@ -1069,12 +1099,20 @@ async function syncCloudNow(){
     }
     S.cloud.lastSyncAt=new Date().toISOString();S.cloud.lastSyncError=null;
     try{S.cloud.remoteFingerprint=await remoteCloudFingerprint()}catch(_){S.cloud.remoteFingerprint=null}
-    persist({skipCloud:true});setTimeout(checkCloudForUpdates,500);
-  }catch(e){console.error("Cloud sync failed",e);S.cloud.lastSyncError=(e?.message||"Will retry when connected").slice(0,120);persist({skipCloud:true})}
-  finally{const runAgain=cloudSyncRequested;cloudSyncRequested=false;cloudSyncRunning=false;updateCloudUI();if(runAgain)scheduleCloudSync(100)}
+    ensureCurrentRun();persist({skipCloud:true});setTimeout(checkCloudForUpdates,500);cloudSyncFailureCount=0;succeeded=true;
+  }catch(e){if(runId===cloudSyncRunId){console.error("Cloud sync failed",e);S.cloud.lastSyncError=(e?.message||"Will retry when connected").slice(0,120);persist({skipCloud:true})}}
+  finally{
+    if(runId===cloudSyncRunId){
+      if(cloudSyncWatchdog){clearTimeout(cloudSyncWatchdog);cloudSyncWatchdog=null}
+      if(!succeeded)cloudSyncFailureCount++;
+      const runAgain=cloudSyncRequested||cloudPendingCount()>0,delay=succeeded?250:Math.min(30000,1500*Math.pow(2,Math.max(0,cloudSyncFailureCount-1)));cloudSyncRequested=false;cloudSyncRunning=false;cloudSyncStartedAt=0;updateCloudUI();if(runAgain)scheduleCloudSync(delay)
+    }
+  }
+  return succeeded;
 }
 window.addEventListener("online",()=>{if(isCloudStatkeeper())scheduleCloudSync(150);else setTimeout(checkLiveGameRevisions,100);setTimeout(checkCloudForUpdates,500)});
-document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){if(isCloudStatkeeper())scheduleCloudSync(250);else setTimeout(checkLiveGameRevisions,100);setTimeout(checkCloudForUpdates,500)}});
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){if(isCloudStatkeeper())scheduleCloudSync(100);else setTimeout(checkLiveGameRevisions,100);setTimeout(checkCloudForUpdates,500)}else if(isCloudStatkeeper()&&cloudPendingCount()>0)scheduleCloudSync(0)});
+setInterval(()=>{if(!cloudSyncTimer&&document.visibilityState==="visible"&&navigator.onLine!==false&&isCloudStatkeeper()&&cloudPendingCount()>0)scheduleCloudSync(0)},5000);
 
 $("#cloudAccountBtn")?.addEventListener("click",openAuth);
 $("#cloudSignInBtn")?.addEventListener("click",openAuth); $("#cloudSignOutBtn")?.addEventListener("click",cloudSignOut); $("#cloudConnectTeamBtn")?.addEventListener("click",connectTeamToCloud); $("#cloudLoadTeamBtn")?.addEventListener("click",()=>loadTeamFromCloud()); $("#cloudRefreshBtn")?.addEventListener("click",refreshFromCloud);
