@@ -5,6 +5,7 @@ const voice=require('../voice-play.js');
 const roster=[
   {id:'abe',jersey:'4',name:'Abe'},
   {id:'receiver',jersey:'12',name:'Cohen'},
+  {id:'defender23',jersey:'23',name:'Micah'},
   {id:'defender',jersey:'33',name:'Kallum'}
 ];
 
@@ -76,6 +77,11 @@ test('calculates opponent run and credits a defender',()=>{
 test('calculates an opponent sack as a loss',()=>{
   const r=voice.interpretVoiceCommand('Sack by number 33 from their 30 to their 22',roster,{possession:'opp',teamName:'Erie Tigers',opponentName:'Falcons'});
   assert.equal(r.ok,true);assert.equal(r.flow.sub,'Sack');assert.equal(r.flow.yards,-8);
+});
+
+test('recognizes a quarterback was sacked and a trailing yard loss',()=>{
+  const r=voice.interpretVoiceCommand('Quarterback dropped back for a pass and was sacked by number 23 for a six-yard loss',roster,{possession:'opp',ballSpot:50,teamName:'Erie Tigers',opponentName:'Falcons'});
+  assert.equal(r.ok,true);assert.equal(r.flow.type,'Defense');assert.equal(r.flow.sub,'Sack');assert.equal(r.flow.yards,-6);assert.deepEqual(r.flow.tacklerIds,['defender23']);
 });
 
 test('recognizes our/their speech-to-text homophones only as field-side words',()=>{
