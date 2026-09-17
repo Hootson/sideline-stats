@@ -7,7 +7,8 @@ const roster=[
   {id:'receiver',jersey:'12',name:'Cohen'},
   {id:'defender23',jersey:'23',name:'Micah'},
   {id:'defender',jersey:'33',name:'Kallum'},
-  {id:'defender99',jersey:'99',name:'Beckham'}
+  {id:'defender99',jersey:'99',name:'Beckham'},
+  {id:'returner22',jersey:'22',name:'Mason'}
 ];
 
 test('corrects Babe to rostered player Abe and calculates a rush',()=>{
@@ -116,6 +117,21 @@ test('records pick six and other defensive interception touchdown language',()=>
 test('asks who made a bare picked interception while preserving its spot',()=>{
   const r=voice.interpretVoiceCommand('The pass was picked at their 35',roster,{possession:'opp',ballSpot:75,teamName:'Erie Tigers',opponentName:'Chiefs'});
   assert.equal(r.ok,false);assert.equal(r.missing,'interceptor');assert.equal(r.partial.endSpot,65);assert.equal(r.partial.interception,true);
+});
+
+test('records an opponent punt return with possession, returner, yards, and final spot',()=>{
+  const r=voice.interpretVoiceCommand('They punted on 4th down and we returned for about 10 yards to our 17 yard line by number 22',roster,{possession:'opp',ballSpot:60,teamName:'Erie Tigers',opponentName:'Chiefs'});
+  assert.equal(r.ok,true);assert.equal(r.flow.type,'Special');assert.equal(r.flow.sub,'Punt Return');assert.equal(r.flow.opponentPunt,true);assert.equal(r.flow.player,'returner22');assert.equal(r.flow.yards,10);assert.equal(r.flow.startSpot,7);assert.equal(r.flow.endSpot,17);
+});
+
+test('records our punter, punt distance, opponent return, final spot, and turnover',()=>{
+  const r=voice.interpretVoiceCommand('On fourth down number four punted it 50 yards and they returned it for 10 yards to their 35 yard line',roster,{possession:'ours',ballSpot:25,teamName:'Erie Tigers',opponentName:'Chiefs'});
+  assert.equal(r.ok,true);assert.equal(r.flow.type,'Punt');assert.equal(r.flow.player,'abe');assert.equal(r.flow.yards,50);assert.equal(r.flow.puntReturned,true);assert.equal(r.flow.opponentReturnYards,10);assert.equal(r.flow.startSpot,25);assert.equal(r.flow.endSpot,65);
+});
+
+test('records an opponent punt with no return without inventing a returner',()=>{
+  const r=voice.interpretVoiceCommand('They punted and the ball was downed at our 17 yard line',roster,{possession:'opp',ballSpot:60,teamName:'Erie Tigers',opponentName:'Chiefs'});
+  assert.equal(r.ok,true);assert.equal(r.flow.type,'Punt');assert.equal(r.flow.sub,'Opponent Punt');assert.equal(r.flow.player,null);assert.equal(r.flow.puntReturned,false);assert.equal(r.flow.endSpot,17);
 });
 
 test('recognizes our/their speech-to-text homophones only as field-side words',()=>{

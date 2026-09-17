@@ -892,7 +892,7 @@ function buildCloudPlayPayload(g,p,index,cloudGameId){
     p_subtype:p.sub?String(p.sub):null,
     p_yards:Number.isFinite(Number(p.yards))?Number(p.yards):null,
     p_first_down:offensivePlayEarnedFirstDown(p),
-    p_turnover:!!(p.type==="Pass"&&p.sub==="Intercepted"||p.extras?.includes("Fumble Lost")||p.type==="Punt"||p.type==="Possession Switch"||p.interceptionPlayerId||p.fumbleRecoveryPlayerId),
+    p_turnover:!!(p.type==="Pass"&&p.sub==="Intercepted"||p.extras?.includes("Fumble Lost")||p.type==="Punt"||p.type==="Possession Switch"||p.opponentPunt||p.interceptionPlayerId||p.fumbleRecoveryPlayerId),
     p_team_points:teamPts,
     p_opponent_points:oppPts,
     p_event_data:{local_id:p.id,local_index:index,raw:(()=>{const raw={...p};delete raw.cloudRevision;delete raw.cloudEditedAt;if(raw.playCall?.demo)delete raw.playCall;return raw})()},
@@ -1799,6 +1799,7 @@ function applyPlayToState(state,p){
 
   // Punt always hands the ball to the other side.
   if(p.type==="Punt")return {possession:oppositePossession(st.possession),down:1,distance:10};
+  if(p.type==="Special"&&p.sub==="Punt Return"&&(p.opponentPunt||st.possession==="opp"))return {possession:"ours",down:1,distance:10};
 
   if(p.type==="Penalty"){
     const y=Number(p.penaltyYards||0);
@@ -2574,7 +2575,8 @@ function ptext(p){
   if(p.type==="Field Goal")return `Field Goal — ${pname(p.player)} — ${Number(p.fieldGoalDistance||p.yards||0)} yds — ${p.fieldGoalResult||""}${p.fieldGoalResult==="Good"?" +3":""}`;
   if(p.type==="Rush")return `${playCallPrefix(p)}Rush ${pname(p.player)} ${sgn(p.yards)} yds${ex(p)}${p.extras?.includes("Fumble Lost")?" — LOST":""}`;
   if(p.type==="Pass"){if(p.sub==="Complete")return `${playCallPrefix(p)}Pass ${pname(p.player)} → ${pname(p.player2)} ${sgn(p.yards)} yds${ex(p)}${p.extras?.includes("Fumble Lost")?" — LOST":""}`;return `${playCallPrefix(p)}Pass ${pname(p.player)} — ${p.sub}`}
-  if(p.type==="Punt")return `Punt — ${pname(p.player)} ${Math.abs(Number(p.yards)||0)} yds`;
+  if(p.type==="Punt")return `${p.sub==="Opponent Punt"?"Opponent Punt":`Punt — ${pname(p.player)}`} ${Math.abs(Number(p.yards)||0)} yds${p.puntReturned?` · opponent return ${Math.abs(Number(p.opponentReturnYards)||0)} yds`:" · no return"}`;
+  if(p.type==="Special"&&p.sub==="Punt Return")return `${p.opponentPunt?"Opponent Punt — ":""}Punt Return — ${pname(p.player)} ${Math.abs(Number(p.yards)||0)} yds`;
   if(p.type==="Defense"){const bits=[];if(p.defCredits){bits.push(Object.entries(p.defCredits).map(([id,v])=>`${pname(id)}${Number(v)===0.5?" (0.5)":""}`).join(" + "));}if(p.passDefendedPlayerId)bits.push(`PD ${pname(p.passDefendedPlayerId)}`);if(p.interceptionPlayerId)bits.push(`INT ${pname(p.interceptionPlayerId)}${Number.isFinite(Number(p.returnYards))?` ${Number(p.returnYards)} yd return`:""}`);if(p.fumbleRecoveryPlayerId)bits.push(`FR ${pname(p.fumbleRecoveryPlayerId)}${Number.isFinite(Number(p.returnYards))?` ${Number(p.returnYards)} yd return`:""}`);if(p.defensiveTouchdownPlayerId)bits.push(`TD ${pname(p.defensiveTouchdownPlayerId)}`);return `${p.sub}${bits.length?" — "+bits.join(" · "):""}`;}
   return `${p.sub} — ${pname(p.player)} ${sgn(p.yards)} yds${ex(p)}`
 }
@@ -3750,7 +3752,9 @@ function playRows(){
       Drop:p.drop?1:0,
       PassDefended:p.passDefendedPlayerId?1:0,
       PassDefendedPlayer:p.passDefendedPlayerId?pname(p.passDefendedPlayerId):"",
-      ReturnYards:Number(p.returnYards||0),
+      ReturnYards:p.type==="Special"&&p.sub==="Punt Return"?Number(p.yards||0):Number(p.returnYards||0),
+      PuntReturned:p.type==="Punt"?(p.puntReturned?1:0):"",
+      OpponentReturnYards:p.type==="Punt"?Number(p.opponentReturnYards||0):0,
      TryType:p.type==="Try"?(p.tryType||p.sub||""):"",
       TryValue:p.type==="Try"?Number(p.tryValue||p.points||2):0,
      TryResult:p.type==="Try"?(p.tryResult||""):"",
@@ -3805,7 +3809,9 @@ function dataDictionaryRows(){return [
   {Field:"Subtype",Meaning:"Human-readable play event. Compound defensive plays include Forced Fumble, Fumble Recovery, Interception and/or Defensive TD so dashboard tools can see the full event in one field."},
   {Field:"RawSubtype",Meaning:"Original stored subtype before compound defensive event labels are added for export."},
   {Field:"PassDefendedPlayer",Meaning:"Defender credited with a pass breakup on an opponent incomplete pass."},
-  {Field:"ReturnYards",Meaning:"Return yards after a defensive interception or fumble recovery."},
+  {Field:"ReturnYards",Meaning:"Our return yards after a punt, defensive interception or fumble recovery."},
+  {Field:"PuntReturned",Meaning:"1 when a recorded punt was returned; 0 when it was not returned."},
+  {Field:"OpponentReturnYards",Meaning:"Opponent return yards following one of our punts."},
   {Field:"TryType",Meaning:"Post-touchdown try type: Kick, Run or Pass."},
   {Field:"TryValue",Meaning:"Points available if the post-touchdown try succeeds: 1 or 2."},
   {Field:"TryResult",Meaning:"Good or No Good for a post-touchdown try."},
@@ -3858,10 +3864,12 @@ function renderVoiceMissingFollowup(result,transcript){
   const add=(label,fn)=>{const b=document.createElement("button");b.type="button";b.className="btn ghost";b.style.margin="4px";b.textContent=label;b.addEventListener("click",fn);box.appendChild(b)};
   const append=words=>{$("#voiceTranscript").value=`${transcript} ${words}`.trim();clearVoiceMissingFollowup();interpretVoicePlay()};
   if(result.missing==="playType"){add("Run",()=>append("run"));add("Pass",()=>append("pass"))}
-  else if(["runner","tackler","players","interceptor"].includes(result.missing)){
+  else if(["runner","tackler","players","interceptor","returner","punter"].includes(result.missing)){
     const roster=[...(S.roster||[])].sort((a,b)=>Number(a.jersey)-Number(b.jersey));
     roster.forEach(p=>add(`#${p.jersey} ${p.name}`,()=>append(`number ${p.jersey}`)));
   }else if(result.missing==="passResult"){add("Complete",()=>append("complete"));add("Incomplete",()=>append("incomplete"));add("Intercepted",()=>append("intercepted"))}
+  else if(result.missing==="returnYards"){[0,5,10,15,20,25,30].forEach(y=>add(`${y} yards`,()=>append(`returned for ${y} yards`)))}
+  else if(result.missing==="puntYards"){[20,25,30,35,40,45,50].forEach(y=>add(`${y} yards`,()=>append(`punted for ${y} yards`)))}
   else return;
   modal.insertBefore(box,$("#voiceConfirmBtn"));
 }
@@ -3875,8 +3883,8 @@ function interpretVoicePlay(){
   }
   if(!result.ok&&result.missing==="endSpot"){
     $("#voicePlayStatus").textContent=result.error;$("#voicePlayModal").classList.add("hidden");
-    const turnoverSpot=!!result.partial?.fumbleRecoveryPlayerId,interceptionSpot=!!result.partial?.interception,copy=turnoverSpot?{prompt:"End of play — receiver tackle / fumble spot",title:"Where was the receiver tackled and the fumble recovered?"}:interceptionSpot?{prompt:"End of play — interception spot",title:"Where was the pass intercepted?"}:{};
-    requestFieldSpot("end",spot=>{$("#voiceTranscript").value=turnoverSpot?`${transcript} receiver tackled and fumble recovered at ${voiceSpotWords(spot)}`:interceptionSpot?`${transcript} pass intercepted at ${voiceSpotWords(spot)}`:`${transcript} to ${voiceSpotWords(spot)}`;$("#voicePlayModal").classList.remove("hidden");interpretVoicePlay()},copy);return;
+    const turnoverSpot=!!result.partial?.fumbleRecoveryPlayerId,interceptionSpot=!!result.partial?.interception,puntSpot=!!result.partial?.punt,copy=turnoverSpot?{prompt:"End of play — receiver tackle / fumble spot",title:"Where was the receiver tackled and the fumble recovered?"}:interceptionSpot?{prompt:"End of play — interception spot",title:"Where was the pass intercepted?"}:puntSpot?{prompt:"End of play — punt / return spot",title:"Where did the punt or return end?"}:{};
+    requestFieldSpot("end",spot=>{$("#voiceTranscript").value=turnoverSpot?`${transcript} receiver tackled and fumble recovered at ${voiceSpotWords(spot)}`:interceptionSpot?`${transcript} pass intercepted at ${voiceSpotWords(spot)}`:puntSpot?`${transcript} punt ended at ${voiceSpotWords(spot)}`:`${transcript} to ${voiceSpotWords(spot)}`;$("#voicePlayModal").classList.remove("hidden");interpretVoicePlay()},copy);return;
   }
   if(!result.ok){
     $("#voicePlayStatus").textContent=result.error;$("#voicePlayPreview").textContent=`I heard: “${transcript}”`;
