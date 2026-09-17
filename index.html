@@ -225,25 +225,6 @@
         <div class="muted">You can keep stats and finalize this assigned game. Team setup, roster changes, other games, billing, and invitations stay private.</div>
       </div>
 
-      <div class="card hidden" id="substituteStatkeeperCard">
-        <div class="muted">GAME COVERAGE</div>
-        <h3 style="margin:4px 0 6px">Substitute Statkeeper</h3>
-        <div class="muted">Create an email-locked link for one trusted person. They must create or sign in to an account using this exact email, and they will only be able to keep stats for this game.</div>
-        <label for="gameStatkeeperEmail">Substitute email</label>
-        <input id="gameStatkeeperEmail" type="email" autocomplete="email" placeholder="parent@example.com">
-        <button class="btn" id="createGameStatkeeperInviteBtn" type="button" style="margin-top:10px">Create Game Statkeeper Link</button>
-        <div id="gameStatkeeperInviteResult" class="hidden" style="margin-top:12px">
-          <label for="gameStatkeeperInviteUrl">Secure game link</label>
-          <input id="gameStatkeeperInviteUrl" readonly>
-          <div class="row" style="margin-top:8px">
-            <button class="btn" id="shareGameStatkeeperInviteBtn" type="button">Share Link</button>
-            <button class="btn ghost" id="copyGameStatkeeperInviteBtn" type="button">Copy Link</button>
-          </div>
-        </div>
-        <div id="gameStatkeeperStatus" class="muted" style="margin-top:10px">No active substitute link for this game.</div>
-        <button class="btn danger hidden" id="revokeGameStatkeeperBtn" type="button" style="margin-top:10px">Revoke Access &amp; Take Over</button>
-      </div>
-
       <div class="card hidden" id="editGameCard">
         <div class="muted">Game setup</div>
         <h2 style="margin-top:4px">Edit Game Details</h2>
@@ -561,6 +542,25 @@
         <h2>Edit Play</h2>
         <div id="editFields"></div>
         <div class="row" style="margin-top:12px"><button class="btn" id="saveEdit">Save Changes</button><button class="btn ghost" id="cancelEdit">Cancel</button></div>
+      </div>
+
+      <div class="card hidden" id="substituteStatkeeperCard">
+        <div class="muted">GAME COVERAGE</div>
+        <h3 style="margin:4px 0 6px">Substitute Statkeeper</h3>
+        <div class="muted">Create an email-locked link for one trusted person. They must create or sign in to an account using this exact email, and they will only be able to keep stats for this game.</div>
+        <label for="gameStatkeeperEmail">Substitute email</label>
+        <input id="gameStatkeeperEmail" type="email" autocomplete="email" placeholder="parent@example.com">
+        <button class="btn" id="createGameStatkeeperInviteBtn" type="button" style="margin-top:10px">Create Game Statkeeper Link</button>
+        <div id="gameStatkeeperInviteResult" class="hidden" style="margin-top:12px">
+          <label for="gameStatkeeperInviteUrl">Secure game link</label>
+          <input id="gameStatkeeperInviteUrl" readonly>
+          <div class="row" style="margin-top:8px">
+            <button class="btn" id="shareGameStatkeeperInviteBtn" type="button">Share Link</button>
+            <button class="btn ghost" id="copyGameStatkeeperInviteBtn" type="button">Copy Link</button>
+          </div>
+        </div>
+        <div id="gameStatkeeperStatus" class="muted" style="margin-top:10px">No active substitute link for this game.</div>
+        <button class="btn danger hidden" id="revokeGameStatkeeperBtn" type="button" style="margin-top:10px">Revoke Access &amp; Take Over</button>
       </div>
 
       <div class="card">

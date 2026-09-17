@@ -30,5 +30,7 @@ assert.match(app, /roleOverride:"substitute_statkeeper"/, 'redeemed invitations 
 for (const id of ['substituteStatkeeperBanner','substituteStatkeeperCard','gameStatkeeperEmail','createGameStatkeeperInviteBtn','revokeGameStatkeeperBtn']) {
   assert.match(html, new RegExp(`id="${id}"`), `${id} must be present in the live game UI`);
 }
+assert.ok(html.indexOf('id="undo"') < html.indexOf('id="substituteStatkeeperCard"'), 'the substitute link must follow Undo Last Play');
+assert.ok(html.indexOf('id="substituteStatkeeperCard"') < html.indexOf('<h2 style="margin:0">Recent plays</h2>'), 'the substitute link must precede Recent Plays');
 
 console.log('substitute statkeeper checks passed');
