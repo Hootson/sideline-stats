@@ -84,6 +84,14 @@ test('recognizes a quarterback was sacked and a trailing yard loss',()=>{
   assert.equal(r.ok,true);assert.equal(r.flow.type,'Defense');assert.equal(r.flow.sub,'Sack');assert.equal(r.flow.yards,-6);assert.deepEqual(r.flow.tacklerIds,['defender23']);
 });
 
+test('separates a forced fumble, recovery, and return from completion yards',()=>{
+  const spoken='Path play and the quarterback dropped back completed the pass but was tackled by number 23 that forced the fumble and there was a fumble recovery by number four for return of 20 yards';
+  const missing=voice.interpretVoiceCommand(spoken,roster,{possession:'opp',ballSpot:50,teamName:'Erie Tigers',opponentName:'Falcons'});
+  assert.equal(missing.ok,false);assert.equal(missing.missing,'endSpot');assert.deepEqual(missing.partial.tacklerIds,['defender23']);assert.equal(missing.partial.forcedFumblePlayerId,'defender23');assert.equal(missing.partial.fumbleRecoveryPlayerId,'abe');assert.equal(missing.partial.returnYards,20);
+  const r=voice.interpretVoiceCommand(`${spoken} and the return ended at their 40`,roster,{possession:'opp',ballSpot:50,teamName:'Erie Tigers',opponentName:'Falcons'});
+  assert.equal(r.ok,true);assert.equal(r.flow.sub,'Complete Pass');assert.equal(r.flow.yards,10);assert.deepEqual(r.flow.tacklerIds,['defender23']);assert.equal(r.flow.forcedFumblePlayerId,'defender23');assert.equal(r.flow.fumbleRecoveryPlayerId,'abe');assert.equal(r.flow.returnYards,20);assert.equal(r.flow.endSpot,60);
+});
+
 test('recognizes our/their speech-to-text homophones only as field-side words',()=>{
   const offense=voice.interpretVoiceCommand('Number four runs to are 31',roster,{possession:'ours',ballSpot:25,teamName:'Erie Tigers',opponentName:'Falcons'});
   assert.equal(offense.ok,true);assert.equal(offense.flow.endSpot,31);assert.equal(offense.flow.yards,6);
