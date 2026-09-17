@@ -1987,11 +1987,11 @@ populateSignedYardPicker("returnYardsExact",0,99);
 populateSignedYardPicker("fieldGoalDistanceExact",0,99);
 
 for(let n=1;n<=49;n++)$("#fieldYardLine")?.insertAdjacentHTML("beforeend",`<option value="${n}">${n} yard line</option>`);
-function requestFieldSpot(mode,handler){
+function requestFieldSpot(mode,handler,copy={}){
   const g=currentGame();if(!g)return;
   pendingFieldSpotMode=mode;pendingFieldSpotHandler=handler;S.flow.fieldSide=null;
-  $("#fieldPositionPrompt").textContent=mode==="start"?"Beginning of drive":"End of play";
-  $("#fieldPositionTitle").textContent=mode==="start"?"Where does this drive start?":"Where did the play end?";
+  $("#fieldPositionPrompt").textContent=copy.prompt||(mode==="start"?"Beginning of drive":"End of play");
+  $("#fieldPositionTitle").textContent=copy.title||(mode==="start"?"Where does this drive start?":"Where did the play end?");
   $("#fieldSideOurs").textContent=`${S.team.name} side`;$("#fieldSideOpp").textContent=`${g.opponent} side`;
   $("#fieldPositionManual").classList.toggle("hidden",mode!=="end");$("#fieldYardRow").classList.remove("hidden");$("#fieldYardLine").value="25";
   $$(".field-side").forEach(b=>b.classList.remove("selected"));$("#stepFieldPosition").classList.remove("hidden");$("#stepMain").classList.add("hidden");
@@ -3875,7 +3875,8 @@ function interpretVoicePlay(){
   }
   if(!result.ok&&result.missing==="endSpot"){
     $("#voicePlayStatus").textContent=result.error;$("#voicePlayModal").classList.add("hidden");
-    requestFieldSpot("end",spot=>{$("#voiceTranscript").value=`${transcript} to ${voiceSpotWords(spot)}`;$("#voicePlayModal").classList.remove("hidden");interpretVoicePlay()});return;
+    const turnoverSpot=!!result.partial?.fumbleRecoveryPlayerId,copy=turnoverSpot?{prompt:"End of play — receiver tackle / fumble spot",title:"Where was the receiver tackled and the fumble recovered?"}:{};
+    requestFieldSpot("end",spot=>{$("#voiceTranscript").value=turnoverSpot?`${transcript} receiver tackled and fumble recovered at ${voiceSpotWords(spot)}`:`${transcript} to ${voiceSpotWords(spot)}`;$("#voicePlayModal").classList.remove("hidden");interpretVoicePlay()},copy);return;
   }
   if(!result.ok){
     $("#voicePlayStatus").textContent=result.error;$("#voicePlayPreview").textContent=`I heard: “${transcript}”`;

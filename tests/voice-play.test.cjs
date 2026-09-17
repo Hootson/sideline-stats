@@ -6,7 +6,8 @@ const roster=[
   {id:'abe',jersey:'4',name:'Abe'},
   {id:'receiver',jersey:'12',name:'Cohen'},
   {id:'defender23',jersey:'23',name:'Micah'},
-  {id:'defender',jersey:'33',name:'Kallum'}
+  {id:'defender',jersey:'33',name:'Kallum'},
+  {id:'defender99',jersey:'99',name:'Beckham'}
 ];
 
 test('corrects Babe to rostered player Abe and calculates a rush',()=>{
@@ -90,6 +91,12 @@ test('separates a forced fumble, recovery, and return from completion yards',()=
   assert.equal(missing.ok,false);assert.equal(missing.missing,'endSpot');assert.deepEqual(missing.partial.tacklerIds,['defender23']);assert.equal(missing.partial.forcedFumblePlayerId,'defender23');assert.equal(missing.partial.fumbleRecoveryPlayerId,'abe');assert.equal(missing.partial.returnYards,20);
   const r=voice.interpretVoiceCommand(`${spoken} and the return ended at their 40`,roster,{possession:'opp',ballSpot:50,teamName:'Erie Tigers',opponentName:'Falcons'});
   assert.equal(r.ok,true);assert.equal(r.flow.sub,'Complete Pass');assert.equal(r.flow.yards,10);assert.deepEqual(r.flow.tacklerIds,['defender23']);assert.equal(r.flow.forcedFumblePlayerId,'defender23');assert.equal(r.flow.fumbleRecoveryPlayerId,'abe');assert.equal(r.flow.returnYards,20);assert.equal(r.flow.endSpot,60);
+});
+
+test('infers the tackler forced a fumble and applies number-before-return yardage',()=>{
+  const spoken='Quarterback dropped back and completed the pass at their 35 yard line and got tackled by number 99 but there was a fumble on the play and it was recovered by number four for a 15 yard return';
+  const r=voice.interpretVoiceCommand(spoken,roster,{possession:'opp',ballSpot:75,teamName:'Erie Tigers',opponentName:'Chiefs'});
+  assert.equal(r.ok,true);assert.equal(r.flow.sub,'Complete Pass');assert.equal(r.flow.yards,10);assert.deepEqual(r.flow.tacklerIds,['defender99']);assert.equal(r.flow.forcedFumblePlayerId,'defender99');assert.equal(r.flow.fumbleRecoveryPlayerId,'abe');assert.equal(r.flow.returnYards,15);assert.equal(r.flow.endSpot,80);
 });
 
 test('recognizes our/their speech-to-text homophones only as field-side words',()=>{
