@@ -168,3 +168,9 @@ test('uses turnover context to repair a badly transcribed interception',()=>{
   const r=voice.interpretVoiceCommand('Pacifier Exception at their 35 yard line returned 10 yards by number 94 pass',roster,{possession:'opp',ballSpot:14,teamName:'Erie Tigers',opponentName:'Chiefs'});
   assert.equal(r.ok,true);assert.equal(r.flow.sub,'INT');assert.equal(r.flow.interceptionPlayerId,'defender94');assert.equal(r.flow.returnYards,10);assert.equal(r.flow.endSpot,75);assert.deepEqual(r.flow.tacklerIds,[]);
 });
+
+test('understands forced to fumble and player-before-recovery wording',()=>{
+  const spoken='Run for a 2 yard game tackled by number 99 that forced to fumble and number four had a fumble recovery for a 10 yard return';
+  const r=voice.interpretVoiceCommand(spoken,roster,{possession:'opp',ballSpot:19,teamName:'Erie Tigers',opponentName:'Chiefs'});
+  assert.equal(r.ok,true);assert.equal(r.flow.sub,'Opponent Run');assert.equal(r.flow.yards,2);assert.deepEqual(r.flow.tacklerIds,['defender99']);assert.equal(r.flow.forcedFumblePlayerId,'defender99');assert.equal(r.flow.fumbleRecoveryPlayerId,'abe');assert.equal(r.flow.returnYards,10);assert.equal(r.flow.endSpot,27);assert.match(r.summary,/FF #99 Beckham/);assert.match(r.summary,/FR #4 Abe/);assert.match(r.summary,/Erie Tigers 19 → Erie Tigers 27/);
+});

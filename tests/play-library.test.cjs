@@ -7,7 +7,7 @@ const html = fs.readFileSync('index.html', 'utf8');
 const sql = fs.readFileSync('supabase-play-library.sql', 'utf8');
 const version = fs.readFileSync('version.js', 'utf8');
 
-assert.match(version, /SIDELINE_STATS_VERSION="4\.5\.55"/, 'the shared version source must identify the current release');
+assert.match(version, /SIDELINE_STATS_VERSION="4\.5\.56"/, 'the shared version source must identify the current release');
 assert.match(html, /Loading current release/, 'the static shell must not hard-code a stale release number');
 assert.match(app, /function defaultGamePlan\(\)/, 'master plays must produce a default weekly plan');
 assert.match(app, /number<0\|\|number>99/, 'master and weekly play numbers must allow zero and stop at 99');
