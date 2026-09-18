@@ -17,6 +17,9 @@ test('parent viewer scoreboard and box scores use team colors',()=>{
   assert.match(parentJs,/--p-ink/);
   assert.match(parentJs,/--a-ink/);
   assert.match(parentHtml,/Auto-refreshes every 10 seconds|refresh automatically/);
+  assert.match(parentHtml,/<th>TGT<\/th>/,'parent receiving stats should label targets');
+  assert.match(parentJs,/tgt:0,rec:0/,'parent receiving stats should initialize targets for intended receivers');
+  assert.match(parentJs,/s\.tgt\+\+/,'parent receiving stats should count every intended receiver target');
 });
 
 test('both snap views use the compact stacked player layout',()=>{
@@ -34,7 +37,7 @@ test('role onboarding and install guidance remain wired',()=>{
   for(const role of ['statkeeper-new','statkeeper','coach','viewer'])assert.match(app,new RegExp(role));
   assert.match(pwa,/beforeinstallprompt/);
   assert.match(pwa,/Add to Home Screen/);
-  assert.match(version,/SIDELINE_STATS_VERSION="4\.5\.53"/);
+  assert.match(version,/SIDELINE_STATS_VERSION="4\.5\.54"/);
   assert.match(pwa,/SIDELINE_STATS_VERSION=window\.SIDELINE_STATS_VERSION\|\|"current"/);
 });
 

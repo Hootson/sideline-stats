@@ -32,37 +32,51 @@
   function extractReturnYards(text){const clean=normalize(text),num=`(\\d+|(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty)(?:\\s+(?:one|two|three|four|five|six|seven|eight|nine))?)`,approx=`(?:about\\s+|around\\s+|roughly\\s+|approximately\\s+)?`;let m=new RegExp(`\\b(?:for\\s+(?:a\\s+)?)?return(?:ed)?(?:\\s+(?:it|the\\s+ball))?(?:\\s+of|\\s+for)?\\s+${approx}${num}\\s*(?:yard|yards|yd|yds)\\b`).exec(clean),yards=m?spokenNumber(m[1]):null;if(!m){m=new RegExp(`\\b(?:for\\s+(?:a\\s+)?)?${approx}${num}\\s*(?:yard|yards|yd|yds)\\s+return\\b`).exec(clean);yards=m?spokenNumber(m[1]):null}if(!m){m=new RegExp(`\\b(?:ran|run|took|carried)\\s+(?:it|the\\s+ball)\\s+back(?:\\s+for)?\\s+${approx}${num}\\s*(?:yard|yards|yd|yds)\\b`).exec(clean);yards=m?spokenNumber(m[1]):null}if(!m){m=new RegExp(`\\badvanced\\s+(?:it|the\\s+ball)?\\s*${approx}${num}\\s*(?:yard|yards|yd|yds)\\b`).exec(clean);yards=m?spokenNumber(m[1]):null}return m?{yards,phrase:m[0]}:null}
   function extractPuntYards(text){const clean=normalize(text),num=`(\\d+|(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty)(?:\\s+(?:one|two|three|four|five|six|seven|eight|nine))?)`,patterns=[`\\b(?:punt|punts|punted|punting)(?:\\s+(?:the\\s+ball|it))?(?:\\s+(?:for|of))?\\s+(?:about\\s+|around\\s+)?${num}\\s*(?:yard|yards|yd|yds)\\b`,`\\b${num}\\s*(?:yard|yards|yd|yds)\\s+punt\\b`];for(const pattern of patterns){const m=new RegExp(pattern).exec(clean);if(m)return {yards:spokenNumber(m[1]),phrase:m[0]}}return null}
   function puntPlayer(text,mentions,side){const clean=canonicalizeJerseyReferences(text),puntCue=/\b(?:punt|punts|punted|punting)\b/,returnCue=/\b(?:return|returned|returning|fielded|received|ran\s+it\s+back)\b/;if(side==="punter")return mentionAfter(clean,mentions,/\b(?:punt|punts|punted|punting)(?:\s+(?:the\s+ball|it))?\s+by\b/)||mentionBefore(clean,mentions,puntCue)||mentionAfter(clean,mentions,puntCue,30);return mentionAfter(clean,mentions,/\b(?:return|returned|returning|fielded|received)(?:\s+(?:the\s+punt|it))?\s+by\b/)||mentionBefore(clean,mentions,returnCue)||mentionAfter(clean,mentions,returnCue)||((mentions||[]).length===1?mentions[0].player:null)}
-  function extractPlayCall(text){const clean=normalize(text);const m=new RegExp(`\\b(?:we\\s+)?(?:called|call|calling)\\s+(?:the\\s+)?play(?:\\s+(?:number|#))?\\s+(${NUMBER_PATTERN}|\\d{1,2})\\b|\\b(?:the\\s+)?play\\s+(?:called\\s+)?(?:was\\s+)?(?:number|#)\\s*(${NUMBER_PATTERN}|\\d{1,2})\\b|\\bplay\\s+(?:number\\s+)?(${NUMBER_PATTERN}|\\d{1,2})\\s+(?:was|and|then|with)\\b`).exec(clean);if(!m)return null;const n=spokenNumber(m[1]||m[2]||m[3],true);return n===null?null:{number:String(n)}}
+  function findPlayCall(text){
+    const clean=normalize(text),number=`(${NUMBER_PATTERN}|\\d{1,2})`,patterns=[
+      `\\b(?:(?:the\\s+)?coach\\s+)?(?:we\\s+)?(?:called|calls|call|calling)\\s+(?:the\\s+)?play(?:\\s+call)?(?:\\s+(?:number|#))?\\s*${number}\\b`,
+      `\\b(?:the\\s+)?play\\s+call(?:ed)?(?:\\s+(?:was|is))?(?:\\s+(?:number|#))?\\s*${number}\\b`,
+      `\\b(?:the\\s+)?play(?:\\s+called)?(?:\\s+(?:was|is))?\\s+(?:number|#)\\s*${number}\\b`,
+      `\\b(?:the\\s+)?play\\s+(?:number\\s+)?${number}\\s+(?:was\\s+called|was|is|and|then|with)\\b`,
+      `\\b(?:that|it|this)\\s+(?:was|is)\\s+(?:called\\s+)?play(?:\\s+(?:number|#))?\\s*${number}\\b`,
+      `\\b(?:we\\s+)?(?:ran|run|used|selected)\\s+(?:the\\s+)?play(?:\\s+(?:number|#))?\\s*${number}\\b`
+    ];
+    const matches=[];
+    for(const pattern of patterns){const m=new RegExp(pattern).exec(clean);if(!m)continue;const n=spokenNumber(m[1],true);if(n!==null)matches.push({number:String(n),index:m.index,end:m.index+m[0].length})}
+    return matches.sort((a,b)=>a.index-b.index||(b.end-b.index)-(a.end-a.index))[0]||null
+  }
+  function extractPlayCall(text){const match=findPlayCall(text);return match?{number:match.number}:null}
+  function withoutPlayCall(text,match){const clean=normalize(text);if(!match)return clean;return normalize(`${clean.slice(0,match.index)} ${clean.slice(match.end)}`)}
   function fail(message,transcript,missing,partial){return {ok:false,error:message,transcript:String(transcript||""),missing:missing||null,partial:partial||null}}
   function isSack(text){return /\bsack(?:ed|s)?\b/.test(text)}
   function inferPlayType(clean,mentions,isDefense){const passCue=/\b(pass|passes|passed|throw|throws|threw|complete|completed|completion|incomplete|caught|catch|targeted|intended)\b/.test(clean)||isSack(clean)||isInterception(clean);const runCue=/\b(run|runs|ran|rush|rushes|rushed|carry|carries|carried|keeper|kept|scramble|scrambled|handoff|hand off)\b/.test(clean);if(passCue&&!runCue)return "pass";if(runCue&&!passCue)return "run";if(isDefense&&(isSack(clean)||isInterception(clean)))return "pass";if(!isDefense&&mentions.length>=2&&/\b(to|for)\b/.test(clean))return "pass";if(!isDefense&&mentions.length===1&&/\b(tackled|stopped|down at|up the middle|around the end|sweep|toss)\b/.test(clean))return "run";return null}
   function interpretVoiceCommand(transcript,roster,context){
-    const ctx=context||{},clean=applyCorrections(transcript,ctx.voiceCorrections),mentions=playerMentions(clean,roster),positions=parsePositions(clean,ctx),playCall=extractPlayCall(clean);
+    const ctx=context||{},clean=applyCorrections(transcript,ctx.voiceCorrections),playCallMatch=findPlayCall(clean),playCall=playCallMatch?{number:playCallMatch.number}:null,playText=withoutPlayCall(clean,playCallMatch),mentions=playerMentions(playText,roster),positions=parsePositions(playText,ctx);
     if(!clean)return fail("Say or type a play first.",transcript);
-    const isDefense=ctx.possession==="opp",puntPlay=isPunt(clean),inferredType=inferPlayType(clean,mentions,isDefense),isPass=inferredType==="pass",isRun=inferredType==="run",roles=isDefense?defensiveRoles(clean,mentions):null,returnInfo=(isDefense||puntPlay)?extractReturnYards(clean):null,puntInfo=puntPlay?extractPuntYards(clean):null,defensiveReturnTD=isDefense&&isDefensiveReturnTouchdown(clean);
+    const isDefense=ctx.possession==="opp",puntPlay=isPunt(playText),inferredType=inferPlayType(playText,mentions,isDefense),isPass=inferredType==="pass",isRun=inferredType==="run",roles=isDefense?defensiveRoles(playText,mentions):null,returnInfo=(isDefense||puntPlay)?extractReturnYards(playText):null,puntInfo=puntPlay?extractPuntYards(playText):null,defensiveReturnTD=isDefense&&isDefensiveReturnTouchdown(playText);
     let start=positions.length>1?positions[0].spot:null,end=positions.length>1?positions[positions.length-1].spot:(positions.length===1?positions[0].spot:null);
-    if(positions.length===1&&/\b(?:from|starting(?: at)?|started(?: at)?)\s*$/.test(clean.slice(0,positions[0].index))){start=end;end=null}
+    if(positions.length===1&&/\b(?:from|starting(?: at)?|started(?: at)?)\s*$/.test(playText.slice(0,positions[0].index))){start=end;end=null}
     const spokenStart=start;
     if(start===null&&field.validSpot(ctx.ballSpot)!==null)start=Number(ctx.ballSpot);
-    if(defensiveReturnTD)end=100;else if(/\b(touchdown|end zone|td)\b/.test(clean))end=field.spotFromSide("endzone",0,ctx.possession);
-    const directYards=extractYards(returnInfo?clean.replace(returnInfo.phrase," "):clean);
+    if(defensiveReturnTD)end=100;else if(/\b(touchdown|end zone|td)\b/.test(playText))end=field.spotFromSide("endzone",0,ctx.possession);
+    const directYards=extractYards(returnInfo?playText.replace(returnInfo.phrase," "):playText);
     let yards=start!==null&&end!==null?field.yardsBetween(start,end,ctx.possession):directYards;
-    if(isDefense&&!puntPlay&&returnInfo&&start!==null&&end!==null){const returnEndedAt=/\breturn(?:ed)?\s+(?:ended\s+)?(?:at|to)\b/.test(clean);if(returnEndedAt){const recoverySpot=field.advanceSpot(end,-returnInfo.yards,"ours");yards=field.yardsBetween(start,recoverySpot,"opp")}else{const recoverySpot=end;yards=field.yardsBetween(start,recoverySpot,"opp");end=field.advanceSpot(recoverySpot,returnInfo.yards,"ours")}}
-    const partial={startSpot:start,endSpot:end,playType:isRun?"Rush":isPass?"Pass":null,playerIds:mentions.map(x=>x.player.id),playCall,punt:puntPlay,puntYards:puntInfo?.yards??null,interception:isInterception(clean),tacklerIds:roles?.tacklerIds||[],forcedFumblePlayerId:roles?.forcedFumblePlayerId||null,fumbleRecoveryPlayerId:roles?.fumbleRecoveryPlayerId||null,interceptionPlayerId:roles?.interceptionPlayerId||null,defensiveTouchdownPlayerId:defensiveReturnTD?roles?.interceptionPlayerId||null:null,returnYards:returnInfo?.yards??0};
+    if(isDefense&&!puntPlay&&returnInfo&&start!==null&&end!==null){const returnEndedAt=/\breturn(?:ed)?\s+(?:ended\s+)?(?:at|to)\b/.test(playText);if(returnEndedAt){const recoverySpot=field.advanceSpot(end,-returnInfo.yards,"ours");yards=field.yardsBetween(start,recoverySpot,"opp")}else{const recoverySpot=end;yards=field.yardsBetween(start,recoverySpot,"opp");end=field.advanceSpot(recoverySpot,returnInfo.yards,"ours")}}
+    const partial={startSpot:start,endSpot:end,playType:isRun?"Rush":isPass?"Pass":null,playerIds:mentions.map(x=>x.player.id),playCall,punt:puntPlay,puntYards:puntInfo?.yards??null,interception:isInterception(playText),tacklerIds:roles?.tacklerIds||[],forcedFumblePlayerId:roles?.forcedFumblePlayerId||null,fumbleRecoveryPlayerId:roles?.fumbleRecoveryPlayerId||null,interceptionPlayerId:roles?.interceptionPlayerId||null,defensiveTouchdownPlayerId:defensiveReturnTD?roles?.interceptionPlayerId||null:null,returnYards:returnInfo?.yards??0};
     const conflict=spokenStart!==null&&field.validSpot(ctx.ballSpot)!==null&&Number(spokenStart)!==Number(ctx.ballSpot)?{spoken:Number(spokenStart),current:Number(ctx.ballSpot)}:null;
     const decorate=result=>{if(playCall)result.flow.playCall=playCall;const locations=start!==null?`${field.label(start,ctx.teamName,ctx.opponentName)}${end!==null?` → ${field.label(end,ctx.teamName,ctx.opponentName)}`:""}`:"";if(locations)result.summary+=` • ${locations}`;if(playCall)result.summary+=` • Called play ${playCall.number}`;if(conflict)result.conflict=conflict;return result};
     if(puntPlay){
       if(end===null)return fail("I kept the punt details. Where did the return or punt end?",transcript,"endSpot",partial);
-      const noReturn=/\b(?:fair\s+(?:catch|caught)|downed|not\s+returned|no\s+return|out\s+of\s+bounds|touchback)\b/.test(clean);
+      const noReturn=/\b(?:fair\s+(?:catch|caught)|downed|not\s+returned|no\s+return|out\s+of\s+bounds|touchback)\b/.test(playText);
       if(isDefense){
         if(noReturn){const puntYards=start!==null?field.yardsBetween(start,end,"opp"):0,flow={type:"Punt",sub:"Opponent Punt",opponentPunt:true,player:null,yards:Number(puntYards||0),startSpot:start,endSpot:end,extras:[],puntReturned:false,opponentReturnYards:0};return decorate({ok:true,flow,summary:`Opponent Punt — no return`,transcript:String(transcript),inferred:{playType:true}})}
-        const returner=puntPlayer(clean,mentions,"returner");
+        const returner=puntPlayer(playText,mentions,"returner");
         if(!returner)return fail("I kept the opponent punt. Who returned it?",transcript,"returner",partial);
         if(!returnInfo)return fail("I kept the returner and ending spot. How many return yards?",transcript,"returnYards",partial);
         const catchSpot=field.advanceSpot(end,-returnInfo.yards,"ours"),flow={type:"Special",sub:"Punt Return",opponentPunt:true,player:returner.id,yards:Number(returnInfo.yards),startSpot:catchSpot,endSpot:end,extras:[]};
         return {ok:true,flow,summary:`Opponent Punt — #${returner.jersey} ${returner.name} — ${returnInfo.yards}-yard return • Ball at ${field.label(end,ctx.teamName,ctx.opponentName)}`,transcript:String(transcript),inferred:{playType:true}}
       }
-      const punter=puntPlayer(clean,mentions,"punter");
+      const punter=puntPlayer(playText,mentions,"punter");
       if(!punter)return fail("I kept our punt. Who punted it?",transcript,"punter",partial);
       let puntYards=puntInfo?.yards??null;
       if(puntYards===null&&start!==null){const landingSpot=returnInfo?field.advanceSpot(end,returnInfo.yards,"ours"):end;puntYards=field.yardsBetween(start,landingSpot,"ours")}
@@ -72,10 +86,10 @@
     }
     if(!isPass&&!isRun)return fail("I kept what I heard. Just tell me whether it was a run or pass.",transcript,"playType",partial);
     if(start===null)return fail("What was the starting field position?",transcript,"startSpot",partial);
-    if((isRun||/\b(complete|completed|completion|caught|tackled)\b/.test(clean)||isSack(clean)||isInterception(clean))&&end===null&&yards===null)return fail(roles?.fumbleRecoveryPlayerId?"I kept the tackle, fumble, recovery, and return. Where was the receiver tackled and the fumble recovered?":isInterception(clean)?"I kept the interception and return. Where was the pass intercepted?":"I kept the play details. Just tell me where the play ended.",transcript,"endSpot",partial);
-    const extras=/\b(touchdown|end zone|td)\b/.test(clean)&&!defensiveReturnTD?["TD"]:[];
+    if((isRun||/\b(complete|completed|completion|caught|tackled)\b/.test(playText)||isSack(playText)||isInterception(playText))&&end===null&&yards===null)return fail(roles?.fumbleRecoveryPlayerId?"I kept the tackle, fumble, recovery, and return. Where was the receiver tackled and the fumble recovered?":isInterception(playText)?"I kept the interception and return. Where was the pass intercepted?":"I kept the play details. Just tell me where the play ended.",transcript,"endSpot",partial);
+    const extras=/\b(touchdown|end zone|td)\b/.test(playText)&&!defensiveReturnTD?["TD"]:[];
     if(isDefense){
-      let sub=isRun?"Opponent Run":isSack(clean)?"Sack":/\bincomplete\b/.test(clean)?"Incomplete Pass":isInterception(clean)?"INT":"Complete Pass";
+      let sub=isRun?"Opponent Run":isSack(playText)?"Sack":/\bincomplete\b/.test(playText)?"Incomplete Pass":isInterception(playText)?"INT":"Complete Pass";
       if(sub==="Incomplete Pass"||sub==="INT")yards=0;
       const tacklers=roles.tacklerIds;
       if(!["Incomplete Pass","INT"].includes(sub)&&!tacklers.length)return fail("I kept the play. Just tell me who made the tackle.",transcript,"tackler",partial);
@@ -87,15 +101,15 @@
       if(flow.interceptionPlayerId)events.push(`INT ${playerLabel(flow.interceptionPlayerId)}`);
       if(returnInfo)events.push(`${returnInfo.yards}-yard return`);
       if(flow.defensiveTouchdownPlayerId)events.push(`TD ${playerLabel(flow.defensiveTouchdownPlayerId)}`);
-      return decorate({ok:true,flow,summary:`${sub} — ${Number(yards||0)} yards${who?` — tackle ${who}`:""}${events.length?` — ${events.join(" • ")}`:""}`,transcript:String(transcript),inferred:{playType:!/(pass|run|rush|carry)/.test(clean)}})
+      return decorate({ok:true,flow,summary:`${sub} — ${Number(yards||0)} yards${who?` — tackle ${who}`:""}${events.length?` — ${events.join(" • ")}`:""}`,transcript:String(transcript),inferred:{playType:!/(pass|run|rush|carry)/.test(playText)}})
     }
-    if(isRun){if(!mentions.length)return fail("I kept the rush. Just tell me who carried the ball.",transcript,"runner",partial);const p=mentions[0].player;return decorate({ok:true,flow:{type:"Rush",player:p.id,yards:Number(yards||0),startSpot:start,endSpot:end,extras},summary:`Rush — #${p.jersey} ${p.name} — ${Number(yards||0)} yards`,transcript:String(transcript),inferred:{playType:!/(run|rush|carry)/.test(clean)}})}
-    let sub=/\b(intercepted|interception|picked)\b/.test(clean)?"Intercepted":/\bincomplete\b/.test(clean)?"Incomplete":/\b(complete|completed|completion|caught|catch)\b/.test(clean)?"Complete":null;
-    if(!sub&&/\b(to|for)\b/.test(clean)&&mentions.length>=2&&end!==null)sub="Complete";
+    if(isRun){if(!mentions.length)return fail("I kept the rush. Just tell me who carried the ball.",transcript,"runner",partial);const p=mentions[0].player;return decorate({ok:true,flow:{type:"Rush",player:p.id,yards:Number(yards||0),startSpot:start,endSpot:end,extras},summary:`Rush — #${p.jersey} ${p.name} — ${Number(yards||0)} yards`,transcript:String(transcript),inferred:{playType:!/(run|rush|carry)/.test(playText)}})}
+    let sub=/\b(intercepted|interception|picked)\b/.test(playText)?"Intercepted":/\bincomplete\b/.test(playText)?"Incomplete":/\b(complete|completed|completion|caught|catch)\b/.test(playText)?"Complete":null;
+    if(!sub&&/\b(to|for)\b/.test(playText)&&mentions.length>=2&&end!==null)sub="Complete";
     if(!sub)return fail("I kept the pass details. Just tell me: complete, incomplete, or intercepted?",transcript,"passResult",partial);
     if(mentions.length<2)return fail("I kept the pass result. Just tell me who threw it and the intended receiver.",transcript,"players",partial);
     const qb=mentions[0].player,receiver=mentions[1].player,flow={type:"Pass",sub,player:qb.id,player2:receiver.id,yards:sub==="Complete"?Number(yards||0):0,startSpot:start,endSpot:sub==="Complete"?end:start,extras};
-    return decorate({ok:true,flow,summary:`Pass — #${qb.jersey} ${qb.name} to #${receiver.jersey} ${receiver.name} — ${sub}${sub==="Complete"?` for ${flow.yards} yards`:""}`,transcript:String(transcript),inferred:{playType:!/(pass|throw|threw)/.test(clean),passResult:sub==="Complete"&&!/(complete|caught|catch)/.test(clean)}})
+    return decorate({ok:true,flow,summary:`Pass — #${qb.jersey} ${qb.name} to #${receiver.jersey} ${receiver.name} — ${sub}${sub==="Complete"?` for ${flow.yards} yards`:""}`,transcript:String(transcript),inferred:{playType:!/(pass|throw|threw)/.test(playText),passResult:sub==="Complete"&&!/(complete|caught|catch)/.test(playText)}})
   }
   return {NUMBER_WORDS,normalize,spokenNumber,canonicalizeJerseyReferences,applyCorrections,distance,playerMentions,parsePositions,extractYards,extractReturnYards,extractPuntYards,extractPlayCall,inferPlayType,interpretVoiceCommand};
 });
