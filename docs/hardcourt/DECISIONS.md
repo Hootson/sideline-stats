@@ -15,10 +15,17 @@
 
 ## Product direction, not yet final implementation
 - One-person stat keeping must remain simple.
-- Optional simultaneous stat keeping is a desired differentiator. One supported future role may be an opponent statkeeper who receives a game-scoped link and uses essentially the same court-first interface from the opponent team's perspective, writing granular opponent events into the same game.
+- Optional simultaneous stat keeping is a desired differentiator.
+- A game owner/main statkeeper can invite another authenticated statkeeper with a game-scoped link.
+- A helper statkeeper can be assigned selected stat responsibilities rather than receiving an all-or-nothing role. Responsibility presets may include offense/scoring (shots, makes/misses, assists, free throws), hustle/defense (rebounds, turnovers, steals, blocks, fouls), or a custom selection of stat categories.
+- The main statkeeper remains able to record any category as a safety fallback; assignments primarily simplify each helper's interface and clarify responsibility rather than making game-day recovery impossible.
+- Another supported role is opponent statkeeper: a game-scoped link opens essentially the same court-first interface from the opponent team's perspective and records granular opponent events into the same game.
 - Voice entry is a later capability, not a v1 requirement.
 - Parents/viewers should have a strong live experience.
 - Coach analytics should turn captured game data into useful decisions.
 
-## Opponent tracking design note\nThe game/event model must be symmetric enough to support granular events for either team even though the default UI only asks the primary statkeeper for high-level opponent information. Do not clutter the primary game screen with controls solely for the optional opponent-statkeeper mode. Its exact entry point and mockup integration will be decided later.\n\n## Open decisions
+## Opponent tracking design note\nThe game/event model must be symmetric enough to support granular events for either team even though the default UI only asks the primary statkeeper for high-level opponent information. Do not clutter the primary game screen with controls solely for optional collaboration modes. Their exact entry point and mockup integration will be decided later.
+
+## Collaborative statkeeping design note
+Invitations are game-scoped and role/responsibility-scoped. The event model records who/device created each event so simultaneous contributions can merge safely. A helper's screen should emphasize only assigned controls while still showing enough shared game context (score, clock, period, lineup as appropriate) to work accurately. Assignments must not use whole-game snapshot overwrites; event-level synchronization and duplicate/conflict handling are required before collaborative mode is enabled.\n\n## Open decisions
 Record unresolved choices here rather than allowing an implementation agent to invent them.
