@@ -1760,10 +1760,14 @@ function ensureInitialGameState(g){
   return normalizeGameState({possession:g.initialPossession,down:g.initialDown||1,distance:g.initialDistance||10,ballSpot:g.initialBallSpot});
 }
 function stateWithBallPosition(before,after,p){
-  const out=normalizeGameState(after),start=Field.validSpot(p.startSpot??before.ballSpot),end=Field.validSpot(p.endSpot);
+  const out=normalizeGameState(after),start=Field.validSpot(p.startSpot??before.ballSpot);let end=Field.validSpot(p.endSpot);
   if(p.type==="Game State Correction"){out.ballSpot=Field.validSpot(p.correctedBallSpot??out.ballSpot??start);return out}
+  if(end===null&&p.type==="Possession Switch")end=start;
+  if(end===null&&p.type==="Punt")end=Field.puntEndSpot(start,p.yards,before.possession,p.opponentReturnYards||0);
+  if(end===null&&Field.validSpot(p.takeawaySpot)!==null)end=Field.returnEndSpot(p.takeawaySpot,p.returnYards||0,after.possession);
+  if(end===null&&start!==null&&Number.isFinite(Number(p.yards))&&(p.type==="Rush"||(p.type==="Pass"&&p.sub==="Complete")||(p.type==="Defense"&&["Opponent Run","Complete Pass","Sack","TFL","Tackle"].includes(p.sub))))end=Field.advanceSpot(start,Number(p.yards),before.possession);
+  if(p.extras?.includes("TD")||p.defensiveTouchdownPlayerId){out.ballSpot=null;return out}
   if(out.possession!==before.possession){out.ballSpot=end;return out}
-  if(p.extras?.includes("TD")){out.ballSpot=null;return out}
   if(end!==null){out.ballSpot=end;return out}
   if(start!==null&&Number.isFinite(Number(p.yards))&&(p.type==="Rush"||(p.type==="Pass"&&p.sub==="Complete")||(p.type==="Defense"&&["Opponent Run","Complete Pass","Sack","TFL","Tackle"].includes(p.sub))))out.ballSpot=Field.advanceSpot(start,Number(p.yards),before.possession);
   else out.ballSpot=start;
@@ -2094,6 +2098,7 @@ $$(".def-outcome").forEach(b=>b.addEventListener("click",()=>{
     const returner=S.flow.fumbleRecoveryPlayerId||S.flow.interceptionPlayerId||null;
     if(returner){
       S.flow.defensiveTouchdownPlayerId=returner;
+      S.flow.endSpot=100;
     }else{
       if(!S.flow.extras.includes("TD"))S.flow.extras.push("TD");
     }
@@ -2268,6 +2273,13 @@ function finishDefenseAtEndSpot(){
   $("#stepDefenseOutcome").classList.add("hidden");
   const movingPlay=["Opponent Run","Complete Pass","Sack","INT"].includes(S.flow.sub)||!!S.flow.fumbleRecoveryPlayerId;
   if(!movingPlay)return finishSimpleDefensePlay();
+  const hasTakeaway=!!(S.flow.fumbleRecoveryPlayerId||S.flow.interceptionPlayerId);
+  if(hasTakeaway&&Field.validSpot(S.flow.takeawaySpot)!==null){
+    if(!S.flow.defensiveTouchdownPlayerId)S.flow.endSpot=Field.returnEndSpot(S.flow.takeawaySpot,S.flow.returnYards||0,"ours");
+    S.flow.yards=S.flow.sub==="INT"?0:Field.yardsBetween(S.flow.startSpot,S.flow.takeawaySpot,"opp");
+    S.flow.tackleKind=(S.flow.tacklerIds||[]).length?(S.flow.yards<0?"TFL":"Tackle"):null;
+    return finishSimpleDefensePlay();
+  }
   showEndPosition(rawYards=>{
     const g=currentGame();if(!g)return;
     let yards=Number(rawYards||0);
@@ -2297,6 +2309,7 @@ function finishSimpleDefensePlay(){
     defensiveTouchdownPlayerId:S.flow.defensiveTouchdownPlayerId||null,
     passDefendedPlayerId:S.flow.passDefendedPlayerId||null,
     returnYards:Number(S.flow.returnYards||0),
+    takeawaySpot:Field.validSpot(S.flow.takeawaySpot),
     startSpot:Field.validSpot(S.flow.startSpot??before.ballSpot),
     endSpot:Field.validSpot(S.flow.endSpot),
     extras:[...(S.flow.extras||[])],
@@ -2313,14 +2326,28 @@ function finishSimpleDefensePlay(){
   resetFlow();
   if(ourDefTD)showTryMenu();
 }
-function showTakeawayReturnYards(label){
+function finishTakeawayReturnYards(v){
+  S.flow.returnYards=Number(v);S.flow.endSpot=Field.returnEndSpot(S.flow.takeawaySpot,S.flow.returnYards,S.flow.returningPossession||"ours");
+  $("#stepReturnYards").classList.add("hidden");
+  const done=S.flow.afterReturnYards||"defense";delete S.flow.afterReturnYards;delete S.flow.returningPossession;
+  if(done==="record")recordNow();else showDefenseOutcome();
+}
+function showTakeawayReturnYards(label,returningPossession="ours",after="defense"){
+  S.flow.returningPossession=returningPossession;S.flow.afterReturnYards=after;
   $("#returnYardsLabel").textContent=label||"Takeaway return yards";
   $("#returnYardGrid").innerHTML=[0,5,10,15,20,30,40].map(v=>`<button class="choice return-yard" data-v="${v}">${v}</button>`).join("");
   resetSignedYardPicker("returnYardsExact",0,99);
   $("#stepReturnYards").classList.remove("hidden");
-  $$(".return-yard").forEach(b=>b.addEventListener("click",()=>{S.flow.returnYards=Number(b.dataset.v);$("#stepReturnYards").classList.add("hidden");showDefenseOutcome()}));
+  $$(".return-yard").forEach(b=>b.addEventListener("click",()=>finishTakeawayReturnYards(b.dataset.v)));
 }
-$("#returnYardsUse").addEventListener("click",()=>{const v=Number($("#returnYardsExact").value);if(!Number.isFinite(v))return toast("Enter return yards");S.flow.returnYards=v;$("#stepReturnYards").classList.add("hidden");showDefenseOutcome()});
+$("#returnYardsUse").addEventListener("click",()=>{const v=Number($("#returnYardsExact").value);if(!Number.isFinite(v))return toast("Enter return yards");finishTakeawayReturnYards(v)});
+
+function showTakeawaySpotThenReturnYards(label){
+  const g=currentGame();if(!g)return;
+  const derived=S.flow.sub!=="INT"?Field.advanceSpot(S.flow.startSpot??g.ballSpot,S.flow.yards||0,"opp"):null;
+  if(Field.validSpot(derived)!==null){S.flow.takeawaySpot=derived;return showTakeawayReturnYards(label)}
+  requestFieldSpot("end",spot=>{S.flow.takeawaySpot=spot;showTakeawayReturnYards(label)},{prompt:"Turnover spot",title:"Where was the ball intercepted or recovered?"});
+}
 
 function showDefenseTurnoverPlayer(kind){
   S.flow.pendingTurnoverCredit=kind;
@@ -2341,12 +2368,12 @@ function showDefenseTurnoverPlayer(kind){
     }else if(S.flow.pendingTurnoverCredit==="Fumble Recovery"){
       S.flow.fumbleRecoveryPlayerId=id;
       $("#stepDefenseTurnoverPlayer").classList.add("hidden");
-      showTakeawayReturnYards("Fumble recovery return yards");
+      showTakeawaySpotThenReturnYards("Fumble recovery return yards");
     }else{
       S.flow.interceptionPlayerId=id;
       S.flow.sub="INT";
       $("#stepDefenseTurnoverPlayer").classList.add("hidden");
-      showTakeawayReturnYards("Interception return yards");
+      showTakeawaySpotThenReturnYards("Interception return yards");
     }
     },110);
   }));
@@ -2454,7 +2481,7 @@ function pick(id,mode){
   }
   else if(mode==="intendedIntercepted"){
     S.flow.player2=id;
-    recordNow();
+    ensureDriveStart(()=>requestFieldSpot("end",spot=>{S.flow.takeawaySpot=spot;showTakeawayReturnYards("Opponent interception return yards","opp","record")},{prompt:"Interception spot",title:"Where was the pass intercepted?"}));
   }
   else if(mode==="kickoffKicker"){S.flow.player=id;$("#stepKickoffResult").classList.remove("hidden");}
   else if(mode==="tryKicker"){S.flow.player=id;showTryResult(`${S.flow.tryValue}-point kick`);}
@@ -2534,7 +2561,7 @@ $$(".fumble-recovery-choice").forEach(b=>b.addEventListener("click",()=>{
   S.flow.fumbleRecovery=b.dataset.recovery;
   if(S.flow.fumbleRecovery==="opp"&&!S.flow.extras.includes("Fumble Lost"))S.flow.extras.push("Fumble Lost");
   if(S.flow.fumbleRecovery==="ours")S.flow.extras=S.flow.extras.filter(x=>x!=="Fumble Lost");
-  setTimeout(()=>{$("#stepFumbleRecovery").classList.add("hidden");recordNow();},110);
+  setTimeout(()=>{$("#stepFumbleRecovery").classList.add("hidden");if(S.flow.fumbleRecovery==="opp"){S.flow.takeawaySpot=Field.validSpot(S.flow.endSpot);showTakeawayReturnYards("Opponent fumble return yards","opp","record")}else recordNow();},110);
 }));
 
 function recordNow(){
@@ -2548,6 +2575,9 @@ function recordNow(){
 
   ensureInitialGameState(g);
   const before=normalizeGameState({possession:g.possession,down:g.down,distance:g.distance||10,ballSpot:g.ballSpot});
+  if(Field.validSpot(S.flow.startSpot)===null)S.flow.startSpot=before.ballSpot;
+  if(S.flow.type==="Punt"&&Field.validSpot(S.flow.endSpot)===null)S.flow.endSpot=Field.puntEndSpot(S.flow.startSpot,S.flow.yards,before.possession,S.flow.opponentReturnYards||0);
+  if(Field.validSpot(S.flow.endSpot)===null&&Field.validSpot(S.flow.takeawaySpot)!==null)S.flow.endSpot=Field.returnEndSpot(S.flow.takeawaySpot,S.flow.returnYards||0,oppositePossession(before.possession));
   const p={...JSON.parse(JSON.stringify(S.flow)),id:uid(),ts:Date.now(),quarter:Number(g.quarter||1),stateBefore:{...before}};
   const after=stateWithBallPosition(before,applyPlayToState(before,p),p);
   p.stateAfter={...after};

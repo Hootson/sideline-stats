@@ -24,3 +24,14 @@ test('advances field position when manual yards are used',()=>{
   assert.equal(field.advanceSpot(25,11,'ours'),36);
   assert.equal(field.advanceSpot(75,11,'opp'),64);
 });
+
+test('calculates interception and fumble return endpoints',()=>{
+  assert.equal(field.returnEndSpot(20,40,'ours'),60);
+  assert.equal(field.returnEndSpot(70,15,'ours'),85);
+  assert.equal(field.returnEndSpot(70,15,'opp'),55);
+});
+
+test('calculates punt landing and return endpoints',()=>{
+  assert.equal(field.puntEndSpot(25,50,'ours',10),65);
+  assert.equal(field.puntEndSpot(75,50,'opp',10),35);
+});

@@ -8,7 +8,10 @@ const roster=[
   {id:'defender23',jersey:'23',name:'Micah'},
   {id:'defender',jersey:'33',name:'Kallum'},
   {id:'defender99',jersey:'99',name:'Beckham'},
-  {id:'returner22',jersey:'22',name:'Mason'}
+  {id:'returner22',jersey:'22',name:'Mason'},
+  {id:'defender18',jersey:'18',name:'Easton'},
+  {id:'runner42',jersey:'42',name:'Connor'},
+  {id:'defender94',jersey:'94',name:'Roczen'}
 ];
 
 test('corrects Babe to rostered player Abe and calculates a rush',()=>{
@@ -139,4 +142,29 @@ test('recognizes our/their speech-to-text homophones only as field-side words',(
   assert.equal(offense.ok,true);assert.equal(offense.flow.endSpot,31);assert.equal(offense.flow.yards,6);
   const defense=voice.interpretVoiceCommand('There 25 run tackled by number 33 at there 36',roster,{possession:'opp',teamName:'Erie Tigers',opponentName:'Falcons'});
   assert.equal(defense.ok,true);assert.equal(defense.flow.endSpot,64);assert.equal(defense.flow.yards,11);
+});
+
+test('records an offensive fumble and reversed called-play wording',()=>{
+  const r=voice.interpretVoiceCommand('Play 15 called a rush for number 42 and he fumbled on their 20 yard line',roster,{possession:'ours',ballSpot:85,teamName:'Erie Tigers',opponentName:'Chiefs'});
+  assert.equal(r.ok,true);assert.deepEqual(r.flow.playCall,{number:'15'});assert.equal(r.flow.player,'runner42');assert.equal(r.flow.yards,-5);assert.deepEqual(r.flow.extras,['Fumble']);
+});
+
+test('tolerates brush for rush and credits every named tackler',()=>{
+  const r=voice.interpretVoiceCommand('Brush the outside for 4 yard game tackled by number 42 number four number 18',roster,{possession:'opp',ballSpot:18,teamName:'Erie Tigers',opponentName:'Chiefs'});
+  assert.equal(r.ok,true);assert.equal(r.flow.sub,'Opponent Run');assert.equal(r.flow.yards,4);assert.deepEqual(r.flow.tacklerIds,['runner42','abe','defender18']);
+});
+
+test('tolerates fourth fumble and gives the forcing tackler both credits',()=>{
+  const r=voice.interpretVoiceCommand('Hey rush up the middle for a 4 yard game but there was a fourth fumble by number 99 and recovered by number 23',roster,{possession:'opp',ballSpot:18,teamName:'Erie Tigers',opponentName:'Chiefs'});
+  assert.equal(r.ok,true);assert.equal(r.flow.sub,'Opponent Run');assert.equal(r.flow.yards,4);assert.deepEqual(r.flow.tacklerIds,['defender99']);assert.equal(r.flow.forcedFumblePlayerId,'defender99');assert.equal(r.flow.fumbleRecoveryPlayerId,'defender23');
+});
+
+test('credits a batted incomplete pass as a pass defended, not a tackle',()=>{
+  const r=voice.interpretVoiceCommand('Pass play incomplete battered down by number 23',roster,{possession:'opp',ballSpot:14,teamName:'Erie Tigers',opponentName:'Chiefs'});
+  assert.equal(r.ok,true);assert.equal(r.flow.sub,'Incomplete Pass');assert.deepEqual(r.flow.tacklerIds,[]);assert.equal(r.flow.passDefendedPlayerId,'defender23');assert.match(r.summary,/PD #23/);
+});
+
+test('uses turnover context to repair a badly transcribed interception',()=>{
+  const r=voice.interpretVoiceCommand('Pacifier Exception at their 35 yard line returned 10 yards by number 94 pass',roster,{possession:'opp',ballSpot:14,teamName:'Erie Tigers',opponentName:'Chiefs'});
+  assert.equal(r.ok,true);assert.equal(r.flow.sub,'INT');assert.equal(r.flow.interceptionPlayerId,'defender94');assert.equal(r.flow.returnYards,10);assert.equal(r.flow.endSpot,75);assert.deepEqual(r.flow.tacklerIds,[]);
 });
