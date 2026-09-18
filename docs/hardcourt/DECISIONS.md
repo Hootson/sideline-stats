@@ -11,14 +11,14 @@
 - Hardcourt is offline-first.
 - Hardcourt basketball game data begins isolated from Gridiron football game data.
 - Existing Gridiron GitHub workflows are not Hardcourt automation.
-- Phase 1 incremental AI/development spend target is $0.
+- Phase 1 incremental AI/development spend target is $0.\n- Default opponent tracking is team-level/high-level, not player-by-player. The primary statkeeper focuses on their own roster while recording enough opponent events to maintain score and correctly derive our team's statistics.\n- Opponent player-by-player tracking must remain an optional capability rather than a requirement for ordinary one-person stat keeping.
 
 ## Product direction, not yet final implementation
 - One-person stat keeping must remain simple.
-- Optional two-person simultaneous stat keeping is a desired differentiator.
+- Optional simultaneous stat keeping is a desired differentiator. One supported future role may be an opponent statkeeper who receives a game-scoped link and uses essentially the same court-first interface from the opponent team's perspective, writing granular opponent events into the same game.
 - Voice entry is a later capability, not a v1 requirement.
 - Parents/viewers should have a strong live experience.
 - Coach analytics should turn captured game data into useful decisions.
 
-## Open decisions
+## Opponent tracking design note\nThe game/event model must be symmetric enough to support granular events for either team even though the default UI only asks the primary statkeeper for high-level opponent information. Do not clutter the primary game screen with controls solely for the optional opponent-statkeeper mode. Its exact entry point and mockup integration will be decided later.\n\n## Open decisions
 Record unresolved choices here rather than allowing an implementation agent to invent them.
