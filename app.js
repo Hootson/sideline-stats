@@ -39,6 +39,7 @@ let selectedStatsGameId=null;
 let coachTab="overview",coachSelection=null,coachDown=1,coachMetric="success",coachCallSortBucket="overall",coachPlayerMode="offense",coachDebriefs=[],coachOwnDebrief=null;
 let pendingNewOpponentLogo=null;
 let pendingEditOpponentLogo=undefined;
+let editingGameId=null;
 let onboardingPlan=localStorage.getItem(ONBOARDING_PLAN_KEY)==="statkeeper"?"statkeeper":"team_pro";
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const Field=window.SidelineFieldPosition;
@@ -1008,7 +1009,19 @@ async function ensureCloudTeam(){
 async function ensureCloudGame(g){
   let id=S.cloud.gameIds?.[g.id];const payload=buildCloudGamePayload(g);const h=simpleHash(payload);
   if(!id){
-    const {data,error}=await SB.from("games").insert(payload).select("id").single();if(error)throw error;id=data.id;S.cloud.gameIds[g.id]=id;S.cloud.gameHashes[g.id]=h;persist({skipCloud:true});
+    const {data,error}=await SB.from("games").insert(payload).select("id").single();
+    if(error){
+      const duplicateIdentity=String(error.code||"")==="23505"&&String(error.message||"").includes("games_active_identity_unique");
+      if(!duplicateIdentity)throw error;
+      const {data:matches,error:lookupError}=await SB.from("games").select("id,opponent_name").eq("season_id",S.cloud.seasonId).eq("week_number",payload.week_number).eq("game_type",payload.game_type).neq("status","archived");
+      if(lookupError)throw lookupError;
+      const normalized=String(payload.opponent_name||"").trim().toLowerCase(),existing=(matches||[]).find(row=>String(row.opponent_name||"").trim().toLowerCase()===normalized);
+      if(!existing)throw error;
+      id=existing.id;
+      const update={...payload};delete update.created_by;delete update.season_id;
+      const {error:updateError}=await SB.from("games").update(update).eq("id",id);if(updateError)throw updateError;
+    }else id=data.id;
+    S.cloud.gameIds[g.id]=id;S.cloud.gameHashes[g.id]=h;persist({skipCloud:true});
   }else if(S.cloud.gameHashes?.[g.id]!==h){
     // Game state (especially score) is authoritative on the active statkeeper.
     const update={...payload};delete update.created_by;delete update.season_id;
@@ -1110,6 +1123,9 @@ async function syncCloudNow(options={}){
   try{
     const substitute=isSubstituteStatkeeper();
     if(!substitute){await ensureCloudTeam();ensureCurrentRun();await ensureCloudRoster();ensureCurrentRun()}
+    // Release identities from locally deleted games before inserting replacements.
+    // This keeps delete-and-recreate (for example, adding a forgotten logo) atomic from the user's perspective.
+    if(!substitute){await syncDeletedCloudGames();ensureCurrentRun()}
     const ordered=[...(S.games||[])].filter(g=>!substitute||S.cloud.gameIds?.[g.id]===S.cloud.substituteGameId).sort((a,b)=>(b.id===S.activeGameId)-(a.id===S.activeGameId));
     const published=[];
     for(const g of ordered){if(!cloudGameNeedsSync(g))continue;const cloudGameId=await ensureCloudGame(g);ensureCurrentRun();for(let i=0;i<(g.plays||[]).length;i++){await syncOnePlay(g,g.plays[i],i,cloudGameId);ensureCurrentRun()}for(let i=0;i<(g.snapRecords||[]).length;i++){await syncSnapRecord(g,g.snapRecords[i],i,cloudGameId);ensureCurrentRun()}await ensureCloudGame(g);ensureCurrentRun();await publishCloudGame(cloudGameId);ensureCurrentRun();published.push(cloudGameId)}
@@ -1121,7 +1137,6 @@ async function syncCloudNow(options={}){
       const localGameIds=new Set((S.games||[]).map(g=>g.id));
       for(const [localId,cloudGameId] of Object.entries(S.cloud.gameIds||{}))if(localGameIds.has(localId)&&cloudGameId&&!published.includes(cloudGameId))await publishCloudGame(cloudGameId);
     }
-    if(!substitute)await syncDeletedCloudGames();
     if(substitute){
       const finished=ordered.find(g=>cloudGameStatus(g)==="final"&&S.cloud.gameIds?.[g.id]);
       if(finished){const {error}=await SB.rpc("finish_game_statkeeper_assignment",{p_game_id:S.cloud.gameIds[finished.id]});if(error)throw error}
@@ -1577,8 +1592,8 @@ function renderGameList(){
     </div>`).join("");
   $$(".open-game").forEach(b=>b.addEventListener("click",()=>{const g=gameById(b.dataset.id);if(!resumeGameIfFinal(g))return;S.activeGameId=g.id;selectedStatsGameId=g.id;persist();renderGameArea()}));
   $$(".edit-saved-game").forEach(b=>b.addEventListener("click",()=>{
-    const g=gameById(b.dataset.id);if(!resumeGameIfFinal(g))return;
-    S.activeGameId=g.id;selectedStatsGameId=g.id;persist();renderGameArea();openEditGame();
+    const g=gameById(b.dataset.id);if(!g)return;
+    selectedStatsGameId=g.id;openEditGame(g);
   }));
   $$(".delete-game").forEach(b=>b.addEventListener("click",()=>{
     const g=gameById(b.dataset.id); if(!g)return;
@@ -1622,8 +1637,9 @@ $("#newGameBtn").addEventListener("click",()=>{
   persist();resetFlow();renderGameArea()
 });
 
-function openEditGame(){
-  const g=currentGame();if(!g)return;
+function openEditGame(game=currentGame()){
+  const g=game;if(!g)return;
+  editingGameId=g.id;
   $("#editTeamName").value=S.team?.name||"";
   $("#editOpponent").value=g.opponent||"";
   $("#editGameWeek").value=String(g.week||1);
@@ -1638,6 +1654,7 @@ function openEditGame(){
 }
 function closeEditGame(){
   $("#editGameCard").classList.add("hidden");
+  editingGameId=null;
   pendingEditOpponentLogo=undefined;
   $("#editOpponentLogo").value="";
 }
@@ -1658,22 +1675,25 @@ $("#removeOpponentLogoBtn").addEventListener("click",()=>{
   $("#removeOpponentLogoBtn").classList.add("hidden");
 });
 $("#saveGameDetailsBtn").addEventListener("click",()=>{
-  const g=currentGame();if(!g)return;
+  const g=gameById(editingGameId)||currentGame();if(!g)return;
   const teamName=$("#editTeamName").value.trim();
   const opponent=$("#editOpponent").value.trim();
   if(!teamName)return toast("Enter a team name");
   if(!opponent)return toast("Enter an opponent");
+  const week=Number($("#editGameWeek").value||1),gameType=$("#editGameType").value||"regular";
+  const duplicate=(S.games||[]).find(existing=>existing.id!==g.id&&existing.status!=="archived"&&Number(existing.week||0)===week&&(existing.gameType||"regular")===gameType&&String(existing.opponent||"").trim().toLowerCase()===opponent.toLowerCase());
+  if(duplicate)return toast(`Week ${week} vs ${duplicate.opponent} already exists — edit that game instead`);
   S.team.name=teamName;
   g.opponent=opponent;
-  g.week=Number($("#editGameWeek").value||1);
+  g.week=week;
   g.date=`Week ${g.week}`;
   g.location=$("#editLocation").value||"Home";
-  g.gameType=$("#editGameType").value||"regular";
+  g.gameType=gameType;
   if(pendingEditOpponentLogo!==undefined)g.opponentLogoData=pendingEditOpponentLogo;
   selectedStatsGameId=g.id;
   persist();
   closeEditGame();
-  renderLiveGame();
+  if(currentGame()?.id===g.id)renderLiveGame();
   renderGameList();
   toast("Game details updated");
 });

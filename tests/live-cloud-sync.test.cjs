@@ -49,7 +49,7 @@ assert.match(app, /platform_admin!==true\)return toast\("Owner access is require
 assert.match(app, /function renderViewerGameSummary\(\)/, 'viewer Game Center must render its scoreboard');
 assert.match(html, /id="viewerGameSummary"/, 'Stats must contain the viewer scoreboard destination');
 assert.match(html, /id="shareStatsBtn"/, 'Stats sharing must remain available');
-assert.match(sw, /sideline-stats-v4-5-57-retry-sync-auth/, 'service worker cache must match the current release');
+assert.match(sw, /sideline-stats-v4-5-58-game-edit-recreate/, 'service worker cache must match the current release');
 assert.match(styles, /nav\{[^}]*background:var\(--p\)/, 'the statkeeper bottom navigation must use the team primary color');
 assert.match(styles, /nav button\.active\{[^}]*var\(--nav-active\)/, 'the active statkeeper tab must use the team accent treatment');
 assert.match(app, /#bottomNav \[data-go\][\s\S]*classList\.toggle\("active"/, 'the current statkeeper tab must receive an active state');
@@ -59,7 +59,13 @@ assert.match(app, /Resume the game vs \$\{g\.opponent\} and mark it Live\?/, 'op
 assert.match(app, /Finalize the game vs \$\{g\.opponent\}\?/, 'finalizing a game must require confirmation');
 assert.match(app, /async function syncDeletedCloudGames\(\)/, 'deleted local games must be reconciled to Supabase');
 assert.match(app, /update\(\{status:"archived"\}\)/, 'cloud game deletion must use the recoverable archived status');
+assert.ok(app.indexOf('await syncDeletedCloudGames();ensureCurrentRun()') < app.indexOf('const ordered=['), 'deleted games must release their cloud identity before replacement games are inserted');
+assert.match(app, /games_active_identity_unique/, 'a duplicate cloud game identity must have a recovery path');
+assert.match(app, /id=existing\.id;[\s\S]*S\.cloud\.gameIds\[g\.id\]=id/, 'a matching cloud game must be rebound to the local game instead of blocking sync');
 assert.match(app, /\.neq\("status","archived"\)/, 'archived games must be excluded from cloud loads and viewer checks');
+assert.match(app, /function openEditGame\(game=currentGame\(\)\)/, 'saved games must be editable without first resuming them');
+assert.match(app, /selectedStatsGameId=g\.id;openEditGame\(g\)/, 'editing a saved final game must preserve its status');
+assert.match(app, /Week \$\{week\} vs \$\{duplicate\.opponent\} already exists — edit that game instead/, 'game edits must block a true duplicate identity with a clear message');
 assert.match(app, /function finishDefenseAtEndSpot\(\)/, 'manual defense must defer field position until the final step');
 assert.match(app, /ensureDriveStart\(\(\)=>showDefenseTacklers\(\)\)/, 'manual defense must collect tacklers before the ending spot');
 assert.match(app, /voiceRecognition\.continuous=true/, 'voice listening must tolerate pauses');
