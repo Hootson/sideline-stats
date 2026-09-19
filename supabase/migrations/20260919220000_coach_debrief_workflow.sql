@@ -235,7 +235,7 @@ begin
   select count(*) into v_expected from public.game_debrief_assignments where cycle_id=v_cycle_id;
   update public.game_debrief_cycles
   set expected_coach_count=v_expected,
-      status=case when v_expected=0 then 'ready' else 'open' end,
+      status='open',
       updated_at=now()
   where id=v_cycle_id;
 
@@ -248,8 +248,7 @@ begin
   from public.game_debrief_assignments a where a.cycle_id=v_cycle_id
   on conflict (dedupe_key) do nothing;
 
-  if v_expected>0 then perform private.queue_debrief_workflow_job(v_cycle_id,'notify_open');
-  else perform private.queue_debrief_workflow_job(v_cycle_id,'generate_read'); end if;
+  if v_expected>0 then perform private.queue_debrief_workflow_job(v_cycle_id,'notify_open'); end if;
   return new;
 end;
 $$;
@@ -259,6 +258,41 @@ drop trigger if exists open_game_debrief_cycle_after_final on public.games;
 create trigger open_game_debrief_cycle_after_final
 after update of status on public.games
 for each row execute function private.open_game_debrief_cycle();
+
+create or replace function private.add_coach_to_open_debriefs()
+returns trigger
+language plpgsql
+security definer
+set search_path=''
+as $$
+declare r public.game_debrief_cycles%rowtype; v_inserted integer;
+begin
+  if new.status<>'active' or new.is_coach<>true then return new; end if;
+  for r in select * from public.game_debrief_cycles
+    where team_id=new.team_id and status='open' and deadline_at>now()
+  loop
+    insert into public.game_debrief_assignments(cycle_id,game_id,coach_user_id)
+    values (r.id,r.game_id,new.user_id) on conflict do nothing;
+    get diagnostics v_inserted = row_count;
+    if v_inserted>0 then
+      update public.game_debrief_cycles set expected_coach_count=(select count(*) from public.game_debrief_assignments where cycle_id=r.id),updated_at=now() where id=r.id;
+      insert into public.user_notifications(user_id,team_id,game_id,notification_type,title,body,action_url,dedupe_key)
+      select new.user_id,r.team_id,r.game_id,'debrief_opened','Game debrief ready',
+             'Submit or skip before the 24-hour window closes.','/?debriefGame='||r.game_id::text,
+             'debrief-open:'||r.game_id::text||':'||new.user_id::text
+      on conflict (dedupe_key) do nothing;
+      perform private.queue_debrief_workflow_job(r.id,'notify_open');
+    end if;
+  end loop;
+  return new;
+end;
+$$;
+revoke all on function private.add_coach_to_open_debriefs() from public, anon, authenticated;
+
+drop trigger if exists add_coach_to_open_debriefs_after_membership on public.team_members;
+create trigger add_coach_to_open_debriefs_after_membership
+after insert or update of is_coach,status on public.team_members
+for each row execute function private.add_coach_to_open_debriefs();
 
 create or replace function private.refresh_game_debrief_cycle()
 returns trigger

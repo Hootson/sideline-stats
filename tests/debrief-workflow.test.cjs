@@ -8,6 +8,8 @@ const sw=fs.readFileSync('service-worker.js','utf8');
 assert.match(sql,/game_id uuid not null unique/i,'each game must have only one debrief cycle');
 assert.match(sql,/new\.status <> 'final' or old\.status='final'/,'later edits to a final game must not reopen the workflow');
 assert.match(sql,/now\(\)\+interval '24 hours'/,'the coach response window must be 24 hours');
+assert.match(sql,/add_coach_to_open_debriefs_after_membership/,'coaches joining during the open window must receive an assignment');
+assert.match(sql,/expected_coach_count=\(select count\(\*\) from public\.game_debrief_assignments/,'late coach joins must update the expected response count');
 assert.match(sql,/status in \('pending','submitted','skipped'\)/,'every assigned coach must submit or skip');
 assert.match(sql,/expected_coach_count=v_expected,responded_coach_count=v_responded/,'completion counts must be server-calculated');
 assert.match(sql,/sideline-stats-process-coach-debriefs/,'a scheduled deadline processor must exist');
