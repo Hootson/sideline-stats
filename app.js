@@ -337,6 +337,18 @@ async function restoreRememberedTeam(){
   finally{cloudAutoTeamLoadRunning=false}
 }
 function cloudLinked(){return !!(teamExists()&&S.cloud?.teamId&&S.cloud?.seasonId)}
+function isCloudAuthorizationError(error){
+  const status=Number(error?.status||error?.statusCode||0),code=String(error?.code||"").toLowerCase(),message=String(error?.message||"").toLowerCase();
+  return status===401||status===403||code==="42501"||code==="pgrst301"||/permission denied|authentication required|not authenticated|invalid jwt|jwt expired|token.*expired|unauthorized/.test(message)
+}
+async function refreshCloudSessionForSync(){
+  if(!SB)throw new Error("Cloud service is unavailable");
+  const {data,error}=await SB.auth.refreshSession();
+  if(error)throw error;
+  const session=data?.session,user=session?.user;
+  if(!session||!user)throw new Error("Cloud sign-in expired — sign out and sign back in. Local changes remain safe.");
+  cloudUser=user;updateCloudUI();return session
+}
 function updateCloudUI(force){
   const dot=$("#cloudDot"), text=$("#cloudStatusText"), meta=$("#cloudMeta"), acct=$("#cloudAccountBtn"); if(!dot||!text)return;
   $("#cloudSetupCard")?.classList.toggle("hidden",!teamExists());
@@ -699,15 +711,21 @@ async function refreshFromCloud(){
   if(navigator.onLine===false)return toast("Connect to the internet to refresh");
   const pending=cloudPendingCount();
   if(pending>0){
-    const role=await resolveCloudDeviceRole();
-    if(role==="statkeeper"||role==="substitute_statkeeper"){
-      const btn=$("#cloudRefreshBtn");if(btn){btn.disabled=true;btn.textContent="Syncing Now…"}
+    const btn=$("#cloudRefreshBtn");if(btn){btn.disabled=true;btn.textContent="Refreshing Sign-In…"}
+    try{
+      await refreshCloudSessionForSync();
+      const role=await resolveCloudDeviceRole();
+      if(role!=="statkeeper"&&role!=="substitute_statkeeper"){
+        const detail=cloudPendingItems().slice(0,2).join(", ");return toast(`${pending} viewer change${pending===1?"":"s"} cannot upload${detail?`: ${detail}`:""}`)
+      }
+      if(btn)btn.textContent="Syncing Now…";
       const ok=await syncCloudNow({forceRestart:true}),remaining=cloudPendingCount();
-      if(btn)btn.disabled=false;updateCloudUI();
+      updateCloudUI();
       if(ok&&remaining===0)return toast("All changes synced to Parent Viewer");
       return toast(S.cloud.lastSyncError||`${remaining} change${remaining===1?"":"s"} still pending — retrying automatically`);
-    }
-    const detail=cloudPendingItems().slice(0,2).join(", ");return toast(`${pending} viewer change${pending===1?"":"s"} cannot upload${detail?`: ${detail}`:""}`)
+    }catch(e){
+      S.cloud.lastSyncError=(e?.message||"Could not refresh secure cloud sign-in").slice(0,120);persist({skipCloud:true});updateCloudUI();return toast(`${S.cloud.lastSyncError} Local changes remain safe.`)
+    }finally{if(btn){btn.disabled=false;updateCloudUI()}}
   };
   await loadTeamFromCloud({refresh:true});cloudRemoteUpdates=false;updateCloudUI();recordViewerEvent("refresh",S.activeGameId||selectedStatsGameId);
 }
@@ -1082,7 +1100,7 @@ async function syncCloudNow(options={}){
   }
   if(cloudSyncRunning){cloudSyncRequested=true;return false}
   if(!SB||!cloudUser||!cloudLinked()||navigator.onLine===false||!isCloudStatkeeper())return false;
-  const runId=++cloudSyncRunId;let succeeded=false;
+  const runId=++cloudSyncRunId;let succeeded=false,retryAfterAuth=false;
   cloudSyncRunning=true;cloudSyncStartedAt=Date.now();updateCloudUI();
   cloudSyncWatchdog=setTimeout(()=>{
     if(runId!==cloudSyncRunId||!cloudSyncRunning)return;
@@ -1111,14 +1129,22 @@ async function syncCloudNow(options={}){
     S.cloud.lastSyncAt=new Date().toISOString();S.cloud.lastSyncError=null;
     try{S.cloud.remoteFingerprint=await remoteCloudFingerprint()}catch(_){S.cloud.remoteFingerprint=null}
     ensureCurrentRun();persist({skipCloud:true});setTimeout(checkCloudForUpdates,500);cloudSyncFailureCount=0;succeeded=true;
-  }catch(e){if(runId===cloudSyncRunId){console.error("Cloud sync failed",e);S.cloud.lastSyncError=(e?.message||"Will retry when connected").slice(0,120);persist({skipCloud:true})}}
+  }catch(e){if(runId===cloudSyncRunId){
+    console.error("Cloud sync failed",e);
+    if(isCloudAuthorizationError(e)&&!options.authRetryAttempt){
+      try{await refreshCloudSessionForSync();retryAfterAuth=true;S.cloud.lastSyncError=null;persist({skipCloud:true})}
+      catch(refreshError){e=refreshError}
+    }
+    if(!retryAfterAuth){S.cloud.lastSyncError=(e?.message||"Will retry when connected").slice(0,120);persist({skipCloud:true})}
+  }}
   finally{
     if(runId===cloudSyncRunId){
       if(cloudSyncWatchdog){clearTimeout(cloudSyncWatchdog);cloudSyncWatchdog=null}
       if(!succeeded)cloudSyncFailureCount++;
-      const runAgain=cloudSyncRequested||cloudPendingCount()>0,delay=succeeded?250:Math.min(30000,1500*Math.pow(2,Math.max(0,cloudSyncFailureCount-1)));cloudSyncRequested=false;cloudSyncRunning=false;cloudSyncStartedAt=0;updateCloudUI();if(runAgain)scheduleCloudSync(delay)
+      const runAgain=!retryAfterAuth&&(cloudSyncRequested||cloudPendingCount()>0),delay=succeeded?250:Math.min(30000,1500*Math.pow(2,Math.max(0,cloudSyncFailureCount-1)));cloudSyncRequested=false;cloudSyncRunning=false;cloudSyncStartedAt=0;updateCloudUI();if(runAgain)scheduleCloudSync(delay)
     }
   }
+  if(retryAfterAuth)return syncCloudNow({...options,forceRestart:false,authRetryAttempt:true});
   return succeeded;
 }
 window.addEventListener("online",()=>{if(isCloudStatkeeper())scheduleCloudSync(150);else setTimeout(checkLiveGameRevisions,100);setTimeout(checkCloudForUpdates,500)});
