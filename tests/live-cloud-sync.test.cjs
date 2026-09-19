@@ -7,6 +7,7 @@ const sql = fs.readFileSync('supabase-live-stats.sql', 'utf8');
 const html = fs.readFileSync('index.html', 'utf8');
 const styles = fs.readFileSync('styles.css', 'utf8');
 const snapTracker = fs.readFileSync('snap-tracker.html', 'utf8');
+const pagination = fs.readFileSync('cloud-pagination.js', 'utf8');
 
 assert.match(app, /function scheduleCloudSync\(delay=150\)/, 'completed local changes should be queued quickly');
 assert.match(app, /Date\.now\(\)-cloudSyncStartedAt>15000\)resetStaleCloudSync/, 'a stale mobile sync lock must recover automatically');
@@ -49,7 +50,10 @@ assert.match(app, /platform_admin!==true\)return toast\("Owner access is require
 assert.match(app, /function renderViewerGameSummary\(\)/, 'viewer Game Center must render its scoreboard');
 assert.match(html, /id="viewerGameSummary"/, 'Stats must contain the viewer scoreboard destination');
 assert.match(html, /id="shareStatsBtn"/, 'Stats sharing must remain available');
-assert.match(sw, /sideline-stats-v4-5-61-parent-opponent-logo/, 'service worker cache must match the current release');
+assert.match(sw, /sideline-stats-v4-5-62-complete-cloud-pages/, 'service worker cache must match the current release');
+assert.match(html, /cloud-pagination\.js[^]*app\.js/, 'cloud pagination helper must load before the application');
+assert.match(pagination, /\.range\(from,from\+pageSize-1\)/, 'large cloud child tables must be fetched page by page');
+assert.match(app, /table:"snap_participants",column:"snap_event_id"/, 'cloud refresh must paginate all snap participants');
 assert.match(styles, /nav\{[^}]*background:var\(--p\)/, 'the statkeeper bottom navigation must use the team primary color');
 assert.match(styles, /nav button\.active\{[^}]*var\(--nav-active\)/, 'the active statkeeper tab must use the team accent treatment');
 assert.match(app, /#bottomNav \[data-go\][\s\S]*classList\.toggle\("active"/, 'the current statkeeper tab must receive an active state');

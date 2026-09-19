@@ -44,6 +44,7 @@ let editingGameId=null;
 let onboardingPlan=localStorage.getItem(ONBOARDING_PLAN_KEY)==="statkeeper"?"statkeeper":"team_pro";
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const Field=window.SidelineFieldPosition;
+const CloudPagination=window.SidelineCloudPagination;
 let pendingFieldSpotHandler=null,pendingFieldSpotMode=null,pendingVoiceResult=null;
 let voiceRecognition=null,voiceListening=false,voiceStopRequested=false,voiceInterpretOnStop=false,voiceSafetyTimer=null,lastVoiceTranscriptRaw="",voiceSessionBase="";
 let debriefRecognition=null,debriefListening=false,debriefSafetyTimer=null,debriefVoiceBase="",pendingDebriefGameId=null;
@@ -664,8 +665,8 @@ async function loadTeamFromCloud(options={}){
     const games=(gr.data||[]).filter(game=>!deletedCloudIds.has(game.id)),gameIds=games.map(x=>x.id);
     let plays=[],credits=[],penalties=[],snaps=[],snapParts=[],demoPlayCalls=[],coachDemoPlaybook=[];
     if(gameIds.length){const [a,b,c]=await Promise.all([SB.from("plays").select("*").in("game_id",gameIds).is("deleted_at",null).order("sequence"),SB.from("penalties").select("*").in("game_id",gameIds).eq("accepted",true),SB.from("snap_events").select("*").in("game_id",gameIds).eq("active",true).order("snap_number")]);if(a.error)throw a.error;if(b.error)throw b.error;if(c.error)throw c.error;plays=a.data||[];penalties=b.data||[];snaps=c.data||[];
-      const playIds=plays.map(x=>x.id);if(playIds.length){const q=await SB.from("play_credits").select("*").in("play_id",playIds);if(q.error)throw q.error;credits=q.data||[]}
-      const snapIds=snaps.map(x=>x.id);if(snapIds.length){const q=await SB.from("snap_participants").select("*").in("snap_event_id",snapIds);if(q.error)throw q.error;snapParts=q.data||[]}
+      const playIds=plays.map(x=>x.id);if(playIds.length)credits=await CloudPagination.selectAllByIds(SB,{table:"play_credits",column:"play_id",ids:playIds});
+      const snapIds=snaps.map(x=>x.id);if(snapIds.length)snapParts=await CloudPagination.selectAllByIds(SB,{table:"snap_participants",column:"snap_event_id",ids:snapIds});
     }
     const allPlayIds=plays.map(x=>x.id);
     const [demoCallsQ,demoBookQ]=options.substituteGameId?[{data:[],error:null},{data:[],error:null}]:await Promise.all([
@@ -860,8 +861,8 @@ async function remoteCloudFingerprint(){
     if(playsQ.error)throw playsQ.error;if(penQ.error)throw penQ.error;if(snapQ.error)throw snapQ.error;
     plays=playsQ.data||[];penalties=penQ.data||[];snaps=snapQ.data||[];
     const playIds=plays.map(x=>x.id),snapIds=snaps.map(x=>x.id);
-    if(playIds.length){const [creditQ,demoQ]=await Promise.all([SB.from("play_credits").select("id,play_id,player_id,credit_type,value,metadata").in("play_id",playIds),SB.from("coach_demo_play_calls").select("play_id,play_call").in("play_id",playIds)]);if(creditQ.error)throw creditQ.error;if(demoQ.error)throw demoQ.error;credits=creditQ.data||[];demoCalls=demoQ.data||[]}
-    if(snapIds.length){const q=await SB.from("snap_participants").select("id,snap_event_id,player_id,created_at").in("snap_event_id",snapIds);if(q.error)throw q.error;snapParts=q.data||[]}
+    if(playIds.length){const [allCredits,demoQ]=await Promise.all([CloudPagination.selectAllByIds(SB,{table:"play_credits",column:"play_id",ids:playIds,columns:"id,play_id,player_id,credit_type,value,metadata"}),SB.from("coach_demo_play_calls").select("play_id,play_call").in("play_id",playIds)]);if(demoQ.error)throw demoQ.error;credits=allCredits;demoCalls=demoQ.data||[]}
+    if(snapIds.length)snapParts=await CloudPagination.selectAllByIds(SB,{table:"snap_participants",column:"snap_event_id",ids:snapIds,columns:"id,snap_event_id,player_id,created_at"});
   }
   const bookQ=await SB.from("coach_demo_playbook").select("call_number,call_name").eq("team_id",S.cloud.teamId);if(bookQ.error)throw bookQ.error;demoBook=(bookQ.data||[]).map(x=>({number:x.call_number,name:x.call_name}));
   const sort=(a,k='id')=>[...(a||[])].sort((x,y)=>String(x[k]||'').localeCompare(String(y[k]||'')));
