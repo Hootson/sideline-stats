@@ -23,6 +23,8 @@ test('parent viewer scoreboard and box scores use team colors',()=>{
   assert.match(parentJs,/function preferredGame\(\)\{const gs=\[\.\.\.\(data\?\.games\|\|\[\]\)\]\.sort/,'parent viewer must sort games newest-first before selecting a live game');
   assert.match(parentJs,/!userSelectedGame&&preferred\?\.status==='live'&&preferred\.id!==prior/,'an open parent viewer must advance from an old game to the newest live game');
   assert.match(parentJs,/userSelectedGame=true/,'manual historical game selection must remain available');
+  assert.match(parentHtml,/id="oppLogo" class="logo hidden"/,'parent scoreboard must reserve a matching opponent-logo position');
+  assert.match(parentJs,/g\.opponent_logo_data/,'parent scoreboard must render the selected game opponent logo');
 });
 
 test('both snap views use the compact stacked player layout',()=>{
@@ -40,7 +42,7 @@ test('role onboarding and install guidance remain wired',()=>{
   for(const role of ['statkeeper-new','statkeeper','coach','viewer'])assert.match(app,new RegExp(role));
   assert.match(pwa,/beforeinstallprompt/);
   assert.match(pwa,/Add to Home Screen/);
-  assert.match(version,/SIDELINE_STATS_VERSION="4\.5\.60"/);
+  assert.match(version,/SIDELINE_STATS_VERSION="4\.5\.61"/);
   assert.match(pwa,/SIDELINE_STATS_VERSION=window\.SIDELINE_STATS_VERSION\|\|"current"/);
 });
 
