@@ -33,7 +33,9 @@ assert.match(analytics, /trend-area/, 'season trends must include a responsive a
 assert.match(analytics, /RUN \/ PASS MIX BY GAME/, 'season trends must compare run and pass mix by game');
 assert.match(app, /maybePromptCoachDebrief/, 'coach startup must check for an unfinished game debrief');
 assert.match(app, /webkitSpeechRecognition/, 'coach debrief voice entry must use the existing browser speech capability');
-assert.match(analytics, /Coach-provided context:/, 'submitted coach observations must be labeled separately inside Coach Read');
+assert.match(analytics, /generatedSection/, 'published Coaching Reads must replace split data and human labels');
+assert.match(app, /save_coach_debrief/, 'debrief responses must use the atomic server workflow');
+assert.match(app, /skipDebrief/, 'coaches must be able to explicitly skip a debrief');
 assert.match(css, /\.coach-section-tabs\{position:sticky/, 'analytics section controls must remain visible while scrolling');
 assert.match(css, /\.heat-name\{position:sticky;left:0/, 'play names must remain visible in the play-call table');
 assert.match(css, /@media \(max-width:560px\)/, 'phone-specific responsive rules must remain available');
@@ -59,13 +61,13 @@ assert.match(rendered,/WHAT’S WORKED ON 1ST DOWN/,'the approved play-call head
 assert.match(rendered,/25 PLAYBOOK CALLS • 2 USED/,'play-call usage must compare the full playbook with calls used');
 assert.match(rendered,/Power Right Renamed/,'the heat map must use the permanent play concept’s current name');
 
-const contextRead=api.render('overview',{games:[demoGame],selection:'season',debriefs:[
+const contextRead=api.render('overview',{games:[demoGame],selection:'season',generatedRead:{sections:{overview:'Protection metrics and staff observations point to a repeatable quick-game plan.'}},debriefs:[
   {status:'draft',structured_context:{voice_notes:'Private draft must not appear'}},
   {status:'submitted',structured_context:{what_worked:'Our protection held up'}}
 ]});
-assert.match(contextRead,/Data-supported:/,'Coach Read must identify data-derived commentary');
-assert.match(contextRead,/Coach-provided context:/,'Coach Read must incorporate submitted debrief context');
-assert.match(contextRead,/Our protection held up/,'submitted observations must influence Coach Read');
+assert.match(contextRead,/Protection metrics and staff observations/,'the published combined Coaching Read must render');
+assert.doesNotMatch(contextRead,/Data-supported:|Coach-provided context:/,'combined commentary must not expose split labels');
+assert.doesNotMatch(contextRead,/Our protection held up/,'raw coach notes must not be exposed in the Coaching Read');
 assert.doesNotMatch(contextRead,/Private draft/,'draft debriefs must remain private and excluded from Coach Read');
 
 const situationalGame={...demoGame,displayOppScore:0,plays:[...demoGame.plays,

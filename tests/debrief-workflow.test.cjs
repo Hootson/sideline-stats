@@ -1,0 +1,25 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const sql=fs.readFileSync('supabase/migrations/20260919220000_coach_debrief_workflow.sql','utf8');
+const edge=fs.readFileSync('supabase/functions/coach-debrief-workflow/index.ts','utf8');
+const app=fs.readFileSync('app.js','utf8');
+const sw=fs.readFileSync('service-worker.js','utf8');
+
+assert.match(sql,/game_id uuid not null unique/i,'each game must have only one debrief cycle');
+assert.match(sql,/new\.status <> 'final' or old\.status='final'/,'later edits to a final game must not reopen the workflow');
+assert.match(sql,/now\(\)\+interval '24 hours'/,'the coach response window must be 24 hours');
+assert.match(sql,/status in \('pending','submitted','skipped'\)/,'every assigned coach must submit or skip');
+assert.match(sql,/expected_coach_count=v_expected,responded_coach_count=v_responded/,'completion counts must be server-calculated');
+assert.match(sql,/sideline-stats-process-coach-debriefs/,'a scheduled deadline processor must exist');
+assert.match(sql,/notification_type in \('debrief_opened','coach_read_published'\)/,'opening and refresh notifications must be deduplicated');
+assert.match(sql,/save_coach_debrief/,'coach responses must be atomic');
+assert.match(edge,/OPENAI_API_KEY/,'AI generation must stay server-side');
+assert.match(edge,/gpt-5-mini/,'the efficient AI model must be the default');
+assert.match(edge,/json_schema/,'Coaching Reads must use structured output');
+assert.match(edge,/redactCoachText/,'player names must be redacted before AI processing');
+assert.match(edge,/RESEND_API_KEY/,'email delivery must be server-side');
+assert.match(edge,/VAPID_PRIVATE_KEY/,'push signing secrets must stay server-side');
+assert.match(app,/The game is not fully synced yet/,'finalization must run a cloud preflight');
+assert.match(app,/24-hour coach window is open/,'successful finalization must explain the coach window');
+assert.match(sw,/addEventListener\('push'/,'the installed app must receive push notifications');
+console.log('debrief workflow checks passed');
