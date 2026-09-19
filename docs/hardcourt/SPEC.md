@@ -71,14 +71,30 @@ Hardcourt must support player fouls and team-foul totals. Foul entry should allo
 Exact foul categories and youth rulesets remain PRODUCT DECISION REQUIRED.
 
 ## Substitutions and minutes
-The active lineup is explicitly tracked. Substitution controls update the five on-court players. Playing time accumulates only while the game clock is running and the player is marked on court.
+Hardcourt uses a bench-first lineup model. At game start, the statkeeper identifies the players visibly sitting on the bench; all unselected eligible roster players are derived as the active five.
 
-Lineup intervals are derived from clock/period state plus lineup-change events. Clock corrections must cause affected playing-time calculations to be rebuilt rather than permanently drifting.
+During a substitution, the existing bench selections reopen. The statkeeper may toggle only the players whose bench status changed or use Clear Bench and reselect everyone visibly on the bench. Confirm is allowed only when the resulting eligible active lineup is valid for the game.
+
+A substitution is committed at the instant the statkeeper taps Confirm. Until that instant, the previously confirmed active lineup continues accruing playing time even if the game clock is running. Editing/clearing selections inside the substitution panel must never retroactively alter minutes. On Confirm, the previous lineup interval closes at the current game-clock value and the newly derived active five begin accruing time immediately if the clock is running.
+
+This behavior intentionally supports youth-basketball running clocks and on-the-fly substitutions. If the game clock is stopped for a timeout/referee stoppage, lineup changes can be confirmed without any player accumulating additional playing time while the clock is stopped.
+
+Playing time is derived from confirmed lineup intervals plus clock/period state, not from the amount of real-world time a substitution popup remains open. Clock corrections must rebuild affected playing-time calculations rather than permanently drifting.
+
+Hardcourt must provide a coach-facing playing-time report/share view analogous in purpose to Gridiron's snap-count output: roster sorted from most playing time to least, showing each player's total game minutes and enough game context for a coach to compare participation. Percent of available game time may also be derived.
 
 ## Clock and periods
-Game setup must eventually define period structure and duration rather than assuming one universal basketball ruleset. Starting/stopping the game clock must be extremely accessible from the main game screen.
+Game setup must support at least two period structures:
+- four quarters;
+- two halves.
 
-The app should timestamp stat events with the displayed game clock. Exact clock automation, horn behavior and supported rulesets remain PRODUCT DECISION REQUIRED.
+Period length must be configurable so youth leagues with different game lengths are supported.
+
+The main game screen has a highly accessible Start/Stop Clock control. The displayed Hardcourt clock is the source used for event timestamps and playing-time calculations. Youth basketball commonly uses a running clock, so ordinary stat entry and substitution editing must not implicitly stop the clock. A timeout/referee stoppage can stop the clock explicitly.
+
+At a quarter/half transition, advancing to the next period updates the period label and resets/sets the configured period clock as appropriate. When teams change attacking direction, Hardcourt flips the offensive side: the highlighted offensive half, contextual shot-entry side and control-menu side mirror together. The underlying court geometry remains mathematically symmetric.
+
+The app should preserve enough clock/period history to correct a clock mistake and deterministically rebuild event timing, lineup intervals and player minutes.
 
 ## Undo and correction
 Undo must reverse the most recent logical action, including linked secondary statistics when appropriate. Example: undoing a made field goal with an attached assist removes both the basket and that linked assist.
