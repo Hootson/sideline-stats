@@ -37,7 +37,7 @@ if(S.cloud.access===undefined)S.cloud.access=null;
 if(S.cloud.hashVersion===undefined)S.cloud.hashVersion=1;
 let statsScope="game";
 let selectedStatsGameId=null;
-let coachTab="overview",coachSelection=null,coachDown=1,coachMetric="success",coachCallSortBucket="overall",coachPlayerMode="offense",coachDebriefs=[],coachOwnDebrief=null,coachDebriefCycle=null,coachDebriefAssignment=null,coachGeneratedRead=null;
+let coachTab="overview",coachSelection=null,coachDown=1,coachMetric="success",coachCallSortBucket="overall",coachPlayerMode="offense",coachDebriefs=[],coachOwnDebrief=null,coachDebriefCycle=null,coachDebriefAssignment=null,coachGeneratedRead=null,coachPushAvailable=false;
 let pendingNewOpponentLogo=null;
 let pendingEditOpponentLogo=undefined;
 let editingGameId=null;
@@ -1293,7 +1293,7 @@ function renderCoachGameSelect(){
   select.value=coachSelection;
 }
 function coachContext(){
-  return {games:S.games||[],roster:S.roster||[],playbook:teamPlaybook(),teamName:S.team?.name||"Team",selection:coachSelection,down:coachDown,metric:coachMetric,callSortBucket:coachCallSortBucket,playerMode:coachPlayerMode,debriefs:coachDebriefs,ownDebrief:coachOwnDebrief,debriefCycle:coachDebriefCycle,debriefAssignment:coachDebriefAssignment,generatedRead:coachGeneratedRead,userId:cloudUser?.id||null};
+  return {games:S.games||[],roster:S.roster||[],playbook:teamPlaybook(),teamName:S.team?.name||"Team",selection:coachSelection,down:coachDown,metric:coachMetric,callSortBucket:coachCallSortBucket,playerMode:coachPlayerMode,debriefs:coachDebriefs,ownDebrief:coachOwnDebrief,debriefCycle:coachDebriefCycle,debriefAssignment:coachDebriefAssignment,generatedRead:coachGeneratedRead,pushAvailable:coachPushAvailable,userId:cloudUser?.id||null};
 }
 function renderCoach(){
   const content=$("#coachAnalyticsContent");if(!content)return;
@@ -1306,17 +1306,18 @@ async function loadCoachDebriefs(){
   const game=coachSelectedGame();coachDebriefs=[];coachOwnDebrief=null;coachDebriefCycle=null;coachDebriefAssignment=null;coachGeneratedRead=null;
   if(!SB||!cloudUser||!game||!hasCoachAccess())return;
   const cloudGameId=S.cloud?.gameIds?.[game.id]||game.id;
-  const [debriefQ,cycleQ,assignmentQ,readQ]=await Promise.all([
+  const [debriefQ,cycleQ,assignmentQ,readQ,notificationConfig]=await Promise.all([
     SB.from("coach_debriefs").select("*").eq("game_id",cloudGameId).order("updated_at",{ascending:false}),
     SB.from("game_debrief_cycles").select("*").eq("game_id",cloudGameId).maybeSingle(),
     SB.from("game_debrief_assignments").select("*").eq("game_id",cloudGameId).eq("coach_user_id",cloudUser.id).maybeSingle(),
-    SB.from("coach_reads").select("*").eq("game_id",cloudGameId).maybeSingle()
+    SB.from("coach_reads").select("*").eq("game_id",cloudGameId).maybeSingle(),
+    fetch(`${SUPABASE_URL}/functions/v1/coach-debrief-workflow`,{method:"POST",headers:{apikey:SUPABASE_PUBLISHABLE_KEY,"Content-Type":"application/json"},body:JSON.stringify({action:"config"})}).then(r=>r.ok?r.json():null).catch(()=>null)
   ]);
   if(debriefQ.error){console.warn("Could not load coach debriefs",debriefQ.error);return}
   if(cycleQ.error||assignmentQ.error||readQ.error)console.warn("Could not load complete debrief workflow",cycleQ.error||assignmentQ.error||readQ.error);
   coachDebriefs=(debriefQ.data||[]).map(d=>({...d,coach_email:d.structured_context?.coach_name||"Coach"}));
   coachOwnDebrief=coachDebriefs.find(d=>d.coach_user_id===cloudUser.id)||null;
-  coachDebriefCycle=cycleQ.data||null;coachDebriefAssignment=assignmentQ.data||null;coachGeneratedRead=readQ.data||null;
+  coachDebriefCycle=cycleQ.data||null;coachDebriefAssignment=assignmentQ.data||null;coachGeneratedRead=readQ.data||null;coachPushAvailable=Boolean(notificationConfig?.capabilities?.push&&notificationConfig?.vapidPublicKey);
 }
 async function saveCoachDebrief(status){
   const game=coachSelectedGame();if(!game||!SB||!cloudUser)return toast("Select one game before saving a debrief");

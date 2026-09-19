@@ -23,5 +23,7 @@ assert.match(edge,/RESEND_API_KEY/,'email delivery must be server-side');
 assert.match(edge,/VAPID_PRIVATE_KEY/,'push signing secrets must stay server-side');
 assert.match(app,/The game is not fully synced yet/,'finalization must run a cloud preflight');
 assert.match(app,/24-hour coach window is open/,'successful finalization must explain the coach window');
+assert.match(app,/coachPushAvailable=Boolean\(notificationConfig\?\.capabilities\?\.push&&notificationConfig\?\.vapidPublicKey\)/,'push controls must follow the deployed capability state');
+assert.match(fs.readFileSync('coach-analytics.js','utf8'),/ctx\.pushAvailable\?[^]*enableCoachNotifications/,'the push control must stay hidden when delivery is unavailable');
 assert.match(sw,/addEventListener\('push'/,'the installed app must receive push notifications');
 console.log('debrief workflow checks passed');

@@ -50,7 +50,7 @@ assert.match(app, /platform_admin!==true\)return toast\("Owner access is require
 assert.match(app, /function renderViewerGameSummary\(\)/, 'viewer Game Center must render its scoreboard');
 assert.match(html, /id="viewerGameSummary"/, 'Stats must contain the viewer scoreboard destination');
 assert.match(html, /id="shareStatsBtn"/, 'Stats sharing must remain available');
-assert.match(sw, /sideline-stats-v4-6-0-coach-debrief-workflow/, 'service worker cache must match the current release');
+assert.match(sw, /sideline-stats-v4-6-1-hide-unavailable-push/, 'service worker cache must match the current release');
 assert.match(html, /cloud-pagination\.js[^]*app\.js/, 'cloud pagination helper must load before the application');
 assert.match(pagination, /\.range\(from,from\+pageSize-1\)/, 'large cloud child tables must be fetched page by page');
 assert.match(app, /table:"snap_participants",column:"snap_event_id"/, 'cloud refresh must paginate all snap participants');
