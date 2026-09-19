@@ -37,7 +37,7 @@ test('role onboarding and install guidance remain wired',()=>{
   for(const role of ['statkeeper-new','statkeeper','coach','viewer'])assert.match(app,new RegExp(role));
   assert.match(pwa,/beforeinstallprompt/);
   assert.match(pwa,/Add to Home Screen/);
-  assert.match(version,/SIDELINE_STATS_VERSION="4\.5\.58"/);
+  assert.match(version,/SIDELINE_STATS_VERSION="4\.5\.59"/);
   assert.match(pwa,/SIDELINE_STATS_VERSION=window\.SIDELINE_STATS_VERSION\|\|"current"/);
 });
 

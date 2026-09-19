@@ -49,7 +49,7 @@ assert.match(app, /platform_admin!==true\)return toast\("Owner access is require
 assert.match(app, /function renderViewerGameSummary\(\)/, 'viewer Game Center must render its scoreboard');
 assert.match(html, /id="viewerGameSummary"/, 'Stats must contain the viewer scoreboard destination');
 assert.match(html, /id="shareStatsBtn"/, 'Stats sharing must remain available');
-assert.match(sw, /sideline-stats-v4-5-58-game-edit-recreate/, 'service worker cache must match the current release');
+assert.match(sw, /sideline-stats-v4-5-59-durable-game-deletes/, 'service worker cache must match the current release');
 assert.match(styles, /nav\{[^}]*background:var\(--p\)/, 'the statkeeper bottom navigation must use the team primary color');
 assert.match(styles, /nav button\.active\{[^}]*var\(--nav-active\)/, 'the active statkeeper tab must use the team accent treatment');
 assert.match(app, /#bottomNav \[data-go\][\s\S]*classList\.toggle\("active"/, 'the current statkeeper tab must receive an active state');
@@ -58,8 +58,15 @@ assert.match(snapTracker, /border-bottom:7px solid #65b946/, 'the shared Snap Tr
 assert.match(app, /Resume the game vs \$\{g\.opponent\} and mark it Live\?/, 'opening a final game must offer to resume it live');
 assert.match(app, /Finalize the game vs \$\{g\.opponent\}\?/, 'finalizing a game must require confirmation');
 assert.match(app, /async function syncDeletedCloudGames\(\)/, 'deleted local games must be reconciled to Supabase');
+assert.match(app, /table==="plays"\?"revision,updated_at,client_updated_at":table==="games"\?"revision,updated_at":"updated_at"/, 'delete conflict checks must request only columns that exist on each cloud table');
 assert.match(app, /update\(\{status:"archived"\}\)/, 'cloud game deletion must use the recoverable archived status');
 assert.ok(app.indexOf('await syncDeletedCloudGames();ensureCurrentRun()') < app.indexOf('const ordered=['), 'deleted games must release their cloud identity before replacement games are inserted');
+assert.match(app, /deletedGames:\{\}/, 'cloud state must include a durable deleted-game queue');
+assert.match(app, /S\.cloud\.deletedGames\[cloudId\]=\{localId:g\.id,seasonId:S\.cloud\.seasonId,deletedAt:/, 'deleting a game must persist its cloud tombstone before removing the local game');
+assert.match(app, /const games=\(gr\.data\|\|\[\]\)\.filter\(game=>!deletedCloudIds\.has\(game\.id\)\)/, 'cloud refresh must not resurrect a game with a pending deletion tombstone');
+assert.match(app, /for\(const \[cloudId,tombstone\] of Object\.entries\(S\.cloud\.deletedGames\|\|\{\}\)\)/, 'sync must archive durable deletion tombstones independently of the current game list');
+assert.match(app, /delete S\.cloud\.deletedGames\[cloudId\]/, 'a deletion tombstone must clear only after its cloud archive succeeds');
+assert.match(app, /S\.cloud\.deleteRevisions\[`games:\$\{cloudGameId\}`\]=revision/, 'publishing a game must retain the newest cloud revision for safe later deletion');
 assert.match(app, /games_active_identity_unique/, 'a duplicate cloud game identity must have a recovery path');
 assert.match(app, /id=existing\.id;[\s\S]*S\.cloud\.gameIds\[g\.id\]=id/, 'a matching cloud game must be rebound to the local game instead of blocking sync');
 assert.match(app, /\.neq\("status","archived"\)/, 'archived games must be excluded from cloud loads and viewer checks');
