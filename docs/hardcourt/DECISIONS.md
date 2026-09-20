@@ -217,3 +217,19 @@ These decisions supersede any earlier Alpha implementation that conflicts with t
 ### Real-device acceptance principle
 - A technically functional screen that materially departs from the approved court-first composition is not visually accepted.
 - Real-device iPhone testing is authoritative for game-day layout issues that desktop/automated tests cannot reveal.
+
+
+## September 20, 2026 — real-device UI pass 2
+- **Approved Hardcourt screenshots are the visual source of truth.** Implementation must match their composition, proportions, hierarchy, court treatment, control placement, spacing, navigation, branding and density. Engineering may improve invisible behavior/responsiveness but may not redesign the approved interface.
+- Remove Substitution, Timeout and Next Period from the routine court-stat grid. Keep them as a compact, sleek game-management cluster near the upper outside corner. Next Period becomes visually prominent at 0:00.
+- Remove the standalone Free Throw live control. Live free throws originate from a recorded foul/foul context; exceptional missed-history cases belong to Edit/Correction.
+- Foul is a separate contextual control on the offensive half. The foul must always be assigned; shooting/bonus context then launches the applicable free-throw sequence when that workflow is implemented.
+- Segregate opponent actions into their own clearly labeled compact group rather than intermixing them with our-team actions.
+- Fast Break is an offensive tagging control and should not be forced into the non-offensive our-team group.
+- Game Setup must offer a clear starting offensive-direction choice. A compact Flip Direction correction remains available during the game.
+- Start/Stop Clock has explicit state: while running Start is highlighted; while stopped Stop is highlighted, including initial 8:00 state.
+- Pending shot selector has a top-right × that cancels the pending location without recording anything. The selected location may be marked while the selector is open. All five active players and Made/Miss choices must fit immediately without scrolling or clipping.
+- Playing Time normally hides the aggregate player-minutes sanity total. Keep the integrity check internally and surface only a warning when inconsistent. Sort players most-to-least; show minutes, percentage of elapsed game time, and a progress bar.
+- Hardcourt should launch standalone from an iOS Home Screen icon like Gridiron, without Safari browser chrome. PWA/Apple web-app configuration should inherit the working Gridiron approach rather than inventing a separate pattern.
+- Player headshots are optional season-roster data: jersey number, name and one headshot uploaded once and reused for the season. Use photos selectively where screen space supports them; do not force tiny headshots into fast live selectors.
+- Player Game Card should support a premium trading-card-like presentation. A future shared Bleacher Butt platform feature will generate automatic Game/Season share cards from verified stats, team colors/branding and approved player photos. This is intended as an organic sharing/growth feature for both Hardcourt and Gridiron, not a paid card add-on. Hardcourt prototype should eventually include the Player Card concept, but it is not part of this immediate live-game UI pass.
