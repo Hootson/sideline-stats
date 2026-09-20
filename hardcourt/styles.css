@@ -25,3 +25,5 @@
 @media(max-width:760px) and (orientation:portrait){body.needs-landscape #shell:after{content:"Rotate your phone to landscape for Game";position:fixed;inset:0;z-index:100;background:#080a0bf7;color:#fff;display:grid;place-items:center;text-align:center;font-size:22px;font-weight:850;padding:40px}body.needs-landscape #shell:before{content:"↻";position:fixed;z-index:101;left:50%;top:34%;transform:translateX(-50%);font-size:44px;color:var(--accent)}}
 
 .team-total th,.team-total td{font-weight:900;background:#202527;border-top:2px solid var(--accent)}
+
+.player-tile.pf-warn{border-color:#e6c24a}.player-tile.pf-danger{border-color:#ef8b35;box-shadow:inset 0 0 0 1px #ef8b35}.player-tile.pf-out{border-color:#e34a4a;background:#351818e8}.player-tile.pf-ok{border-color:#57986a}
