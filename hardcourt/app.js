@@ -44,7 +44,22 @@ function undoLastChain(){const last=state.events.at(-1);if(!last)return;const ch
 $("fastBtn").onclick=()=>{state.fast=!state.fast;render()};$("undoBtn").onclick=undoLastChain;
 const court=$("court");court.onclick=e=>{if(e.target.closest(".overlay,.controls,.offense-tools,.game-manage"))return;const r=court.getBoundingClientRect(),x=(e.clientX-r.left)/r.width,y=(e.clientY-r.top)/r.height;if((state.offenseRight&&x<.5)||(!state.offenseRight&&x>.5))return;shotPopup(x,y,e.clientX-r.left,e.clientY-r.top)};
 function clearPendingShot(){$("shotPrompt").classList.add("hidden");document.querySelector(".shot-marker")?.remove()}
-function shotPopup(x,y,left,top){clearPendingShot();const three=isThreePoint(x,y,state.offenseRight),o=$("shotPrompt"),m=document.createElement("i");m.className="shot-marker";m.style.left=x*100+"%";m.style.top=y*100+"%";court.appendChild(m);const ow=Math.min(300,court.clientWidth-16);o.style.width=ow+"px";o.style.left=Math.max(8,Math.min(left-ow/2,court.clientWidth-ow-8))+"px";o.style.top=Math.max(8,Math.min(top-110,court.clientHeight-230))+"px";o.classList.remove("hidden");o.innerHTML='<div class="shot-head"><b>'+(three?"3PT":"2PT")+' attempt</b><button class="shot-close">×</button></div><div class="shot-grid">'+state.active.map(id=>{const p=roster.find(x=>x.id===id);return'<button data-shot="'+id+'" data-made="1">#'+p.num+" "+p.name+' · MAKE</button><button data-shot="'+id+'" data-made="0">#'+p.num+" "+p.name+" · MISS</button>"}).join("")+"</div>";o.querySelector(".shot-close").onclick=e=>{e.stopPropagation();clearPendingShot()};o.querySelectorAll("[data-shot]").forEach(b=>b.onclick=()=>{const made=b.dataset.made==="1",chain=chainId();state.pendingChain=chain;state.events.push(createEvent("shot",{playerId:b.dataset.shot,made,three,x,y,rimZone:rimZone(x,y,state.offenseRight),fastBreak:state.fast,lineup:[...state.active],chainId:chain},state));state.fast=false;clearPendingShot();render();made?promptAssist(b.dataset.shot):promptMissRebound()})}
+function shotPopup(x,y,left,top){
+ clearPendingShot();
+ const three=isThreePoint(x,y,state.offenseRight),o=$("shotPrompt"),m=document.createElement("i");
+ m.className="shot-marker";m.style.left=x*100+"%";m.style.top=y*100+"%";court.appendChild(m);
+ const zone=shotZone({payload:{x,y,three,rimZone:rimZone(x,y,state.offenseRight)}});
+ let selected=state.active[0];
+ const ow=Math.min(390,court.clientWidth*.46);
+ o.style.width=ow+"px";o.style.left=Math.max(8,Math.min(left-ow/2,court.clientWidth-ow-8))+"px";o.style.top=Math.max(8,Math.min(top-125,court.clientHeight-290))+"px";o.classList.remove("hidden");
+ const draw=()=>{
+   o.innerHTML='<div class="shot-head"><div><b>🏀 Record Shot</b><small>'+zone+' · '+(three?"3PT":"2PT")+'</small></div><button class="shot-close">×</button></div><div class="shot-player-grid">'+state.active.map(id=>{const p=roster.find(x=>x.id===id);return '<button class="'+(id===selected?"selected":"")+'" data-pick="'+id+'><b>#'+p.num+'</b><small>'+p.name+'</small></button>'}).join("")+'</div><div class="shot-actions"><button class="shot-made" data-made="1">✓<small>Made</small></button><button class="shot-missed" data-made="0">×<small>Missed</small></button></div><div class="assist-note">□ Add Assist <small>(optional after a made shot)</small></div>';
+   o.querySelector(".shot-close").onclick=e=>{e.stopPropagation();clearPendingShot()};
+   o.querySelectorAll("[data-pick]").forEach(btn=>btn.onclick=e=>{e.stopPropagation();selected=btn.dataset.pick;draw()});
+   o.querySelectorAll("[data-made]").forEach(btn=>btn.onclick=e=>{e.stopPropagation();const made=btn.dataset.made==="1",chain=chainId();state.pendingChain=chain;state.events.push(createEvent("shot",{playerId:selected,made,three,x,y,rimZone:rimZone(x,y,state.offenseRight),fastBreak:state.fast,lineup:[...state.active],chainId:chain},state));state.fast=false;clearPendingShot();render();made?promptAssist(selected):promptMissRebound()});
+ };
+ draw();
+}
 function modal(title,choices,cb){openModal(title,'<div class="choices">'+choices.map(x=>'<button class="choice" data-choice="'+x.value+'">'+x.label+"</button>").join("")+"</div>");document.querySelectorAll("[data-choice]").forEach(b=>b.onclick=()=>{closeModal();cb(b.dataset.choice)})}
 function openModal(t,b){$("modalTitle").textContent=t;$("modalBody").innerHTML=b;$("modal").classList.remove("hidden")}function closeModal(){$("modal").classList.add("hidden")}$("modalClose").onclick=closeModal;
 function choosePlayer(title,type){modal(title,state.active.map(id=>{const p=roster.find(x=>x.id===id);return{label:"#"+p.num+" "+p.name,value:id}}),id=>{state.events.push(createEvent(type,{playerId:id,lineup:[...state.active]},state));render()})}
