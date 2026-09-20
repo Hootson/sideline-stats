@@ -20,6 +20,11 @@ test('parent viewer scoreboard and box scores use team colors',()=>{
   assert.match(parentHtml,/<th>TGT<\/th>/,'parent receiving stats should label targets');
   assert.match(parentJs,/tgt:0,rec:0/,'parent receiving stats should initialize targets for intended receivers');
   assert.match(parentJs,/s\.tgt\+\+/,'parent receiving stats should count every intended receiver target');
+  assert.match(parentJs,/function preferredGame\(\)\{const gs=\[\.\.\.\(data\?\.games\|\|\[\]\)\]\.sort/,'parent viewer must sort games newest-first before selecting a live game');
+  assert.match(parentJs,/!userSelectedGame&&preferred\?\.status==='live'&&preferred\.id!==prior/,'an open parent viewer must advance from an old game to the newest live game');
+  assert.match(parentJs,/userSelectedGame=true/,'manual historical game selection must remain available');
+  assert.match(parentHtml,/id="oppLogo" class="logo hidden"/,'parent scoreboard must reserve a matching opponent-logo position');
+  assert.match(parentJs,/g\.opponent_logo_data/,'parent scoreboard must render the selected game opponent logo');
 });
 
 test('both snap views use the compact stacked player layout',()=>{
@@ -37,7 +42,7 @@ test('role onboarding and install guidance remain wired',()=>{
   for(const role of ['statkeeper-new','statkeeper','coach','viewer'])assert.match(app,new RegExp(role));
   assert.match(pwa,/beforeinstallprompt/);
   assert.match(pwa,/Add to Home Screen/);
-  assert.match(version,/SIDELINE_STATS_VERSION="4\.5\.56"/);
+  assert.match(version,/SIDELINE_STATS_VERSION="4\.6\.2"/);
   assert.match(pwa,/SIDELINE_STATS_VERSION=window\.SIDELINE_STATS_VERSION\|\|"current"/);
 });
 
@@ -56,7 +61,7 @@ test('the roster navigation also identifies the playbook',()=>{
 test('new parent and coach links carry the active release and account modal stays closable',()=>{
   assert.doesNotMatch(index,/V4\.5\.24/);
   assert.doesNotMatch(app,/appVersion:"4\.5\.24"/);
-  assert.match(app,/function releaseInviteUrl\(token\)/);
+  assert.match(app,/function releaseViewerInviteUrl\(token\)/);
   assert.match(app,/searchParams\.set\("release",window\.SIDELINE_STATS_VERSION\|\|"current"\)/);
   assert.match(styles,/\.modal-card\{[^}]*max-height:calc\(100dvh/);
   assert.match(styles,/\.modal-card\{[^}]*overflow-y:auto/);
