@@ -99,3 +99,84 @@ Record unresolved choices here rather than allowing an implementation agent to i
 - Statkeeping may begin as Just Me; sharing can be configured without blocking game creation.
 - Show a concise pre-start review strip summarizing format, period length, direction, active/bench counts and foul limit.
 - Remember team/league defaults for future games while allowing per-game overrides.
+
+## September 20, 2026 — pre-Alpha locked additions
+
+### Brand and cross-sport inheritance
+- Umbrella brand is **Bleacher Butt Stats**. Basketball product is **Hardcourt Edition**.
+- Hardcourt inherits Gridiron behavior wherever a requirement is sport-neutral; redesign only when basketball requires it or a deliberate platform-wide improvement is approved.
+- Product branding and team branding are separate. The Bleacher Butt Stats / Hardcourt Edition header keeps product branding. Team primary and accent colors are configurable and flow through app screens, navigation, highlights and accents with accessible contrast.
+
+### Responsive game UI
+- One responsive landscape Game interface serves iPhone and iPad. It is not a separate tablet workflow.
+- Relative control positions, tap sequences, scoreboard, court, active-five area and navigation remain the same.
+- Larger screens gain scale and breathing room without distorting court geometry or creating giant controls.
+- Court aspect ratio is preserved.
+
+### Court and touch geometry
+- The approved visual mockup is reference, not geometry source. Court is drawn programmatically from one half and mirrored.
+- Three-point geometry must leave usable corner-three tap space and avoid excessive dead hardwood between arc apex and center court.
+- Visible line geometry and hit classification may differ: use forgiving invisible touch regions around the 3PT boundary to reduce fat-finger 2/3 misclassification while remaining deterministic.
+- Exact approved Hardcourt logo asset is placed at center court; do not generatively recreate it in production.
+
+### Stats
+- Views: Game, Regular Season, Playoffs, Season Total.
+- Core box score: MIN, PTS, FG, 3PT, FT, REB, AST, STL, BLK, TO, PF, +/-.
+- Team Total row.
+- Player identity remains visible while wide stat columns scroll when necessary.
+- Player row can open a Player Game Card with shooting splits, core stats and personal shot chart.
+
+### Playing Time
+- First-class top-level area occupying the same conceptual navigation position as Gridiron Snap Counts.
+- Show total minutes, percent of available game time and a visual participation bar.
+- Distinguish Starter, DNP/0:00 and unavailable/not-rostered states.
+- Sort most-to-least minutes by default.
+- Show expected player-minutes sanity check (game length x five) against recorded total.
+- Season views may derive games played, total minutes, average minutes/game and percentage of available minutes.
+- This view is objective/read-only; lineup editing remains on Game.
+
+### Shooting analytics
+- Exact shot coordinates support Shot Chart, Heat Map, Zones, Frequency and Efficiency views.
+- Filters support team/player, game/selected games/season, period and shot type.
+- Individual shot inspection may show shooter, result, 2/3, period/time and assist when present.
+- Heat/zone displays must expose sample size and avoid overstating tiny samples.
+- Frequency and efficiency are distinct views.
+- Invisible near-rim zones classify Left Rim, Center Rim and Right Rim. Do not infer technical shot type such as layup solely from location. Coach-facing grouping may be called Finishing at the Rim.
+- Rim-side performance is trendable across games/season and available to Coaching Read.
+
+### Fast break — Alpha experiment
+- Field-goal events support fast_break true/false/null.
+- A persistent but compact Fast Break control arms the next field-goal attempt; the next made or missed shot receives the tag and the control auto-clears.
+- Tapping again cancels before the shot.
+- Ordinary shots remain two taps.
+- Recent-play editing can add/remove the tag after entry.
+- Fast Break does not stop the clock.
+- Analytics can derive attempts, makes, FG%, points, player/location/rim-side breakdown and trends.
+- Retention of permanent Game-screen real estate is explicitly subject to real-game Alpha testing.
+
+### Lineups and plus/minus
+- Derive lineup MIN, points for, points against and +/- for each five-player combination.
+- Show sample playing time prominently; avoid unsupported best-lineup declarations from tiny samples.
+- Support individual on/off and a lineup timeline derived from confirmed intervals.
+- Timeline corrections recompute minutes and +/-.
+- Every scoring event applies scoring differential to the confirmed active five.
+- Unattributed historical score corrections must not silently assign +/- to whichever lineup is currently active.
+
+### Analytics and Coach Debrief
+- Analytics home organizes Overview, Shooting, Players, Lineups and Trends.
+- Trend windows include Last 5, Last 10, Season and Select Games where data permits.
+- **Coach Debrief -> AI Coaching Read** is core architecture. AI combines objective event-derived data with qualitative coach observations.
+- Output distinguishes what the data shows, what the coach observed, synthesis, and specific items worth reviewing.
+- AI must not claim the data proves a qualitative observation when the captured events cannot measure it.
+- Coaching Read may offer **Targeted Practice Ideas** tied to sufficiently supported weaknesses/patterns, including floor-location-specific shooting/finishing work. Recommendations show evidence/sample context and are suggestions for coach selection, not mandates.
+- A full AI-generated practice-plan builder is future scope, not Alpha.
+
+### Overtime and rebounds
+- Support configurable overtime length and multiple overtime periods.
+- Rebounds support player, opponent and team/dead-ball outcomes where appropriate.
+
+### Alpha scope
+First playable Alpha prioritizes: Game Setup; responsive iPhone/iPad Game screen; core live event entry; clock/periods; bench-first substitutions and minutes; Undo/Edit; Stats; Playing Time; basic Shot Chart; Fast Break experiment; local/offline persistence; automated tests.
+Full season Trends, sophisticated lineup analytics, multi-statkeeper mode, granular opponent statkeeper and polished AI coaching output may follow after the live game engine is proven, but the event model must support them now.
+
+Primary Alpha validation question: **Can one person keep an accurate basketball game on an iPhone landscape without falling behind?**
