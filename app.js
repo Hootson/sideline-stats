@@ -121,7 +121,8 @@ function rememberTeam(teamId){
 }
 function pendingTeamInviteToken(){
   try{
-    const incoming=new URLSearchParams(location.search).get("teamInvite")||"";
+    const params=new URLSearchParams(location.search);
+    const incoming=params.get("coachInvite")||params.get("teamInvite")||"";
     if(/^[a-z0-9_-]{32,}$/i.test(incoming)){localStorage.setItem(PENDING_TEAM_INVITE_KEY,incoming);return incoming}
     return localStorage.getItem(PENDING_TEAM_INVITE_KEY)||"";
   }catch(_){return ""}
@@ -129,7 +130,7 @@ function pendingTeamInviteToken(){
 function clearPendingTeamInvite(){
   try{
     localStorage.removeItem(PENDING_TEAM_INVITE_KEY);
-    const u=new URL(location.href);u.searchParams.delete("teamInvite");window.history?.replaceState?.({},"",u.href);
+    const u=new URL(location.href);u.searchParams.delete("teamInvite");u.searchParams.delete("coachInvite");window.history?.replaceState?.({},"",u.href);
   }catch(_){}
 }
 function pendingGameStatkeeperInviteToken(){
@@ -453,7 +454,7 @@ async function authCreate(){
   if(!email||password.length<6)return toast("Use an email and password of at least 6 characters"); $("#authMessage").textContent="Creating account…";
   localStorage.setItem(ONBOARDING_PLAN_KEY,onboardingPlan);
   const redirectUrl=new URL((location.hostname==="localhost"||location.hostname==="127.0.0.1")?location.origin+location.pathname:"https://hootson.github.io/sideline-stats/");
-  const gameInviteToken=pendingGameStatkeeperInviteToken(),inviteToken=pendingTeamInviteToken();if(gameInviteToken)redirectUrl.searchParams.set("gameStatkeeperInvite",gameInviteToken);else if(inviteToken)redirectUrl.searchParams.set("teamInvite",inviteToken);
+  const gameInviteToken=pendingGameStatkeeperInviteToken(),inviteToken=pendingTeamInviteToken();if(gameInviteToken)redirectUrl.searchParams.set("gameStatkeeperInvite",gameInviteToken);else if(inviteToken)redirectUrl.searchParams.set(new URLSearchParams(location.search).has("coachInvite")?"coachInvite":"teamInvite",inviteToken);
   else redirectUrl.searchParams.set("accountConfirmed","1");
   const redirectTo=redirectUrl.href;
   const {data,error}=await SB.auth.signUp({email,password,options:{emailRedirectTo:redirectTo,data:{intended_plan:onboardingPlan}}}); if(error){$("#authMessage").textContent=error.message;return}
@@ -509,7 +510,7 @@ async function createViewerInvite(){
   try{
     const {data,error}=await SB.rpc("create_team_invite",{p_team_id:S.cloud.teamId,p_role:"viewer",p_expires_days:7});if(error)throw error;
     const token=String(data||"");if(!token)throw new Error("No invitation link was returned");
-    const u=releaseInviteUrl(token);
+    const u=releaseViewerInviteUrl(token);
     const label=`${S.team.name}${S.team.identifier?` — ${S.team.identifier}`:""}`;
     teamInviteShareData={title:`Join ${label} on Sideline Stats`,text:`Create or sign in to your viewer account for ${label}.`,url:u.href};
     $("#teamInviteUrl").value=u.href;$("#teamInviteResult").classList.remove("hidden");
@@ -536,7 +537,7 @@ async function createCoachInvite(){
   try{
     const {data,error}=await SB.rpc("create_coach_invite",{p_team_id:S.cloud.teamId,p_email:email,p_expires_days:7});if(error)throw error;
     const token=String(data||"");if(!token)throw new Error("No invitation link was returned");
-    const u=releaseInviteUrl(token);
+    const u=releaseCoachInviteUrl(token);
     const label=`${S.team.name}${S.team.identifier?` — ${S.team.identifier}`:""}`;
     coachInviteShareData={title:`Join ${label} Coach Pro`,text:`This Coach Pro invitation is for ${email}. Create or sign in using that exact email address to join ${label}.`,url:u.href};
     $("#coachInviteUrl").value=u.href;$("#coachInviteResult").classList.remove("hidden");
@@ -548,7 +549,8 @@ function copyCoachInvite(){
   const fallback=()=>prompt("Copy this coach invitation link",url);
   if(navigator.clipboard?.writeText)navigator.clipboard.writeText(url).then(()=>toast("Coach link copied")).catch(fallback);else fallback();
 }
-function releaseInviteUrl(token){const u=new URL("https://hootson.github.io/sideline-stats/");u.searchParams.set("teamInvite",token);u.searchParams.set("release",window.SIDELINE_STATS_VERSION||"current");return u}
+function releaseViewerInviteUrl(token){const u=new URL("https://hootson.github.io/sideline-stats/parent-viewer.html");u.searchParams.set("teamInvite",token);u.searchParams.set("release",window.SIDELINE_STATS_VERSION||"current");return u}
+function releaseCoachInviteUrl(token){const u=new URL("https://hootson.github.io/sideline-stats/");u.searchParams.set("coachInvite",token);u.searchParams.set("release",window.SIDELINE_STATS_VERSION||"current");return u}
 async function shareCoachInvite(){
   if(!coachInviteShareData)return copyCoachInvite();
   if(!navigator.share)return copyCoachInvite();
