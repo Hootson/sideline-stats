@@ -27,3 +27,5 @@
 .team-total th,.team-total td{font-weight:900;background:#202527;border-top:2px solid var(--accent)}
 
 .player-tile.pf-warn{border-color:#e6c24a}.player-tile.pf-danger{border-color:#ef8b35;box-shadow:inset 0 0 0 1px #ef8b35}.player-tile.pf-out{border-color:#e34a4a;background:#351818e8}.player-tile.pf-ok{border-color:#57986a}
+
+.setup-team-summary{grid-column:1/-1;display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #343a3d;border-radius:10px;background:#171b1d}.setup-team-summary b{font-size:18px}.setup-team-summary small{color:var(--muted)}.setup-team-summary button{margin-left:auto;min-height:40px}.setup-review{margin:12px 0;padding:10px;border-radius:10px;background:#171b1d;color:var(--muted)}
