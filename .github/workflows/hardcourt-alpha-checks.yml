@@ -1,0 +1,38 @@
+name: Hardcourt Alpha Checks
+on:
+  pull_request:
+    paths:
+      - 'hardcourt/**'
+      - 'tools/sideline-mcp/**'
+  push:
+    branches:
+      - 'build/hardcourt-alpha'
+    paths:
+      - 'hardcourt/**'
+      - 'tools/sideline-mcp/**'
+jobs:
+  hardcourt-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hardcourt
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm test
+  mcp-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tools/sideline-mcp
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tools/sideline-mcp/package-lock.json
+      - run: npm install
+      - run: npm test
