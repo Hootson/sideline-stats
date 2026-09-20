@@ -42,7 +42,7 @@ test('role onboarding and install guidance remain wired',()=>{
   for(const role of ['statkeeper-new','statkeeper','coach','viewer'])assert.match(app,new RegExp(role));
   assert.match(pwa,/beforeinstallprompt/);
   assert.match(pwa,/Add to Home Screen/);
-  assert.match(version,/SIDELINE_STATS_VERSION="4\.6\.1"/);
+  assert.match(version,/SIDELINE_STATS_VERSION="4\.6\.2"/);
   assert.match(pwa,/SIDELINE_STATS_VERSION=window\.SIDELINE_STATS_VERSION\|\|"current"/);
 });
 
@@ -61,7 +61,7 @@ test('the roster navigation also identifies the playbook',()=>{
 test('new parent and coach links carry the active release and account modal stays closable',()=>{
   assert.doesNotMatch(index,/V4\.5\.24/);
   assert.doesNotMatch(app,/appVersion:"4\.5\.24"/);
-  assert.match(app,/function releaseInviteUrl\(token\)/);
+  assert.match(app,/function releaseViewerInviteUrl\(token\)/);
   assert.match(app,/searchParams\.set\("release",window\.SIDELINE_STATS_VERSION\|\|"current"\)/);
   assert.match(styles,/\.modal-card\{[^}]*max-height:calc\(100dvh/);
   assert.match(styles,/\.modal-card\{[^}]*overflow-y:auto/);
