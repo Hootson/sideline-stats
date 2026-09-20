@@ -2,10 +2,21 @@
   try{
     const params=new URLSearchParams(location.search);
     const token=params.get('teamInvite')||'';
-    if(token && /^[a-z0-9_-]{32,}$/i.test(token) && !/\/parent-viewer\.html$/i.test(location.pathname)){
-      location.replace(`./parent-viewer.html?teamInvite=${encodeURIComponent(token)}`);
-      return;
-    }
+    if(!token||!/^[a-z0-9_-]{32,}$/i.test(token)||/\/parent-viewer\.html$/i.test(location.pathname))return;
+    // Legacy parent and account invitations originally shared the same query
+    // parameter. Verify that the token is actually a public viewer invitation
+    // before redirecting; coach invitations must remain in the account flow.
+    fetch('https://eyuvgzhkhcpwtcbmsvct.supabase.co/rest/v1/rpc/get_public_team_viewer',{
+      method:'POST',
+      headers:{apikey:'sb_publishable_uMOkwO4jyHen4pz4zCkIuQ_Ss-wUf2l','Content-Type':'application/json'},
+      body:JSON.stringify({p_token:token})
+    }).then(response=>{
+      if(!response.ok)return;
+      const target=new URL('./parent-viewer.html',location.href);
+      target.searchParams.set('teamInvite',token);
+      const release=params.get('release');if(release)target.searchParams.set('release',release);
+      location.replace(target.href);
+    }).catch(()=>{});
   }catch(_){}
 })();
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;if(root)root.SidelineCommercialAccess=api})(typeof window!=='undefined'?window:globalThis,function(){
