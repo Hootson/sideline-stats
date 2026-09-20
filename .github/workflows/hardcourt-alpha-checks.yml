@@ -22,6 +22,15 @@ jobs:
         with:
           node-version: 22
       - run: npm test
+      - name: Build iPhone test artifact
+        run: |
+          mkdir -p ../hardcourt-alpha-preview
+          cp index.html styles.css app.js engine.js ../hardcourt-alpha-preview/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hardcourt-alpha-preview
+          path: hardcourt-alpha-preview
+          retention-days: 7
   mcp-tests:
     runs-on: ubuntu-latest
     defaults:
