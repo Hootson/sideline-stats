@@ -1,8 +1,9 @@
 import{isThreePoint,rimZone,createEvent,derive}from"./engine.js";
-const $=id=>document.getElementById(id), roster=Array.from({length:10},(_,i)=>({id:"p"+i,num:[2,5,11,14,22,3,7,10,20,24][i],name:["Abe","Max","Cole","Sam","Jack","Ben","Luke","Noah","Eli","Ryan"][i]}));
-let state=JSON.parse(localStorage.getItem("hardcourt-alpha")||"null")||{events:[],active:roster.slice(0,5).map(x=>x.id),period:1,clockMs:480000,running:false,fast:false,offenseRight:true,minutes:{},lastTick:null};
+const $=id=>document.getElementById(id), defaults=Array.from({length:10},(_,i)=>({id:"p"+i,num:[2,5,11,14,22,3,7,10,20,24][i],name:["Abe","Max","Cole","Sam","Jack","Ben","Luke","Noah","Eli","Ryan"][i]}));
+let stored=JSON.parse(localStorage.getItem("hardcourt-alpha")||"null"),roster=stored?.roster||defaults;
+let state=stored||{events:[],active:roster.slice(0,5).map(x=>x.id),period:1,clockMs:480000,running:false,fast:false,offenseRight:true,minutes:{},lastTick:null};
 let timer;
-function save(){localStorage.setItem("hardcourt-alpha",JSON.stringify({...state,running:false,lastTick:null}))}
+function save(){const safe={...state,running:false,lastTick:null,roster};localStorage.setItem("hardcourt-alpha",JSON.stringify(safe))}
 window.addEventListener("pagehide",()=>{accrue();save()});document.addEventListener("visibilitychange",()=>{if(document.hidden&&state.running){accrue();state.running=false;clearInterval(timer);save();render()}});
 function setupRoster(){ $("setupRoster").innerHTML=roster.map((p,i)=>`<label class="roster-edit"><input type="checkbox" data-start="${p.id}" ${state.active.includes(p.id)?"checked":""}><input data-num="${p.id}" value="${p.num}"><input data-name="${p.id}" value="${p.name}"></label>`).join("")}
 setupRoster();
