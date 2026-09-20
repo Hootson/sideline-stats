@@ -19,3 +19,5 @@
  nav{height:52px}nav button{min-height:52px;font-size:13px}
  .content{padding-bottom:88px}
 }
+
+.product-header{position:relative;min-height:66px;display:flex;align-items:center;gap:9px;border-bottom:1px solid #2b3032;padding:8px 12px}.product-mark{width:104px;max-height:46px;object-fit:contain}.product-header .edition{font-size:11px;letter-spacing:.12em;color:var(--accent)}.product-header .header-team{margin-left:auto;position:static;transform:none;display:flex;align-items:center;gap:8px;background:#171b1d;color:#fff;border:1px solid #343a3d;border-radius:10px;padding:5px 8px;min-height:48px}.product-header .header-team>span:nth-child(2){display:grid;text-align:left}.product-header .header-team small{color:var(--muted)}.product-header .header-team em{font-size:10px;font-style:normal;color:var(--accent);margin-left:5px}.team-editor{display:grid;gap:10px}.team-editor label{display:grid;gap:4px}.team-editor input{min-height:46px;border:1px solid #555;border-radius:8px;background:#222729;color:#fff;padding:8px}
