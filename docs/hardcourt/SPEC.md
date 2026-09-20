@@ -1,4 +1,4 @@
-# Sideline Stats: Hardcourt Edition — Product Specification
+# Bleacher Butt Stats: Hardcourt Edition — Product Specification
 
 Status: foundation draft. Product decisions must be approved before implementation when this document is silent.
 
@@ -6,7 +6,7 @@ Status: foundation draft. Product decisions must be approved before implementati
 A fast, reliable youth basketball game-day statistics system combining extremely quick stat entry, live team viewing, useful coach analytics, and strong offline reliability.
 
 ## Primary game-day format
-Landscape phone orientation, designed to be held like a game controller.
+One responsive landscape game interface for iPhone and iPad, designed to preserve the same composition, controls and tap sequences while scaling cleanly to available width.
 
 ## Core game screen
 - Scoreboard across the upper area.
@@ -135,3 +135,11 @@ Advanced metric definitions must document their formulas and required inputs bef
 
 ## Still to specify before corresponding feature implementation
 Detailed free-throw interaction; foul categories/rulesets; full opponent tracking scope; clock correction UX; period/ruleset defaults; timeout rules; live-viewer identity/sharing; simultaneous conflict resolution; analytics definitions; Basic vs Pro packaging; final pricing; voice entry.
+
+
+## Pre-Alpha implementation contract — September 20, 2026
+Implementation must also follow the locked additions in `DECISIONS.md`, including cross-sport Gridiron inheritance for sport-neutral behavior, Bleacher Butt Stats branding plus configurable team primary/accent theming, responsive iPhone/iPad layout, exact center-court logo asset use, programmatic mirrored court geometry and forgiving touch classification.
+
+The event model must preserve exact shot coordinates and support derived rim-side zones (left/center/right), fast-break tagging, team/dead-ball rebounds, overtime, lineup plus/minus, shot/heat-map analytics, Coach Debrief context and future Targeted Practice Ideas without adding ordinary game-day taps.
+
+The first playable Alpha is deliberately narrower than the complete analytics vision. Build the live game engine, responsive Game UI, setup, core entry, clock, substitutions/minutes, corrections, Stats, Playing Time, basic Shot Chart, Fast Break experiment, local persistence and tests before production backend integration.
