@@ -180,3 +180,40 @@ First playable Alpha prioritizes: Game Setup; responsive iPhone/iPad Game screen
 Full season Trends, sophisticated lineup analytics, multi-statkeeper mode, granular opponent statkeeper and polished AI coaching output may follow after the live game engine is proven, but the event model must support them now.
 
 Primary Alpha validation question: **Can one person keep an accurate basketball game on an iPhone landscape without falling behind?**
+
+
+## September 20, 2026 — real-device Alpha feedback
+
+These decisions supersede any earlier Alpha implementation that conflicts with them.
+
+### Setup orientation and team identity
+- Setup and other administrative/non-live screens are portrait-first on iPhone and should fit naturally without requiring landscape.
+- Team identity includes **Grade Level** and **Division**. These are team-level attributes, not values the statkeeper should repeatedly re-enter every game.
+- Division must allow flexible/free-text naming because youth leagues use different conventions.
+- Start Game transitions into the landscape-first Game workspace; do not depend on unsupported iOS browser orientation locking.
+
+### Game-screen composition
+- The basketball court is the primary full-screen working surface. Do not reserve a separate side panel for live controls.
+- Live controls overlay and are centered within the **non-offensive half** of the court.
+- Controls use a compact two-column grid and mirror with offensive direction.
+- Eliminate the **More** button. Routine game actions must be directly discoverable.
+- Minimize unused black/chrome space. Scoreboard, active-five strip and bottom navigation must remain compact enough that the court dominates the screen.
+- The active five should be integrated cleanly without obscuring important court interaction areas.
+- Use the exact approved Hardcourt logo asset at center court when that asset is available; placeholder center text is not final visual acceptance.
+
+### Clock
+- The displayed game time is informational only and is not the primary clock control.
+- Provide explicit, easy-to-hit **Start Clock** and **Stop Clock** controls.
+- Ordinary stat entry must not implicitly stop the clock.
+
+### Opponent events and rebounds
+- One-person mode must make opponent events obvious without requiring opponent player identities.
+- Opponent scoring must have direct access for +2 and +3; free-throw/opponent score correction flows must remain clear and fast.
+- A missed-shot rebound prompt offers our active players, **Opponent**, and **Team / Dead Ball** as appropriate.
+- Offensive versus defensive rebound should be inferred from shot ownership and rebound ownership whenever the preceding event supplies enough context; do not ask the statkeeper to classify information the app can derive.
+- Recording an opponent rebound records a team-level opponent rebound unless granular opponent tracking is explicitly enabled.
+- The workflow for an opponent missed shot followed by our defensive rebound must be fast and explicit without requiring opponent shot location or player identity.
+
+### Real-device acceptance principle
+- A technically functional screen that materially departs from the approved court-first composition is not visually accepted.
+- Real-device iPhone testing is authoritative for game-day layout issues that desktop/automated tests cannot reveal.
