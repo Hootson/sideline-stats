@@ -35,7 +35,7 @@ Record unresolved choices here rather than allowing an implementation agent to i
 
 ### Bench-first lineup and substitutions
 - Lineup observation is bench-first: the statkeeper identifies players visibly on the bench and Hardcourt derives the active five.
-- Game start asks who is on the bench.
+- Game Setup selects exactly five starters directly. Bench-first observation begins with live substitutions, not initial starter selection.
 - Substitution reopens the current bench state. The statkeeper may toggle only changed players or use Clear Bench and reselect the visible bench.
 - The previous confirmed lineup keeps accruing minutes until Confirm is tapped. Confirm is the official substitution timestamp.
 - If the clock is stopped, lineup changes do not accrue playing time.
@@ -95,7 +95,7 @@ Record unresolved choices here rather than allowing an implementation agent to i
 - Configurable player foul limit.
 - Timeout rules: Per Half or Per Game plus quantity.
 - Select game-available roster.
-- Select starting bench; Hardcourt derives the active five.
+- Select exactly five starters directly in Game Setup. During live substitutions, select the bench and Hardcourt derives the active five.
 - Statkeeping may begin as Just Me; sharing can be configured without blocking game creation.
 - Show a concise pre-start review strip summarizing format, period length, direction, active/bench counts and foul limit.
 - Remember team/league defaults for future games while allowing per-game overrides.
@@ -190,7 +190,7 @@ These decisions supersede any earlier Alpha implementation that conflicts with t
 - Setup and other administrative/non-live screens are portrait-first on iPhone and should fit naturally without requiring landscape.
 - Team identity includes **Grade Level** and **Division**. These are team-level attributes, not values the statkeeper should repeatedly re-enter every game.
 - Division must allow flexible/free-text naming because youth leagues use different conventions.
-- Start Game transitions into the landscape-first Game workspace; do not depend on unsupported iOS browser orientation locking.
+- Game Setup uses direct Starting Five selection: five checked players are the starters. Start Game validates exactly five. Live substitutions use the separate bench-first workflow.\n- Start Game transitions into the landscape-first Game workspace; do not depend on unsupported iOS browser orientation locking.
 
 ### Game-screen composition
 - The basketball court is the primary full-screen working surface. Do not reserve a separate side panel for live controls.
