@@ -44,3 +44,33 @@
 .helper-disabled{opacity:.42!important;cursor:not-allowed!important}.cloud-bar span:first-child{white-space:nowrap}
 
 .setup-roster{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;background:transparent!important;min-height:0!important}.starter-choice{display:flex!important;align-items:center;gap:10px;min-height:48px;padding:10px 12px;border:1px solid #394247;border-radius:10px;background:#171d1f;color:#fff;font-size:16px}.starter-choice input{width:22px;height:22px;accent-color:var(--accent)}.starter-choice span{display:block}.starter-choice b{margin-right:5px}
+
+
+/* UI32 approved Hardcourt visual rebuild */
+#gameView{background:#030506}
+#gameView .court{height:calc(100dvh - 112px);border:0;border-radius:0;background:repeating-linear-gradient(90deg,#c8863f 0,#c8863f 6.25%,#d7984e 6.25%,#d7984e 12.5%);box-shadow:inset 0 0 34px #0008}
+#gameView .court:after{content:"";position:absolute;inset:8px;border:2px solid #fff;pointer-events:none;z-index:2}
+#gameView .half.offense{background:linear-gradient(#2b9c42bb,#217b35bb);box-shadow:inset 0 0 40px #0a4f22aa}
+#gameView .midline{z-index:3;border-left:2px solid #fff}
+#gameView .center-circle{width:16%;top:27%;left:42%;z-index:3;border-width:2px}
+#gameView .paint{top:22%;height:56%;width:16%;z-index:3;background:#00000012}
+#gameView .ft-circle{position:absolute;top:36%;width:10%;aspect-ratio:1;border:2px solid #fff;border-radius:50%;z-index:3}
+#gameView .left-ft{left:11%}#gameView .right-ft{right:11%}
+#gameView .backboard{position:absolute;top:40%;height:20%;border-left:4px solid #fff;z-index:4}
+#gameView .left-board{left:4.5%}#gameView .right-board{right:4.5%}
+#gameView .rim{top:46%;width:3%;border-color:#ef3d19;z-index:5;box-shadow:0 0 7px #000}
+#gameView .left-rim{left:4.5%}#gameView .right-rim{right:4.5%}
+#gameView .restricted{position:absolute;top:39%;width:7%;height:22%;border:2px solid #fff;border-radius:50%;z-index:3}
+#gameView .left-restricted{left:2%;border-left-color:transparent}#gameView .right-restricted{right:2%;border-right-color:transparent}
+#gameView .arc{top:4%;height:92%;width:35%;z-index:3}
+#gameView .left-arc{left:-13%;border-left-color:transparent}#gameView .right-arc{right:-13%;border-right-color:transparent}
+#gameView .corner3{position:absolute;width:14%;z-index:3;border-top:2px solid #fff}
+#gameView .left-top{left:0;top:9%}#gameView .left-bottom{left:0;bottom:9%}#gameView .right-top{right:0;top:9%}#gameView .right-bottom{right:0;bottom:9%}
+.court-brand-lockup{position:absolute;z-index:6;left:50%;top:50%;transform:translate(-50%,-50%);width:120px;height:120px;border:3px solid #eee;border-radius:50%;background:radial-gradient(circle at 50% 30%,#30363a,#050607 65%);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;box-shadow:0 6px 18px #000b;pointer-events:none}.court-brand-lockup .brand-ball{font-size:28px;line-height:25px}.court-brand-lockup strong{font-size:17px;line-height:18px}.court-brand-lockup span{font-size:20px;font-weight:950;line-height:20px}.court-brand-lockup b{margin-top:5px;padding:3px 6px;border-radius:4px;background:#45d529;color:#071008;font-size:7px;letter-spacing:.03em}
+.game-cloud{height:42px;top:4px;left:auto;right:8px;width:auto;background:#080c0ee8;border-color:#394247;padding:4px 6px}.game-cloud span{display:none}.game-cloud button{min-height:32px}
+.game-cloud+header{padding-top:0}
+.scoreboard{height:62px;background:#080b0deF;border:1px solid #2c3438;border-radius:0 0 12px 12px;padding:0 150px 0 16px;box-shadow:0 4px 14px #000a}.score-team strong{font-size:16px;text-transform:uppercase}.score-team b{font-size:34px}.clockbox{grid-template-columns:1fr 95px}.clockbox>b{font-size:32px}.clock-controls button{min-height:28px}
+.controls{left:22%;width:25%;top:50%;gap:6px}.controls.controls-right{left:auto;right:22%}.active-court-five{position:fixed;left:4%;right:52%;bottom:52px;transform:none;padding:6px 8px;background:#070b0deF}.controls-right .active-court-five{left:52%;right:4%}.player-tile{min-height:42px;font-size:11px;background:#0b1114;border-color:#27343a}.control-group{grid-template-columns:1fr 1fr;padding:7px;background:#080c0ef0;box-shadow:0 5px 14px #0008}.control-group span{font-size:10px}.control-group button{min-height:38px;font-size:11px}.opp-group{grid-template-columns:1fr 1fr}.opp-group button:nth-of-type(3){grid-column:1/2}.offense-tools{top:auto;bottom:58px;left:auto;right:4%;background:#06120be8;border:1px solid #2b7440;border-radius:9px;padding:5px}.offense-tools.offense-left{right:auto;left:4%}.game-manage{right:1%;top:2%;transform:translateY(62px);background:#080c0ee8}.game-manage button{font-size:10px}
+nav{height:50px;background:#050809f5;border-top:1px solid #2c3438}nav button{min-height:50px;background:#080d0f;color:#dce2e4;border-color:#1e292d;font-size:11px}nav button.active{background:#10171a;border-top-color:#f58a1f;color:#fff}
+.modal{background:#0009;backdrop-filter:blur(3px)}.modal-card{background:linear-gradient(145deg,#111a1f,#081014);border:1px solid #46545b;border-radius:14px;box-shadow:0 18px 50px #000d;padding:16px;color:#fff}.modal-card h2{margin:0 0 12px;font-size:20px}.choice,.sub-player,.ft-choice{background:#10191d;border-color:#35454d;border-radius:8px}.choice:hover,.sub-player.selected{border-color:#ff7818}.ft-choice.make.selected,.primary{background:linear-gradient(#35c95a,#22a746)}.ft-choice.miss.selected{background:linear-gradient(#ef3939,#c82121)}.modal-card button:not(#modalClose).selected{box-shadow:inset 0 0 0 2px #ff7a18}
+@media(max-height:500px) and (orientation:landscape){#gameView .court{height:calc(100dvh - 104px)}.scoreboard{height:54px}.court-brand-lockup{width:94px;height:94px}.court-brand-lockup strong{font-size:14px}.court-brand-lockup span{font-size:16px}.controls{width:27%;left:20%}.controls.controls-right{right:20%}.active-court-five{bottom:48px}.game-manage{transform:translateY(54px)}}
