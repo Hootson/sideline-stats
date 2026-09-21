@@ -1,5 +1,5 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#080a0b"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Hardcourt"><link rel="manifest" href="./manifest.webmanifest?v=ui47"><title>Bleacher Butt Stats — Hardcourt</title><link rel="stylesheet" href="./styles.css?v=20260920-ui47"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<style id="ui47-court-art">
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#080a0b"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Hardcourt"><link rel="manifest" href="./manifest.webmanifest?v=ui48"><title>Bleacher Butt Stats — Hardcourt</title><link rel="stylesheet" href="./styles.css?v=20260920-ui48"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style id="ui48-court-art">
 /* UI43 — device-specific finished court artwork + dynamic offense overlay */
 body.game-active #gameView{inset:80px 0 0 0!important;background:#020405!important}
 body.game-active #gameView .court{background-image:url('./court-ipad.png')!important;background-size:100% 100%!important;background-position:center!important;background-repeat:no-repeat!important;}
@@ -18,7 +18,7 @@ body.game-active .game-cloud{top:14px!important}
  body.game-active .game-cloud{top:8px!important;height:50px!important}
 }
 </style>
-<style id="ui47-polish">
+<style id="ui48-polish">
 /* UI45 game-screen polish + analytics artwork */
 .analytics-court,.player-court{background:#b87535 url('./court-analytics.png') center/100% 100% no-repeat!important;aspect-ratio:2/1!important;border:0!important}
 .analytics-court .court-lines,.player-court .court-lines,.analytics-brand{display:none!important}
@@ -67,7 +67,7 @@ body.game-active nav button:nth-child(n):after{content:none!important}
  body.game-active .control-group button{height:30px!important;min-height:30px!important}
 }
 </style>
-<style id="ui47-game-refine">
+<style id="ui48-game-refine">
 /* UI46 — requested Game screen refinement */
 body.game-active #gameView{inset:84px 0 0 0!important}
 
@@ -240,7 +240,7 @@ body.game-active nav button:after{content:none!important}
 }
 </style>
 
-<style id="ui47-game-refine">
+<style id="ui48-game-refine">
 /* UI47 — game-flow cleanup */
 
 /* Keep the scoreboard's clock physically centered on the court midline. */
@@ -383,6 +383,59 @@ body.game-active nav{left:auto!important;right:2%!important;bottom:6px!important
   body.game-active .opponent-quick button{height:25px!important;min-height:25px!important}
 }
 </style>
+
+<style id="ui48-game-refine">
+/* UI48 — side-aware menus, safer shot tapping, simplified nav */
+
+/* Softer offensive highlight: glow only, no crisp neon edge. */
+body.game-active #gameView .court>.half.offense{
+  outline:0!important;border:0!important;background:transparent!important;
+  box-shadow:
+    inset 0 0 18px 3px color-mix(in srgb,var(--accent) 34%,transparent),
+    inset 0 0 46px 12px color-mix(in srgb,var(--accent) 18%,transparent),
+    inset 0 0 86px 24px color-mix(in srgb,var(--accent) 8%,transparent)!important;
+}
+
+/* Menus live on the non-offensive side and flip with possession direction. */
+body.game-active .controls{left:1.5%!important;right:auto!important}
+body.game-active .controls.controls-right{left:auto!important;right:1.5%!important}
+body.game-active .opponent-quick{left:1.5%!important;right:auto!important}
+body.game-active .opponent-quick.opponent-right{left:auto!important;right:1.5%!important}
+body.game-active .fast-wrap.game-ribbon{left:1.5%!important;right:auto!important}
+body.game-active .fast-wrap.game-ribbon.fast-left{left:auto!important;right:1.5%!important}
+
+/* Bigger center switch with a forgiving tap target. */
+body.game-active .side-switch{
+  width:50px!important;min-width:50px!important;height:40px!important;
+  top:8px!important;font-size:21px!important;border-width:2px!important;
+}
+
+/* Four-item bottom nav with larger labels. */
+body.game-active nav{
+  grid-template-columns:repeat(4,1fr)!important;
+  width:54%!important;
+}
+body.game-active nav button{
+  font-size:11px!important;font-weight:900!important;letter-spacing:.01em!important;
+}
+body.game-active nav button.active{
+  color:var(--accent)!important;
+  box-shadow:inset 0 0 0 1px var(--accent)!important;
+}
+
+@media(max-height:600px) and (orientation:landscape){
+  body.game-active .side-switch{width:46px!important;min-width:46px!important;height:36px!important;font-size:19px!important}
+  body.game-active nav{width:56%!important}
+  body.game-active nav button{font-size:10.5px!important}
+}
+
+body.game-active .bench-select-list{display:grid!important;grid-template-columns:1fr 1fr!important;gap:6px!important;margin:10px 0!important}
+body.game-active .bench-select-row{display:grid!important;grid-template-columns:24px 1fr auto!important;align-items:center!important;gap:8px!important;padding:9px!important;border:1px solid #3d474b!important;border-radius:8px!important;background:#111719!important;color:#fff!important}
+body.game-active .bench-select-row input{width:20px!important;height:20px!important;accent-color:var(--accent)!important}
+body.game-active .bench-select-row small{font-size:8px!important;color:#aeb5b8!important;font-weight:900!important}
+body.game-active .sub-count-note{margin:8px 0!important;font-size:12px!important;color:#aeb5b8!important}
+body.game-active .sub-count-note.error{color:#ff8a80!important}
+</style>
 </head><body><div id="app">
 <section id="viewerView" class="viewer-view hidden"></section><section id="setup" class="setup"><div class="setup-brand"><img src="../brand-header.png" alt="Bleacher Butt Stats"><b>HARDCOURT EDITION</b></div><div class="setup-grid"><div id="cloudBar" class="cloud-bar"><span id="cloudStatus">Local mode</span><button id="accountBtn" type="button">Account</button><button id="shareTeamBtn" type="button">Share Team</button><button id="helperBtn" type="button">Helper</button></div><div class="setup-team-summary"><b id="setupTeamLabel">Erie Elite</b><small id="setupTeamMeta">5th Grade</small><button id="setupEditTeam" type="button">Edit Team</button></div><label>Opponent<input id="oppName" value="Longmont" required></label><label>Game type<select id="gameType"><option value="regular">Regular Season</option><option value="playoffs">Playoffs</option></select></label><label>Opponent logo<input id="oppLogo" type="file" accept="image/*"></label><label>Periods<select id="periodMode"><option value="4">4 Quarters</option><option value="2">2 Halves</option></select></label><label>Minutes / period<input id="periodMinutes" type="number" value="8" min="1" max="30"></label><label>Starting offense<select id="startDirection"><option value="right">Attack right →</option><option value="left">← Attack left</option></select></label><label>Player foul limit<input id="foulLimit" type="number" value="5" min="1" max="10"></label><label>Bonus rule<select id="bonusRule"><option value="none">No automatic bonus</option><option value="oneone">1-and-1 at 7 / double at 10</option><option value="twoshots">2 shots at 5 per quarter</option></select></label><label>Timeout allocation<select id="timeoutMode"><option value="game">Per Game</option><option value="half">Per Half</option></select></label><label>Timeouts per allocation<input id="timeoutCount" type="number" value="3" min="0" max="10"></label><label>Overtime minutes<input id="otMinutes" type="number" value="3" min="1" max="10"></label></div><h2>Starting Five</h2><p>Select exactly five starters from your season roster.</p><div id="setupRoster" class="setup-roster"></div><div id="setupReview" class="setup-review"></div><button id="startGame" class="primary">Start Game</button><button id="gameHistoryBtn" class="setup-secondary" type="button">Game History</button><p id="setupError" class="error"></p></section>
 <section id="shell" class="hidden"><div id="liveCloudBar" class="cloud-bar game-cloud hidden"><span id="liveCloudStatus">Local mode</span><button id="liveShareTeamBtn" type="button">Share</button><button id="liveHelperBtn" type="button">Helper</button></div><header class="scoreboard"><div class="score-team"><span id="homeLogo" class="score-logo"></span><span class="score-name"><strong id="homeLabel"></strong><small id="homeMeta"></small></span><b id="homeScore">0</b></div><div class="clockbox"><span id="periodLabel">Q1</span><span id="gameMeta" class="game-meta"></span><b id="clock">8:00</b><div class="clock-controls"><button id="startClock">Start</button><button id="stopClock">Stop</button></div></div><button id="gameMenuBtn" class="game-menu-trigger" type="button">Game Setup ▾</button><div class="score-team away"><b id="awayScore">0</b><span class="score-name away-name"><strong id="awayLabel"></strong><small id="awayMeta"></small></span><span id="awayLogo" class="score-logo"></span></div></header>
@@ -433,6 +486,7 @@ body.game-active nav{left:auto!important;right:2%!important;bottom:6px!important
 <div id="offenseHint" class="offense-hint">OFFENSE →<small>TAP COURT<br>FOR SHOT</small></div>
 <div id="gameManage" class="game-manage">
   <button id="gameSettingsBtn">Edit Game Setup</button>
+  <button id="rosterTeamBtn">Roster / Team</button>
   <button id="editTeamFromGameBtn">Edit Team</button>
   <button id="gameHistoryLiveBtn">Prior Games</button>
   <button id="gameShareBtn">Share Team</button>
@@ -447,5 +501,5 @@ body.game-active nav{left:auto!important;right:2%!important;bottom:6px!important
 <section id="statsView" class="view hidden content"><div class="product-header"></div><h2>Stats</h2><div id="statsScope" class="seg"><button data-scope="game" class="active">Game</button><button data-scope="regular">Regular Season</button><button data-scope="playoffs">Playoffs</button><button data-scope="season">Season Total</button></div><div class="table-wrap"><table><thead><tr><th>Player</th><th>MIN</th><th>PTS</th><th>FG</th><th>3PT</th><th>FT</th><th>REB</th><th>AST</th><th>STL</th><th>BLK</th><th>TO</th><th>PF</th><th>+/-</th></tr></thead><tbody id="statsBody"></tbody></table></div></section>
 <section id="playerView" class="view hidden content"><div class="product-header"></div><button id="backStats" class="back-btn">← Back to Stats</button><div id="playerDetail"></div><div id="playerCourt" class="analytics-court player-court"></div></section>
 <section id="analyticsView" class="view hidden content"><div class="product-header"></div><h2>Analytics</h2><article class="shooting-card"><div class="shooting-head"><h3>Shooting</h3><div class="shot-filters"><label>Player<select id="shotPlayerFilter"></select></label><label>Time<select id="shotTimeFilter"><option value="game">Full Game</option><option value="first">1st Half</option><option value="second">2nd Half</option></select></label><label>Period<select id="shotPeriodFilter"><option value="all">All</option></select></label><label>Shot<select id="shotTypeFilter"><option value="all">All Shots</option><option value="2">2PT</option><option value="3">3PT</option></select></label></div></div><div id="chartMode" class="seg chart-mode"><button data-chart="shots" class="active">Shots</button><button data-chart="heat">Heat Map</button><button data-chart="both">Both</button></div><p id="shootingSummary"></p><div id="analyticsCourt" class="analytics-court"></div><div class="heat-legend"><span>Cold</span><i></i><span>Hot</span><span class="dot-legend">● Make &nbsp; ● Miss</span></div><h3>By Zone</h3><div id="zoneTable" class="zone-table"></div></article><div class="analytics-grid"><article><h3>Fast Break</h3><p id="fastSummary"></p></article><article><h3>Lineups</h3><div id="lineupAnalytics"></div></article><article><h3>Player On/Off</h3><div id="onOffAnalytics"></div></article></div></section>
-<nav><button data-tab="roster">Roster</button><button class="active" data-tab="game">Game</button><button data-tab="time">Playing Time</button><button data-tab="stats">Stats</button><button data-tab="analytics">Analytics</button></nav></section>
-<div id="modal" class="modal hidden"><div class="modal-card"><h2 id="modalTitle"></h2><div id="modalBody"></div><button id="modalClose">Cancel</button></div></div></div><script type="module" src="./app.js?v=20260920-ui47"></script></body></html>
+<nav><button class="active" data-tab="game">Game</button><button data-tab="time">Playing Time</button><button data-tab="stats">Stats</button><button data-tab="analytics">Analytics</button></nav></section>
+<div id="modal" class="modal hidden"><div class="modal-card"><h2 id="modalTitle"></h2><div id="modalBody"></div><button id="modalClose">Cancel</button></div></div></div><script type="module" src="./app.js?v=20260920-ui48"></script></body></html>
