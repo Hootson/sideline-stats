@@ -197,3 +197,11 @@ body.game-active .court-geometry .lane-marks{stroke-width:3}
 body.game-active .court>.midline,body.game-active .court>.center-circle,body.game-active .court>.paint,body.game-active .court>.ft-circle,body.game-active .court>.backboard,body.game-active .court>.rim,body.game-active .court>.restricted,body.game-active .court>.arc,body.game-active .court>.corner3{display:none!important}
 body.game-active .court-brand-lockup.real-logo{z-index:9;left:50%;top:50%;width:128px;height:128px;transform:translate(-50%,-50%);border:3px solid #eef2f3;border-radius:50%;object-fit:cover;object-position:center;background:#050708;box-shadow:0 5px 18px #000a}
 @media(max-height:500px) and (orientation:landscape){body.game-active .court-brand-lockup.real-logo{width:112px;height:112px}}
+
+/* UI36 — court boundary, true display circles, full center mark */
+body.game-active #gameView{background:#050708!important}
+body.game-active #gameView .court{overflow:hidden!important;background:#050708!important}
+body.game-active #gameView .court>.half{top:0!important;bottom:0!important;height:100%!important}
+body.game-active #gameView .court>.half.left{left:0!important;width:50%!important}
+body.game-active #gameView .court>.half.right{left:50%!important;right:0!important;width:50%!important}
+body.game-active .court-brand-lockup.real-logo{width:150px!important;height:150px!important;border:0!important;box-shadow:none!important}
