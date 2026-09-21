@@ -216,3 +216,23 @@ body.game-active .center-round{left:50%;top:50%;height:25%}
 body.game-active .left-round{left:22.9167%;top:50%;height:20.6667%}
 body.game-active .right-round{left:77.0833%;top:50%;height:20.6667%}
 body.game-active .court-brand-lockup.real-logo{height:25%!important;width:auto!important;aspect-ratio:1/1!important;box-sizing:border-box!important}
+
+/* UI39 — marked-up court refinement */
+body.game-active #gameView{inset:60px 0 0 0!important;background:#020405!important}
+body.game-active #gameView .court{inset:0!important;background:#020405!important;overflow:hidden!important}
+body.game-active #gameView .court>.half{top:5px!important;bottom:5px!important;height:auto!important}
+body.game-active #gameView .court>.half.left{left:5px!important;width:calc(50% - 5px)!important;background:repeating-linear-gradient(90deg,#c98139 0,#c98139 6.25%,#d89449 6.25%,#d89449 12.5%)!important}
+body.game-active #gameView .court>.half.right{left:50%!important;right:5px!important;width:auto!important}
+body.game-active .left-round,body.game-active .right-round{border:0!important}
+body.game-active .round-circle .semi{position:absolute;top:0;height:100%;width:50%;box-sizing:border-box;display:block}
+body.game-active .round-circle .left-semi{left:0;border-radius:100% 0 0 100% / 50% 0 0 50%;border-right:0!important}
+body.game-active .round-circle .right-semi{right:0;border-radius:0 100% 100% 0 / 0 50% 50% 0;border-left:0!important}
+body.game-active .round-circle .solid-semi{border:3px solid #fff}
+body.game-active .round-circle .dash-semi{border:3px dashed #fff}
+body.game-active .center-round{height:36%!important;border:3px solid #fff!important;z-index:7!important}
+body.game-active .court-brand-lockup.real-logo{height:36%!important;width:auto!important;aspect-ratio:1/1!important;border:4px solid #fff!important;border-radius:50%!important;z-index:8!important;object-fit:cover!important;image-rendering:auto!important;box-shadow:0 6px 18px #0008!important}
+body.game-active .fast-wrap{left:calc(50% + 18px)!important;right:auto!important;top:14px!important}
+body.game-active .fast-wrap.fast-left{left:18px!important;right:auto!important}
+body.game-active .offense-hint{left:calc(50% + 18px)!important;right:auto!important;bottom:18px!important}
+body.game-active .offense-hint.hint-left{left:18px!important;right:auto!important}
+body.game-active nav{left:18px!important;right:auto!important;bottom:12px!important;width:44%!important;height:58px!important;z-index:30!important}
