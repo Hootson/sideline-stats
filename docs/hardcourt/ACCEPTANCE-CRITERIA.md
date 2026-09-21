@@ -47,3 +47,15 @@ This file grows feature-by-feature. An agent should not call a feature complete 
 - Targeted Practice Ideas may be generated from sufficiently supported patterns and include evidence/sample context.
 - Alpha can be run locally/offline without Supabase or production Gridiron changes.
 - Alpha success is evaluated primarily by whether one statkeeper can keep an accurate live game on iPhone landscape without falling behind.
+
+
+## Real-device UI pass 2
+- Live Game visual implementation is judged against the approved screenshots, not merely against generic professional styling.
+- Substitution, Timeout and Next Period are outside the routine stat grid in a compact game-management cluster.
+- Opponent actions are visibly segregated from our-team actions.
+- No standalone Free Throw button appears in the live Game controls; foul context owns normal free-throw entry.
+- Game Setup can start with either offensive direction; court highlight and contextual controls mirror correctly.
+- Clock Stop is highlighted when stopped (including initial load), and Start is highlighted while running.
+- Pending shot selection can be canceled with × without creating an event, and all five active-player Made/Miss choices remain immediately visible.
+- Playing Time defaults to descending minutes with minutes, elapsed-game percentage and a visual bar; aggregate integrity totals stay hidden unless inconsistent.
+- Home Screen launch must use standalone/PWA behavior consistent with Gridiron so Safari chrome does not consume the landscape workspace.

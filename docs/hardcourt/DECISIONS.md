@@ -35,7 +35,7 @@ Record unresolved choices here rather than allowing an implementation agent to i
 
 ### Bench-first lineup and substitutions
 - Lineup observation is bench-first: the statkeeper identifies players visibly on the bench and Hardcourt derives the active five.
-- Game start asks who is on the bench.
+- Game Setup selects exactly five starters directly. Bench-first observation begins with live substitutions, not initial starter selection.
 - Substitution reopens the current bench state. The statkeeper may toggle only changed players or use Clear Bench and reselect the visible bench.
 - The previous confirmed lineup keeps accruing minutes until Confirm is tapped. Confirm is the official substitution timestamp.
 - If the clock is stopped, lineup changes do not accrue playing time.
@@ -95,7 +95,7 @@ Record unresolved choices here rather than allowing an implementation agent to i
 - Configurable player foul limit.
 - Timeout rules: Per Half or Per Game plus quantity.
 - Select game-available roster.
-- Select starting bench; Hardcourt derives the active five.
+- Select exactly five starters directly in Game Setup. During live substitutions, select the bench and Hardcourt derives the active five.
 - Statkeeping may begin as Just Me; sharing can be configured without blocking game creation.
 - Show a concise pre-start review strip summarizing format, period length, direction, active/bench counts and foul limit.
 - Remember team/league defaults for future games while allowing per-game overrides.
@@ -180,3 +180,56 @@ First playable Alpha prioritizes: Game Setup; responsive iPhone/iPad Game screen
 Full season Trends, sophisticated lineup analytics, multi-statkeeper mode, granular opponent statkeeper and polished AI coaching output may follow after the live game engine is proven, but the event model must support them now.
 
 Primary Alpha validation question: **Can one person keep an accurate basketball game on an iPhone landscape without falling behind?**
+
+
+## September 20, 2026 — real-device Alpha feedback
+
+These decisions supersede any earlier Alpha implementation that conflicts with them.
+
+### Setup orientation and team identity
+- Setup and other administrative/non-live screens are portrait-first on iPhone and should fit naturally without requiring landscape.
+- Team identity includes **Grade Level** and **Division**. These are team-level attributes, not values the statkeeper should repeatedly re-enter every game.
+- Division must allow flexible/free-text naming because youth leagues use different conventions.
+- Game Setup uses direct Starting Five selection: five checked players are the starters. Start Game validates exactly five. Live substitutions use the separate bench-first workflow.\n- Start Game transitions into the landscape-first Game workspace; do not depend on unsupported iOS browser orientation locking.
+
+### Game-screen composition
+- The basketball court is the primary full-screen working surface. Do not reserve a separate side panel for live controls.
+- Live controls overlay and are centered within the **non-offensive half** of the court.
+- Controls use a compact two-column grid and mirror with offensive direction.
+- Eliminate the **More** button. Routine game actions must be directly discoverable.
+- Minimize unused black/chrome space. Scoreboard, active-five strip and bottom navigation must remain compact enough that the court dominates the screen.
+- The active five should be integrated cleanly without obscuring important court interaction areas.
+- Use the exact approved Hardcourt logo asset at center court when that asset is available; placeholder center text is not final visual acceptance.
+
+### Clock
+- The displayed game time is informational only and is not the primary clock control.
+- Provide explicit, easy-to-hit **Start Clock** and **Stop Clock** controls.
+- Ordinary stat entry must not implicitly stop the clock.
+
+### Opponent events and rebounds
+- One-person mode must make opponent events obvious without requiring opponent player identities.
+- Opponent scoring must have direct access for +2 and +3; free-throw/opponent score correction flows must remain clear and fast.
+- A missed-shot rebound prompt offers our active players, **Opponent**, and **Team / Dead Ball** as appropriate.
+- Offensive versus defensive rebound should be inferred from shot ownership and rebound ownership whenever the preceding event supplies enough context; do not ask the statkeeper to classify information the app can derive.
+- Recording an opponent rebound records a team-level opponent rebound unless granular opponent tracking is explicitly enabled.
+- The workflow for an opponent missed shot followed by our defensive rebound must be fast and explicit without requiring opponent shot location or player identity.
+
+### Real-device acceptance principle
+- A technically functional screen that materially departs from the approved court-first composition is not visually accepted.
+- Real-device iPhone testing is authoritative for game-day layout issues that desktop/automated tests cannot reveal.
+
+
+## September 20, 2026 — real-device UI pass 2
+- **Approved Hardcourt screenshots are the visual source of truth.** Implementation must match their composition, proportions, hierarchy, court treatment, control placement, spacing, navigation, branding and density. Engineering may improve invisible behavior/responsiveness but may not redesign the approved interface.
+- Remove Substitution, Timeout and Next Period from the routine court-stat grid. Keep them as a compact, sleek game-management cluster near the upper outside corner. Next Period becomes visually prominent at 0:00.
+- Remove the standalone Free Throw live control. Live free throws originate from a recorded foul/foul context; exceptional missed-history cases belong to Edit/Correction.
+- Foul is a separate contextual control on the offensive half. The foul must always be assigned; shooting/bonus context then launches the applicable free-throw sequence when that workflow is implemented.
+- Segregate opponent actions into their own clearly labeled compact group rather than intermixing them with our-team actions.
+- Fast Break is an offensive tagging control and should not be forced into the non-offensive our-team group.
+- Game Setup must offer a clear starting offensive-direction choice. A compact Flip Direction correction remains available during the game.
+- Start/Stop Clock has explicit state: while running Start is highlighted; while stopped Stop is highlighted, including initial 8:00 state.
+- Pending shot selector has a top-right × that cancels the pending location without recording anything. The selected location may be marked while the selector is open. All five active players and Made/Miss choices must fit immediately without scrolling or clipping.
+- Playing Time normally hides the aggregate player-minutes sanity total. Keep the integrity check internally and surface only a warning when inconsistent. Sort players most-to-least; show minutes, percentage of elapsed game time, and a progress bar.
+- Hardcourt should launch standalone from an iOS Home Screen icon like Gridiron, without Safari browser chrome. PWA/Apple web-app configuration should inherit the working Gridiron approach rather than inventing a separate pattern.
+- Player headshots are optional season-roster data: jersey number, name and one headshot uploaded once and reused for the season. Use photos selectively where screen space supports them; do not force tiny headshots into fast live selectors.
+- Player Game Card should support a premium trading-card-like presentation. A future shared Bleacher Butt platform feature will generate automatic Game/Season share cards from verified stats, team colors/branding and approved player photos. This is intended as an organic sharing/growth feature for both Hardcourt and Gridiron, not a paid card add-on. Hardcourt prototype should eventually include the Player Card concept, but it is not part of this immediate live-game UI pass.
