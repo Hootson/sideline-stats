@@ -210,3 +210,9 @@ body.game-active .court-brand-lockup.real-logo{width:150px!important;height:150p
 body.game-active #gameView .court>.half.left{background:repeating-linear-gradient(90deg,#c98139 0,#c98139 6.25%,#d89449 6.25%,#d89449 12.5%)!important}
 body.game-active .court-geometry .true-circle{transform-box:fill-box;transform-origin:center}
 body.game-active .court-brand-lockup.real-logo{width:150px!important;height:150px!important;max-width:none!important;max-height:none!important;object-fit:cover!important;border-radius:50%!important}
+
+body.game-active .round-circle{position:absolute;z-index:4;aspect-ratio:1/1;border:3px solid #fff;border-radius:50%;box-sizing:border-box;pointer-events:none;transform:translate(-50%,-50%)}
+body.game-active .center-round{left:50%;top:50%;height:25%}
+body.game-active .left-round{left:22.9167%;top:50%;height:20.6667%}
+body.game-active .right-round{left:77.0833%;top:50%;height:20.6667%}
+body.game-active .court-brand-lockup.real-logo{height:25%!important;width:auto!important;aspect-ratio:1/1!important;box-sizing:border-box!important}
