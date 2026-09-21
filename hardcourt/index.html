@@ -1,5 +1,5 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#080a0b"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Hardcourt"><link rel="manifest" href="./manifest.webmanifest?v=ui46"><title>Bleacher Butt Stats — Hardcourt</title><link rel="stylesheet" href="./styles.css?v=20260920-ui46"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<style id="ui46-court-art">
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#080a0b"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Hardcourt"><link rel="manifest" href="./manifest.webmanifest?v=ui47"><title>Bleacher Butt Stats — Hardcourt</title><link rel="stylesheet" href="./styles.css?v=20260920-ui47"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style id="ui47-court-art">
 /* UI43 — device-specific finished court artwork + dynamic offense overlay */
 body.game-active #gameView{inset:80px 0 0 0!important;background:#020405!important}
 body.game-active #gameView .court{background-image:url('./court-ipad.png')!important;background-size:100% 100%!important;background-position:center!important;background-repeat:no-repeat!important;}
@@ -18,7 +18,7 @@ body.game-active .game-cloud{top:14px!important}
  body.game-active .game-cloud{top:8px!important;height:50px!important}
 }
 </style>
-<style id="ui46-polish">
+<style id="ui47-polish">
 /* UI45 game-screen polish + analytics artwork */
 .analytics-court,.player-court{background:#b87535 url('./court-analytics.png') center/100% 100% no-repeat!important;aspect-ratio:2/1!important;border:0!important}
 .analytics-court .court-lines,.player-court .court-lines,.analytics-brand{display:none!important}
@@ -67,7 +67,7 @@ body.game-active nav button:nth-child(n):after{content:none!important}
  body.game-active .control-group button{height:30px!important;min-height:30px!important}
 }
 </style>
-<style id="ui46-game-refine">
+<style id="ui47-game-refine">
 /* UI46 — requested Game screen refinement */
 body.game-active #gameView{inset:84px 0 0 0!important}
 
@@ -239,9 +239,153 @@ body.game-active nav button:after{content:none!important}
   body.game-active .offense-hint small{font-size:6px!important}
 }
 </style>
+
+<style id="ui47-game-refine">
+/* UI47 — game-flow cleanup */
+
+/* Keep the scoreboard's clock physically centered on the court midline. */
+body.game-active .scoreboard{
+  height:78px!important;
+  grid-template-columns:minmax(0,1fr) 184px minmax(0,1fr)!important;
+  gap:0!important;padding:5px 8px!important;
+  background:linear-gradient(180deg,#0a0f12,#020405)!important;
+}
+body.game-active .clockbox{
+  width:184px!important;justify-self:center!important;
+  grid-template-rows:34px 14px 17px!important;padding:3px 8px!important;
+}
+body.game-active .clockbox>b{font-size:34px!important;line-height:34px!important}
+body.game-active .score-team{min-width:0!important}
+body.game-active .score-team:first-child{justify-content:flex-end!important}
+body.game-active .score-team.away{justify-content:flex-start!important}
+body.game-active .score-team:first-child .score-name{order:1!important;text-align:right!important}
+body.game-active .score-team:first-child .score-logo{order:0!important}
+body.game-active .score-team:first-child>b{order:2!important;margin-left:6px!important;margin-right:5px!important}
+body.game-active .score-team.away>b{margin-left:5px!important;margin-right:6px!important}
+body.game-active .score-team>b{
+  min-width:44px!important;font-size:30px!important;padding:4px 6px!important;
+}
+body.game-active .score-logo{width:40px!important;height:40px!important}
+body.game-active .score-name strong{font-size:11px!important}
+body.game-active .score-name small{font-size:7px!important}
+body.game-active #periodLabel{color:var(--accent)!important}
+
+/* Top-right is now only the Game Setup access point. */
+body.game-active .game-menu-trigger{
+  right:8px!important;top:24px!important;height:30px!important;
+  border-color:color-mix(in srgb,var(--accent) 55%,#46545a)!important;
+}
+body.game-active .game-manage{
+  right:8px!important;top:57px!important;left:auto!important;
+  width:150px!important;display:none!important;flex-direction:column!important;gap:4px!important;
+}
+body.game-active .game-manage.open{display:flex!important}
+body.game-active .game-manage button{
+  width:100%!important;text-align:left!important;height:30px!important;min-height:30px!important;padding:0 9px!important;
+}
+
+/* No live share/helper strip over the scoreboard. */
+body.game-active .game-cloud{display:none!important}
+body.game-active .game-cloud+header{padding-top:5px!important}
+
+/* One compact action ribbon across the upper-left court. */
+body.game-active .fast-wrap.game-ribbon{
+  position:absolute!important;left:2%!important;right:auto!important;top:9px!important;
+  display:flex!important;gap:4px!important;align-items:center!important;z-index:16!important;
+  padding:4px!important;border:1px solid #344047!important;border-radius:8px!important;
+  background:#080d10e8!important;box-shadow:0 5px 14px #0008!important;
+}
+body.game-active .fast-wrap.game-ribbon.fast-left{left:2%!important;right:auto!important}
+body.game-active .fast-wrap.game-ribbon button{
+  height:26px!important;min-height:26px!important;padding:0 7px!important;
+  font-size:7.5px!important;border-radius:5px!important;
+}
+body.game-active #fastBtn.armed{background:var(--accent)!important;color:#071109!important;border-color:color-mix(in srgb,var(--accent) 75%,white)!important}
+body.game-active #nextPeriod.period-ready{box-shadow:inset 0 0 0 1px var(--accent),0 0 8px color-mix(in srgb,var(--accent) 35%,transparent)!important}
+
+/* Side switch lives directly on the center line. */
+body.game-active .side-switch{
+  position:absolute!important;z-index:17!important;left:50%!important;top:9px!important;transform:translateX(-50%)!important;
+  height:34px!important;min-width:38px!important;padding:0 8px!important;border:1px solid #657176!important;
+  border-radius:8px!important;background:#0b1114ee!important;color:#fff!important;font-size:17px!important;font-weight:900!important;
+  box-shadow:0 5px 14px #0009!important;
+}
+
+/* Other Stats stays on the left and is separated from opponent entry. */
+body.game-active .controls,body.game-active .controls.controls-right{
+  position:absolute!important;left:2%!important;right:auto!important;top:50px!important;transform:none!important;
+  width:172px!important;z-index:13!important;
+}
+body.game-active .control-group{
+  grid-template-columns:1fr 1fr!important;gap:4px!important;padding:6px!important;
+  background:#080d10ed!important;border-color:#344047!important;
+}
+body.game-active .control-group button{height:29px!important;min-height:29px!important;font-size:13px!important}
+body.game-active .control-group button small{font-size:7.5px!important}
+body.game-active .control-group>span{font-size:8px!important;color:#eef2f3!important}
+
+/* Intuitive action color: START is green, STOP is red. */
+body.game-active #gameClockBtn:not(.running){
+  background:linear-gradient(180deg,#44e477,#159a45)!important;border-color:#72f49a!important;color:#031108!important;
+}
+body.game-active #gameClockBtn.running{
+  background:linear-gradient(180deg,#f05252,#b9212b)!important;border-color:#ff7474!important;color:#fff!important;
+}
+body.game-active #gameClockBtn.running small,body.game-active #gameClockBtn:not(.running) small{color:inherit!important}
+
+/* Opponent quick entry is its own always-visible panel under Other Stats. */
+body.game-active .opponent-quick,body.game-active .opponent-quick.hidden{
+  position:absolute!important;z-index:13!important;left:2%!important;right:auto!important;top:190px!important;
+  transform:none!important;width:172px!important;display:grid!important;grid-template-columns:1fr 1fr!important;
+  gap:4px!important;padding:6px!important;border:1px solid #344047!important;border-radius:9px!important;
+  background:#080d10ed!important;box-shadow:0 7px 18px #000b!important;
+}
+body.game-active .opponent-quick>span{
+  grid-column:1/-1!important;font-size:8px!important;letter-spacing:.12em!important;font-weight:900!important;
+  color:var(--accent)!important;margin:0 2px 2px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;
+}
+body.game-active .opponent-quick button{
+  height:28px!important;min-height:28px!important;font-size:7.5px!important;padding:0 4px!important;
+  border-color:#344148!important;background:#11181b!important;color:#fff!important;
+}
+
+/* Starting-lineup strip removed from the live court in both directions. */
+body.game-active .game-five{display:none!important}
+
+/* Current Hardcourt accent wins over inherited Gridiron orange. */
+body.game-active nav button.active{
+  box-shadow:inset 0 0 0 1px var(--accent)!important;color:var(--accent)!important;
+}
+body.game-active .offense-hint{border-color:color-mix(in srgb,var(--accent) 60%,transparent)!important}
+body.game-active #periodLabel{color:var(--accent)!important}
+
+/* With no on-court strip, give the bottom navigation the full consistent treatment. */
+body.game-active nav{left:auto!important;right:2%!important;bottom:6px!important;width:49%!important}
+
+@media(max-height:600px) and (orientation:landscape){
+  body.game-active #gameView{inset:70px 0 0 0!important}
+  body.game-active .scoreboard{
+    height:70px!important;grid-template-columns:minmax(0,1fr) 166px minmax(0,1fr)!important;padding:4px 7px!important;
+  }
+  body.game-active .clockbox{width:166px!important;grid-template-rows:29px 13px 15px!important;padding:2px 6px!important}
+  body.game-active .clockbox>b{font-size:29px!important;line-height:29px!important}
+  body.game-active .score-team>b{font-size:27px!important;min-width:40px!important}
+  body.game-active .score-logo{width:36px!important;height:36px!important}
+  body.game-active .score-name strong{font-size:10px!important}
+  body.game-active .game-menu-trigger{right:6px!important;top:20px!important;height:27px!important;font-size:7.5px!important}
+  body.game-active .game-manage{right:6px!important;top:49px!important}
+  body.game-active .fast-wrap.game-ribbon{top:7px!important;left:1.5%!important}
+  body.game-active .fast-wrap.game-ribbon button{height:23px!important;min-height:23px!important;font-size:6.8px!important;padding:0 5px!important}
+  body.game-active .side-switch{top:7px!important;height:31px!important;min-width:35px!important}
+  body.game-active .controls,body.game-active .controls.controls-right{left:1.5%!important;top:43px!important;width:164px!important}
+  body.game-active .control-group button{height:26px!important;min-height:26px!important;font-size:12px!important}
+  body.game-active .opponent-quick,body.game-active .opponent-quick.hidden{left:1.5%!important;top:174px!important;width:164px!important}
+  body.game-active .opponent-quick button{height:25px!important;min-height:25px!important}
+}
+</style>
 </head><body><div id="app">
 <section id="viewerView" class="viewer-view hidden"></section><section id="setup" class="setup"><div class="setup-brand"><img src="../brand-header.png" alt="Bleacher Butt Stats"><b>HARDCOURT EDITION</b></div><div class="setup-grid"><div id="cloudBar" class="cloud-bar"><span id="cloudStatus">Local mode</span><button id="accountBtn" type="button">Account</button><button id="shareTeamBtn" type="button">Share Team</button><button id="helperBtn" type="button">Helper</button></div><div class="setup-team-summary"><b id="setupTeamLabel">Erie Elite</b><small id="setupTeamMeta">5th Grade</small><button id="setupEditTeam" type="button">Edit Team</button></div><label>Opponent<input id="oppName" value="Longmont" required></label><label>Game type<select id="gameType"><option value="regular">Regular Season</option><option value="playoffs">Playoffs</option></select></label><label>Opponent logo<input id="oppLogo" type="file" accept="image/*"></label><label>Periods<select id="periodMode"><option value="4">4 Quarters</option><option value="2">2 Halves</option></select></label><label>Minutes / period<input id="periodMinutes" type="number" value="8" min="1" max="30"></label><label>Starting offense<select id="startDirection"><option value="right">Attack right →</option><option value="left">← Attack left</option></select></label><label>Player foul limit<input id="foulLimit" type="number" value="5" min="1" max="10"></label><label>Bonus rule<select id="bonusRule"><option value="none">No automatic bonus</option><option value="oneone">1-and-1 at 7 / double at 10</option><option value="twoshots">2 shots at 5 per quarter</option></select></label><label>Timeout allocation<select id="timeoutMode"><option value="game">Per Game</option><option value="half">Per Half</option></select></label><label>Timeouts per allocation<input id="timeoutCount" type="number" value="3" min="0" max="10"></label><label>Overtime minutes<input id="otMinutes" type="number" value="3" min="1" max="10"></label></div><h2>Starting Five</h2><p>Select exactly five starters from your season roster.</p><div id="setupRoster" class="setup-roster"></div><div id="setupReview" class="setup-review"></div><button id="startGame" class="primary">Start Game</button><button id="gameHistoryBtn" class="setup-secondary" type="button">Game History</button><p id="setupError" class="error"></p></section>
-<section id="shell" class="hidden"><div id="liveCloudBar" class="cloud-bar game-cloud"><span id="liveCloudStatus">Local mode</span><button id="liveShareTeamBtn" type="button">Share</button><button id="liveHelperBtn" type="button">Helper</button></div><header class="scoreboard"><div class="score-team"><span id="homeLogo" class="score-logo"></span><span class="score-name"><strong id="homeLabel"></strong><small id="homeMeta"></small></span><b id="homeScore">0</b></div><div class="clockbox"><span id="periodLabel">Q1</span><span id="gameMeta" class="game-meta"></span><b id="clock">8:00</b><div class="clock-controls"><button id="startClock">Start</button><button id="stopClock">Stop</button></div></div><button id="gameMenuBtn" class="game-menu-trigger" type="button">Game Setup ▾</button><div class="score-team away"><b id="awayScore">0</b><span class="score-name away-name"><strong id="awayLabel"></strong><small id="awayMeta"></small></span><span id="awayLogo" class="score-logo"></span></div></header>
+<section id="shell" class="hidden"><div id="liveCloudBar" class="cloud-bar game-cloud hidden"><span id="liveCloudStatus">Local mode</span><button id="liveShareTeamBtn" type="button">Share</button><button id="liveHelperBtn" type="button">Helper</button></div><header class="scoreboard"><div class="score-team"><span id="homeLogo" class="score-logo"></span><span class="score-name"><strong id="homeLabel"></strong><small id="homeMeta"></small></span><b id="homeScore">0</b></div><div class="clockbox"><span id="periodLabel">Q1</span><span id="gameMeta" class="game-meta"></span><b id="clock">8:00</b><div class="clock-controls"><button id="startClock">Start</button><button id="stopClock">Stop</button></div></div><button id="gameMenuBtn" class="game-menu-trigger" type="button">Game Setup ▾</button><div class="score-team away"><b id="awayScore">0</b><span class="score-name away-name"><strong id="awayLabel"></strong><small id="awayMeta"></small></span><span id="awayLogo" class="score-logo"></span></div></header>
 <section id="gameView" class="view"><main id="court" class="court">
 <div class="half left"></div><div class="half right offense"></div>
 <svg class="court-geometry" viewBox="0 0 1200 600" preserveAspectRatio="none" aria-hidden="true">
@@ -272,21 +416,31 @@ body.game-active nav button:after{content:none!important}
 <div class="round-circle left-round"><i class="semi left-semi dash-semi"></i><i class="semi right-semi solid-semi"></i></div>
 <div class="round-circle right-round"><i class="semi left-semi solid-semi"></i><i class="semi right-semi dash-semi"></i></div>
 <img class="court-brand-lockup real-logo" src="data:image/webp;base64,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" alt="Bleacher Butt Stats Hardcourt Edition">
+<div id="fastWrap" class="fast-wrap game-ribbon"><button id="fastBtn">⚡ Fast Break</button><button id="subBtn">🔁 Sub</button><button id="timeoutBtn">⏱ Timeout</button><button id="nextPeriod">Next Period</button></div>
+<button id="flipDirection" class="side-switch" type="button" aria-label="Switch offensive side">⇄</button>
 <aside id="teamControls" class="controls">
   <div class="control-group our-group"><span id="ourGroupLabel"></span>
     <button id="gameClockBtn" class="control-accent">Ⅱ <small>Stop Clock</small></button><button id="turnoverBtn">🔁 <small>Turnover</small></button>
     <button id="stealBtn">✋ <small>Steal</small></button><button id="reboundBtn">🟠 <small>Rebound</small></button>
     <button id="blockBtn">🛡️ <small>Block</small></button><button id="foulBtn">🚩 <small>Foul</small></button>
-    <button id="undoBtn">↩️ <small>Undo</small></button><button id="moreBtn">••• <small>More</small></button>
+    <button id="undoBtn">↩️ <small>Undo</small></button>
   </div>
 </aside>
+<div id="opponentQuick" class="opponent-quick">
+  <span id="opponentGroupLabel">OPPONENT STATS</span>
+  <button id="opp2">+2</button><button id="opp3">+3</button><button id="oppMiss">Missed Shot</button><button id="oppReb">Rebound</button>
+</div>
 <div id="offenseHint" class="offense-hint">OFFENSE →<small>TAP COURT<br>FOR SHOT</small></div>
 <div id="gameManage" class="game-manage">
-  <button id="editBtn">Edit</button><button id="nextPeriod">Next Period</button><button id="flipDirection">⇄</button><button id="newGameBtn">New Game</button>
+  <button id="gameSettingsBtn">Edit Game Setup</button>
+  <button id="editTeamFromGameBtn">Edit Team</button>
+  <button id="gameHistoryLiveBtn">Prior Games</button>
+  <button id="gameShareBtn">Share Team</button>
+  <button id="gameHelperBtn">Game Helper</button>
+  <button id="gameAccountBtn">Account / Cloud</button>
+  <button id="newGameBtn">New Game</button>
 </div>
 <div id="activeFive" class="game-five"></div>
-<div id="opponentQuick" class="opponent-quick hidden"><button id="opp2">+2</button><button id="opp3">+3</button><button id="oppMiss">Missed Shot</button><button id="oppReb">Rebound</button></div>
-<div id="fastWrap" class="fast-wrap"><button id="fastBtn">⚡ Fast Break</button><button id="subBtn">🔁 Sub</button><button id="timeoutBtn">⏱ Timeout</button></div>
 <div id="shotPrompt" class="overlay hidden"></div></main><div id="recent" class="recent">Ready.</div></section>
 <section id="rosterView" class="view hidden content"><div class="product-header"></div><h2>Roster</h2><div id="rosterCards"></div></section>
 <section id="timeView" class="view hidden content"><div class="product-header"></div><h2>Playing Time</h2><div id="timeScope" class="seg"><button data-time-scope="game" class="active">Game</button><button data-time-scope="regular">Regular Season</button><button data-time-scope="playoffs">Playoffs</button><button data-time-scope="season">Season Total</button></div><div id="timeCheck" class="time-warning hidden"></div><div id="timeTable"></div></section>
@@ -294,4 +448,4 @@ body.game-active nav button:after{content:none!important}
 <section id="playerView" class="view hidden content"><div class="product-header"></div><button id="backStats" class="back-btn">← Back to Stats</button><div id="playerDetail"></div><div id="playerCourt" class="analytics-court player-court"></div></section>
 <section id="analyticsView" class="view hidden content"><div class="product-header"></div><h2>Analytics</h2><article class="shooting-card"><div class="shooting-head"><h3>Shooting</h3><div class="shot-filters"><label>Player<select id="shotPlayerFilter"></select></label><label>Time<select id="shotTimeFilter"><option value="game">Full Game</option><option value="first">1st Half</option><option value="second">2nd Half</option></select></label><label>Period<select id="shotPeriodFilter"><option value="all">All</option></select></label><label>Shot<select id="shotTypeFilter"><option value="all">All Shots</option><option value="2">2PT</option><option value="3">3PT</option></select></label></div></div><div id="chartMode" class="seg chart-mode"><button data-chart="shots" class="active">Shots</button><button data-chart="heat">Heat Map</button><button data-chart="both">Both</button></div><p id="shootingSummary"></p><div id="analyticsCourt" class="analytics-court"></div><div class="heat-legend"><span>Cold</span><i></i><span>Hot</span><span class="dot-legend">● Make &nbsp; ● Miss</span></div><h3>By Zone</h3><div id="zoneTable" class="zone-table"></div></article><div class="analytics-grid"><article><h3>Fast Break</h3><p id="fastSummary"></p></article><article><h3>Lineups</h3><div id="lineupAnalytics"></div></article><article><h3>Player On/Off</h3><div id="onOffAnalytics"></div></article></div></section>
 <nav><button data-tab="roster">Roster</button><button class="active" data-tab="game">Game</button><button data-tab="time">Playing Time</button><button data-tab="stats">Stats</button><button data-tab="analytics">Analytics</button></nav></section>
-<div id="modal" class="modal hidden"><div class="modal-card"><h2 id="modalTitle"></h2><div id="modalBody"></div><button id="modalClose">Cancel</button></div></div></div><script type="module" src="./app.js?v=20260920-ui46"></script></body></html>
+<div id="modal" class="modal hidden"><div class="modal-card"><h2 id="modalTitle"></h2><div id="modalBody"></div><button id="modalClose">Cancel</button></div></div></div><script type="module" src="./app.js?v=20260920-ui47"></script></body></html>
