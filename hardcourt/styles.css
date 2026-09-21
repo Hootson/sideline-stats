@@ -236,3 +236,17 @@ body.game-active .fast-wrap.fast-left{left:18px!important;right:auto!important}
 body.game-active .offense-hint{left:calc(50% + 18px)!important;right:auto!important;bottom:18px!important}
 body.game-active .offense-hint.hint-left{left:18px!important;right:auto!important}
 body.game-active nav{left:18px!important;right:auto!important;bottom:12px!important;width:44%!important;height:58px!important;z-index:30!important}
+
+/* UI41 — corrected overlay placement and court fill */
+body.game-active #gameView{bottom:0!important}
+body.game-active #gameView .court{bottom:0!important;height:100%!important}
+body.game-active #gameView .court>.half{top:5px!important;bottom:5px!important}
+body.game-active .fast-wrap{left:calc(50% + 18px)!important;right:auto!important;top:14px!important}
+body.game-active.offense-left .fast-wrap{left:18px!important;right:auto!important}
+body.game-active .offense-hint{left:calc(50% + 18px)!important;right:auto!important;bottom:18px!important}
+body.game-active.offense-left .offense-hint{left:18px!important;right:auto!important}
+body.game-active nav{left:18px!important;right:auto!important;bottom:12px!important;width:44%!important}
+body.game-active.offense-left nav{left:auto!important;right:18px!important}
+body.game-active .center-round{height:43%!important;width:auto!important;aspect-ratio:1/1!important;border:4px solid #fff!important}
+body.game-active .court-brand-lockup.real-logo{height:43%!important;width:auto!important;aspect-ratio:1/1!important;border:4px solid #fff!important;box-shadow:0 7px 22px #000b!important}
+body.game-active .round-circle .dash-semi{border-style:dashed!important}
