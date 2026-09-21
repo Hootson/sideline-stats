@@ -322,7 +322,7 @@ async function restoreRememberedTeam(){
     if(isCloudCoach())setTimeout(maybePromptCoachDebrief,250);
     return;
   }
-  if(teamExists()){updateCloudUI();return}
+  
   if(navigator.onLine===false){updateCloudUI();return}
   cloudAutoTeamLoadRunning=true;
   try{
