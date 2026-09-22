@@ -1,5 +1,5 @@
-const CACHE="hardcourt-ui54-20260922";
-const ASSETS=["./","./index.html","./styles.css?v=ui53","./app.js?v=20260922-ui54","./engine.js","./manifest.webmanifest?v=ui53","./court-iphone.png","./court-ipad.png","./court-analytics.png"];
+const CACHE="hardcourt-ui55-20260922";
+const ASSETS=["./","./index.html","./styles.css?v=ui53","./app.js?v=20260922-ui55","./engine.js","./manifest.webmanifest?v=ui53","./court-iphone.png","./court-ipad.png","./court-analytics.png"];
 self.addEventListener("install",e=>e.waitUntil(caches.open(CACHE).then(async c=>{for(const asset of ASSETS){try{const r=await fetch(asset,{cache:"reload"});if(r.ok)await c.put(asset,r.clone())}catch(_){}}}).then(()=>self.skipWaiting())));
 self.addEventListener("activate",e=>e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x.startsWith("hardcourt-")&&x!==CACHE).map(x=>caches.delete(x)))).then(()=>self.clients.claim())));
 self.addEventListener("message",e=>{if(e.data==="SKIP_WAITING")self.skipWaiting()});
