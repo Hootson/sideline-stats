@@ -939,18 +939,20 @@ body.game-active.offense-left .offense-hint{
    height, distinguishes an iPad viewport from a landscape phone. */
 @media(min-width:900px) and (orientation:landscape){
  body.game-active nav{
-   position:absolute!important;left:auto!important;right:2%!important;
+   position:absolute!important;left:2%!important;right:auto!important;
    top:auto!important;bottom:5px!important;transform:none!important;
-   width:50%!important;height:64px!important;min-height:64px!important;
+   width:46%!important;height:58px!important;min-height:58px!important;
    display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;
    gap:4px!important;padding:4px!important;border-radius:10px!important;
  }
  body.game-active.offense-left nav{left:auto!important;right:2%!important}
  body.game-active nav button{
-   width:auto!important;height:56px!important;min-height:56px!important;
-   flex:none!important;padding:5px 7px!important;font-size:17px!important;
+   width:auto!important;height:50px!important;min-height:50px!important;
+   flex:none!important;flex-direction:column!important;gap:1px!important;
+   padding:3px 5px!important;font-size:14px!important;
    line-height:1.05!important;white-space:normal!important;
  }
+ body.game-active nav button .nav-icon{display:block!important;font-size:18px!important;line-height:1!important}
 }
 @media(max-width:760px) and (orientation:landscape){
  body.game-active nav{left:max(72px,calc(env(safe-area-inset-left) + 52px))!important;right:auto!important;bottom:4px!important;width:42%!important}
@@ -963,18 +965,23 @@ body.game-active.offense-left .offense-hint{
  body.game-active nav,
  body.game-active.offense-left nav{
    left:max(38px,calc(env(safe-area-inset-left) + 10px))!important;
-   right:auto!important;top:60%!important;bottom:auto!important;
+   right:auto!important;top:68%!important;bottom:auto!important;
    transform:translateY(-50%)!important;
-   width:76px!important;padding:5px!important;gap:4px!important;
+   width:70px!important;padding:4px!important;gap:3px!important;
  }
  body.game-active nav button{
-   flex:0 0 50px!important;height:50px!important;min-height:50px!important;
+   flex:0 0 43px!important;height:43px!important;min-height:43px!important;
    flex-direction:column!important;gap:2px!important;padding:4px 2px!important;
-   font-size:9px!important;font-weight:900!important;
+   font-size:8.5px!important;font-weight:900!important;
  }
  body.game-active nav button .nav-icon{
-   display:block!important;font-size:16px!important;line-height:1!important;
+   display:block!important;font-size:14px!important;line-height:1!important;
  }
+ body.game-active .controls,
+ body.game-active .controls.controls-right{top:56px!important}
+ body.game-active .opponent-quick,
+ body.game-active .opponent-quick.hidden,
+ body.game-active .opponent-quick.opponent-right{top:214px!important}
 }
 @media(max-width:899px) and (orientation:landscape){
  body.needs-portrait #shell:after{
@@ -1034,6 +1041,14 @@ body:not(.game-active) .team-menu-trigger{display:none!important}
    border-top:4px solid #fff!important;box-shadow:inset 0 0 0 2px #effff3!important;
  }
  nav button.active .nav-icon{filter:none!important;transform:scale(1.08)}
+ body:not(.game-active) nav button{
+   display:flex!important;flex-direction:column!important;align-items:center!important;
+   justify-content:center!important;gap:4px!important;text-align:center!important;
+ }
+ body:not(.game-active) nav button .nav-icon{
+   display:block!important;order:0!important;font-size:23px!important;line-height:1!important;
+ }
+ body:not(.game-active) nav button>span:last-child{display:block!important;order:1!important}
  .content{padding-bottom:106px!important}
 }
 </style></head><body><div id="app">
@@ -1092,4 +1107,4 @@ body:not(.game-active) .team-menu-trigger{display:none!important}
 <section id="playerView" class="view hidden content"><div class="product-header"></div><button id="backStats" class="back-btn">← Back to Stats</button><div id="playerDetail"></div><div id="playerCourt" class="analytics-court player-court"></div></section>
 <section id="analyticsView" class="view hidden content"><div class="product-header"></div><h2>Analytics</h2><article class="shooting-card"><div class="shooting-head"><h3>Shooting</h3><div class="shot-filters"><label>Player<select id="shotPlayerFilter"></select></label><label>Time<select id="shotTimeFilter"><option value="game">Full Game</option><option value="first">1st Half</option><option value="second">2nd Half</option></select></label><label>Period<select id="shotPeriodFilter"><option value="all">All</option></select></label><label>Shot<select id="shotTypeFilter"><option value="all">All Shots</option><option value="2">2PT</option><option value="3">3PT</option></select></label></div></div><div id="chartMode" class="seg chart-mode"><button data-chart="shots" class="active">Shots</button><button data-chart="heat">Heat Map</button><button data-chart="both">Both</button></div><p id="shootingSummary"></p><div id="analyticsCourt" class="analytics-court"></div><div class="heat-legend"><span>Cold</span><i></i><span>Hot</span><span class="dot-legend">● Make &nbsp; ● Miss</span></div><h3>By Zone</h3><div id="zoneTable" class="zone-table"></div></article><div class="analytics-grid"><article><h3>Fast Break</h3><p id="fastSummary"></p></article><article><h3>Lineups</h3><div id="lineupAnalytics"></div></article><article><h3>Player On/Off</h3><div id="onOffAnalytics"></div></article></div></section>
 <nav><button data-tab="roster"><span class="nav-icon">👥</span><span>Roster</span></button><button class="active" data-tab="game"><span class="nav-icon">🏀</span><span>Game</span></button><button data-tab="time"><span class="nav-icon">✅</span><span>Playing Time</span></button><button data-tab="stats"><span class="nav-icon">📊</span><span>Stats</span></button><button data-tab="analytics"><span class="nav-icon">📈</span><span>Analytics</span></button></nav></section>
-<div id="modal" class="modal hidden"><div class="modal-card"><h2 id="modalTitle"></h2><div id="modalBody"></div><button id="modalClose">Cancel</button></div></div></div><script type="module" src="./app.js?v=20260922-ui60"></script></body></html>
+<div id="modal" class="modal hidden"><div class="modal-card"><h2 id="modalTitle"></h2><div id="modalBody"></div><button id="modalClose">Cancel</button></div></div></div><script type="module" src="./app.js?v=20260922-ui61"></script></body></html>
