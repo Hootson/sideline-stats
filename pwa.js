@@ -36,6 +36,9 @@ window.addEventListener("DOMContentLoaded",()=>{
   if(!document.querySelector('script[data-owner-business]')){
     const script=document.createElement('script');script.src='./owner-business.js';script.dataset.ownerBusiness='1';document.body.appendChild(script);
   }
+  if(!document.querySelector('script[data-player-profile]')){
+    const script=document.createElement('script');script.src=`./player-profile.js?release=${encodeURIComponent(SIDELINE_STATS_VERSION)}`;script.dataset.playerProfile='1';document.body.appendChild(script);
+  }
   const installBtn=document.querySelector("#installAppBtn"),installHelp=document.querySelector("#installHelp");
   const standalone=window.matchMedia?.("(display-mode: standalone)")?.matches||navigator.standalone===true;
   if(standalone)installBtn?.classList.add("hidden");
