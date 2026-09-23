@@ -39,6 +39,7 @@ test('both snap views use the compact stacked player layout',()=>{
 });
 
 test('shared stats branding preserves the established export sizes',()=>{
+  assert.match(index,/styles\.css\?release=4\.6\.7/,'the branded shared header stylesheet must bypass stale release caches');
   assert.match(index,/class="stats-share-brand"/,'in-app share preview must carry the new brand');
   assert.match(styles,/\.stats-share-brand\{position:absolute/,'in-app share branding must not add header height');
   assert.match(app,/loadImg\("brand-header-gridiron\.webp"\)/,'generated images must use the new Gridiron artwork');
