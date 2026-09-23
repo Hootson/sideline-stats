@@ -3,12 +3,9 @@
   if(typeof module==="object"&&module.exports)module.exports=api;
   root.SidelineStorageSnapshot=api;
 })(typeof globalThis!=="undefined"?globalThis:this,function(){
-  const DERIVED_CLOUD_KEYS=new Set(["teamHash","playerHashes","playHashes","gameHashes","creditHashes","penaltyHashes","snapHashes","remoteFingerprint"]);
-
   function compact(state){
     return JSON.parse(JSON.stringify(state,function(key,value){
       if((key==="logoData"||key==="opponentLogoData")&&typeof value==="string"&&value.startsWith("data:image/"))return null;
-      if(DERIVED_CLOUD_KEYS.has(key))return undefined;
       return value;
     }));
   }

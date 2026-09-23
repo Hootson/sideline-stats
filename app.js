@@ -724,6 +724,11 @@ async function refreshFromCloud(){
       if(role!=="statkeeper"&&role!=="substitute_statkeeper"){
         const detail=cloudPendingItems().slice(0,2).join(", ");return toast(`${pending} viewer change${pending===1?"":"s"} cannot upload${detail?`: ${detail}`:""}`)
       }
+      if(/id conflict/i.test(String(S.cloud?.lastSyncError||""))){
+        if(btn)btn.textContent="Repairing Sync Index…";
+        await loadTeamFromCloud({refresh:true,auto:true});
+        return toast("Sync index repaired — cloud data loaded safely");
+      }
       if(btn)btn.textContent="Syncing Now…";
       const ok=await syncCloudNow({forceRestart:true}),remaining=cloudPendingCount();
       updateCloudUI();

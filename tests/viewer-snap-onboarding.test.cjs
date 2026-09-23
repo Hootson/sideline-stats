@@ -39,7 +39,7 @@ test('both snap views use the compact stacked player layout',()=>{
 });
 
 test('shared stats branding preserves the established export sizes',()=>{
-  assert.match(index,/styles\.css\?release=4\.6\.8/,'the branded shared header stylesheet must bypass stale release caches');
+  assert.match(index,/styles\.css\?release=4\.6\.9/,'the branded shared header stylesheet must bypass stale release caches');
   assert.match(index,/class="stats-share-brand"/,'in-app share preview must carry the new brand');
   assert.match(styles,/\.stats-share-brand\{position:absolute/,'in-app share branding must not add header height');
   assert.match(app,/loadImg\("brand-header-gridiron\.webp"\)/,'generated images must use the new Gridiron artwork');
@@ -54,7 +54,7 @@ test('role onboarding and install guidance remain wired',()=>{
   for(const role of ['statkeeper-new','statkeeper','coach','viewer'])assert.match(app,new RegExp(role));
   assert.match(pwa,/beforeinstallprompt/);
   assert.match(pwa,/Add to Home Screen/);
-  assert.match(version,/SIDELINE_STATS_VERSION="4\.6\.8"/);
+  assert.match(version,/SIDELINE_STATS_VERSION="4\.6\.9"/);
   assert.match(pwa,/SIDELINE_STATS_VERSION=window\.SIDELINE_STATS_VERSION\|\|"current"/);
 });
 

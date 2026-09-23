@@ -25,7 +25,7 @@ assert.equal(recovery.team.logoData,null,'recovery snapshot must omit embedded t
 assert.equal(recovery.games[0].opponentLogoData,null,'recovery snapshot must omit embedded opponent images');
 assert.equal(recovery.games[0].plays[0].yards,4,'recovery snapshot must preserve game data');
 assert.equal(recovery.cloud.gameIds.g1,'cg1','recovery snapshot must preserve cloud record IDs');
-assert.equal(recovery.cloud.playHashes,undefined,'recovery snapshot may omit rebuildable hashes');
+assert.equal(recovery.cloud.playHashes.p1,'derived','recovery snapshot must preserve the sync index');
 
 const tight=new QuotaStorage(900_000);
 const fallback=Snapshot.save(tight,'sidelineStatsData','sidelineStatsRecovery',state);
