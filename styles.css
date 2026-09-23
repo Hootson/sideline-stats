@@ -641,8 +641,12 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 #statsBox .stats-block{overflow:hidden;border-radius:9px;border:1px solid #d9dfdb;background:#fff;margin:0 8px 15px;box-shadow:0 1px 4px #0000000a}
 #statsBox .stats-block>h3{margin:0 0 8px!important;padding:7px 9px 6px;background:var(--team-primary,var(--p,#111));color:#fff;font-size:17px;font-weight:950;letter-spacing:.01em;text-transform:none;border-bottom:5px solid var(--team-accent,var(--s,#f26a00));box-shadow:0 2px 4px #0003}
 #statsBox .stats-block>.stats-table-scroll,#statsBox .stats-block>.muted,#statsBox .stats-block>.scope-summary{margin-left:7px;margin-right:7px;margin-bottom:9px}
-.stats-share-head{background:linear-gradient(180deg,#080b10,#101820)!important;border-bottom:5px solid var(--team-accent,var(--s,#f26a00))!important}
+.stats-share-head{position:relative;background:linear-gradient(180deg,#080b10,#101820)!important;border-bottom:5px solid var(--team-accent,var(--s,#f26a00))!important;padding-left:50%!important}
 .stats-share-head .eyebrow{color:#65b946;opacity:1}
+.stats-share-brand{position:absolute;inset:6px 52% 6px 8px;background:url("brand-header-gridiron.webp") center/contain no-repeat}
+#liveGame.final-readonly #gamePlanCard,#liveGame.final-readonly #quarterCard,#liveGame.final-readonly .possession-bar,#liveGame.final-readonly #fieldPositionBar,#liveGame.final-readonly #stepMain,#liveGame.final-readonly #substituteStatkeeperCard,#liveGame.final-readonly .score-actions{display:none!important}
+#liveGame.final-readonly .playactions{display:none!important}
+#liveGame.final-readonly #endGameBtn{border-color:var(--p);color:var(--p)}
 
 /* V4.0 cloud bridge */
 .cloud-account{position:absolute;z-index:6;left:3%;top:7.5%;min-height:0;padding:7px 11px;border:1.5px solid #ffffffb8;border-radius:999px;background:#06080bd9;color:#fff;font-size:10px;font-weight:900;line-height:1;box-shadow:0 2px 9px #0008;backdrop-filter:blur(3px)}

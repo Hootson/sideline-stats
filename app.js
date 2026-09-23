@@ -1210,7 +1210,6 @@ function normalizeRoster(){
 function normalizeGames(){
   let changed=false;
   (S.games||[]).forEach(g=>{if(!g.gameType){g.gameType="regular";changed=true}if(!g.week){const w=Number(String(g.date||"").replace(/\D/g,""));if(w>=1&&w<=10){g.week=w;changed=true}} if(!g.down||g.down<1||g.down>4){g.down=1;changed=true} if(!g.possession){g.possession="ours";changed=true}if(!g.quarter||g.quarter<1||g.quarter>4){g.quarter=1;changed=true}if(!Array.isArray(g.snapRecords)){g.snapRecords=[];changed=true}if(!g.distance||g.distance<1){g.distance=10;changed=true}if(g.ballSpot===undefined){g.ballSpot=null;changed=true}if(g.initialBallSpot===undefined){g.initialBallSpot=null;changed=true}if(!Array.isArray(g.gamePlan)){const recorded=[],seen=new Set(),used=new Set();for(const p of g.plays||[]){const c=p.playCall,n=Number(c?.number),id=String(c?.id||"");if(!id||seen.has(id)||used.has(n)||!Number.isInteger(n))continue;seen.add(id);used.add(n);recorded.push({playId:id,number:n})}g.gamePlan=recorded.length?recorded:defaultGamePlan();changed=true}else{const before=JSON.stringify(g.gamePlan);normalizeGamePlan(g);if(before!==JSON.stringify(g.gamePlan))changed=true}});
-  if(S.activeGameId&&gameById(S.activeGameId)?.status==="complete"){S.activeGameId=null;changed=true}
   if(changed)persist();
 }
 function toast(m){let t=$("#toast");t.textContent=m;t.style.display="block";setTimeout(()=>t.style.display="none",1500)}
@@ -1221,6 +1220,8 @@ function colorContrast(a,b){const x=colorLuminance(a),y=colorLuminance(b);return
 function colors(){let p=S.team?.primary||"#177b46",s=S.team?.secondary||"#f0b33b",ink=colorLuminance(p)>.46?"#111111":"#ffffff",active=colorContrast(p,s)>=3?s:ink;document.documentElement.style.setProperty("--p",p);document.documentElement.style.setProperty("--s",s);document.documentElement.style.setProperty("--nav-text",ink);document.documentElement.style.setProperty("--nav-muted",ink==="#ffffff"?"#ffffffb8":"#111111a6");document.documentElement.style.setProperty("--nav-active",active);document.querySelector('meta[name="theme-color"]').setAttribute("content",p)}
 function teamExists(){return !!(S.team&&S.team.name)}
 function currentGame(){return S.games.find(g=>g.id===S.activeGameId)||null}
+function gameCorrectionsOpen(g=currentGame()){return !!(g?.status==="complete"&&g?.correctionsOpen)}
+function gameReadOnly(g=currentGame()){return !!(g?.status==="complete"&&!g?.correctionsOpen)}
 function isCloudViewer(){return !!(S.cloud?.teamId&&S.cloud?.seasonId&&cloudDeviceRole()==="viewer")}
 function gameById(id){return S.games.find(g=>g.id===id)||null}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -1623,13 +1624,6 @@ $("#copyPreviousGamePlanBtn")?.addEventListener("click",()=>{
   if(g.gamePlan?.length&&!confirm(`Replace this game plan with Week ${prior.week} vs ${prior.opponent}?`))return;
   g.gamePlan=cloneJson(normalizeGamePlan(prior));normalizeGamePlan(g);persist();renderGamePlanManager();renderNextPlayCallOptions();toast(`Copied Week ${prior.week} game plan`);
 });
-function resumeGameIfFinal(g){
-  if(!g)return false;
-  if(g.status!=="complete")return true;
-  if(!confirm(`This game is marked Final. Resume the game vs ${g.opponent} and mark it Live?`))return false;
-  g.status="live";persist();toast("Game resumed — now Live");
-  return true;
-}
 function renderGameList(){
   const list=$("#gameList");
   if(!S.games.length){list.innerHTML='<span class="muted">No games yet.</span>';return}
@@ -1642,7 +1636,7 @@ function renderGameList(){
         <button class="btn danger small delete-game" data-id="${g.id}">Delete</button>
       </div>
     </div>`).join("");
-  $$(".open-game").forEach(b=>b.addEventListener("click",()=>{const g=gameById(b.dataset.id);if(!resumeGameIfFinal(g))return;S.activeGameId=g.id;selectedStatsGameId=g.id;persist();renderGameArea()}));
+  $$(".open-game").forEach(b=>b.addEventListener("click",()=>{const g=gameById(b.dataset.id);if(!g)return;g.correctionsOpen=false;S.activeGameId=g.id;selectedStatsGameId=g.id;persist();renderGameArea()}));
   $$(".edit-saved-game").forEach(b=>b.addEventListener("click",()=>{
     const g=gameById(b.dataset.id);if(!g)return;
     selectedStatsGameId=g.id;openEditGame(g);
@@ -1754,6 +1748,12 @@ $("#saveGameDetailsBtn").addEventListener("click",()=>{
 
 $("#endGameBtn").addEventListener("click",async()=>{
   const g=currentGame();if(!g)return;
+  if(g.status==="complete"){
+    const wasCorrections=gameCorrectionsOpen(g);
+    g.correctionsOpen=false;selectedStatsGameId=g.id;S.activeGameId=null;persist();
+    if(wasCorrections&&cloudLinked()&&navigator.onLine!==false)syncCloudNow({forceRestart:true,priorityGameId:g.id}).catch(e=>console.warn("Correction sync will retry",e));
+    renderGameArea();toast(wasCorrections?"Corrections closed — finalization window unchanged":"Game closed");return;
+  }
   if(!confirm(`Finalize the game vs ${g.opponent}? The viewer scoreboard will show Final and each active coach will have 24 hours to submit or skip the debrief.`))return;
   const btn=$("#endGameBtn");if(btn){btn.disabled=true;btn.textContent="Finalizing…"}
   try{
@@ -1761,12 +1761,17 @@ $("#endGameBtn").addEventListener("click",async()=>{
       const preflight=await syncCloudNow({forceRestart:true,priorityGameId:g.id});
       if(!preflight||cloudGameNeedsSync(g))throw new Error("This game is not fully synced yet. Tap Retry Sync, then finalize again.");
     }
-    g.status="complete";g.finalizedAt=g.finalizedAt||new Date().toISOString();selectedStatsGameId=g.id;S.activeGameId=null;persist();
+    g.status="complete";g.correctionsOpen=false;g.finalizedAt=g.finalizedAt||new Date().toISOString();selectedStatsGameId=g.id;S.activeGameId=null;persist();
     let cloudFinalized=!cloudLinked();
     if(cloudLinked()&&navigator.onLine!==false){cloudFinalized=await syncCloudNow({forceRestart:true,priorityGameId:g.id});if(!cloudFinalized||cloudGameNeedsSync(g))throw new Error("Finalization is saved on this phone and will finish when cloud sync succeeds.")}
     toast(isSubstituteStatkeeper()?"Game finalized — access will close after sync":"Game finalized — the 24-hour coach window is open");
   }catch(e){console.error("Game finalization sync failed",e);toast(e?.message||"Finalization is saved and will retry automatically")}
   finally{if(btn){btn.disabled=false;btn.textContent="Finalize Game"}if(isSubstituteStatkeeper())go("stats");else renderGameArea()}
+});
+$("#reopenCorrectionsBtn")?.addEventListener("click",()=>{
+  const g=currentGame();if(!g||g.status!=="complete")return;
+  if(!confirm(`Reopen ${S.team.name} vs ${g.opponent} for corrections? The game will remain Final and the original 24-hour coach window will not restart.`))return;
+  g.correctionsOpen=true;persist();renderLiveGame();toast("Corrections open — game remains Final");
 });
 $("#setOurScore").addEventListener("click",()=>{
   const g=currentGame();if(!g)return;ensureScoreModel(g);
@@ -2017,10 +2022,18 @@ function applyHalftimeKickoff(g){
 function renderLiveGame(){
   const g=currentGame();if(!g)return;
   const substitute=isSubstituteStatkeeper();
+  const readOnly=gameReadOnly(g),corrections=gameCorrectionsOpen(g);
+  $("#liveGame")?.classList.toggle("final-readonly",readOnly);
+  $("#completedGameActions")?.classList.toggle("hidden",g.status!=="complete");
+  if(g.status==="complete"){
+    $("#completedGameTitle").textContent=corrections?"Corrections are open":"Viewing completed game";
+    $("#completedGameHelp").textContent=corrections?"Make the needed corrections, then choose Close Corrections. The original finalization time and 24-hour coach window will not restart.":"This game is read-only. Reopen it only when you need to correct the score, plays, snaps, or game details.";
+    $("#reopenCorrectionsBtn")?.classList.toggle("hidden",corrections);
+  }
   $("#substituteStatkeeperBanner")?.classList.toggle("hidden",!substitute);
   $("#substituteStatkeeperCard")?.classList.toggle("hidden",substitute||!isTeamStatkeeper());
   $("#gamePlanCard")?.classList.toggle("hidden",substitute);
-  $("#editGameBtn")?.classList.toggle("hidden",substitute);
+  $("#editGameBtn")?.classList.toggle("hidden",substitute||readOnly);
   if(substitute)$("#editGameCard")?.classList.add("hidden");
   ensureScoreModel(g);
   $("#teamGame").textContent=S.team.name;
@@ -2062,7 +2075,7 @@ function renderLiveGame(){
   $("#quickKickoff").textContent=g.possession==="ours"?"🦵 KICK / RECEIVE":"🦵 KICK / RECEIVE";
   renderNextPlayCallOptions();
 
-$$(".quarter-btn").forEach(b=>b.classList.toggle("active",Number(b.dataset.quarter)===Number(g.quarter||1)));const nq=$("#nextQuarterBtn");if(nq){const q=Number(g.quarter||1);nq.textContent=q<4?`END ${ordinal(q).toUpperCase()} → START ${ordinal(q+1).toUpperCase()}`:"4TH QUARTER";nq.disabled=q>=4;}renderRecent();resetFlow();
+  $$(".quarter-btn").forEach(b=>b.classList.toggle("active",Number(b.dataset.quarter)===Number(g.quarter||1)));const nq=$("#nextQuarterBtn");if(nq){const q=Number(g.quarter||1);nq.textContent=q<4?`END ${ordinal(q).toUpperCase()} → START ${ordinal(q+1).toUpperCase()}`:"4TH QUARTER";nq.disabled=q>=4;}const end=$("#endGameBtn");if(end)end.textContent=g.status==="complete"?(corrections?"Close Corrections":"Close Game"):"Finalize Game";renderRecent();resetFlow();
 }
 
 $("#togglePossession").addEventListener("click",()=>{
@@ -3050,7 +3063,7 @@ function renderSnaps(){
   }
   $("#recordSnapBtn").disabled=false;
 
-  const snapGame=snapViewGame();const gameTotal=snapGame?.snapRecords?.length||0;$("#recordSnapBtn").disabled=!currentGame()||currentGame()?.status==="complete";
+  const snapGame=snapViewGame();const gameTotal=snapGame?.snapRecords?.length||0;$("#recordSnapBtn").disabled=!currentGame()||gameReadOnly(currentGame());
   const ordered=[...S.roster].sort((a,b)=>a.jersey-b.jersey);
   box.innerHTML=ordered.map(p=>{
     const snaps=currentGameSnapCount(p.id);
@@ -3463,7 +3476,7 @@ async function drawBroadcastHeader(c,W,src,opts={}){
   const scoreBodyH=compact?266:310,metaH=compact?54:62,H=brandH+(g?scoreBodyH+metaH:0);
   c.fillStyle="#071019";c.fillRect(0,0,W,H);
   try{
-    const brandIm=await loadImg("brand-header.png");
+    const brandIm=await loadImg("brand-header-gridiron.webp");
     c.drawImage(brandIm,0,0,brandIm.naturalWidth||brandIm.width,brandIm.naturalHeight||brandIm.height,0,0,W,brandH);
   }catch(e){
     const grad=c.createLinearGradient(0,0,0,brandH);grad.addColorStop(0,"#040a12");grad.addColorStop(1,"#102018");c.fillStyle=grad;c.fillRect(0,0,W,brandH);
@@ -3533,7 +3546,7 @@ async function makeTeamSummaryShare(src){
   shareTX(c,`${m.playersBelowMinimum} players below ${teamSnapMinimum()}-snap minimum`,65,y+88,34,950,"#fff");
   shareTX(c,`${m.snapOpportunities} tracked team snaps in this view`,65,y+120,20,800,"#fff");
 
-  shareTX(c,"SIDELINE STATS • GRIDIRON EDITION",W/2,H-28,18,850,P,"center");
+  shareTX(c,"BLEACHER BUTT STATS • GRIDIRON EDITION",W/2,H-28,18,850,P,"center");
   return cv;
 }
 
@@ -3810,7 +3823,7 @@ async function makeSnapParticipationShare(g){
   shareTX(c,`${met} of ${roster.length} players have reached the ${minimum}-snap minimum`,78,y+91,23,800,"#142019");
   shareTX(c,`Team snap opportunities recorded: ${(g.snapRecords||[]).length}`,78,y+126,20,700,"#65716a");
   y+=190;
-  shareTX(c,"SIDELINE STATS • GRIDIRON EDITION",W/2,y,20,850,P,"center");
+  shareTX(c,"BLEACHER BUTT STATS • GRIDIRON EDITION",W/2,y,20,850,P,"center");
   shareTX(c,"Participation totals generated from the game Snap Tracker",W/2,y+34,17,650,"#65716a","center");
   return cv;
 }

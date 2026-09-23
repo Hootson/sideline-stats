@@ -50,7 +50,7 @@ assert.match(app, /platform_admin!==true\)return toast\("Owner access is require
 assert.match(app, /function renderViewerGameSummary\(\)/, 'viewer Game Center must render its scoreboard');
 assert.match(html, /id="viewerGameSummary"/, 'Stats must contain the viewer scoreboard destination');
 assert.match(html, /id="shareStatsBtn"/, 'Stats sharing must remain available');
-assert.match(sw, /sideline-stats-v4-6-6-original-header-height/, 'service worker cache must match the current release');
+assert.match(sw, /bleacher-butt-gridiron-v4-6-7-complete-branding-workflow/, 'service worker cache must match the current release');
 assert.match(styles, /aspect-ratio:1536\/468/, 'the Gridiron header must retain its original compact height');
 assert.doesNotMatch(app, /ended_at:[^,]*new Date\(\)\.toISOString\(\)/, 'sync hashing must never generate a moving completion timestamp');
 assert.match(app, /ended_at:window\.SidelineGameLifecycle\.stableEndedAt\(g\)/, 'legacy completed games must use a deterministic completion timestamp');
@@ -66,7 +66,9 @@ assert.match(styles, /nav button\.active\{[^}]*var\(--nav-active\)/, 'the active
 assert.match(app, /#bottomNav \[data-go\][\s\S]*classList\.toggle\("active"/, 'the current statkeeper tab must receive an active state');
 assert.match(snapTracker, /\.actions\{[^}]*background:var\(--p\)[^}]*border-top:3px solid var\(--a\)/, 'the shared Snap Tracker action row must use team colors');
 assert.match(snapTracker, /border-bottom:7px solid #65b946/, 'the shared Snap Tracker brand header must retain the company green');
-assert.match(app, /Resume the game vs \$\{g\.opponent\} and mark it Live\?/, 'opening a final game must offer to resume it live');
+assert.match(app, /g\.correctionsOpen=false;S\.activeGameId=g\.id/, 'opening a final game must be read-only by default');
+assert.match(app, /The original finalization time and 24-hour coach window will not restart/, 'correction mode must preserve the original finalization window');
+assert.match(app, /g\.status="complete";g\.correctionsOpen=false;g\.finalizedAt=g\.finalizedAt\|\|new Date/, 'finalization must retain its original timestamp');
 assert.match(app, /Finalize the game vs \$\{g\.opponent\}\?/, 'finalizing a game must require confirmation');
 assert.match(app, /async function syncDeletedCloudGames\(\)/, 'deleted local games must be reconciled to Supabase');
 assert.match(app, /table==="plays"\?"revision,updated_at,client_updated_at":table==="games"\?"revision,updated_at":"updated_at"/, 'delete conflict checks must request only columns that exist on each cloud table');

@@ -63,6 +63,7 @@
           <button class="btn ghost small hidden" id="cloudSignOutBtn" type="button">Sign Out</button>
         </div>
       </div>
+
     </div>
     <div class="card">
       <label>Team name</label>
@@ -217,6 +218,13 @@
             <button class="score-action" id="editGameBtn">Edit Game Details</button>
           </div>
         </div>
+      </div>
+
+      <div class="card hidden" id="completedGameActions">
+        <div class="muted">FINAL GAME</div>
+        <h3 id="completedGameTitle" style="margin:4px 0 6px">Viewing completed game</h3>
+        <div class="muted" id="completedGameHelp">This game is read-only. Reopen it only when you need to correct the score, plays, snaps, or game details.</div>
+        <button class="btn" id="reopenCorrectionsBtn" type="button" style="margin-top:12px">Reopen for Corrections</button>
       </div>
 
       <div class="card hidden" id="substituteStatkeeperBanner">
@@ -619,7 +627,8 @@
     </div>
     <div id="statsShareView" class="stats-share-wrap">
       <div class="stats-share-head">
-        <div class="eyebrow">SIDELINE STATS • GAME STATS</div>
+        <div class="stats-share-brand" aria-label="Bleacher Butt Stats — Gridiron Edition"></div>
+        <div class="eyebrow">GAME STATS</div>
         <div id="statsShareTitle" class="title">Team</div>
         <div id="statsGameLabel" class="sub"></div>
       </div>
@@ -772,7 +781,7 @@
 <div id="ownerDashboardModal" class="modal-backdrop hidden"><div class="modal-card owner-dashboard-modal"><button id="ownerDashboardCloseBtn" class="modal-close" aria-label="Close">×</button><h2>Sideline Stats Traction</h2><div class="muted">Private owner view • live production activity</div><div id="ownerMetrics" class="owner-metrics"><div class="inline-note">Loading traction data…</div></div><section class="owner-metric-section"><h3>Emergency local recovery</h3><div class="muted">Platform-admin only. Supabase remains the authoritative source for cloud-linked teams.</div><div class="data-tools"><button class="btn ghost" id="ownerBackupDataBtn" type="button">Download Recovery Backup</button><button class="btn ghost" id="ownerRestoreDataBtn" type="button">Restore Local Backup</button></div><input id="ownerRestoreDataInput" type="file" accept="application/json,.json" class="hidden"></section></div></div>
 <div class="toast" id="toast"></div>
 
-<script src="./version.js?release=4.6.6"></script>
+<script src="./version.js?release=4.6.7"></script>
 <script src="./field-orientation.js"></script>
 <script src="./field-position.js"></script>
 <script src="./cloud-conflict.js"></script>
@@ -781,11 +790,11 @@
 <script src="./edit-play-model.js"></script>
 <script src="./voice-play.js"></script>
 <script src="./coach-analytics.js"></script>
-<script src="./commercial-access.js?release=4.6.6"></script>
+<script src="./commercial-access.js?release=4.6.7"></script>
 <script src="./cloud-pagination.js"></script>
-<script src="./app.js?release=4.6.6"></script>
+<script src="./app.js?release=4.6.7"></script>
 
-<script src="./pwa.js?release=4.6.6"></script>
+<script src="./pwa.js?release=4.6.7"></script>
 
 </body>
 </html>

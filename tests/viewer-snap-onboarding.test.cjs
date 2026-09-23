@@ -12,6 +12,7 @@ const version=fs.readFileSync('version.js','utf8');
 const index=fs.readFileSync('index.html','utf8');
 
 test('parent viewer scoreboard and box scores use team colors',()=>{
+  assert.match(parentHtml,/viewer-brand[^>]+brand-header-gridiron\.webp/,'parent live stats must use the Gridiron brand artwork');
   assert.match(parentHtml,/\.score-card\{[^}]*background:var\(--p\)[^}]*border:2px solid var\(--a\)/);
   assert.match(parentHtml,/\.stats-section \.section-title\{[^}]*background:var\(--p\)[^}]*border-bottom:5px solid var\(--a\)/);
   assert.match(parentJs,/--p-ink/);
@@ -28,6 +29,7 @@ test('parent viewer scoreboard and box scores use team colors',()=>{
 });
 
 test('both snap views use the compact stacked player layout',()=>{
+  assert.match(snapHtml,/shared-brand[^>]+brand-header-gridiron\.webp/,'shared Snap Tracker must use the Gridiron brand artwork');
   assert.match(snapHtml,/grid-template-columns:34px minmax\(0,1fr\) minmax\(78px,120px\)/);
   assert.match(snapHtml,/\.num\{display:block/);
   assert.match(snapHtml,/\.bar\{height:7px/);
@@ -36,13 +38,22 @@ test('both snap views use the compact stacked player layout',()=>{
   assert.match(styles,/\.snap-bar\{height:7px/);
 });
 
+test('shared stats branding preserves the established export sizes',()=>{
+  assert.match(index,/class="stats-share-brand"/,'in-app share preview must carry the new brand');
+  assert.match(styles,/\.stats-share-brand\{position:absolute/,'in-app share branding must not add header height');
+  assert.match(app,/loadImg\("brand-header-gridiron\.webp"\)/,'generated images must use the new Gridiron artwork');
+  assert.match(app,/const W=1080,H=1900/,'team summary export dimensions must remain unchanged');
+  assert.match(app,/async function makeHybridSharePages\(src\)\{\s*const W=1080,H=2532/,'player box-score dimensions must remain unchanged');
+  assert.match(app,/const W=1080,rowH=68,headerH=405/,'participation export width and header geometry must remain unchanged');
+});
+
 test('role onboarding and install guidance remain wired',()=>{
   assert.match(index,/id="quickStartCard"/);
   assert.match(index,/id="installAppBtn"/);
   for(const role of ['statkeeper-new','statkeeper','coach','viewer'])assert.match(app,new RegExp(role));
   assert.match(pwa,/beforeinstallprompt/);
   assert.match(pwa,/Add to Home Screen/);
-  assert.match(version,/SIDELINE_STATS_VERSION="4\.6\.6"/);
+  assert.match(version,/SIDELINE_STATS_VERSION="4\.6\.7"/);
   assert.match(pwa,/SIDELINE_STATS_VERSION=window\.SIDELINE_STATS_VERSION\|\|"current"/);
 });
 
