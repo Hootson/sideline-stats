@@ -622,9 +622,9 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 /* V3.10.3 unified branded Friday Night Lights masthead — accepted marketing artwork */
 .top{
   position:sticky;top:0;z-index:20;
-  width:100%;min-height:0;aspect-ratio:1536/468;
+  width:100%;min-height:0;aspect-ratio:1774/887;
   padding:0;overflow:hidden;color:#fff;
-  background:#06101a url("brand-header.png") center center/100% 100% no-repeat;
+  background:#06101a url("brand-header-gridiron.webp") center center/contain no-repeat;
   box-shadow:0 4px 18px #0008;border:0;border-radius:0;
 }
 .top:before,.fnl-lights,.brand-lockup,.field-stripe{display:none!important}
@@ -708,7 +708,7 @@ nav.five-items,#bottomNav:has(#statkeeperAnalyticsNav:not(.hidden)){grid-templat
 
 @media (min-width:760px){
   body.coach-mode .app{max-width:1180px}
-  body.coach-mode .top{height:150px;max-height:150px;aspect-ratio:auto;background-size:100% 100%;background-position:center center}
+  body.coach-mode .top{height:auto;max-height:none;aspect-ratio:1774/887;background-size:contain;background-position:center center}
   body.coach-mode nav{width:min(920px,100%)}
   body.coach-mode .coach-section-tabs{top:150px}
   body.coach-mode .heat-head{top:205px}
