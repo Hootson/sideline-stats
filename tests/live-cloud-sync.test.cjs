@@ -50,7 +50,7 @@ assert.match(app, /platform_admin!==true\)return toast\("Owner access is require
 assert.match(app, /function renderViewerGameSummary\(\)/, 'viewer Game Center must render its scoreboard');
 assert.match(html, /id="viewerGameSummary"/, 'Stats must contain the viewer scoreboard destination');
 assert.match(html, /id="shareStatsBtn"/, 'Stats sharing must remain available');
-assert.match(sw, /bleacher-butt-gridiron-v4-6-7-complete-branding-workflow/, 'service worker cache must match the current release');
+assert.match(sw, /bleacher-butt-gridiron-v4-6-8-device-storage-sync/, 'service worker cache must match the current release');
 assert.match(styles, /aspect-ratio:1536\/468/, 'the Gridiron header must retain its original compact height');
 assert.doesNotMatch(app, /ended_at:[^,]*new Date\(\)\.toISOString\(\)/, 'sync hashing must never generate a moving completion timestamp');
 assert.match(app, /ended_at:window\.SidelineGameLifecycle\.stableEndedAt\(g\)/, 'legacy completed games must use a deterministic completion timestamp');

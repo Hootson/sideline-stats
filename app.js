@@ -106,10 +106,9 @@ function load(){
 }
 function persist(opts={}){
   try{
-    const current=localStorage.getItem(KEY);
-    if(current)localStorage.setItem(RECOVERY_KEY,current);
-    localStorage.setItem(KEY,JSON.stringify(S));
-  }catch(e){console.error("Save failed",e);toast("Could not save data")}
+    const result=window.SidelineStorageSnapshot.save(localStorage,KEY,RECOVERY_KEY,S);
+    if(result.usedCompactMain)console.warn("Device snapshot saved without cached images to stay within browser storage limits",result);
+  }catch(e){console.error("Save failed",e);toast("Device storage is full. Keep this screen open and tap Retry Sync.")}
   try{if(typeof updateCloudUI==="function")updateCloudUI()}catch(e){console.warn("Cloud status redraw failed",e)}
   if(!opts.skipCloud&&typeof scheduleCloudSync==="function")scheduleCloudSync();
 }
