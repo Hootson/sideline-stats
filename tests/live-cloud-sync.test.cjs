@@ -50,7 +50,13 @@ assert.match(app, /platform_admin!==true\)return toast\("Owner access is require
 assert.match(app, /function renderViewerGameSummary\(\)/, 'viewer Game Center must render its scoreboard');
 assert.match(html, /id="viewerGameSummary"/, 'Stats must contain the viewer scoreboard destination');
 assert.match(html, /id="shareStatsBtn"/, 'Stats sharing must remain available');
-assert.match(sw, /sideline-stats-v4-6-3-team-restore/, 'service worker cache must match the current release');
+assert.match(sw, /sideline-stats-v4-6-4-sync-finalization/, 'service worker cache must match the current release');
+assert.doesNotMatch(app, /ended_at:[^,]*new Date\(\)\.toISOString\(\)/, 'sync hashing must never generate a moving completion timestamp');
+assert.match(app, /ended_at:window\.SidelineGameLifecycle\.stableEndedAt\(g\)/, 'legacy completed games must use a deterministic completion timestamp');
+assert.match(app, /priorityGameId=options\.priorityGameId\|\|S\.activeGameId/, 'manual finalization must sync the selected game before unrelated history');
+assert.match(app, /if\(!preflight\|\|cloudGameNeedsSync\(g\)\)throw new Error\("This game is not fully synced yet/, 'unrelated historical changes must not block finalizing the current game');
+assert.match(app, /return options\.priorityGameId\?priorityGameSynced:succeeded/, 'a prioritized game must report its own publish result instead of an unrelated historical failure');
+assert.match(app, /catch\(e\)\{delete S\.cloud\.gameHashes\[g\.id\]/, 'a failed publish marker must leave the game queued for retry');
 assert.match(html, /cloud-pagination\.js[^]*app\.js/, 'cloud pagination helper must load before the application');
 assert.match(pagination, /\.range\(from,from\+pageSize-1\)/, 'large cloud child tables must be fetched page by page');
 assert.match(app, /table:"snap_participants",column:"snap_event_id"/, 'cloud refresh must paginate all snap participants');

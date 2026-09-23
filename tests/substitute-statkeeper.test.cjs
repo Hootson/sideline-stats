@@ -24,7 +24,7 @@ assert.match(app, /revoke_game_statkeeper/, 'owners must be able to revoke and t
 assert.match(app, /finish_game_statkeeper_assignment/, 'the app must close access only after publishing the final game');
 assert.match(app, /isSubstituteStatkeeper\(\)&&!\['game','snaps','stats'\]\.includes\(name\)/, 'substitutes must be restricted to game-day screens');
 assert.match(app, /if\(!substitute\)\{await ensureCloudTeam\(\);ensureCurrentRun\(\);await ensureCloudRoster\(\);ensureCurrentRun\(\)\}/, 'substitutes must never sync team or roster changes');
-assert.match(app, /if\(!substitute\)await syncDeletedCloudGames\(\)/, 'substitutes must never archive other games');
+assert.match(app, /if\(!substitute\)\{await syncDeletedCloudGames\(\);ensureCurrentRun\(\)\}/, 'substitutes must never archive other games');
 assert.match(app, /roleOverride:"substitute_statkeeper"/, 'redeemed invitations must open in the substitute role');
 
 for (const id of ['substituteStatkeeperBanner','substituteStatkeeperCard','gameStatkeeperEmail','createGameStatkeeperInviteBtn','revokeGameStatkeeperBtn']) {

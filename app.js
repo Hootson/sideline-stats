@@ -998,7 +998,7 @@ async function syncSnapRecord(g,r,index,cloudGameId){
   S.cloud.snapHashes[r.id]=h;
 }
 function buildCloudGamePayload(g){
-  return {season_id:S.cloud.seasonId,created_by:cloudUser.id,opponent_name:g.opponent||"Opponent",opponent_logo_data:g.opponentLogoData||null,week_number:Number(g.week||1),game_date:null,location_type:cloudLocation(g.location),game_type:["regular","playoff","scrimmage","other"].includes(g.gameType)?g.gameType:"regular",status:cloudGameStatus(g),opening_kickoff:g.openingKickoff||null,current_quarter:Number(g.quarter||1),team_score:Math.max(0,Number(displayedOurScore(g)||0)),opponent_score:Math.max(0,Number(g.oppScore||0)),possession:g.possession==="opp"?"opponent":"ours",current_down:Number(g.down||1),current_distance:Number(g.distance||10),game_plan:normalizeGamePlan(g),ended_at:cloudGameStatus(g)==="final"?(g.finalizedAt||new Date().toISOString()):null,current_state:{quarter:Number(g.quarter||1),team_score:Math.max(0,Number(displayedOurScore(g)||0)),opponent_score:Math.max(0,Number(g.oppScore||0)),possession:g.possession==="opp"?"opponent":"ours",down:Number(g.down||1),distance:Number(g.distance||10),ballSpot:Field.validSpot(g.ballSpot)}};
+  return {season_id:S.cloud.seasonId,created_by:cloudUser.id,opponent_name:g.opponent||"Opponent",opponent_logo_data:g.opponentLogoData||null,week_number:Number(g.week||1),game_date:null,location_type:cloudLocation(g.location),game_type:["regular","playoff","scrimmage","other"].includes(g.gameType)?g.gameType:"regular",status:cloudGameStatus(g),opening_kickoff:g.openingKickoff||null,current_quarter:Number(g.quarter||1),team_score:Math.max(0,Number(displayedOurScore(g)||0)),opponent_score:Math.max(0,Number(g.oppScore||0)),possession:g.possession==="opp"?"opponent":"ours",current_down:Number(g.down||1),current_distance:Number(g.distance||10),game_plan:normalizeGamePlan(g),ended_at:window.SidelineGameLifecycle.stableEndedAt(g),current_state:{quarter:Number(g.quarter||1),team_score:Math.max(0,Number(displayedOurScore(g)||0)),opponent_score:Math.max(0,Number(g.oppScore||0)),possession:g.possession==="opp"?"opponent":"ours",down:Number(g.down||1),distance:Number(g.distance||10),ballSpot:Field.validSpot(g.ballSpot)}};
 }
 async function ensureCloudRoster(){
   if(!cloudLinked())return;const localIds=new Set();
@@ -1128,7 +1128,7 @@ async function syncCloudNow(options={}){
   }
   if(cloudSyncRunning){cloudSyncRequested=true;return false}
   if(!SB||!cloudUser||!cloudLinked()||navigator.onLine===false||!isCloudStatkeeper())return false;
-  const runId=++cloudSyncRunId;let succeeded=false,retryAfterAuth=false;
+  const runId=++cloudSyncRunId;let succeeded=false,retryAfterAuth=false,priorityGameSynced=!options.priorityGameId;
   cloudSyncRunning=true;cloudSyncStartedAt=Date.now();updateCloudUI();
   cloudSyncWatchdog=setTimeout(()=>{
     if(runId!==cloudSyncRunId||!cloudSyncRunning)return;
@@ -1141,9 +1141,18 @@ async function syncCloudNow(options={}){
     // Release identities from locally deleted games before inserting replacements.
     // This keeps delete-and-recreate (for example, adding a forgotten logo) atomic from the user's perspective.
     if(!substitute){await syncDeletedCloudGames();ensureCurrentRun()}
-    const ordered=[...(S.games||[])].filter(g=>!substitute||S.cloud.gameIds?.[g.id]===S.cloud.substituteGameId).sort((a,b)=>(b.id===S.activeGameId)-(a.id===S.activeGameId));
+    const priorityGameId=options.priorityGameId||S.activeGameId;
+    const ordered=[...(S.games||[])].filter(g=>!substitute||S.cloud.gameIds?.[g.id]===S.cloud.substituteGameId).sort((a,b)=>(b.id===priorityGameId)-(a.id===priorityGameId));
     const published=[];
-    for(const g of ordered){if(!cloudGameNeedsSync(g))continue;const cloudGameId=await ensureCloudGame(g);ensureCurrentRun();for(let i=0;i<(g.plays||[]).length;i++){await syncOnePlay(g,g.plays[i],i,cloudGameId);ensureCurrentRun()}for(let i=0;i<(g.snapRecords||[]).length;i++){await syncSnapRecord(g,g.snapRecords[i],i,cloudGameId);ensureCurrentRun()}await ensureCloudGame(g);ensureCurrentRun();await publishCloudGame(cloudGameId);ensureCurrentRun();published.push(cloudGameId)}
+    for(const g of ordered){
+      if(!cloudGameNeedsSync(g)){if(g.id===options.priorityGameId)priorityGameSynced=true;continue}
+      const cloudGameId=await ensureCloudGame(g);ensureCurrentRun();
+      for(let i=0;i<(g.plays||[]).length;i++){await syncOnePlay(g,g.plays[i],i,cloudGameId);ensureCurrentRun()}
+      for(let i=0;i<(g.snapRecords||[]).length;i++){await syncSnapRecord(g,g.snapRecords[i],i,cloudGameId);ensureCurrentRun()}
+      await ensureCloudGame(g);ensureCurrentRun();
+      try{await publishCloudGame(cloudGameId)}catch(e){delete S.cloud.gameHashes[g.id];persist({skipCloud:true});throw e}
+      ensureCurrentRun();published.push(cloudGameId);if(g.id===options.priorityGameId)priorityGameSynced=true;
+    }
     const deletedPlays=await syncDeletedCloudPlays();
     ensureCurrentRun();
     const deletedSnaps=await syncDeletedCloudSnaps();
@@ -1175,7 +1184,7 @@ async function syncCloudNow(options={}){
     }
   }
   if(retryAfterAuth)return syncCloudNow({...options,forceRestart:false,authRetryAttempt:true});
-  return succeeded;
+  return options.priorityGameId?priorityGameSynced:succeeded;
 }
 window.addEventListener("online",()=>{if(isCloudStatkeeper())scheduleCloudSync(150);else setTimeout(checkLiveGameRevisions,100);setTimeout(checkCloudForUpdates,500)});
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){if(isCloudStatkeeper())scheduleCloudSync(100);else setTimeout(checkLiveGameRevisions,100);setTimeout(checkCloudForUpdates,500)}else if(isCloudStatkeeper()&&cloudPendingCount()>0)scheduleCloudSync(0)});
@@ -1749,12 +1758,12 @@ $("#endGameBtn").addEventListener("click",async()=>{
   const btn=$("#endGameBtn");if(btn){btn.disabled=true;btn.textContent="Finalizing…"}
   try{
     if(cloudLinked()&&navigator.onLine!==false){
-      const preflight=await syncCloudNow({forceRestart:true});
-      if(!preflight||cloudPendingCount()>0)throw new Error("The game is not fully synced yet. Tap Retry Sync, then finalize again.");
+      const preflight=await syncCloudNow({forceRestart:true,priorityGameId:g.id});
+      if(!preflight||cloudGameNeedsSync(g))throw new Error("This game is not fully synced yet. Tap Retry Sync, then finalize again.");
     }
     g.status="complete";g.finalizedAt=g.finalizedAt||new Date().toISOString();selectedStatsGameId=g.id;S.activeGameId=null;persist();
     let cloudFinalized=!cloudLinked();
-    if(cloudLinked()&&navigator.onLine!==false){cloudFinalized=await syncCloudNow({forceRestart:true});if(!cloudFinalized)throw new Error("Finalization is saved on this phone and will finish when cloud sync succeeds.")}
+    if(cloudLinked()&&navigator.onLine!==false){cloudFinalized=await syncCloudNow({forceRestart:true,priorityGameId:g.id});if(!cloudFinalized||cloudGameNeedsSync(g))throw new Error("Finalization is saved on this phone and will finish when cloud sync succeeds.")}
     toast(isSubstituteStatkeeper()?"Game finalized — access will close after sync":"Game finalized — the 24-hour coach window is open");
   }catch(e){console.error("Game finalization sync failed",e);toast(e?.message||"Finalization is saved and will retry automatically")}
   finally{if(btn){btn.disabled=false;btn.textContent="Finalize Game"}if(isSubstituteStatkeeper())go("stats");else renderGameArea()}
