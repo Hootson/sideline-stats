@@ -38,7 +38,7 @@ assert.match(css, /\.coach-section-tabs\{position:sticky/, 'analytics section co
 assert.match(css, /\.heat-name\{position:sticky;left:0/, 'play names must remain visible in the play-call table');
 assert.match(css, /@media \(max-width:560px\)/, 'phone-specific responsive rules must remain available');
 assert.match(app, /x\.sub==="TFL"\|\|x\.tackleKind==="TFL"/, 'team summary must count legacy and current TFL representations');
-assert.match(css, /body\.coach-mode \.top\{height:150px;max-height:150px;aspect-ratio:auto/, 'tablet and desktop analytics must use a compact masthead');
+assert.match(css, /body\.coach-mode \.top\{height:auto;max-height:none;aspect-ratio:1536\/468/, 'analytics must retain the compact Gridiron masthead ratio');
 assert.match(css, /body\.coach-mode \.top\{[^}]*background-size:100% 100%/, 'tablet and desktop masthead must fit the complete branded header without cropping');
 assert.match(css, /body\.coach-mode \.coach-section-tabs\{top:150px\}/, 'tablet and desktop analytics tabs must stay beneath the compact masthead');
 assert.match(sql, /team_identifier/, 'database setup must support duplicate public team names');
