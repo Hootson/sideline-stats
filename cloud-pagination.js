@@ -1,12 +1,14 @@
 (function(root){
   const ROSTER_PLAYER_COLUMNS="id,season_id,jersey_number,name,active,created_at,updated_at";
+  const REDUNDANT_LIVE_TABLES=new Set(["plays","penalties","snap_events","play_credits","snap_participants"]);
 
-  function installSlimRosterSelectPatch(){
+  function installCloudTrafficPatches(){
     const supabase=root.supabase;
-    if(!supabase||typeof supabase.createClient!=="function"||supabase.__sidelineSlimRosterSelectPatch)return;
+    if(!supabase||typeof supabase.createClient!=="function"||supabase.__sidelineCloudTrafficPatches)return;
     const originalCreateClient=supabase.createClient.bind(supabase);
     supabase.createClient=function(...args){
       const client=originalCreateClient(...args);
+
       const originalFrom=client.from.bind(client);
       client.from=function(table){
         const builder=originalFrom(table);
@@ -22,12 +24,26 @@
         }
         return builder;
       };
+
+      const originalChannel=client.channel.bind(client);
+      client.channel=function(topic,config){
+        const channel=originalChannel(topic,config);
+        if(String(topic||"").startsWith("sideline-live-")&&channel&&typeof channel.on==="function"){
+          const originalOn=channel.on.bind(channel);
+          channel.on=function(type,filter,callback){
+            if(type==="postgres_changes"&&REDUNDANT_LIVE_TABLES.has(filter?.table))return channel;
+            return originalOn(type,filter,callback);
+          };
+        }
+        return channel;
+      };
+
       return client;
     };
-    supabase.__sidelineSlimRosterSelectPatch=true;
+    supabase.__sidelineCloudTrafficPatches=true;
   }
 
-  installSlimRosterSelectPatch();
+  installCloudTrafficPatches();
 
   async function selectAllByIds(client,{table,column,ids,columns="*",chunkSize=75,pageSize=500}){
     const unique=[...new Set((ids||[]).filter(Boolean))];
