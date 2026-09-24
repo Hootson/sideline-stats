@@ -1,6 +1,6 @@
-const RELEASE='4.6.33';
-const CACHE='bleacher-butt-gridiron-v4-6-33-player-card-v27-controlled';
-const ASSETS=['./','./index.html','./styles.css','./voice-followup.css','./followup-loader.js','./version.js','./cloud-pagination.js','./storage-snapshot.js','./app.js','./field-position.js','./field-orientation.js','./cloud-conflict.js','./game-lifecycle.js','./voice-workflow.js','./edit-play-model.js','./voice-play.js','./coach-analytics.js','./commercial-access.js','./owner-business.css','./owner-business.js','./pwa.js','./player-profile.js','./brand-header-gridiron.webp','./brand-field.png','./icon.png','./snap-tracker.html','./snap-tracker.js','./parent-viewer.html','./parent-viewer.js','./player-card-vintage-27-controlled.js'];
+const RELEASE='4.6.34';
+const CACHE='bleacher-butt-gridiron-v4-6-34-player-card-launcher';
+const ASSETS=['./','./index.html','./styles.css','./voice-followup.css','./followup-loader.js','./version.js','./cloud-pagination.js','./storage-snapshot.js','./app.js','./field-position.js','./field-orientation.js','./cloud-conflict.js','./game-lifecycle.js','./voice-workflow.js','./edit-play-model.js','./voice-play.js','./coach-analytics.js','./commercial-access.js','./owner-business.css','./owner-business.js','./pwa.js','./player-profile.js','./brand-header-gridiron.webp','./brand-field.png','./icon.png','./snap-tracker.html','./snap-tracker.js','./parent-viewer.html','./parent-viewer.js','./player-card-vintage-2.js'];
 
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));
