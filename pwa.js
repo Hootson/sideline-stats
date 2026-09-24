@@ -23,15 +23,10 @@ window.addEventListener("DOMContentLoaded",()=>{
   const voiceStartBtn=document.querySelector("#voiceStartBtn");
   if(voicePlayBtn&&voiceStartBtn){voicePlayBtn.addEventListener("click",()=>{window.setTimeout(()=>{const modal=document.querySelector("#voicePlayModal");if(modal&&!modal.classList.contains("hidden")&&/Start Listening/i.test(voiceStartBtn.textContent||""))voiceStartBtn.click()},80)})}
   if(!document.querySelector('link[data-ss-followup-css]')){
-    const link=document.createElement('link');
-    link.rel='stylesheet';
-    link.href='./voice-followup.css';
-    link.dataset.ssFollowupCss='1';
-    document.head.appendChild(link);
+    const link=document.createElement('link');link.rel='stylesheet';link.href='./voice-followup.css';link.dataset.ssFollowupCss='1';document.head.appendChild(link);
   }
   if(!document.querySelector('link[data-owner-business-css]')){
-    const link=document.createElement('link');
-    link.rel='stylesheet';link.href='./owner-business.css';link.dataset.ownerBusinessCss='1';document.head.appendChild(link);
+    const link=document.createElement('link');link.rel='stylesheet';link.href='./owner-business.css';link.dataset.ownerBusinessCss='1';document.head.appendChild(link);
   }
   if(!document.querySelector('script[data-owner-business]')){
     const script=document.createElement('script');script.src='./owner-business.js';script.dataset.ownerBusiness='1';document.body.appendChild(script);
@@ -50,4 +45,13 @@ window.addEventListener("DOMContentLoaded",()=>{
     installHelp.classList.remove("hidden");
   });
 });
-if("serviceWorker" in navigator){window.addEventListener("load",()=>{navigator.serviceWorker.register("./service-worker.js").catch(err=>console.warn("Offline cache registration failed",err))})}
+if("serviceWorker" in navigator){
+  window.addEventListener("load",async()=>{
+    try{
+      const swUrl=`./service-worker.js?release=${encodeURIComponent(SIDELINE_STATS_VERSION)}`;
+      const reg=await navigator.serviceWorker.register(swUrl,{updateViaCache:"none"});
+      await reg.update();
+      if(reg.waiting)reg.waiting.postMessage?.({type:"SKIP_WAITING"});
+    }catch(err){console.warn("Offline cache registration failed",err)}
+  });
+}
