@@ -1,4 +1,4 @@
-window.SIDELINE_STATS_VERSION="4.6.40";
+window.SIDELINE_STATS_VERSION="4.6.41";
 
 // Cloud/logo/score safety repairs.
 (()=>{
@@ -105,6 +105,39 @@ window.SIDELINE_STATS_VERSION="4.6.40";
     }
     return response;
   };
+
+  // Edit Game Details guard: the legacy button handler receives the click Event as
+  // its "game" argument, which makes Week fall back to 1 and can blank fields.
+  // Snapshot the already-rendered active game before that handler runs, then restore
+  // those values immediately after it opens the editor. Editing only a logo will no
+  // longer change team name, opponent, week, location, or game type.
+  document.addEventListener('click',e=>{
+    const btn=e.target?.closest?.('#editGameBtn');if(!btn)return;
+    const team=(document.getElementById('teamGame')?.textContent||'').trim();
+    const opponent=(document.getElementById('oppGame')?.textContent||'').trim();
+    const date=(document.getElementById('gameDate')?.textContent||'').trim();
+    const week=(date.match(/Week\s+(\d+)/i)||[])[1]||'';
+    const location=(document.getElementById('gameLocation')?.textContent||'').trim();
+    const typeText=(document.getElementById('gameTypeText')?.textContent||'').trim().toLowerCase();
+    const gameType=typeText.includes('playoff')?'playoff':'regular';
+    setTimeout(()=>{
+      const teamInput=document.getElementById('editTeamName');if(teamInput&&team)teamInput.value=team;
+      const oppInput=document.getElementById('editOpponent');if(oppInput&&opponent)oppInput.value=opponent;
+      const weekInput=document.getElementById('editGameWeek');if(weekInput&&week)weekInput.value=week;
+      const locInput=document.getElementById('editLocation');if(locInput&&location&&[...locInput.options].some(o=>o.value===location||o.text===location))locInput.value=[...locInput.options].find(o=>o.value===location||o.text===location)?.value||locInput.value;
+      const typeInput=document.getElementById('editGameType');if(typeInput)typeInput.value=gameType;
+    },0);
+  },true);
+  document.addEventListener('click',e=>{
+    if(!e.target?.closest?.('#saveGameDetailsBtn'))return;
+    const teamInput=document.getElementById('editTeamName');
+    if(teamInput&&!teamInput.value.trim())teamInput.value=(document.getElementById('teamGame')?.textContent||'').trim();
+    const weekInput=document.getElementById('editGameWeek');
+    if(weekInput&&!Number(weekInput.value)){
+      const date=document.getElementById('gameDate')?.textContent||'';
+      const week=(date.match(/Week\s+(\d+)/i)||[])[1];if(week)weekInput.value=week;
+    }
+  },true);
 
   // Parent Viewer: convert large base64 logos to Blob URLs before Safari paints them.
   // This is much more reliable on iPhone than repeatedly assigning large data URLs.
