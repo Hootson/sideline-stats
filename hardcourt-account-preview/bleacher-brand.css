@@ -1,0 +1,8 @@
+/* Shared Bleacher Butt Stats identity treatment for the Hardcourt account preview. */
+#hcAccountGate .hc-gate-brand::before{content:'WELCOME TO';display:block;margin-bottom:6px;color:#69776f;font-size:12px;font-weight:900;letter-spacing:.18em}
+#hcAccountGate .hc-gate-brand strong{font-size:0}
+#hcAccountGate .hc-gate-brand strong::after{content:'BLEACHER BUTT STATS';font-size:27px;line-height:1.05}
+#hcAccountGate .hc-lead{font-size:0}
+#hcAccountGate .hc-lead::after{content:'One Bleacher Butt Stats account. Use Gridiron, Hardcourt, or both.';font-size:14px;line-height:1.4}
+#hcAccountGate .hc-signin{font-size:0}
+#hcAccountGate .hc-signin::after{content:'Already Have a Bleacher Butt Stats Account? Sign In';font-size:15px}
