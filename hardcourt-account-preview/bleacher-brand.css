@@ -1,7 +1,14 @@
 /* Shared Bleacher Butt Stats identity treatment.
-   Authentication is sport-neutral; edition branding begins after entry.
-   Account-gate.js now owns the actual copy so sign-in/create-account state
-   can change text correctly without CSS pseudo-element overrides. */
+   Authentication is sport-neutral; edition branding begins after entry. */
+:root{--bbs-green:#39a852;--bbs-ink:#080a0b;--bbs-panel:#0b120f}
 #hcAccountGate .hc-welcome{letter-spacing:.22em}
 #hcAccountGate .hc-gate-brand strong{letter-spacing:.035em}
 #hcAccountGate .hc-gate-brand span{display:none!important}
+#hcFirstRun .hc-ob-brand,#bbsHub .bbs-brand{letter-spacing:.055em}
+#hcFirstRun .hc-ob-brand span{color:#65d38a}
+#bbsHubBtn{max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#hcCloudStatus{max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* The mature runtime still owns some legacy account/cloud controls. The new account hub/status layer replaces them. */
+#cloudStatus,#liveCloudStatus{display:none!important}
+button#accountBtn,button#settingsAccount{white-space:nowrap}
+@media(max-width:600px){#bbsHubBtn{max-width:132px}#hcCloudStatus{max-width:124px}}
