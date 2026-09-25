@@ -1,6 +1,6 @@
-const CACHE="hardcourt-account-preview-20260925p";
+const CACHE="hardcourt-account-preview-20260925q";
 const CACHE_PREFIX="hardcourt-account-preview-";
-const ASSETS=["./","./index.html","./styles.css?v=20260920-ui53","./bleacher-brand.css?v=20260925-account8","./app.js?v=20260925-account13","./account-gate.js?v=20260925-account14","./onboarding.js?v=20260925-account9","./account-hub.js?v=20260925-account12","./account-status.js?v=20260925-account13","./product-access.js?v=20260925-account7","./legacy-app.js","./engine.js","./commercial-config.js","./manifest.webmanifest?v=ui53","./court-iphone.png","./court-ipad.png","./court-analytics.png","./hardcourt-header-arena-ui71.jpg?v=ui71"];
+const ASSETS=["./","./index.html","./styles.css?v=20260920-ui53","./bleacher-brand.css?v=20260925-account8","./app.js?v=20260925-account13","./account-gate.js?v=20260925-account14","./onboarding.js?v=20260925-account15","./account-hub.js?v=20260925-account12","./account-status.js?v=20260925-account13","./product-access.js?v=20260925-account7","./legacy-app.js","./engine.js","./commercial-config.js","./manifest.webmanifest?v=ui53","./court-iphone.png","./court-ipad.png","./court-analytics.png","./hardcourt-header-arena-ui71.jpg?v=ui71"];
 self.addEventListener("install",e=>e.waitUntil(caches.open(CACHE).then(async c=>{for(const asset of ASSETS){try{const r=await fetch(asset,{cache:"reload"});if(r.ok)await c.put(asset,r.clone())}catch(_){}}}).then(()=>self.skipWaiting())));
 self.addEventListener("activate",e=>e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x.startsWith(CACHE_PREFIX)&&x!==CACHE).map(x=>caches.delete(x)))).then(()=>self.clients.claim())));
 self.addEventListener("message",e=>{if(e.data==="SKIP_WAITING")self.skipWaiting()});
