@@ -1,13 +1,14 @@
 // Game lifecycle safety around the mature Hardcourt runtime.
-// Keeps new-game transitions from inheriting stale game-only state.
+// Maintains lightweight local checkpoints without modifying finalized/history data.
 export function installHardcourtGameLifecycle({readLocal=()=>({})}={}){
- const KEY='hardcourt-alpha';
+ const KEY='hardcourt-alpha',RECOVERY='hardcourt-recovery-games';
  const gameOnly=['pendingShot','pendingAction','selectedPlayer','selectedAction','shotAssistPending','reboundPending'];
  const save=s=>localStorage.setItem(KEY,JSON.stringify(s));
- function normalize(){const s=readLocal()||{};let dirty=false;for(const k of gameOnly){if(s[k]!==undefined&&s[k]!==null&&(!Array.isArray(s.events)||s.events.length===0)){s[k]=null;dirty=true}}if(!s.gameId){s.gameId=globalThis.crypto?.randomUUID?.()||`game-${Date.now()}`;dirty=true}if(!s.opponent&&!s.opp){s.opponent='Opponent';dirty=true}if(dirty)save(s)}
- function snapshot(){const s=readLocal()||{};if(!s.gameId)return;const raw=localStorage.getItem('hardcourt-recovery-games'),rows=(()=>{try{return JSON.parse(raw||'[]')}catch{return[]}})();const snap={gameId:s.gameId,cloudGameId:s.cloudGameId||null,teamId:s.cloudTeamId||s.teamId||null,team:s.team||'',opponent:s.opp||s.opponent||'Opponent',period:s.period||1,clockMs:Number(s.clockMs||0),events:Array.isArray(s.events)?s.events:[],minutes:s.minutes||{},savedAt:Date.now()};const i=rows.findIndex(x=>x.gameId===snap.gameId);if(i>=0)rows[i]=snap;else rows.push(snap);localStorage.setItem('hardcourt-recovery-games',JSON.stringify(rows.slice(-8)))}
- normalize();
- let last=0;const checkpoint=()=>{const now=Date.now();if(now-last<3000)return;last=now;snapshot()};
- window.addEventListener('pagehide',snapshot);document.addEventListener('visibilitychange',()=>{if(document.hidden)snapshot()});window.addEventListener('offline',snapshot);document.addEventListener('click',checkpoint,true);
- return{snapshot,normalize};
+ const readRows=()=>{try{const v=JSON.parse(localStorage.getItem(RECOVERY)||'[]');return Array.isArray(v)?v:[]}catch{return[]}};
+ function normalize(){const s=readLocal()||{};let dirty=false;const events=Array.isArray(s.events)?s.events:[];if(!events.length){for(const k of gameOnly){if(s[k]!==undefined&&s[k]!==null){s[k]=null;dirty=true}}}if(!s.gameId){s.gameId=globalThis.crypto?.randomUUID?.()||`game-${Date.now()}`;dirty=true}if(!s.opponent&&!s.opp){s.opponent='Opponent';dirty=true}if(!Number.isFinite(Number(s.clockMs))||Number(s.clockMs)<0){s.clockMs=0;s.running=false;s.lastTick=null;dirty=true}if(!Number.isFinite(Number(s.period))||Number(s.period)<1){s.period=1;dirty=true}if(dirty)save(s)}
+ function snapshot(){const s=readLocal()||{},events=Array.isArray(s.events)?s.events.filter(Boolean):[];if(!s.gameId||!events.length)return;const rows=readRows(),snap={gameId:s.gameId,cloudGameId:s.cloudGameId||null,teamId:s.cloudTeamId||s.teamId||null,team:s.team||'',opponent:s.opp||s.opponent||'Opponent',period:Math.max(1,Number(s.period||1)),clockMs:Math.max(0,Number(s.clockMs||0)),events,minutes:s.minutes&&typeof s.minutes==='object'?s.minutes:{},teamScore:Number(s.teamScore||0),opponentScore:Number(s.opponentScore||0),savedAt:Date.now()};const i=rows.findIndex(x=>String(x.gameId)===String(snap.gameId));if(i>=0)rows[i]=snap;else rows.push(snap);const cutoff=Date.now()-1000*60*60*24*7,trimmed=rows.filter(x=>Number(x.savedAt||0)>=cutoff).sort((a,b)=>Number(a.savedAt)-Number(b.savedAt)).slice(-8);localStorage.setItem(RECOVERY,JSON.stringify(trimmed))}
+ normalize();let lastSig='',timer=null;function checkpoint(force=false){clearTimeout(timer);const s=readLocal()||{},events=Array.isArray(s.events)?s.events:[],sig=[s.gameId,events.length,s.period,Math.floor(Number(s.clockMs||0)/1000),s.teamScore,s.opponentScore].join('|');if(!force&&sig===lastSig)return;lastSig=sig;snapshot()}
+ function schedule(){clearTimeout(timer);timer=setTimeout(()=>checkpoint(),650)}
+ window.addEventListener('pagehide',()=>checkpoint(true));document.addEventListener('visibilitychange',()=>{if(document.hidden)checkpoint(true)});window.addEventListener('offline',()=>checkpoint(true));window.addEventListener('online',schedule);document.addEventListener('click',schedule,true);document.addEventListener('change',schedule,true);window.addEventListener('storage',e=>{if(e.key===KEY)schedule()});
+ return{snapshot:()=>checkpoint(true),normalize};
 }
