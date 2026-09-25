@@ -1,10 +1,13 @@
-/* Shared Bleacher Butt Stats identity treatment for the Hardcourt account preview. */
+/* Shared Bleacher Butt Stats identity treatment for the account landing page.
+   Authentication is intentionally sport-neutral. Edition branding begins only
+   after the user enters a sport product. */
 #hcAccountGate .hc-welcome{font-size:0}
 #hcAccountGate .hc-welcome::after{content:'WELCOME TO';font-size:13px}
 #hcAccountGate .hc-gate-brand strong{font-size:0}
 #hcAccountGate .hc-gate-brand strong::after{content:'BLEACHER BUTT STATS';font-size:27px;line-height:1.05}
+#hcAccountGate .hc-gate-brand span{display:none!important}
 #hcAccountGate .hc-lead{font-size:0}
-#hcAccountGate .hc-lead::after{content:'One Bleacher Butt Stats account. Use Gridiron, Hardcourt, or both.';font-size:14px;line-height:1.4}
+#hcAccountGate .hc-lead::after{content:'One account for your teams. Use Gridiron, Hardcourt, or both.';font-size:14px;line-height:1.4}
 #hcAccountGate .hc-signin{font-size:0}
 #hcAccountGate .hc-signin::after{content:'Already Have a Bleacher Butt Stats Account? Sign In';font-size:15px}
 #hcAccountGate .hc-free-note{font-size:0}
