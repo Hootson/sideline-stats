@@ -37,8 +37,12 @@ test('saved roster is account-backed and returned cloud ids are retained',()=>{
 });
 
 test('new game keeps the persistent team roster',()=>{
-  const newGame=legacy.match(/function newGame\(\)\{[\s\S]*?\n\}/)?.[0]||'';
-  assert.ok(newGame.length>0,'newGame function should exist');
+  const start=legacy.indexOf('function newGame(){');
+  assert.ok(start>=0,'newGame function should exist');
+  const nextFunction=legacy.indexOf('function ',start+'function newGame(){'.length);
+  const newGame=legacy.slice(start,nextFunction>=0?nextFunction:legacy.length);
+  assert.match(newGame,/state\.events=\[\]/);
+  assert.match(newGame,/state\.gameId=/);
   assert.doesNotMatch(newGame,/roster\s*=/);
   assert.doesNotMatch(newGame,/defaults/);
 });
