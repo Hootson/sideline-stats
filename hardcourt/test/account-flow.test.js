@@ -3,46 +3,11 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {hydrateHardcourtState} from '../account-flow.js';
 import {HARDCOURT_COMMERCIAL,hardcourtRequiresCheckout} from '../commercial-config.js';
-
 const bootstrap=await readFile(new URL('../app.js',import.meta.url),'utf8');
 const legacy=await readFile(new URL('../legacy-app.js',import.meta.url),'utf8');
-
-test('Hardcourt preview never requires checkout',()=>{
-  assert.equal(HARDCOURT_COMMERCIAL.paidAccessEnabled,false);
-  assert.equal(hardcourtRequiresCheckout(),false);
-});
-
-test('cloud team hydrates persistent Hardcourt state',()=>{
-  const state={team:'Local Team',grade:'',primary:'#000000',accent:'#ffffff'};
-  hydrateHardcourtState(state,{teamId:'team-cloud-1',seasonId:'season-cloud-1',teamName:'Erie Tigers',grade:'5th',primary:'#111111',accent:'#f58220',logo:'logo-data'});
-  assert.equal(state.cloudTeamId,'team-cloud-1');
-  assert.equal(state.cloudSeasonId,'season-cloud-1');
-  assert.equal(state.team,'Erie Tigers');
-  assert.equal(state.grade,'5th');
-  assert.equal(state.primary,'#111111');
-  assert.equal(state.accent,'#f58220');
-  assert.equal(state.teamLogo,'logo-data');
-});
-
-test('startup restores account context before loading the game implementation',()=>{
-  const restore=bootstrap.indexOf('await ensureAccountContext(bootstrapClient,session.user)');
-  const game=bootstrap.indexOf("await import('./legacy-app.js')");
-  assert.ok(restore>=0&&game>restore);
-});
-
-test('saved roster is account-backed and returned cloud ids are retained',()=>{
-  assert.match(bootstrap,/sync_hardcourt_roster/);
-  assert.match(bootstrap,/cloudId:row\.id/);
-  assert.match(bootstrap,/rosterSig!==lastRosterSig/);
-});
-
-test('new game keeps the persistent team roster',()=>{
-  const start=legacy.indexOf('function newGame(){');
-  assert.ok(start>=0,'newGame function should exist');
-  const nextFunction=legacy.indexOf('function ',start+'function newGame(){'.length);
-  const newGame=legacy.slice(start,nextFunction>=0?nextFunction:legacy.length);
-  assert.match(newGame,/state\.events=\[\]/);
-  assert.match(newGame,/state\.gameId=/);
-  assert.doesNotMatch(newGame,/roster\s*=/);
-  assert.doesNotMatch(newGame,/defaults/);
-});
+test('Hardcourt preview never requires checkout',()=>{assert.equal(HARDCOURT_COMMERCIAL.paidAccessEnabled,false);assert.equal(hardcourtRequiresCheckout(),false)});
+test('cloud team hydrates persistent Hardcourt state',()=>{const state={team:'Local Team',grade:'',primary:'#000000',accent:'#ffffff'};hydrateHardcourtState(state,{teamId:'team-cloud-1',seasonId:'season-cloud-1',teamName:'Erie Tigers',grade:'5th',primary:'#111111',accent:'#f58220',logo:'logo-data'});assert.equal(state.cloudTeamId,'team-cloud-1');assert.equal(state.cloudSeasonId,'season-cloud-1');assert.equal(state.team,'Erie Tigers');assert.equal(state.grade,'5th');assert.equal(state.primary,'#111111');assert.equal(state.accent,'#f58220');assert.equal(state.teamLogo,'logo-data')});
+test('startup restores account context before loading the game implementation',()=>{const restore=bootstrap.indexOf('await ensureAccountContext(bootstrapClient,session.user)');const game=bootstrap.indexOf("await import('./legacy-app.js')");assert.ok(restore>=0&&game>restore)});
+test('saved roster is account-backed and returned cloud ids are retained',()=>{assert.match(bootstrap,/sync_hardcourt_roster/);assert.match(bootstrap,/cloudId:row\.id/);assert.match(bootstrap,/rosterSig!==lastRosterSig/)});
+test('first-login provisioning is serialized and rechecks cloud context',()=>{assert.match(bootstrap,/accountPromise/);assert.match(bootstrap,/ensureAccountContextInner/);const reads=bootstrap.match(/get_hardcourt_cloud_context/g)||[];assert.ok(reads.length>=3,'provisioning should re-read cloud context around team creation');assert.match(bootstrap,/const recovery=await sb\.rpc\('get_hardcourt_cloud_context'\)/)});
+test('new game keeps the persistent team roster',()=>{const start=legacy.indexOf('function newGame(){');assert.ok(start>=0,'newGame function should exist');const nextFunction=legacy.indexOf('function ',start+'function newGame(){'.length);const newGame=legacy.slice(start,nextFunction>=0?nextFunction:legacy.length);assert.match(newGame,/state\.events=\[\]/);assert.match(newGame,/state\.gameId=/);assert.doesNotMatch(newGame,/roster\s*=/);assert.doesNotMatch(newGame,/defaults/)});
