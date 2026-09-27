@@ -1,6 +1,32 @@
 (()=>{
 const GRID_ID='pcGridDebug';
 let timer=null;
+
+// Temporary alignment shim for the front-card player name.
+// User calibration from live grid: left edge X 12 -> 8, bottom Y 17 -> 14,
+// and rotate the name to run parallel with the lower edge of the top black panel.
+const NAME_OLD={x:40+72*(1000/347),y:30+62*(1200/455),a:-.115};
+const NAME_NEW={x:40+58.1*(1000/347),y:30+48.35*(1200/455),a:-.145};
+const nativeTranslate=CanvasRenderingContext2D.prototype.translate;
+const nativeRotate=CanvasRenderingContext2D.prototype.rotate;
+let adjustNextRotate=false;
+CanvasRenderingContext2D.prototype.translate=function(x,y){
+ const isCard=this?.canvas?.id==='pcCanvas';
+ if(isCard&&Math.abs(x-NAME_OLD.x)<1.5&&Math.abs(y-NAME_OLD.y)<1.5){
+   adjustNextRotate=true;
+   return nativeTranslate.call(this,NAME_NEW.x,NAME_NEW.y);
+ }
+ return nativeTranslate.call(this,x,y);
+};
+CanvasRenderingContext2D.prototype.rotate=function(a){
+ if(this?.canvas?.id==='pcCanvas'&&adjustNextRotate&&Math.abs(a-NAME_OLD.a)<.02){
+   adjustNextRotate=false;
+   return nativeRotate.call(this,NAME_NEW.a);
+ }
+ adjustNextRotate=false;
+ return nativeRotate.call(this,a);
+};
+
 function drawGrid(){
  const canvas=document.querySelector('#pcCanvas');
  const box=document.querySelector('#'+GRID_ID);
