@@ -57,11 +57,9 @@ function correctedCall(orig,ctx,args){
     ctx.textAlign='center';
     shrinkFontOnly(ctx,text,pxW(14)*0.96,18);
   }else if(kind==='position'){
-    // One grid unit lower than the last pass: X13 / Y39.
-    // Increase the tilt by about 2° so the text runs parallel to the lower
-    // edge of the black position panel.
+    // Keep X13 / Y39 and rotate another ~1.7° to track the lower black edge.
     moveCenter(ctx,13,39);
-    ctx.rotate(-0.070);
+    ctx.rotate(-0.100);
     ctx.textAlign='center';
     shrinkFontOnly(ctx,text,pxW(16)*0.96,14);
   }else if(kind==='team'){
