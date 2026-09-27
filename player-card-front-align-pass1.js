@@ -57,9 +57,9 @@ function correctedCall(orig,ctx,args){
     ctx.textAlign='center';
     shrinkFontOnly(ctx,text,pxW(14)*0.96,18);
   }else if(kind==='position'){
-    // Keep X13 / Y39 and rotate another ~1.7° to track the lower black edge.
+    // Keep X13 / Y39 and rotate farther to track the lower black edge.
     moveCenter(ctx,13,39);
-    ctx.rotate(-0.100);
+    ctx.rotate(-0.160);
     ctx.textAlign='center';
     shrinkFontOnly(ctx,text,pxW(16)*0.96,14);
   }else if(kind==='team'){
