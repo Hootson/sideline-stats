@@ -14,8 +14,9 @@ function correctedCall(orig,ctx,args){
   if(!kind)return orig.apply(ctx,args);
   ctx.save();
   if(kind==='name'){
-    // Return to the good Abe alignment: centered at X=20 and one grid unit lower.
-    ctx.translate(-7.5,8.5);
+    // Move the whole name exactly two grid units right while preserving size,
+    // angle and vertical placement from the previous approved pass.
+    ctx.translate(12.5,8.5);
     ctx.rotate(-0.025);
     // Long names use true font-size reduction instead of horizontal compression.
     // The 25-unit target leaves a half-unit safety margin inside X 7–33 for italics.
