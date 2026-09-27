@@ -14,26 +14,25 @@ function correctedCall(orig,ctx,args){
   if(!kind)return orig.apply(ctx,args);
   ctx.save();
   if(kind==='name'){
-    // Keep the player name centered inside front-card X 7–33.
-    // This shifts the existing center from ~20.75 to 20.0 and moves it
-    // down exactly one grid unit from the previous alignment pass.
+    // Return to the good Abe alignment: centered at X=20 and one grid unit lower.
     ctx.translate(-7.5,8.5);
-    // Preserve the approved angle, parallel with the lower edge of the
-    // top black name banner.
     ctx.rotate(-0.025);
-    // Use the actual painted glyph bounds instead of advance width.
-    // Italic capitals can visibly overhang several grid units (MAXWELL did).
+    // Long names use true font-size reduction instead of horizontal compression.
+    // The 25-unit target leaves a half-unit safety margin inside X 7–33 for italics.
     const text=String(args[0]??'');
-    const m=ctx.measureText(text);
-    const left=Number(m.actualBoundingBoxLeft||0);
-    const right=Number(m.actualBoundingBoxRight||m.width);
-    const painted=Math.max(1,left+right);
-    const targetWidth=260;
-    const scale=Math.min(1,targetWidth/painted);
-    if(scale<1)ctx.scale(scale,1);
-    // Compensate for the italic left overhang so the visible cream glyph
-    // starts at the requested X=7 boundary rather than drifting to X≈4–5.
-    ctx.translate(left*scale,0);
+    const match=String(ctx.font).match(/(\d+(?:\.\d+)?)px/);
+    if(match){
+      const originalSize=Number(match[1]);
+      let size=originalSize;
+      const targetWidth=250;
+      while(size>18){
+        ctx.font=ctx.font.replace(/\d+(?:\.\d+)?px/,size+'px');
+        const m=ctx.measureText(text);
+        const painted=Number(m.actualBoundingBoxLeft||0)+Number(m.actualBoundingBoxRight||m.width);
+        if(painted<=targetWidth)break;
+        size-=1;
+      }
+    }
   }else if(kind==='number'){
     ctx.translate(0,-3.5);
     ctx.rotate(-0.026);
