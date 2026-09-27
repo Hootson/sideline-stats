@@ -1,5 +1,7 @@
 const SIDELINE_STATS_VERSION=window.SIDELINE_STATS_VERSION||"current";
 const CHECKOUT_CANCEL_KEY="sidelinePendingCheckoutCancellation";
+const ROSTER_DATA_KEY="sidelineStatsData";
+const ROSTER_RECOVERY_KEY="sidelineStatsRecovery";
 let sidelineInstallPrompt=null;
 window.addEventListener("beforeinstallprompt",event=>{event.preventDefault();sidelineInstallPrompt=event;document.querySelector("#installAppBtn")?.classList.remove("hidden")});
 window.addEventListener("appinstalled",()=>{sidelineInstallPrompt=null;document.querySelector("#installAppBtn")?.classList.add("hidden");const help=document.querySelector("#installHelp");if(help){help.textContent="Sideline Stats is installed on this device.";help.classList.remove("hidden")}});
@@ -14,9 +16,38 @@ async function recordPendingCheckoutCancellation(){
   }catch(e){console.warn("Checkout cancellation analytics skipped",e)}
 }
 
+function installRosterEditing(){
+  const list=document.querySelector("#rosterList");if(!list)return;
+  const addEditButtons=()=>{
+    list.querySelectorAll(".player").forEach(row=>{
+      const remove=row.querySelector(".remove[data-id]");if(!remove||row.querySelector(".roster-edit"))return;
+      const edit=document.createElement("button");edit.type="button";edit.className="choice roster-edit";edit.dataset.id=remove.dataset.id;edit.textContent="Edit";edit.style.cssText="min-height:auto;padding:6px 10px;margin-left:auto";
+      remove.style.marginLeft="6px";remove.before(edit);
+    });
+  };
+  addEditButtons();
+  new MutationObserver(addEditButtons).observe(list,{childList:true,subtree:true});
+  list.addEventListener("click",event=>{
+    const button=event.target.closest(".roster-edit");if(!button)return;
+    event.preventDefault();event.stopPropagation();
+    try{
+      const raw=localStorage.getItem(ROSTER_DATA_KEY);if(!raw)return alert("Roster data could not be loaded.");
+      const data=JSON.parse(raw),player=(data.roster||[]).find(p=>String(p.id)===String(button.dataset.id));if(!player)return alert("That player could not be found.");
+      const nameInput=prompt("Player name:",player.name||"");if(nameInput===null)return;const name=nameInput.trim();if(!name)return alert("Enter a player name.");
+      const jerseyInput=prompt("Jersey number:",String(player.jersey??""));if(jerseyInput===null)return;const jersey=Number(jerseyInput.trim());
+      if(!Number.isInteger(jersey)||jersey<0||jersey>99)return alert("Enter a jersey number from 0 to 99.");
+      if((data.roster||[]).some(p=>String(p.id)!==String(player.id)&&Number(p.jersey)===jersey))return alert("That jersey number already exists.");
+      player.name=name;player.jersey=jersey;
+      localStorage.setItem(ROSTER_RECOVERY_KEY,raw);localStorage.setItem(ROSTER_DATA_KEY,JSON.stringify(data));
+      location.reload();
+    }catch(e){console.error("Roster edit failed",e);alert("That player could not be updated.")}
+  });
+}
+
 document.title=`Sideline Stats V${SIDELINE_STATS_VERSION}`;
 window.addEventListener("DOMContentLoaded",()=>{
   setTimeout(recordPendingCheckoutCancellation,600);
+  installRosterEditing();
   const heroVersion=document.querySelector('[data-screen="setup"] .hero .muted');
   if(heroVersion)heroVersion.textContent=`V${SIDELINE_STATS_VERSION} • SMART VOICE ENTRY • GRIDIRON EDITION`;
   const voicePlayBtn=document.querySelector("#voicePlayBtn");
