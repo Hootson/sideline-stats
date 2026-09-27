@@ -2,6 +2,7 @@
 const origFill=CanvasRenderingContext2D.prototype.fillText;
 const origStroke=CanvasRenderingContext2D.prototype.strokeText;
 const origDrawImage=CanvasRenderingContext2D.prototype.drawImage;
+const origArc=CanvasRenderingContext2D.prototype.arc;
 
 // Front card uses a 0–100 coordinate grid. The rendered canvas is 2x the
 // logical 1000×1200 front card, with a logical origin of X=40, Y=30.
@@ -9,6 +10,8 @@ const FRONT={x:40,y:30,w:1000,h:1200,scale:2};
 const pxX=n=>(FRONT.x+FRONT.w*n/100)*FRONT.scale;
 const pxY=n=>(FRONT.y+FRONT.h*n/100)*FRONT.scale;
 const pxW=n=>FRONT.w*n/100*FRONT.scale;
+const LOGO_OLD={x:FRONT.x+53*(FRONT.w/347),y:FRONT.y+405*(FRONT.h/455)};
+const LOGO_NEW={x:FRONT.x+FRONT.w*.16,y:FRONT.y+FRONT.h*.87};
 
 function classify(ctx,text){
   const t=ctx.getTransform();
@@ -35,8 +38,6 @@ function shrinkFontOnly(ctx,text,targetWidth,minSize=16){
 
 function moveCenter(ctx,xGrid,yGrid){
   const t=ctx.getTransform();
-  // Preserve the element's existing scale + approved banner angle; replace
-  // only its center point.
   ctx.setTransform(t.a,t.b,t.c,t.d,pxX(xGrid),pxY(yGrid));
 }
 
@@ -47,27 +48,25 @@ function correctedCall(orig,ctx,args){
   ctx.save();
 
   if(kind==='name'){
-    // Existing approved name treatment retained.
     ctx.translate(12.5,8.5);
     ctx.rotate(-0.025);
     shrinkFontOnly(ctx,text,250,18);
   }else if(kind==='number'){
-    // NUMBER: move 2 grid units left and 2 up from X14/Y28.
-    // New center X12 / Y26. Existing banner angle is preserved.
-    moveCenter(ctx,12,26);
+    // Down 1 from the prior calibrated position: X12 / Y27.
+    moveCenter(ctx,12,27);
     ctx.textAlign='center';
     shrinkFontOnly(ctx,text,pxW(14)*0.96,18);
   }else if(kind==='position'){
-    // POSITION: move 2 grid units left and 4 up from X15/Y40.
-    // New center X13 / Y36. Existing banner angle is preserved.
-    moveCenter(ctx,13,36);
+    // Down 2 from the prior calibrated position: X13 / Y38.
+    // Add a little more clockwise-upward slant so the text runs parallel
+    // with the lower edge of the black position panel.
+    moveCenter(ctx,13,38);
+    ctx.rotate(-0.035);
     ctx.textAlign='center';
     shrinkFontOnly(ctx,text,pxW(16)*0.96,14);
   }else if(kind==='team'){
-    // TEAM NAME occupies X34–80. The prior pass moved the transform to a
-    // "center" but left textAlign=left, so the label STARTED near the center
-    // and ran off to the right. True midpoint is X57; center it there at Y92.
-    moveCenter(ctx,57,92);
+    // Up 2 while retaining true centering across X34–80.
+    moveCenter(ctx,57,90);
     ctx.textAlign='center';
     shrinkFontOnly(ctx,text,pxW(46)*0.96,14);
   }
@@ -77,20 +76,23 @@ function correctedCall(orig,ctx,args){
   return out;
 }
 
-// The team logo is drawn by the vintage renderer as an image. Keep its size
-// and crop treatment exactly the same, but lock its center to X16 / Y87.
+// Move BOTH the logo image and its circular clipping mask to X16 / Y87.
+// The previous pass moved only the image, which is why the circle was clipped.
+CanvasRenderingContext2D.prototype.arc=function(x,y,r,...rest){
+  if(this?.canvas?.id==='pcCanvas'&&Math.abs(x-LOGO_OLD.x)<3&&Math.abs(y-LOGO_OLD.y)<3){
+    return origArc.call(this,LOGO_NEW.x,LOGO_NEW.y,r,...rest);
+  }
+  return origArc.call(this,x,y,r,...rest);
+};
+
 CanvasRenderingContext2D.prototype.drawImage=function(...args){
   if(this?.canvas?.id==='pcCanvas'&&args.length===9){
     const dx=Number(args[5]),dy=Number(args[6]),dw=Number(args[7]),dh=Number(args[8]);
     if([dx,dy,dw,dh].every(Number.isFinite)){
       const cx=dx+dw/2,cy=dy+dh/2;
-      const oldCx=FRONT.x+53*(FRONT.w/347);
-      const oldCy=FRONT.y+405*(FRONT.h/455);
-      if(Math.abs(cx-oldCx)<4&&Math.abs(cy-oldCy)<4){
-        const targetCx=FRONT.x+FRONT.w*.16;
-        const targetCy=FRONT.y+FRONT.h*.87;
-        args[5]=dx+(targetCx-oldCx);
-        args[6]=dy+(targetCy-oldCy);
+      if(Math.abs(cx-LOGO_OLD.x)<4&&Math.abs(cy-LOGO_OLD.y)<4){
+        args[5]=dx+(LOGO_NEW.x-LOGO_OLD.x);
+        args[6]=dy+(LOGO_NEW.y-LOGO_OLD.y);
       }
     }
   }
