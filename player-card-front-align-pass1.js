@@ -21,12 +21,19 @@ function correctedCall(orig,ctx,args){
     // Preserve the approved angle, parallel with the lower edge of the
     // top black name banner.
     ctx.rotate(-0.025);
-    // X 7–33 is a 26-unit-wide safe span on the 100-unit alignment grid.
-    // Long names (MAXWELL, etc.) shrink automatically around the center.
+    // Use the actual painted glyph bounds instead of advance width.
+    // Italic capitals can visibly overhang several grid units (MAXWELL did).
     const text=String(args[0]??'');
-    const width=ctx.measureText(text).width;
+    const m=ctx.measureText(text);
+    const left=Number(m.actualBoundingBoxLeft||0);
+    const right=Number(m.actualBoundingBoxRight||m.width);
+    const painted=Math.max(1,left+right);
     const targetWidth=260;
-    if(width>targetWidth)ctx.scale(targetWidth/width,1);
+    const scale=Math.min(1,targetWidth/painted);
+    if(scale<1)ctx.scale(scale,1);
+    // Compensate for the italic left overhang so the visible cream glyph
+    // starts at the requested X=7 boundary rather than drifting to X≈4–5.
+    ctx.translate(left*scale,0);
   }else if(kind==='number'){
     ctx.translate(0,-3.5);
     ctx.rotate(-0.026);
