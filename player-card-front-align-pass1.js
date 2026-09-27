@@ -52,20 +52,20 @@ function correctedCall(orig,ctx,args){
     ctx.rotate(-0.025);
     shrinkFontOnly(ctx,text,250,18);
   }else if(kind==='number'){
-    // Down 1 from the prior calibrated position: X12 / Y27.
+    // Calibrated position retained: X12 / Y27.
     moveCenter(ctx,12,27);
     ctx.textAlign='center';
     shrinkFontOnly(ctx,text,pxW(14)*0.96,18);
   }else if(kind==='position'){
-    // Down 2 from the prior calibrated position: X13 / Y38.
-    // Add a little more clockwise-upward slant so the text runs parallel
-    // with the lower edge of the black position panel.
-    moveCenter(ctx,13,38);
-    ctx.rotate(-0.035);
+    // One grid unit lower than the last pass: X13 / Y39.
+    // Increase the tilt by about 2° so the text runs parallel to the lower
+    // edge of the black position panel.
+    moveCenter(ctx,13,39);
+    ctx.rotate(-0.070);
     ctx.textAlign='center';
     shrinkFontOnly(ctx,text,pxW(16)*0.96,14);
   }else if(kind==='team'){
-    // Up 2 while retaining true centering across X34–80.
+    // Retain current calibrated team-name location.
     moveCenter(ctx,57,90);
     ctx.textAlign='center';
     shrinkFontOnly(ctx,text,pxW(46)*0.96,14);
@@ -77,7 +77,6 @@ function correctedCall(orig,ctx,args){
 }
 
 // Move BOTH the logo image and its circular clipping mask to X16 / Y87.
-// The previous pass moved only the image, which is why the circle was clipped.
 CanvasRenderingContext2D.prototype.arc=function(x,y,r,...rest){
   if(this?.canvas?.id==='pcCanvas'&&Math.abs(x-LOGO_OLD.x)<3&&Math.abs(y-LOGO_OLD.y)<3){
     return origArc.call(this,LOGO_NEW.x,LOGO_NEW.y,r,...rest);
