@@ -4,31 +4,35 @@ async function boot(){
  try{
   let src=await fetch(BASE,{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('card base '+r.status);return r.text()});
   const replacement=`function cardSummary(playerId){
-   let att=0,cmp=0,passY=0,passTd=0,passInt=0,passFum=0,car=0,rushY=0,rushTd=0,rushFum=0,tgt=0,rec=0,recY=0,recTd=0,tkl=0,tfl=0,sack=0,defInt=0,ff=0,fr=0,teamRush=0,teamPass=0;
+   let att=0,cmp=0,passY=0,passTd=0,passInt=0,passFum=0,car=0,rushY=0,rushTd=0,rushFum=0,tgt=0,rec=0,recY=0,recTd=0,tkl=0,tfl=0,sack=0,defInt=0,ff=0,fr=0,teamRush=0,teamPass=0,teamRushTd=0,teamPassTd=0,teamSacks=0,teamTakeaways=0,oppRush=0,oppPass=0;
    const isPlayer=(v)=>String(v||'')===String(playerId), extra=(r,n)=>Array.isArray(r.extras)&&r.extras.some(x=>String(x).toLowerCase()===String(n).toLowerCase());
    for(const play of selectedPlays()){
     const r=raw(play),type=String(r.type||play.play_type||''),yards=Number(r.yards??play.yards??0),sub=String(r.sub||play.subtype||'');
     const fum=extra(r,'Fumble')||extra(r,'FUM')||r.fumble===true||r.fumbled===true;
-    if(type==='Rush'){teamRush+=yards;if(isPlayer(r.player)){car++;rushY+=yards;if(has(r,'TD'))rushTd++;if(fum)rushFum++}}
+    if(type==='Rush'){teamRush+=yards;if(has(r,'TD'))teamRushTd++;if(isPlayer(r.player)){car++;rushY+=yards;if(has(r,'TD'))rushTd++;if(fum)rushFum++}}
     if(type==='Pass'){
-     if(sub==='Complete')teamPass+=yards;
+     if(sub==='Complete'){teamPass+=yards;if(has(r,'TD'))teamPassTd++}
      if(isPlayer(r.player)){att++;if(sub==='Complete'){cmp++;passY+=yards;if(has(r,'TD'))passTd++}if(sub==='Intercepted')passInt++;if(fum)passFum++}
      if(isPlayer(r.player2)){tgt++;if(sub==='Complete'){rec++;recY+=yards;if(has(r,'TD'))recTd++}}
     }
     if(type==='Defense'){
+     if(sub==='Opponent Run')oppRush+=yards;if(sub==='Complete Pass')oppPass+=yards;
+     if(r.tackleKind==='Sack')teamSacks++;
+     if(r.interceptionPlayerId||r.fumbleRecoveryPlayerId)teamTakeaways++;
      const v=Number((r.defCredits||{})[playerId]||0);if(v){tkl+=v;if(r.tackleKind==='TFL')tfl+=v;if(r.tackleKind==='Sack')sack+=v}
      if(isPlayer(r.interceptionPlayerId))defInt++;
      if(isPlayer(r.forcedFumblePlayerId)||isPlayer(r.forced_fumble_player_id)||isPlayer(r.ffPlayerId)||isPlayer(r.fumbleForcedBy))ff++;
      if(isPlayer(r.fumbleRecoveryPlayerId)||isPlayer(r.fumble_recovery_player_id)||isPlayer(r.frPlayerId)||isPlayer(r.recoveredBy))fr++;
     }
    }
-   function rating(){if(!att)return '—';const a=Math.max(0,Math.min(2.375,(cmp/att-.3)*5)),b=Math.max(0,Math.min(2.375,(passY/att-3)*.25)),cc=Math.max(0,Math.min(2.375,(passTd/att)*20)),d=Math.max(0,Math.min(2.375,2.375-(passInt/att)*25));return (((a+b+cc+d)/6)*100).toFixed(1)}
+   function rating(){if(!att)return '—';const a=Math.max(0,Math.min(2.375,(cmp/att-.3)*5)),b=Math.max(0,Math.min(2.375,(passY/att-3)*.25)),cc=Math.max(0,Math.min(2.375,(passTd/att)*20)),d=Math.max(0,Math.min(2.375,2.375-(passInt/att)*25));const v=((a+b+cc+d)/6)*100;return (Math.round(v*10)/10).toFixed(1)}
    const cats=[];
    if(att)cats.push({name:'PASSING',headers:['CMP/ATT','YDS','AVG','TD','INT','FUM','RATE'],values:[cmp+'/'+att,passY,(passY/att).toFixed(1),passTd,passInt,passFum,rating()]});
    if(car)cats.push({name:'RUSHING',headers:['CAR','YDS','AVG','TD','FUM'],values:[car,rushY,(rushY/car).toFixed(1),rushTd,rushFum]});
    if(tgt)cats.push({name:'RECEIVING',headers:['TGT','REC','YDS','AVG','TD'],values:[tgt,rec,recY,rec?(recY/rec).toFixed(1):'—',recTd]});
    if(tkl||tfl||sack||defInt||ff||fr)cats.push({name:'DEFENSE',headers:['TKL','TFL','SACK','INT','FF','FR'],values:[fmt(tkl),fmt(tfl),fmt(sack),defInt,ff,fr]});
-   return{categories:cats,team:{rushY:teamRush,passY:teamPass,totalY:teamRush+teamPass}};
+   const gs=selectedGames(),ourPts=gs.reduce((n,g)=>n+Number(g.team_score||0),0),oppPts=gs.reduce((n,g)=>n+Number(g.opponent_score||0),0);
+   return{categories:cats,team:{rushY:teamRush,passY:teamPass,totalY:teamRush+teamPass,rushTd:teamRushTd,passTd:teamPassTd,points:ourPts,oppPoints:oppPts,oppRush,oppPass,oppTotal:oppRush+oppPass,sacks:teamSacks,takeaways:teamTakeaways}};
   }
   async function drawBack(ctx,X,Y,CW,CH,p,week,season,team,opp,g,rows,positions,colors){
    if(window.BBSBackMaster){
