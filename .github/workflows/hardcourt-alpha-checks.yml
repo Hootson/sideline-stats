@@ -1,15 +1,23 @@
-name: Hardcourt Alpha Checks
+name: Hardcourt Checks
+
 on:
   pull_request:
+    branches: [main]
     paths:
       - 'hardcourt/**'
       - 'tools/sideline-mcp/**'
+      - '.github/workflows/hardcourt-alpha-checks.yml'
   push:
-    branches:
-      - 'build/hardcourt-alpha'
+    branches: [main]
     paths:
       - 'hardcourt/**'
       - 'tools/sideline-mcp/**'
+      - '.github/workflows/hardcourt-alpha-checks.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
 jobs:
   hardcourt-tests:
     runs-on: ubuntu-latest
@@ -20,17 +28,15 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
-      - run: npm test
-      - name: Build iPhone test artifact
+          node-version: '22'
+      - name: Check Hardcourt JavaScript syntax
         run: |
-          mkdir -p ../hardcourt-alpha-preview
-          cp index.html styles.css app.js engine.js ../hardcourt-alpha-preview/
-      - uses: actions/upload-artifact@v4
-        with:
-          name: hardcourt-alpha-preview
-          path: hardcourt-alpha-preview
-          retention-days: 7
+          node --check app.js
+          node --check engine.js
+          node --check service-worker.js
+      - name: Run Hardcourt tests
+        run: npm test
+
   mcp-tests:
     runs-on: ubuntu-latest
     defaults:
@@ -40,6 +46,6 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: '22'
       - run: npm install
       - run: npm test
