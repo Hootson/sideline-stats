@@ -1,9 +1,33 @@
-name: Voice and field follow-up tests
+name: Voice and Field Regression Checks
+
 on:
-  push:
-    branches: [fix/voice-playcall-scroll]
   pull_request:
     branches: [main]
+    paths:
+      - 'voice-*.js'
+      - 'field-*.js'
+      - 'followup-loader.js'
+      - 'voice-followup.css'
+      - 'tests/voice-*.test.cjs'
+      - 'tests/field-*.test.cjs'
+      - 'tests/followup-assets.test.cjs'
+      - '.github/workflows/voice-field-followup-test.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'voice-*.js'
+      - 'field-*.js'
+      - 'followup-loader.js'
+      - 'voice-followup.css'
+      - 'tests/voice-*.test.cjs'
+      - 'tests/field-*.test.cjs'
+      - 'tests/followup-assets.test.cjs'
+      - '.github/workflows/voice-field-followup-test.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -15,8 +39,9 @@ jobs:
       - name: JavaScript syntax
         run: |
           node --check voice-play.js
+          node --check voice-workflow.js
           node --check field-position.js
           node --check field-orientation.js
           node --check followup-loader.js
-      - name: V4.5.35 regression tests
-        run: node --test tests/voice-playcall-followup.test.cjs tests/field-visual-conversion.test.cjs tests/followup-assets.test.cjs
+      - name: Run voice, field and follow-up regression tests
+        run: node --test tests/voice-*.test.cjs tests/field-*.test.cjs tests/followup-assets.test.cjs
