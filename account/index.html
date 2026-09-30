@@ -23,14 +23,19 @@
 </div>
 <div id="selected" class="hidden">
 <a id="continue" class="primary" href="#">CREATE ACCOUNT / SIGN IN →</a>
-<a class="secondary" href="../">BACK TO BLEACHER BUTT STATS</a>
-<p class="note">Your 7-day trial should begin when team setup is completed — not just from visiting this page.</p>
+<a class="secondary" href="https://hootson.github.io/bleacher-butt-stats-site/">BACK TO BLEACHER BUTT STATS</a>
+<p class="note" id="note">Your 7-day trial begins after you create and connect your team — not just from visiting this page.</p>
 </div>
 </section>
 </main>
 <script>
-const p=new URLSearchParams(location.search).get('product');
+const params=new URLSearchParams(location.search);
+const p=params.get('product');
 const valid=p==='gridiron'||p==='hardcourt';
+const GRIDIRON='https://hootson.github.io/sideline-stats/';
+// Hardcourt's production auth/team route is not yet verified. Keep its selection
+// preserved here rather than silently sending a basketball customer into football.
+const HARDCOURT=null;
 if(valid){
  const name=p==='gridiron'?'Gridiron':'Hardcourt';
  document.getElementById('eyebrow').textContent='7-DAY FREE TRIAL';
@@ -40,8 +45,16 @@ if(valid){
  document.getElementById('selected').classList.remove('hidden');
  document.getElementById('back').classList.remove('hidden');
  document.title='Bleacher Butt Stats — '+name;
- // Auth destination will be wired only after the existing Supabase auth entry point is verified.
- document.getElementById('continue').addEventListener('click',e=>{e.preventDefault();alert('Account authentication is the next connection step. Your '+name+' selection is preserved.');});
+ const target=p==='gridiron'?GRIDIRON:HARDCOURT;
+ const button=document.getElementById('continue');
+ if(target){
+   const u=new URL(target);u.searchParams.set('account','1');u.searchParams.set('product',p);u.searchParams.set('source','bleacherbutt');
+   button.href=u.href;
+ }else{
+   button.textContent='HARDCOURT ACCOUNT CONNECTION COMING NEXT';button.setAttribute('aria-disabled','true');
+   button.addEventListener('click',e=>e.preventDefault());
+   document.getElementById('note').textContent='Your Hardcourt choice is preserved. We are connecting this to the existing Bleacher Butt account system before enabling signup.';
+ }
 }
 </script>
 </body>
