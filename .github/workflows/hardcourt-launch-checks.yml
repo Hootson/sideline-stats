@@ -4,7 +4,9 @@ on:
     paths:
       - 'hardcourt/**'
       - 'account/**'
-      - 'supabase/migrations/**hardcourt**'
+      - 'supabase/migrations/**'
+      - 'supabase/functions/create-stripe-checkout/**'
+      - 'supabase/functions/checkout-status/**'
       - '.github/workflows/hardcourt-launch-checks.yml'
   push:
     branches:
@@ -12,7 +14,9 @@ on:
     paths:
       - 'hardcourt/**'
       - 'account/**'
-      - 'supabase/migrations/**hardcourt**'
+      - 'supabase/migrations/**'
+      - 'supabase/functions/create-stripe-checkout/**'
+      - 'supabase/functions/checkout-status/**'
       - '.github/workflows/hardcourt-launch-checks.yml'
 jobs:
   hardcourt-tests:
@@ -30,6 +34,7 @@ jobs:
       - name: Syntax-check launch modules
         run: |
           node --check app.js
+          node --check legacy-app.js
           node --check commerce.js
           node --check sharing.js
           node --check game-cloud.js
@@ -39,3 +44,16 @@ jobs:
           node --check account-integration.js
           node --check cloud-account.js
           node --check onboarding.js
+          node --check service-worker.js
+      - name: Verify required launch assets exist
+        run: |
+          test -f manifest.webmanifest
+          test -f service-worker.js
+          test -f court-iphone.png
+          test -f court-ipad.png
+          test -f court-analytics.png
+          test -f ../supabase/functions/create-stripe-checkout/index.ts
+          test -f ../supabase/functions/checkout-status/index.ts
+          test -f ../supabase/migrations/20260930235500_hardcourt_commercial_bridge.sql
+          test -f ../supabase/migrations/20261001000500_hardcourt_game_persistence.sql
+          test -f ../supabase/migrations/20261001011000_hardcourt_sharing_and_coaches.sql
