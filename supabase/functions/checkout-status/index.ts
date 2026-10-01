@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
-const allowedOrigins=new Set(["https://hootson.github.io","https://sidelinestats.net","https://www.sidelinestats.net"]);
+const allowedOrigins=new Set(["https://hootson.github.io","https://sidelinestats.net","https://www.sidelinestats.net","https://bleacherbuttstats.com","https://www.bleacherbuttstats.com"]);
 function cors(req:Request){const origin=req.headers.get("origin")||"";return {"Access-Control-Allow-Origin":allowedOrigins.has(origin)?origin:"https://hootson.github.io","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Access-Control-Allow-Methods":"POST, OPTIONS","Vary":"Origin"}}
 function json(req:Request,body:unknown,status=200){return new Response(JSON.stringify(body),{status,headers:{...cors(req),"Content-Type":"application/json"}})}
 Deno.serve(async(req)=>{
