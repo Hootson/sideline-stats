@@ -23,11 +23,18 @@ test('checkout calls the production Stripe function and identifies Hardcourt',()
   assert.match(commerce,/session_id/);
 });
 
-test('sharing keeps coaches email locked and parents separate from game helpers',()=>{
+test('sharing keeps public viewers separate from authenticated coaches and game helpers',()=>{
   const sharing=read('sharing.js');
   const migration=read('../supabase/migrations/20261001011000_hardcourt_sharing_and_coaches.sql');
+  const legacy=read('legacy-app.js');
   assert.match(sharing,/Parent \/ Viewer Link/);
   assert.match(sharing,/Coach Access/);
+  assert.match(sharing,/create_team_invite/);
+  assert.match(sharing,/\?viewer=/);
+  assert.match(sharing,/create_hardcourt_share_invite/);
+  assert.match(sharing,/\?hardcourtInvite=/);
+  assert.match(legacy,/get_public_team_viewer/);
+  assert.match(legacy,/gameStatkeeperInvite/);
   assert.match(migration,/intended_email/);
   assert.match(migration,/5 coach seats/);
 });
