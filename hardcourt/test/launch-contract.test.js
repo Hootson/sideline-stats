@@ -38,3 +38,12 @@ test('commercial bridge starts a seven day trial once',()=>{
   assert.match(migration,/trial_used=true/);
   assert.match(migration,/already used its trial or already has paid access/);
 });
+
+test('trial begins only when first-run team setup is completed',()=>{
+  const onboarding=read('onboarding.js');
+  const gate=read('account-gate.js');
+  assert.match(onboarding,/start_hardcourt_team_trial/);
+  assert.match(onboarding,/Start My 7-Day Trial/);
+  assert.doesNotMatch(gate,/start_hardcourt_team_trial/);
+  assert.match(gate,/No credit card required to start/);
+});
