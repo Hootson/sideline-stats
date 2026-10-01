@@ -57,3 +57,13 @@ test('trial begins only when first-run team setup is completed',()=>{
   assert.doesNotMatch(createTeamBody,/startTrial/);
   assert.match(gate,/No credit card required to start/);
 });
+
+test('saved cloud games restore their events and finalized games reopen read-only',()=>{
+  const cloud=read('game-cloud.js');
+  const migration=read('../supabase/migrations/20261001000500_hardcourt_game_persistence.sql');
+  assert.match(cloud,/const events=await loadEvents\(gameId\)/);
+  assert.match(cloud,/s\.events=events\.map/);
+  assert.match(cloud,/s\.cloudGameFinal=row\.status==='final'/);
+  assert.match(migration,/when g\.status='final' then false/);
+  assert.match(migration,/if v_status='final' then return true/);
+});
