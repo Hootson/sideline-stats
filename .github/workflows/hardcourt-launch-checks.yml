@@ -1,0 +1,41 @@
+name: Hardcourt Launch Checks
+on:
+  pull_request:
+    paths:
+      - 'hardcourt/**'
+      - 'account/**'
+      - 'supabase/migrations/**hardcourt**'
+      - '.github/workflows/hardcourt-launch-checks.yml'
+  push:
+    branches:
+      - hardcourt-current-integration
+    paths:
+      - 'hardcourt/**'
+      - 'account/**'
+      - 'supabase/migrations/**hardcourt**'
+      - '.github/workflows/hardcourt-launch-checks.yml'
+jobs:
+  hardcourt-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hardcourt
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run Hardcourt regression tests
+        run: npm test
+      - name: Syntax-check launch modules
+        run: |
+          node --check app.js
+          node --check commerce.js
+          node --check sharing.js
+          node --check game-cloud.js
+          node --check game-manager.js
+          node --check account-flow.js
+          node --check account-gate.js
+          node --check account-integration.js
+          node --check cloud-account.js
+          node --check onboarding.js
