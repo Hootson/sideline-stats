@@ -6,64 +6,10 @@ import {fileURLToPath} from 'node:url';
 const here=path.dirname(fileURLToPath(import.meta.url));
 const read=p=>fs.readFileSync(path.join(here,'..',p),'utf8');
 
-test('account bootstrap uses the shared Hardcourt local state and current modules',()=>{
-  const app=read('app.js');
-  assert.match(app,/STORAGE_KEY='hardcourt-alpha'/);
-  assert.match(app,/createHardcourtCommerce/);
-  assert.match(app,/installHardcourtGameManager/);
-  assert.match(app,/createHardcourtSharing/);
-  assert.match(app,/runHardcourtOnboarding/);
-});
-
-test('checkout calls the production Stripe function and identifies Hardcourt',()=>{
-  const commerce=read('commerce.js');
-  assert.match(commerce,/create-stripe-checkout/);
-  assert.match(commerce,/edition:'hardcourt'/);
-  assert.match(commerce,/checkout-status/);
-  assert.match(commerce,/session_id/);
-});
-
-test('sharing keeps public viewers separate from authenticated coaches and game helpers',()=>{
-  const sharing=read('sharing.js');
-  const migration=read('../supabase/migrations/20261001011000_hardcourt_sharing_and_coaches.sql');
-  const legacy=read('legacy-app.js');
-  assert.match(sharing,/Parent \/ Viewer Link/);
-  assert.match(sharing,/Coach Access/);
-  assert.match(sharing,/create_team_invite/);
-  assert.match(sharing,/\?viewer=/);
-  assert.match(sharing,/create_hardcourt_share_invite/);
-  assert.match(sharing,/\?hardcourtInvite=/);
-  assert.match(legacy,/get_public_team_viewer/);
-  assert.match(legacy,/gameStatkeeperInvite/);
-  assert.match(migration,/intended_email/);
-  assert.match(migration,/5 coach seats/);
-});
-
-test('commercial bridge starts a seven day trial once',()=>{
-  const migration=read('../supabase/migrations/20260930235500_hardcourt_commercial_bridge.sql');
-  assert.match(migration,/interval '7 days'/);
-  assert.match(migration,/trial_used=true/);
-  assert.match(migration,/already used its trial or already has paid access/);
-});
-
-test('trial begins only when first-run team setup is completed',()=>{
-  const onboarding=read('onboarding.js');
-  const gate=read('account-gate.js');
-  const integration=read('account-integration.js');
-  assert.match(onboarding,/start_hardcourt_team_trial/);
-  assert.match(onboarding,/Start My 7-Day Trial/);
-  assert.doesNotMatch(gate,/start_hardcourt_team_trial/);
-  const createTeamBody=integration.match(/async function createTeam\(profile\)\{([^]*?)\}\n async function switchTeam/)?.[1]||'';
-  assert.doesNotMatch(createTeamBody,/startTrial/);
-  assert.match(gate,/No credit card required to start/);
-});
-
-test('saved cloud games restore their events and finalized games reopen read-only',()=>{
-  const cloud=read('game-cloud.js');
-  const migration=read('../supabase/migrations/20261001000500_hardcourt_game_persistence.sql');
-  assert.match(cloud,/const events=await loadEvents\(gameId\)/);
-  assert.match(cloud,/s\.events=events\.map/);
-  assert.match(cloud,/s\.cloudGameFinal=row\.status==='final'/);
-  assert.match(migration,/when g\.status='final' then false/);
-  assert.match(migration,/if v_status='final' then return true/);
-});
+test('account bootstrap uses the shared Hardcourt local state and current modules',()=>{const app=read('app.js');assert.match(app,/STORAGE_KEY='hardcourt-alpha'/);assert.match(app,/createHardcourtCommerce/);assert.match(app,/installHardcourtGameManager/);assert.match(app,/createHardcourtSharing/);assert.match(app,/runHardcourtOnboarding/)});
+test('checkout calls the production Stripe function and identifies Hardcourt',()=>{const commerce=read('commerce.js');assert.match(commerce,/create-stripe-checkout/);assert.match(commerce,/edition:'hardcourt'/);assert.match(commerce,/checkout-status/);assert.match(commerce,/session_id/)});
+test('sharing keeps public viewers separate from authenticated coaches and game helpers',()=>{const sharing=read('sharing.js'),migration=read('../supabase/migrations/20261001011000_hardcourt_sharing_and_coaches.sql'),legacy=read('legacy-app.js');assert.match(sharing,/Parent \/ Viewer Link/);assert.match(sharing,/Coach Access/);assert.match(sharing,/create_team_invite/);assert.match(sharing,/\?viewer=/);assert.match(sharing,/create_hardcourt_share_invite/);assert.match(sharing,/\?hardcourtInvite=/);assert.match(legacy,/get_public_team_viewer/);assert.match(legacy,/gameStatkeeperInvite/);assert.match(migration,/intended_email/);assert.match(migration,/5 coach seats/)});
+test('commercial bridge starts a seven day trial once',()=>{const migration=read('../supabase/migrations/20260930235500_hardcourt_commercial_bridge.sql');assert.match(migration,/interval '7 days'/);assert.match(migration,/trial_used=true/);assert.match(migration,/already used its trial or already has paid access/)});
+test('trial begins only when first-run team setup is completed',()=>{const onboarding=read('onboarding.js'),gate=read('account-gate.js'),integration=read('account-integration.js');assert.match(onboarding,/start_hardcourt_team_trial/);assert.match(onboarding,/Start My 7-Day Trial/);assert.doesNotMatch(gate,/start_hardcourt_team_trial/);const createTeamBody=integration.match(/async function createTeam\(profile\)\{([^]*?)\}\n async function switchTeam/)?.[1]||'';assert.doesNotMatch(createTeamBody,/startTrial/);assert.match(gate,/No credit card required to start/)});
+test('saved cloud games restore their events and finalized games reopen read-only',()=>{const cloud=read('game-cloud.js'),migration=read('../supabase/migrations/20261001000500_hardcourt_game_persistence.sql');assert.match(cloud,/const events=await loadEvents\(gameId\)/);assert.match(cloud,/s\.events=events\.map/);assert.match(cloud,/s\.cloudGameFinal=row\.status==='final'/);assert.match(migration,/when g\.status='final' then false/);assert.match(migration,/if v_status='final' then return true/)});
+test('coach invite survives sign-in and is redeemed before creating a new team',()=>{const app=read('app.js');assert.match(app,/hcPendingCoachInvite/);assert.match(app,/sharing\.redeem\(pendingInvite\)/);const redeemAt=app.indexOf('sharing.redeem(pendingInvite)'),refreshAt=app.indexOf('integration.refresh()');assert.ok(redeemAt>=0&&refreshAt>redeemAt,'invite must be redeemed before account team resolution');assert.match(app,/url\.searchParams\.delete\('hardcourtInvite'\)/)});
