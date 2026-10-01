@@ -22,7 +22,8 @@ create or replace function public.resume_hardcourt_game(p_game_id uuid)
 returns table(game_id uuid,team_id uuid,season_id uuid,opponent_name text,status text,game_type text,can_statkeep boolean)
 language sql stable security definer set search_path=''
 as $$
- select g.id,s.team_id,g.season_id,g.opponent_name,g.status,g.game_type,private.can_statkeep_game(g.id)
+ select g.id,s.team_id,g.season_id,g.opponent_name,g.status,g.game_type,
+        case when g.status='final' then false else private.can_statkeep_game(g.id) end
  from public.games g join public.seasons s on s.id=g.season_id
  where g.id=p_game_id and g.sport='basketball'
    and (private.can_manage_team(s.team_id) or private.is_game_substitute(g.id));
@@ -33,10 +34,11 @@ grant execute on function public.resume_hardcourt_game(uuid) to authenticated;
 create or replace function public.finalize_hardcourt_game(p_game_id uuid)
 returns boolean language plpgsql security definer set search_path=''
 as $$
-declare v_team uuid;
+declare v_team uuid; v_status text;
 begin
- select s.team_id into v_team from public.games g join public.seasons s on s.id=g.season_id where g.id=p_game_id and g.sport='basketball';
+ select s.team_id,g.status into v_team,v_status from public.games g join public.seasons s on s.id=g.season_id where g.id=p_game_id and g.sport='basketball';
  if v_team is null then raise exception 'Game not found'; end if;
+ if v_status='final' then return true; end if;
  if not private.can_statkeep_game(p_game_id) then raise exception 'Not authorized to finalize this game'; end if;
  update public.games set status='final' where id=p_game_id;
  perform public.finish_game_statkeeper_assignment(p_game_id);
