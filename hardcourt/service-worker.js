@@ -1,6 +1,31 @@
-const CACHE="hardcourt-account-20260924d";
-const ASSETS=["./","./index.html","./styles.css?v=ui53","./app.js?v=20260922-ui71","./account-gate.js","./account-entry.js","./onboarding.js","./engine.js","./manifest.webmanifest?v=ui53","./court-iphone.png","./court-ipad.png","./court-analytics.png","./hardcourt-header-arena-ui71.jpg?v=ui71"];
-self.addEventListener("install",e=>e.waitUntil(caches.open(CACHE).then(async c=>{for(const asset of ASSETS){try{const r=await fetch(asset,{cache:"reload"});if(r.ok)await c.put(asset,r.clone())}catch(_){}}}).then(()=>self.skipWaiting())));
-self.addEventListener("activate",e=>e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x.startsWith("hardcourt-")&&x!==CACHE).map(x=>caches.delete(x)))).then(()=>self.clients.claim())));
-self.addEventListener("message",e=>{if(e.data==="SKIP_WAITING")self.skipWaiting()});
-self.addEventListener("fetch",e=>{if(e.request.method!=="GET")return;const u=new URL(e.request.url);if(u.origin!==location.origin)return;e.respondWith(fetch(e.request,{cache:"no-store"}).then(r=>{if(r.ok){const copy=r.clone();caches.open(CACHE).then(c=>c.put(e.request,copy))}return r}).catch(async()=>await caches.match(e.request)||await caches.match("./index.html")))});
+const CACHE="hardcourt-account-20261001-launch1";
+const CORE=[
+  "./","./index.html","./styles.css?v=ui53","./app.js?v=20260922-ui71","./legacy-app.js",
+  "./account-gate.js","./account-flow.js","./account-integration.js","./cloud-account.js","./onboarding.js",
+  "./commercial-config.js","./commerce.js","./game-cloud.js","./game-manager.js","./sharing.js","./engine.js",
+  "./manifest.webmanifest?v=ui53","./court-iphone.png","./court-ipad.png","./court-analytics.png","./hardcourt-header-arena-ui71.jpg?v=ui71"
+];
+self.addEventListener("install",event=>event.waitUntil((async()=>{
+  const cache=await caches.open(CACHE);
+  for(const asset of CORE){
+    try{const response=await fetch(asset,{cache:"reload"});if(!response.ok)throw new Error(`${asset}: ${response.status}`);await cache.put(asset,response.clone())}
+    catch(error){console.warn("Hardcourt install cache miss",asset,error)}
+  }
+  await self.skipWaiting();
+})()));
+self.addEventListener("activate",event=>event.waitUntil((async()=>{
+  const keys=await caches.keys();
+  await Promise.all(keys.filter(key=>key.startsWith("hardcourt-")&&key!==CACHE).map(key=>caches.delete(key)));
+  await self.clients.claim();
+})()));
+self.addEventListener("message",event=>{if(event.data==="SKIP_WAITING")self.skipWaiting()});
+self.addEventListener("fetch",event=>{
+  if(event.request.method!=="GET")return;
+  const url=new URL(event.request.url);
+  if(url.origin!==location.origin)return;
+  if(event.request.mode==="navigate"){
+    event.respondWith(fetch(event.request,{cache:"no-store"}).then(response=>{if(response.ok)caches.open(CACHE).then(cache=>cache.put("./index.html",response.clone()));return response}).catch(()=>caches.match("./index.html")));
+    return;
+  }
+  event.respondWith(fetch(event.request,{cache:"no-store"}).then(response=>{if(response.ok)caches.open(CACHE).then(cache=>cache.put(event.request,response.clone()));return response}).catch(()=>caches.match(event.request)));
+});
