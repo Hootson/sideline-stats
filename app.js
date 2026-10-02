@@ -445,8 +445,22 @@ async function beginPlanCheckout(plan,button){
 async function authSignIn(){
   if(!SB)return toast("Cloud connection is not ready"); const email=$("#authEmail").value.trim(),password=$("#authPassword").value;
   if(!email||!password)return toast("Enter email and password"); $("#authMessage").textContent="Signing in…";
-  const {error}=await SB.auth.signInWithPassword({email,password}); if(error){$("#authMessage").textContent=error.message;return}
-  closeAuth();toast("Signed in — this device will remember you");
+  const {data,error}=await SB.auth.signInWithPassword({email,password}); if(error){$("#authMessage").textContent=error.message;return}
+  cloudUser=data?.user||data?.session?.user||cloudUser;
+  closeAuth();showReturningTeamLoader();
+  try{
+    if(!await redeemPendingGameStatkeeperInvite()&&!await redeemPendingTeamInvite()){
+      const preferredId=rememberedTeamId();
+      if(cloudLinked())await restoreRememberedTeam();
+      else if(preferredId)await restoreRememberedTeam();
+      else{
+        const team=await chooseCloudTeam({onlyAutomatic:false});
+        if(team)await loadTeamFromCloud({team,auto:true,skipReplaceConfirm:true,destination:"roster"});
+      }
+    }
+    toast("Signed in — this device will remember you");
+  }catch(e){console.error("Post sign-in team restore failed",e);toast(e?.message||"Signed in, but the team could not be loaded")}
+  finally{await hideReturningTeamLoader();updateCloudUI()}
 }
 async function authCreate(){
   if(!SB)return toast("Cloud connection is not ready"); const email=$("#authEmail").value.trim(),password=$("#authPassword").value;
