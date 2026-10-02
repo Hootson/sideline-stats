@@ -9,6 +9,23 @@ window.SIDELINE_STATS_VERSION="4.6.67";
   const setFlag=(key,value)=>{try{if(value)sessionStorage.setItem(key,'1');else sessionStorage.removeItem(key)}catch(_){}};
   const hasFlag=key=>{try{return sessionStorage.getItem(key)==='1'}catch(_){return false}};
 
+  // The BBS umbrella may recognize the correct Gridiron team before app.js starts.
+  // Recognition is not hydration: app.js must still rebuild roster, games, plays and stats from Supabase.
+  // Convert only that recognized shell back into app.js's normal remembered-team startup path.
+  function repairRecognizedCloudShell(){
+    try{
+      const raw=localStorage.getItem(DATA_KEY);if(!raw)return;
+      const state=JSON.parse(raw),teamId=state?.cloud?.teamId;
+      if(state?.bbsCloudRecognized!==true||!teamId)return;
+      const userId=localStorage.getItem('bbs-gridiron-user');
+      if(userId)localStorage.setItem(`sidelineStatsLastTeam:${userId}`,String(teamId));
+      state.cloud={};
+      state.bbsCloudRecognized=false;
+      localStorage.setItem(DATA_KEY,JSON.stringify(state));
+    }catch(e){console.warn('Could not prepare recognized Gridiron team for authoritative cloud load',e)}
+  }
+  repairRecognizedCloudShell();
+
   function repairDefensiveReturnScores(state){if(!state||!Array.isArray(state.games))return false;let changed=false;for(const g of state.games){const count=(g?.plays||[]).filter(p=>p?.type==='Defense'&&p?.defensiveTouchdownPlayerId&&Array.isArray(p.extras)&&p.extras.includes('TD')).length;const prior=Math.max(0,Number(g?.defensiveReturnScoreRepairCount||0));if(count>prior){const delta=count-prior;g.oppScore=Math.max(0,Number(g.oppScore||0)-(delta*6));g.defensiveReturnScoreRepairCount=count;changed=true}else if(count&&g.defensiveReturnScoreRepairCount!==count){g.defensiveReturnScoreRepairCount=count;changed=true}}return changed}
   function repairStoredState(key){try{const raw=localStorage.getItem(key);if(!raw)return;const state=JSON.parse(raw);if(repairDefensiveReturnScores(state))localStorage.setItem(key,JSON.stringify(state))}catch(_){}}
   repairStoredState(DATA_KEY);repairStoredState(RECOVERY_KEY);
