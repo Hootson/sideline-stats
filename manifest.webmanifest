@@ -1,19 +1,18 @@
 {
-  "id": "bleacher-butt-stats-gridiron",
-  "name": "Bleacher Butt Stats — Gridiron",
-  "short_name": "BBS Gridiron",
-  "start_url": "./?bbs=1",
+  "name": "Sideline Stats",
+  "short_name": "Sideline Stats",
+  "start_url": "./",
   "display": "standalone",
-  "background_color": "#07110d",
-  "theme_color": "#07110d",
-  "description": "Bleacher Butt Stats Gridiron Edition — football stats, game tracking, and coaching analytics.",
+  "background_color": "#f4f6f5",
+  "theme_color": "#177b46",
+  "description": "Sideline Stats V4.5.24 — isolated team and opponent scoring",
   "scope": "./",
   "icons": [
-    {"src":"bleacher-butt-home-icon.png","sizes":"512x512","type":"image/png","purpose":"any"},
-    {"src":"bleacher-butt-home-icon.png","sizes":"512x512","type":"image/png","purpose":"maskable"}
-  ],
-  "shortcuts": [
-    {"name":"Gridiron Edition","short_name":"Gridiron","description":"Open football stats","url":"./?bbs=1"},
-    {"name":"My Sports","short_name":"Sports","description":"Choose a Bleacher Butt Stats edition","url":"./hardcourt-account-preview/?umbrella=1&from=gridiron"}
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
   ]
 }

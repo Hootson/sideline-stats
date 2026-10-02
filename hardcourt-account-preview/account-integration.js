@@ -1,13 +1,48 @@
-// Wires persistent BBS identity/team context into Hardcourt without changing the mature game engine.
-import{loadHardcourtTeams,preferredHardcourtTeam,rememberHardcourtTeam,applyCloudRoster}from'./cloud-account.js';
-const STATE='hardcourt-alpha',USER='bbs-hardcourt-user',ACTIVE='hardcourt-active-team-id';
-const read=()=>{try{return JSON.parse(localStorage.getItem(STATE)||'{}')}catch{return{}}};
-function write(s){try{localStorage.setItem(STATE,JSON.stringify(s));return true}catch{return false}}
-const clone=s=>{try{return structuredClone(s)}catch{return JSON.parse(JSON.stringify(s||{}))}};
-function resetGame(s){s.running=false;s.lastTick=null;s.gameId=null;s.cloudGameId=null;s.events=[];s.pendingShot=null;s.pendingAction=null;s.selectedPlayer=null;s.selectedAction=null;s.shotAssistPending=null;s.reboundPending=null;return s}
-function detach(source=read()){const s=clone(source);s.cloudTeamId=null;s.cloudSeasonId=null;s.hardcourtCloudRecognized=false;resetGame(s);if(!write(s))return false;try{localStorage.removeItem(ACTIVE)}catch{}return s}
-function prepareLiveNavigation(){try{window.bbsHardcourtCheckpoint?.();return window.bbsPrepareHardcourtNavigation?.()!==false}catch{return false}}
-function applyTeam(source,active,{reset=false}={}){const s=clone(source),teamId=active.teamId||active.team_id,seasonId=active.seasonId||active.season_id;if(reset)resetGame(s);s.cloudTeamId=teamId;s.cloudSeasonId=seasonId;s.team=active.teamName||active.team_name||s.team;s.grade=active.grade||s.grade;s.hardcourtCloudRecognized=true;if(Array.isArray(active.roster))s.roster=applyCloudRoster(active.roster,reset?[]:(s.roster||[]));if(reset)s.active=(s.roster||[]).slice(0,5).map(p=>p.id);return s}
-export async function bootstrapHardcourtAccount(sb,{preferredTeamId=null,allowTeamChange=true}={}){let session;try{session=(await sb.auth.getSession()).data?.session}catch(error){return{signedIn:false,teams:[],active:null,loadFailed:true,error}}if(!session?.user){try{localStorage.removeItem(USER)}catch{}return{signedIn:false,teams:[],active:null,loadFailed:false}}const uid=String(session.user.id||''),prior=localStorage.getItem(USER);if(prior&&prior!==uid){if(!detach())return{signedIn:true,teams:[],active:null,loadFailed:true,error:new Error('local-storage-write-failed')}}try{localStorage.setItem(USER,uid)}catch{}let teams;try{teams=await loadHardcourtTeams(sb)}catch(error){return{signedIn:true,teams:[],active:null,loadFailed:true,error}}if(!teams.length){const current=read();if(current.cloudTeamId||current.cloudSeasonId||current.hardcourtCloudRecognized){if(!detach(current))return{signedIn:true,teams:[],active:null,loadFailed:true,error:new Error('local-storage-write-failed')}}return{signedIn:true,teams:[],active:null,loadFailed:false}}const active=preferredTeamId?teams.find(t=>String(t.teamId||t.team_id)===String(preferredTeamId)):preferredHardcourtTeam(teams);if(!active)return{signedIn:true,teams,active:null,loadFailed:false};const current=read(),teamId=active.teamId||active.team_id,changed=String(current.cloudTeamId||'')!==String(teamId);if(changed&&!allowTeamChange)return{signedIn:true,teams,active:null,loadFailed:false,changeBlocked:true};const next=applyTeam(current,active,{reset:changed});if(!write(next))return{signedIn:true,teams,active:null,loadFailed:true,error:new Error('local-storage-write-failed')};rememberHardcourtTeam(teamId);return{signedIn:true,teams,active,loadFailed:false,changed}}
-export async function switchHardcourtAccountTeam(sb,teamId){if(!navigator.onLine)return false;const before=read(),previousId=before.cloudTeamId;if(String(previousId||'')===String(teamId))return true;if(!prepareLiveNavigation())return false;let teams;try{teams=await loadHardcourtTeams(sb)}catch{return false}const target=teams.find(t=>String(t.teamId||t.team_id)===String(teamId));if(!target)return false;const next=applyTeam(before,target,{reset:true});if(!write(next))return false;try{rememberHardcourtTeam(target.teamId||target.team_id)}catch{write(before);return false}return true}
-export function clearHardcourtAccountForSignOut(){try{localStorage.removeItem(USER)}catch{}return detach()!==false}
+import {resolveHardcourtAccount,provisionFirstHardcourtTeam,selectHardcourtTeam,hydrateHardcourtState,teamPickerMarkup} from './account-flow.js';
+import {HARDCOURT_COMMERCIAL,hardcourtAccessLabel} from './commercial-config.js';
+
+// Thin adapter consumed by app.js. Keeping this module DOM-light lets the live
+// game remain isolated while account persistence is rolled out.
+export function createHardcourtAccountIntegration({sb,getUser,getState,onTeamChanged,escapeHtml}){
+  let teams=[];
+
+  async function refresh(){
+    const result=await resolveHardcourtAccount(sb,getUser());
+    teams=result.teams||[];
+    if(result.team){
+      hydrateHardcourtState(getState(),result.team);
+      await onTeamChanged?.(result.team);
+    }
+    return result;
+  }
+
+  async function createTeam(profile){
+    const result=await provisionFirstHardcourtTeam(sb,profile);
+    teams=result.teams||[];
+    if(result.team){
+      hydrateHardcourtState(getState(),result.team);
+      await onTeamChanged?.(result.team);
+    }
+    return result;
+  }
+
+  async function switchTeam(teamId){
+    const team=selectHardcourtTeam(teams,teamId);
+    if(!team) return null;
+    hydrateHardcourtState(getState(),team);
+    await onTeamChanged?.(team);
+    return team;
+  }
+
+  function accountSummaryMarkup(email){
+    const state=getState();
+    return '<div class="hc-account-welcome">'+
+      '<div><span class="hc-preview-badge">Free During Preview</span><h3>'+escapeHtml(state.team||'Hardcourt')+'</h3><p>'+escapeHtml(email||'')+'</p></div>'+
+      '<div class="hc-account-role"><strong>'+escapeHtml(hardcourtAccessLabel())+'</strong><span>ACTIVE</span></div>'+
+      (teams.length>1?teamPickerMarkup(teams,escapeHtml):'')+
+      '<div class="hc-cloud-ready">Team and roster saved to your Bleacher Butt Stats account</div>'+
+    '</div>';
+  }
+
+  return {refresh,createTeam,switchTeam,accountSummaryMarkup,getTeams:()=>[...teams],paidAccessEnabled:()=>HARDCOURT_COMMERCIAL.paidAccessEnabled};
+}

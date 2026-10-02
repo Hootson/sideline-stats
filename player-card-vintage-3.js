@@ -3,9 +3,6 @@ const BASE='./player-card-vintage-2.js?base=4.6.48';
 async function boot(){
  try{
   let src=await fetch(BASE,{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('card base '+r.status);return r.text()});
-  const legacyLoadData="async function loadData(){viewer=await rpc('get_public_team_viewer',{p_token:token});try{profiles=await rpc('get_public_player_card_profiles',{p_token:token})}catch(_){profiles=[]}if(!master)master=await loadImage(`${MASTER}?release=${RELEASE}`)}";
-  const mediaAwareLoadData="async function loadData(){viewer=await rpc('get_public_team_viewer',{p_token:token});try{profiles=await rpc('get_public_player_card_profiles',{p_token:token})}catch(_){profiles=[]}try{const gameId=[...(viewer?.games||[])].sort((a,b)=>Number(b.week_number||0)-Number(a.week_number||0))[0]?.id;if(gameId){const media=await rpc('get_public_team_viewer_media',{p_token:token,p_game_id:gameId});if(media?.teamLogo){viewer.team=viewer.team||{};viewer.team.logo=media.teamLogo}}}catch(e){console.warn('Player card team logo media load skipped',e)}if(!master)master=await loadImage(`${MASTER}?release=${RELEASE}`)}";
-  if(src.includes(legacyLoadData))src=src.replace(legacyLoadData,mediaAwareLoadData);else console.warn('Player card loadData hook was not found');
   const replacement=`function cardSummary(playerId){
    let att=0,cmp=0,passY=0,passTd=0,passInt=0,passFum=0,car=0,rushY=0,rushTd=0,rushFum=0,tgt=0,rec=0,recY=0,recTd=0,tkl=0,tfl=0,sack=0,defInt=0,ff=0,fr=0,teamRush=0,teamPass=0,teamRushTd=0,teamPassTd=0,teamSacks=0,teamTakeaways=0,oppRush=0,oppPass=0;
    const isPlayer=(v)=>String(v||'')===String(playerId), extra=(r,n)=>Array.isArray(r.extras)&&r.extras.some(x=>String(x).toLowerCase()===String(n).toLowerCase());
