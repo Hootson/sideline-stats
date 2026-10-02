@@ -1,0 +1,31 @@
+name: Fix V4.6.67 iPhone sign-in team restore
+on:
+  push:
+    branches: [gh-pages]
+    paths: ['.github/workflows/fix-ios-team-restore-v467.yml']
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+      - name: Fix signed-in fresh-device team restore
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('app.js')
+          s=p.read_text()
+          old='''async function authSignIn(){\n  if(!SB)return toast("Cloud connection is not ready"); const email=$("#authEmail").value.trim(),password=$("#authPassword").value;\n  if(!email||!password)return toast("Enter email and password"); $("#authMessage").textContent="Signing in…";\n  const {error}=await SB.auth.signInWithPassword({email,password}); if(error){$("#authMessage").textContent=error.message;return}\n  closeAuth();toast("Signed in — this device will remember you");\n}'''
+          new='''async function authSignIn(){\n  if(!SB)return toast("Cloud connection is not ready"); const email=$("#authEmail").value.trim(),password=$("#authPassword").value;\n  if(!email||!password)return toast("Enter email and password"); $("#authMessage").textContent="Signing in…";\n  const {data,error}=await SB.auth.signInWithPassword({email,password}); if(error){$("#authMessage").textContent=error.message;return}\n  cloudUser=data?.user||data?.session?.user||cloudUser;\n  closeAuth();showReturningTeamLoader();\n  try{\n    if(!await redeemPendingGameStatkeeperInvite()&&!await redeemPendingTeamInvite()){\n      const preferredId=rememberedTeamId();\n      if(cloudLinked())await restoreRememberedTeam();\n      else if(preferredId)await restoreRememberedTeam();\n      else{\n        const team=await chooseCloudTeam({onlyAutomatic:false});\n        if(team)await loadTeamFromCloud({team,auto:true,skipReplaceConfirm:true,destination:"roster"});\n      }\n    }\n    toast("Signed in — this device will remember you");\n  }catch(e){console.error("Post sign-in team restore failed",e);toast(e?.message||"Signed in, but the team could not be loaded")}\n  finally{await hideReturningTeamLoader();updateCloudUI()}\n}'''
+          if old not in s: raise SystemExit('authSignIn block not found; refusing broad patch')
+          s=s.replace(old,new,1)
+          p.write_text(s)
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add app.js
+          git commit -m 'Fix iPhone fresh-device sign-in and team restore in V4.6.67'
+          git push origin HEAD:gh-pages
