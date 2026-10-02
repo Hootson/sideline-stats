@@ -1,4 +1,5 @@
-const SIDELINE_STATS_VERSION=window.SIDELINE_STATS_VERSION||"current";
+window.SIDELINE_STATS_VERSION="4.6.67";
+const SIDELINE_STATS_VERSION=window.SIDELINE_STATS_VERSION;
 const CHECKOUT_CANCEL_KEY="sidelinePendingCheckoutCancellation";
 const ROSTER_DATA_KEY="sidelineStatsData";
 const ROSTER_RECOVERY_KEY="sidelineStatsRecovery";
