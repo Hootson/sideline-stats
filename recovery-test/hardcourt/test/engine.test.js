@@ -1,0 +1,4 @@
+import test from"node:test";import assert from"node:assert/strict";import{isThreePoint,rimZone,derive}from"../engine.js";
+test("shot geometry",()=>{assert.equal(isThreePoint(.82,.05,true),true);assert.equal(isThreePoint(.78,.5,true),false);assert.equal(isThreePoint(.18,.05,false),true)});
+test("rim finishing zones mirror",()=>{assert.equal(rimZone(.93,.43,true),"left_finish");assert.equal(rimZone(.07,.57,false),"right_finish");assert.equal(rimZone(.94,.5,true),"center_finish")});
+test("derived score, free throws and plus minus",()=>{const roster=[{id:"a"},{id:"b"}],events=[{type:"shot",payload:{playerId:"a",made:true,three:true,lineup:["a","b"]}},{type:"free_throw",payload:{playerId:"a",made:true,lineup:["a","b"]}},{type:"opp_score",payload:{points:2,lineup:["a","b"]}}];const d=derive(events,roster);assert.equal(d.us,4);assert.equal(d.them,2);assert.equal(d.players.a.pts,4);assert.equal(d.players.b.plusMinus,2)});

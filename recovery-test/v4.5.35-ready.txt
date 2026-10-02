@@ -1,0 +1,2 @@
+V4.5.35 follow-up fixes prepared on fix/voice-playcall-scroll.
+Targeted GitHub Actions run 35056392823 passed.

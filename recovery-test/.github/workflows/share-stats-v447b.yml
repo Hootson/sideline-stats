@@ -1,0 +1,26 @@
+name: Share stats V4.4.7b
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/share-stats-trigger.txt'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply share stats patch
+        run: python3 .github/share-stats-v447b.py
+      - name: Package latest build
+        run: |
+          rm -f sideline-stats-latest.zip
+          zip -9 sideline-stats-latest.zip index.html styles.css app.js pwa.js service-worker.js manifest.webmanifest brand-header.png brand-field.png icon.png README.md
+      - name: Commit
+        run: |
+          git config user.name 'Sideline Stats Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add app.js index.html service-worker.js sideline-stats-latest.zip
+          git diff --cached --quiet || git commit -m 'Match shareable stats to stats page'
+          git push

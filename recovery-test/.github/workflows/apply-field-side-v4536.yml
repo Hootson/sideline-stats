@@ -1,0 +1,41 @@
+name: Apply field-side V4.5.36 hotfix
+on:
+  push:
+    branches: [fix/field-side-label-v4536]
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/field-side-label-v4536
+      - name: Remove possession inversion from field coordinates
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('field-position.js')
+          s=p.read_text()
+          old1='function visualPercent(spot,poss=currentPossession()){const n=validSpot(spot);if(n===null)return 50;const canonical=poss==="opp"?100-n:n;return window.SidelineFieldOrientation?window.SidelineFieldOrientation.visualPercent(canonical,currentQuarter()):canonical}'
+          new1='function visualPercent(spot,poss=currentPossession()){const n=validSpot(spot);if(n===null)return 50;return window.SidelineFieldOrientation?window.SidelineFieldOrientation.visualPercent(n,currentQuarter()):n}'
+          old2='function underlyingFromVisual(percent,poss=currentPossession()){const p=Math.max(0,Math.min(100,percent));const canonical=window.SidelineFieldOrientation?window.SidelineFieldOrientation.canonicalPercent(p,currentQuarter()):p;return poss==="opp"?100-canonical:canonical}'
+          new2='function underlyingFromVisual(percent,poss=currentPossession()){const p=Math.max(0,Math.min(100,percent));return window.SidelineFieldOrientation?window.SidelineFieldOrientation.canonicalPercent(p,currentQuarter()):p}'
+          if old1 in s: s=s.replace(old1,new1)
+          if old2 in s: s=s.replace(old2,new2)
+          p.write_text(s)
+          if 'poss==="opp"?100-n:n' in s or 'return poss==="opp"?100-canonical:canonical' in s:
+              raise SystemExit('possession inversion still present')
+          PY
+      - name: Bump PWA version
+        run: |
+          sed -i 's/SIDELINE_STATS_VERSION="4.5.35"/SIDELINE_STATS_VERSION="4.5.36"/' pwa.js
+          sed -i 's/sideline-stats-v4-5-35-voice-field-hotfix/sideline-stats-v4-5-36-field-side-hotfix/' service-worker.js || true
+      - name: Commit patch
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add field-position.js pwa.js service-worker.js
+          git commit -m 'Fix quarter-aware field side labels for V4.5.36'
+          git push origin HEAD:fix/field-side-label-v4536
