@@ -19,6 +19,59 @@
     }).catch(()=>{});
   }catch(_){}
 })();
+
+// Per-team browser-cache isolation. sidelineStatsData remains the active working
+// copy for backward compatibility; every cloud-linked team also receives a private
+// snapshot keyed by cloud team id. Before a different team replaces the working
+// copy, the outgoing team's exact state is archived.
+(function(){
+  const DATA_KEY='sidelineStatsData',RECOVERY_KEY='sidelineStatsRecovery';
+  const TEAM_PREFIX='sidelineStatsData:team:',RECOVERY_PREFIX='sidelineStatsRecovery:team:';
+  const ACTIVE_KEY='sidelineStatsActiveTeamId';
+  const nativeSet=Storage.prototype.setItem,nativeGet=Storage.prototype.getItem;
+  const parse=v=>{try{return JSON.parse(v)}catch(_){return null}};
+  const teamId=s=>String(s?.cloud?.teamId||'').trim();
+  function archiveRaw(raw){
+    if(!raw)return false;
+    const state=parse(raw),id=teamId(state);if(!id)return false;
+    try{nativeSet.call(localStorage,TEAM_PREFIX+id,raw);nativeSet.call(localStorage,ACTIVE_KEY,id);return true}catch(_){return false}
+  }
+  try{archiveRaw(nativeGet.call(localStorage,DATA_KEY))}catch(_){}
+  Storage.prototype.setItem=function(key,value){
+    if(this===localStorage&&(key===DATA_KEY||key===RECOVERY_KEY)){
+      try{
+        const incoming=parse(String(value)),incomingId=teamId(incoming);
+        if(key===DATA_KEY){
+          const priorRaw=nativeGet.call(this,DATA_KEY),priorId=teamId(parse(priorRaw));
+          if(priorId&&priorId!==incomingId)archiveRaw(priorRaw);
+        }
+        if(incomingId){
+          nativeSet.call(this,(key===DATA_KEY?TEAM_PREFIX:RECOVERY_PREFIX)+incomingId,String(value));
+          nativeSet.call(this,ACTIVE_KEY,incomingId);
+        }
+      }catch(_){}
+    }
+    return nativeSet.call(this,key,value);
+  };
+  window.SidelineTeamStorage={
+    archiveCurrent(){try{return archiveRaw(nativeGet.call(localStorage,DATA_KEY))}catch(_){return false}},
+    has(team){try{return !!nativeGet.call(localStorage,TEAM_PREFIX+String(team))}catch(_){return false}},
+    restore(team){
+      const id=String(team||'').trim();if(!id)return false;
+      try{
+        const raw=nativeGet.call(localStorage,TEAM_PREFIX+id),state=parse(raw);
+        if(!raw||teamId(state)!==id)return false;
+        nativeSet.call(localStorage,DATA_KEY,raw);
+        const recovery=nativeGet.call(localStorage,RECOVERY_PREFIX+id);
+        if(recovery)nativeSet.call(localStorage,RECOVERY_KEY,recovery);else localStorage.removeItem(RECOVERY_KEY);
+        nativeSet.call(localStorage,ACTIVE_KEY,id);
+        return true;
+      }catch(_){return false}
+    },
+    clearWorkingCopy(){try{localStorage.removeItem(DATA_KEY);localStorage.removeItem(RECOVERY_KEY);return true}catch(_){return false}}
+  };
+})();
+
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;if(root)root.SidelineCommercialAccess=api})(typeof window!=='undefined'?window:globalThis,function(){
   function time(v){const n=v?Date.parse(v):NaN;return Number.isFinite(n)?n:null}
   function resolve(row,now=Date.now()){
