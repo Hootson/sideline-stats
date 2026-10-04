@@ -30,3 +30,26 @@
   function label(a){return a.status==='complimentary'?'Complimentary Team Pro':a.status==='trial'?`Team Pro trial • ${a.daysRemaining} day${a.daysRemaining===1?'':'s'} left`:a.active&&a.tier==='team_pro'?'Team Pro':a.active&&a.tier==='statkeeper'?'Statkeeper':a.status==='expired'?'Access expired':'Free Viewer'}
   return {resolve,label};
 });
+
+// Compatibility fix for older recorded play payloads: the live stat keeper stores
+// first downs as "1st Down", while the original offense analytics helper only
+// counted "First Down". Keep the analytics calculation tolerant of both formats.
+(function(){
+  const analytics=window.SidelineCoachAnalytics;
+  if(!analytics||typeof analytics.render!=='function')return;
+  const originalRender=analytics.render.bind(analytics);
+  analytics.render=function(tab,ctx){
+    const html=originalRender(tab,ctx);
+    if(tab!=='offense'||!ctx)return html;
+    const games=[...(ctx.games||[])];
+    const selection=ctx.selection;
+    const selected=!selection||selection==='season'?games:selection==='regular'?games.filter(g=>(g.gameType||'regular')==='regular'):selection==='playoff'?games.filter(g=>(g.gameType||'regular')==='playoff'):games.filter(g=>String(g.id)===String(selection).replace(/^game:/,''));
+    const firstDowns=selected.flatMap(g=>g.plays||[]).filter(play=>{
+      const possession=play?.stateBefore?.possession||(play?.type==='Rush'||play?.type==='Pass'?'ours':play?.type==='Defense'?'opp':null);
+      if(possession!=='ours'||(play?.type!=='Rush'&&play?.type!=='Pass'))return false;
+      const extras=Array.isArray(play?.extras)?play.extras:[];
+      return play?.firstDown===true||extras.includes('First Down')||extras.includes('1st Down');
+    }).length;
+    return html.replace(/(<div class="coach-metric"><strong>)\d+(<\/strong><span>FIRST DOWNS •)/,`$1${firstDowns}$2`);
+  };
+})();
