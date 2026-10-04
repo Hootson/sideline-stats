@@ -3,38 +3,106 @@
     const params=new URLSearchParams(location.search);
     const token=params.get('teamInvite')||'';
     if(!token||!/^[a-z0-9_-]{32,}$/i.test(token)||/\/parent-viewer\.html$/i.test(location.pathname))return;
-    fetch('https://eyuvgzhkhcpwtcbmsvct.supabase.co/rest/v1/rpc/get_public_team_viewer',{method:'POST',headers:{apikey:'sb_publishable_uMOkwO4jyHen4pz4zCkIuQ_Ss-wUf2l','Content-Type':'application/json'},body:JSON.stringify({p_token:token})}).then(response=>{if(!response.ok)return;const target=new URL('./parent-viewer.html',location.href);target.searchParams.set('teamInvite',token);const release=params.get('release');if(release)target.searchParams.set('release',release);location.replace(target.href)}).catch(()=>{});
+    // Legacy parent and account invitations originally shared the same query
+    // parameter. Verify that the token is actually a public viewer invitation
+    // before redirecting; coach invitations must remain in the account flow.
+    fetch('https://eyuvgzhkhcpwtcbmsvct.supabase.co/rest/v1/rpc/get_public_team_viewer',{
+      method:'POST',
+      headers:{apikey:'sb_publishable_uMOkwO4jyHen4pz4zCkIuQ_Ss-wUf2l','Content-Type':'application/json'},
+      body:JSON.stringify({p_token:token})
+    }).then(response=>{
+      if(!response.ok)return;
+      const target=new URL('./parent-viewer.html',location.href);
+      target.searchParams.set('teamInvite',token);
+      const release=params.get('release');if(release)target.searchParams.set('release',release);
+      location.replace(target.href);
+    }).catch(()=>{});
   }catch(_){}
 })();
 
+// Per-team browser-cache isolation. sidelineStatsData remains the active working
+// copy for backward compatibility; every cloud-linked team also receives a private
+// snapshot keyed by cloud team id. Before a different team replaces the working
+// copy, the outgoing team's exact state is archived.
 (function(){
-  const DATA_KEY='sidelineStatsData',RECOVERY_KEY='sidelineStatsRecovery',TEAM_PREFIX='sidelineStatsData:team:',RECOVERY_PREFIX='sidelineStatsRecovery:team:',ACTIVE_KEY='sidelineStatsActiveTeamId';
+  const DATA_KEY='sidelineStatsData',RECOVERY_KEY='sidelineStatsRecovery';
+  const TEAM_PREFIX='sidelineStatsData:team:',RECOVERY_PREFIX='sidelineStatsRecovery:team:';
+  const ACTIVE_KEY='sidelineStatsActiveTeamId';
   const nativeSet=Storage.prototype.setItem,nativeGet=Storage.prototype.getItem;
-  const parse=v=>{try{return JSON.parse(v)}catch(_){return null}},teamId=s=>String(s?.cloud?.teamId||'').trim();
-  function archiveRaw(raw){if(!raw)return false;const state=parse(raw),id=teamId(state);if(!id)return false;try{nativeSet.call(localStorage,TEAM_PREFIX+id,raw);nativeSet.call(localStorage,ACTIVE_KEY,id);return true}catch(_){return false}}
-  try{archiveRaw(nativeGet.call(localStorage,DATA_KEY))}catch(_){}
-  Storage.prototype.setItem=function(key,value){if(this===localStorage&&(key===DATA_KEY||key===RECOVERY_KEY)){try{const incoming=parse(String(value)),incomingId=teamId(incoming);if(key===DATA_KEY){const priorRaw=nativeGet.call(this,DATA_KEY),priorId=teamId(parse(priorRaw));if(priorId&&priorId!==incomingId)archiveRaw(priorRaw)}if(incomingId){nativeSet.call(this,(key===DATA_KEY?TEAM_PREFIX:RECOVERY_PREFIX)+incomingId,String(value));nativeSet.call(this,ACTIVE_KEY,incomingId)}}catch(_){}}return nativeSet.call(this,key,value)};
-  window.SidelineTeamStorage={archiveCurrent(){try{return archiveRaw(nativeGet.call(localStorage,DATA_KEY))}catch(_){return false}},has(team){try{return !!nativeGet.call(localStorage,TEAM_PREFIX+String(team))}catch(_){return false}},restore(team){const id=String(team||'').trim();if(!id)return false;try{const raw=nativeGet.call(localStorage,TEAM_PREFIX+id),state=parse(raw);if(!raw||teamId(state)!==id)return false;nativeSet.call(localStorage,DATA_KEY,raw);const recovery=nativeGet.call(localStorage,RECOVERY_PREFIX+id);if(recovery)nativeSet.call(localStorage,RECOVERY_KEY,recovery);else localStorage.removeItem(RECOVERY_KEY);nativeSet.call(localStorage,ACTIVE_KEY,id);return true}catch(_){return false}},clearWorkingCopy(){try{localStorage.removeItem(DATA_KEY);localStorage.removeItem(RECOVERY_KEY);return true}catch(_){return false}}};
-})();
-
-// Multi-team account manager. It intentionally calls the app's existing
-// switchCloudTeam/loadTeamFromCloud path so cloud roles, rosters, games, billing
-// entitlements and cache isolation continue to use one authoritative workflow.
-(function(){
-  function inject(){
-    const switchBtn=document.getElementById('switchTeamBtn');if(!switchBtn||document.getElementById('teamManagerModal'))return;
-    const modal=document.createElement('div');modal.id='teamManagerModal';modal.className='modal-backdrop hidden';modal.innerHTML='<div class="modal-card account-modal-card"><button id="teamManagerClose" class="modal-close" aria-label="Close">×</button><div class="muted">YOUR ACCOUNT</div><h2 style="margin-top:4px">Your Teams</h2><div id="teamManagerList" style="display:grid;gap:8px;margin:14px 0"></div><button class="btn" id="addTeamBtn" type="button">+ Add New Team</button><div id="addTeamPane" class="hidden" style="margin-top:14px"><label>Team name</label><input id="newTeamName" type="text" autocomplete="off" placeholder="Denver Broncos"><label>Team / season label</label><input id="newTeamIdentifier" type="text" autocomplete="off" placeholder="2026"><label>Grade or level</label><input id="newTeamGrade" type="text" autocomplete="off" placeholder="5th Grade"><div class="modal-actions"><button class="btn" id="createNewTeamBtn" type="button">Create Team & Start Trial</button><button class="btn ghost" id="cancelNewTeamBtn" type="button">Cancel</button></div><div id="newTeamMessage" class="muted" style="margin-top:8px"></div></div></div>';
-    document.body.appendChild(modal);
-    const close=()=>modal.classList.add('hidden');document.getElementById('teamManagerClose').onclick=close;modal.addEventListener('click',e=>{if(e.target===modal)close()});
-    switchBtn.onclick=async e=>{e.preventDefault();e.stopImmediatePropagation();await openManager()};
-    document.getElementById('addTeamBtn').onclick=()=>document.getElementById('addTeamPane').classList.remove('hidden');document.getElementById('cancelNewTeamBtn').onclick=()=>document.getElementById('addTeamPane').classList.add('hidden');document.getElementById('createNewTeamBtn').onclick=createTeam;
+  const parse=v=>{try{return JSON.parse(v)}catch(_){return null}};
+  const teamId=s=>String(s?.cloud?.teamId||'').trim();
+  function archiveRaw(raw){
+    if(!raw)return false;
+    const state=parse(raw),id=teamId(state);if(!id)return false;
+    try{nativeSet.call(localStorage,TEAM_PREFIX+id,raw);nativeSet.call(localStorage,ACTIVE_KEY,id);return true}catch(_){return false}
   }
-  async function ownedTeams(){if(!window.SB||!window.cloudUser)throw new Error('Sign in first');const q=await window.SB.from('teams').select('id,name,team_identifier,grade,primary_color,accent_color,logo_data,snap_minimum,playbook,intended_plan,timezone,created_at,updated_at').eq('owner_user_id',window.cloudUser.id).order('created_at',{ascending:true});if(q.error)throw q.error;return q.data||[]}
-  async function openManager(){const modal=document.getElementById('teamManagerModal');if(!modal)return;if(!window.cloudUser){if(typeof window.openAuth==='function')window.openAuth();return}modal.classList.remove('hidden');const list=document.getElementById('teamManagerList');list.innerHTML='<div class="muted">Loading teams…</div>';try{const teams=await ownedTeams();list.innerHTML='';for(const team of teams){const b=document.createElement('button');b.type='button';b.className='btn ghost';const current=window.S?.cloud?.teamId===team.id;b.textContent=(current?'✓ ':'')+team.name+(team.team_identifier?' • '+team.team_identifier:'');b.disabled=current;b.onclick=async()=>{window.SidelineTeamStorage?.archiveCurrent?.();modal.classList.add('hidden');if(typeof window.loadTeamFromCloud==='function')await window.loadTeamFromCloud({team,skipReplaceConfirm:true,destination:'roster'})};list.appendChild(b)}if(!teams.length)list.innerHTML='<div class="muted">No teams yet.</div>'}catch(e){list.innerHTML='<div class="inline-note">'+String(e?.message||'Could not load teams')+'</div>'}}
-  async function createTeam(){const btn=document.getElementById('createNewTeamBtn'),msg=document.getElementById('newTeamMessage');const name=document.getElementById('newTeamName').value.trim(),identifier=document.getElementById('newTeamIdentifier').value.trim(),grade=document.getElementById('newTeamGrade').value.trim();if(!name){msg.textContent='Enter a team name.';return}btn.disabled=true;btn.textContent='Creating…';msg.textContent='';try{window.SidelineTeamStorage?.archiveCurrent?.();const {data,error}=await window.SB.rpc('create_gridiron_team',{p_name:name,p_team_identifier:identifier||null,p_grade:grade||null,p_primary_color:'#177b46',p_accent_color:'#f0b33b',p_snap_minimum:10,p_playbook:[],p_intended_plan:'team_pro',p_timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC'});if(error)throw error;const id=typeof data==='string'?data:(Array.isArray(data)?data[0]?.id:data?.id);if(!id)throw new Error('Team was created but no team id was returned');try{const trial=await window.SB.rpc('start_gridiron_team_trial',{p_team_id:id,p_intended_plan:'team_pro'});if(trial.error)throw trial.error}catch(e){console.warn('Trial start needs attention',e)}const teams=await ownedTeams(),team=teams.find(t=>t.id===id);if(!team)throw new Error('Team created. Refresh once to load it.');document.getElementById('teamManagerModal').classList.add('hidden');if(typeof window.loadTeamFromCloud==='function')await window.loadTeamFromCloud({team,skipReplaceConfirm:true,destination:'roster'});if(typeof window.toast==='function')window.toast(name+' created with its own team account')}catch(e){console.error('Add team failed',e);msg.textContent=e?.message||'Could not create team'}finally{btn.disabled=false;btn.textContent='Create Team & Start Trial'}}
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',inject);else inject();
+  try{archiveRaw(nativeGet.call(localStorage,DATA_KEY))}catch(_){}
+  Storage.prototype.setItem=function(key,value){
+    if(this===localStorage&&(key===DATA_KEY||key===RECOVERY_KEY)){
+      try{
+        const incoming=parse(String(value)),incomingId=teamId(incoming);
+        if(key===DATA_KEY){
+          const priorRaw=nativeGet.call(this,DATA_KEY),priorId=teamId(parse(priorRaw));
+          if(priorId&&priorId!==incomingId)archiveRaw(priorRaw);
+        }
+        if(incomingId){
+          nativeSet.call(this,(key===DATA_KEY?TEAM_PREFIX:RECOVERY_PREFIX)+incomingId,String(value));
+          nativeSet.call(this,ACTIVE_KEY,incomingId);
+        }
+      }catch(_){}
+    }
+    return nativeSet.call(this,key,value);
+  };
+  window.SidelineTeamStorage={
+    archiveCurrent(){try{return archiveRaw(nativeGet.call(localStorage,DATA_KEY))}catch(_){return false}},
+    has(team){try{return !!nativeGet.call(localStorage,TEAM_PREFIX+String(team))}catch(_){return false}},
+    restore(team){
+      const id=String(team||'').trim();if(!id)return false;
+      try{
+        const raw=nativeGet.call(localStorage,TEAM_PREFIX+id),state=parse(raw);
+        if(!raw||teamId(state)!==id)return false;
+        nativeSet.call(localStorage,DATA_KEY,raw);
+        const recovery=nativeGet.call(localStorage,RECOVERY_PREFIX+id);
+        if(recovery)nativeSet.call(localStorage,RECOVERY_KEY,recovery);else localStorage.removeItem(RECOVERY_KEY);
+        nativeSet.call(localStorage,ACTIVE_KEY,id);
+        return true;
+      }catch(_){return false}
+    },
+    clearWorkingCopy(){try{localStorage.removeItem(DATA_KEY);localStorage.removeItem(RECOVERY_KEY);return true}catch(_){return false}}
+  };
 })();
 
-(function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;if(root)root.SidelineCommercialAccess=api})(typeof window!=='undefined'?window:globalThis,function(){function time(v){const n=v?Date.parse(v):NaN;return Number.isFinite(n)?n:null}function resolve(row,now=Date.now()){const source=String(row?.access_source||'standard'),complimentary=!!row?.complimentary||['founder_comp','internal_test'].includes(source),tier=['coach','pro'].includes(row?.tier)?'team_pro':String(row?.tier||'free');const ts=time(row?.trial_started_at),te=time(row?.trial_ends_at),ps=time(row?.paid_access_starts_at),pe=time(row?.paid_access_ends_at);const trial=tier==='trial'&&ts!==null&&te!==null&&ts<=now&&now<te,paid=['statkeeper','team_pro'].includes(tier)&&ps!==null&&ps<=now&&(pe===null||now<pe),active=complimentary||trial||paid;return {tier:complimentary?'team_pro':tier,status:complimentary?'complimentary':trial?'trial':paid?'active':row?.trial_used?'expired':'not_started',complimentary,active,coachAccess:active&&(complimentary||trial||tier==='team_pro'),recordAccess:active&&(complimentary||trial||['statkeeper','team_pro'].includes(tier)),daysRemaining:trial?Math.max(1,Math.ceil((te-now)/86400000)):null,trialEndsAt:row?.trial_ends_at||null}}function label(a){return a.status==='complimentary'?'Complimentary Team Pro':a.status==='trial'?`Team Pro trial • ${a.daysRemaining} day${a.daysRemaining===1?'':'s'} left`:a.active&&a.tier==='team_pro'?'Team Pro':a.active&&a.tier==='statkeeper'?'Statkeeper':a.status==='expired'?'Access expired':'Free Viewer'}return {resolve,label};});
+(function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;if(root)root.SidelineCommercialAccess=api})(typeof window!=='undefined'?window:globalThis,function(){
+  function time(v){const n=v?Date.parse(v):NaN;return Number.isFinite(n)?n:null}
+  function resolve(row,now=Date.now()){
+    const source=String(row?.access_source||'standard'),complimentary=!!row?.complimentary||['founder_comp','internal_test'].includes(source),tier=['coach','pro'].includes(row?.tier)?'team_pro':String(row?.tier||'free');
+    const ts=time(row?.trial_started_at),te=time(row?.trial_ends_at),ps=time(row?.paid_access_starts_at),pe=time(row?.paid_access_ends_at);
+    const trial=tier==='trial'&&ts!==null&&te!==null&&ts<=now&&now<te,paid=['statkeeper','team_pro'].includes(tier)&&ps!==null&&ps<=now&&(pe===null||now<pe),active=complimentary||trial||paid;
+    return {tier:complimentary?'team_pro':tier,status:complimentary?'complimentary':trial?'trial':paid?'active':row?.trial_used?'expired':'not_started',complimentary,active,coachAccess:active&&(complimentary||trial||tier==='team_pro'),recordAccess:active&&(complimentary||trial||['statkeeper','team_pro'].includes(tier)),daysRemaining:trial?Math.max(1,Math.ceil((te-now)/86400000)):null,trialEndsAt:row?.trial_ends_at||null};
+  }
+  function label(a){return a.status==='complimentary'?'Complimentary Team Pro':a.status==='trial'?`Team Pro trial • ${a.daysRemaining} day${a.daysRemaining===1?'':'s'} left`:a.active&&a.tier==='team_pro'?'Team Pro':a.active&&a.tier==='statkeeper'?'Statkeeper':a.status==='expired'?'Access expired':'Free Viewer'}
+  return {resolve,label};
+});
 
-(function(){const analytics=window.SidelineCoachAnalytics;if(!analytics||typeof analytics.render!=='function')return;const originalRender=analytics.render.bind(analytics);analytics.render=function(tab,ctx){const html=originalRender(tab,ctx);if(tab!=='offense'||!ctx)return html;const games=[...(ctx.games||[])],selection=ctx.selection;const selected=!selection||selection==='season'?games:selection==='regular'?games.filter(g=>(g.gameType||'regular')==='regular'):selection==='playoff'?games.filter(g=>(g.gameType||'regular')==='playoff'):games.filter(g=>String(g.id)===String(selection).replace(/^game:/,''));const firstDowns=selected.flatMap(g=>g.plays||[]).filter(play=>{const possession=play?.stateBefore?.possession||(play?.type==='Rush'||play?.type==='Pass'?'ours':play?.type==='Defense'?'opp':null);if(possession!=='ours'||(play?.type!=='Rush'&&play?.type!=='Pass'))return false;const extras=Array.isArray(play?.extras)?play.extras:[];return play?.firstDown===true||extras.includes('First Down')||extras.includes('1st Down')}).length;return html.replace(/(<div class="coach-metric"><strong>)\d+(<\/strong><span>FIRST DOWNS •)/,`$1${firstDowns}$2`)}})();
+// Compatibility fix for older recorded play payloads: the live stat keeper stores
+// first downs as "1st Down", while the original offense analytics helper only
+// counted "First Down". Keep the analytics calculation tolerant of both formats.
+(function(){
+  const analytics=window.SidelineCoachAnalytics;
+  if(!analytics||typeof analytics.render!=='function')return;
+  const originalRender=analytics.render.bind(analytics);
+  analytics.render=function(tab,ctx){
+    const html=originalRender(tab,ctx);
+    if(tab!=='offense'||!ctx)return html;
+    const games=[...(ctx.games||[])];
+    const selection=ctx.selection;
+    const selected=!selection||selection==='season'?games:selection==='regular'?games.filter(g=>(g.gameType||'regular')==='regular'):selection==='playoff'?games.filter(g=>(g.gameType||'regular')==='playoff'):games.filter(g=>String(g.id)===String(selection).replace(/^game:/,''));
+    const firstDowns=selected.flatMap(g=>g.plays||[]).filter(play=>{
+      const possession=play?.stateBefore?.possession||(play?.type==='Rush'||play?.type==='Pass'?'ours':play?.type==='Defense'?'opp':null);
+      if(possession!=='ours'||(play?.type!=='Rush'&&play?.type!=='Pass'))return false;
+      const extras=Array.isArray(play?.extras)?play.extras:[];
+      return play?.firstDown===true||extras.includes('First Down')||extras.includes('1st Down');
+    }).length;
+    return html.replace(/(<div class="coach-metric"><strong>)\d+(<\/strong><span>FIRST DOWNS •)/,`$1${firstDowns}$2`);
+  };
+})();
