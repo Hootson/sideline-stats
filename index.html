@@ -13,6 +13,18 @@
 <link rel="icon" type="image/png" href="icon.png">
 <link rel="stylesheet" href="./styles.css?release=4.6.9">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script id="coachInviteSessionGate">
+(function(){
+  const token=new URLSearchParams(location.search).get('coachInvite')||'';
+  if(!token)return;
+  document.documentElement.style.visibility='hidden';
+  const goStart=()=>{const u=new URL('./start.html',location.href);u.searchParams.set('coachInvite',token);location.replace(u.href)};
+  try{
+    const gate=window.supabase.createClient('https://eyuvgzhkhcpwtcbmsvct.supabase.co','sb_publishable_uMOkwO4jyHen4pz4zCkIuQ_Ss-wUf2l',{auth:{persistSession:true,autoRefreshToken:false,detectSessionInUrl:true}});
+    gate.auth.getSession().then(({data})=>{if(data?.session){document.documentElement.style.visibility='';}else{goStart();}}).catch(goStart);
+  }catch(_){goStart();}
+})();
+</script>
 </head>
 <body>
 <script>if(new URLSearchParams(location.search).get('accountConfirmed')==='1')document.body.classList.add('confirmation-mode')</script>
