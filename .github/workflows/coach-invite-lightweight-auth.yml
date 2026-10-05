@@ -1,0 +1,43 @@
+name: Coach invite lightweight auth
+on:
+  push:
+    paths:
+      - '.github/coach-invite-lightweight-auth-trigger.txt'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          fetch-depth: 0
+      - name: Route coach invites through lightweight auth
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text()
+          marker='<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
+          redirect='''<script>\n(function(){\n  const p=new URLSearchParams(location.search),token=p.get('coachInvite');\n  if(token){const u=new URL('./start.html',location.href);u.searchParams.set('coachInvite',token);location.replace(u.href)}\n})();\n</script>'''
+          if redirect not in s:
+              if marker not in s: raise SystemExit('index marker missing')
+              s=s.replace(marker,marker+'\n'+redirect,1)
+              p.write_text(s)
+
+          p=Path('start.html')
+          s=p.read_text()
+          old="location.replace('./?start=gridiron')"
+          new="(()=>{const token=new URLSearchParams(location.search).get('coachInvite');const u=new URL('./',location.href);if(token)u.searchParams.set('coachInvite',token);else u.searchParams.set('start','gridiron');location.replace(u.href)})()"
+          if old not in s: raise SystemExit('start redirect marker missing')
+          s=s.replace(old,new,1)
+          p.write_text(s)
+          PY
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html start.html
+          git commit -m "Route coach invites through lightweight auth"
+          git push origin gh-pages
