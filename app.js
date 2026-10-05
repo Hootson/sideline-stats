@@ -275,7 +275,7 @@ async function initCloud(){
     if(!window.supabase?.createClient){updateCloudUI("unavailable");return}
     SB=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
     const {data}=await SB.auth.getSession();cloudUser=data?.session?.user||null;cloudReady=true;
-    if(cloudUser){showReturningTeamLoader();try{rebaseCloudHashesV443();if(!await redeemPendingGameStatkeeperInvite()&&!await redeemPendingTeamInvite())await restoreRememberedTeam();await handleCheckoutReturn()}finally{await hideReturningTeamLoader()}}else{updateCloudUI();if(pendingGameStatkeeperInviteToken()){openAuth();$("#authMessage").textContent="Create an account or sign in with the invited email to keep stats for this game."}else if(pendingTeamInviteToken()){openAuth();$("#authMessage").textContent="Create an account or sign in to accept this team invitation."}else if(!teamExists())setTimeout(openAuth,250)}
+    if(cloudUser){showReturningTeamLoader();try{rebaseCloudHashesV443();if(!await redeemPendingGameStatkeeperInvite()&&!await redeemPendingTeamInvite())await restoreRememberedTeam();await handleCheckoutReturn()}finally{await hideReturningTeamLoader()}}else{updateCloudUI();if(pendingGameStatkeeperInviteToken()){showReturningTeamLoader();try{const {data:anon,error:anonError}=await SB.auth.signInAnonymously();if(anonError)throw new Error("Quick statkeeper access is not enabled yet. Please ask the team statkeeper for a new link.");cloudUser=anon?.user||anon?.session?.user||null;if(!cloudUser)throw new Error("Could not start the secure game session");await redeemPendingGameStatkeeperInvite()}catch(e){console.error("Quick statkeeper session failed",e);toast(e?.message||"Could not open the game statkeeper link")}finally{await hideReturningTeamLoader()}}else if(pendingTeamInviteToken()){openAuth();$("#authMessage").textContent="Create an account or sign in to accept this team invitation."}else if(!teamExists())setTimeout(openAuth,250)}
     if(isCloudStatkeeper())scheduleCloudSync(300);else setTimeout(checkCloudForUpdates,500);
     setTimeout(startCloudRealtime,800);
     SB.auth.onAuthStateChange((_event,session)=>{
@@ -563,22 +563,21 @@ async function waitForCloudGameId(localGameId){
   return S.cloud.gameIds?.[localGameId]||null;
 }
 async function createGameStatkeeperInvite(){
-  const g=currentGame(),email=$("#gameStatkeeperEmail")?.value.trim().toLowerCase()||"";
+  const g=currentGame();
   if(!SB||!cloudUser||!cloudLinked()||!g)return toast("Open a cloud-connected game first");
   if(!isTeamStatkeeper())return toast("Only the team statkeeper can create this link");
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return toast("Enter the substitute’s email address");
-  const btn=$("#createGameStatkeeperInviteBtn");if(btn){btn.disabled=true;btn.textContent="Creating Secure Link…"}
+  const btn=$("#createGameStatkeeperInviteBtn");if(btn){btn.disabled=true;btn.textContent="Creating Link…"}
   try{
     const cloudGameId=await waitForCloudGameId(g.id);if(!cloudGameId)throw new Error("Let this game finish syncing, then try again");
-    const {data,error}=await SB.rpc("create_game_statkeeper_invite",{p_game_id:cloudGameId,p_email:email,p_expires_days:7});if(error)throw error;
+    const {data,error}=await SB.rpc("create_game_statkeeper_quick_invite",{p_game_id:cloudGameId,p_expires_hours:48});if(error)throw error;
     const row=Array.isArray(data)?data[0]:data,token=String(row?.token||"");if(!token)throw new Error("No invitation link was returned");
     const u=releaseGameStatkeeperInviteUrl(token);
-    gameStatkeeperInviteShareData={title:`Keep stats for ${S.team.name} vs ${g.opponent}`,text:`This one-game statkeeper invitation is for ${email}. Create or sign in using that exact email address.`,url:u.href};
+    gameStatkeeperInviteShareData={title:`Keep stats for ${S.team.name} vs ${g.opponent}`,text:`Open this game-only link to help keep stats for ${S.team.name} vs ${g.opponent}. No account or sign-in required.`,url:u.href};
     $("#gameStatkeeperInviteUrl").value=u.href;$("#gameStatkeeperInviteResult").classList.remove("hidden");
-    $("#gameStatkeeperStatus").textContent=`Link ready for ${email}. It expires ${new Date(row.expires_at).toLocaleString()}.`;
-    $("#revokeGameStatkeeperBtn").classList.remove("hidden");toast("Secure game statkeeper link created");
+    $("#gameStatkeeperStatus").textContent=`Game-day helper link ready. It expires ${new Date(row.expires_at).toLocaleString()}.`;
+    $("#revokeGameStatkeeperBtn").classList.remove("hidden");toast("Game statkeeper link created");
   }catch(e){console.error("Game statkeeper invitation failed",e);toast(e?.message||"Could not create the game statkeeper link")}
-  finally{if(btn){btn.disabled=false;btn.textContent="Create Game Statkeeper Link"}}
+  finally{if(btn){btn.disabled=false;btn.textContent="Invite Statkeeper"}}
 }
 function copyGameStatkeeperInvite(){
   const url=$("#gameStatkeeperInviteUrl")?.value;if(!url)return;
@@ -595,7 +594,7 @@ async function refreshGameStatkeeperStatus(){
     const {data,error}=await SB.rpc("get_game_statkeeper_status",{p_game_id:cloudGameId});if(error)throw error;
     const row=Array.isArray(data)?data[0]:data,status=$("#gameStatkeeperStatus"),revoke=$("#revokeGameStatkeeperBtn");if(!status||!revoke)return;
     if(!row){status.textContent="No active substitute link for this game.";revoke.classList.add("hidden");return}
-    const label=row.claimed?`${row.redeemed_email||row.intended_email} has claimed this game.`:`Waiting for ${row.intended_email} to claim the link.`;
+    const quick=row.intended_email==="Shared game link";const label=row.claimed?(quick?"Game-day helper is connected.":`${row.redeemed_email||row.intended_email} has claimed this game.`):(quick?"Waiting for a game-day helper to open the link.":`Waiting for ${row.intended_email} to claim the link.`);
     status.textContent=row.active?`${label} Access expires ${new Date(row.expires_at).toLocaleString()}.`:`The most recent substitute link is inactive.`;
     revoke.classList.toggle("hidden",!row.active);
   }catch(e){console.warn("Could not load game statkeeper status",e)}
