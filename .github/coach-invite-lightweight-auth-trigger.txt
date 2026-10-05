@@ -1,1 +1,1 @@
-fix authenticated coach invite handoff
+run session-aware coach invite gate v2
