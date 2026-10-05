@@ -1,0 +1,31 @@
+name: Remove auth autofocus
+on:
+  push:
+    paths:
+      - '.github/remove-auth-autofocus-trigger.txt'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove forced email focus
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('app.js')
+          s=p.read_text()
+          old='  if(!cloudUser)setTimeout(()=>$("#authEmail")?.focus(),50);'
+          if old not in s:
+              raise SystemExit('forced auth focus line not found')
+          s=s.replace(old,'  // Do not programmatically focus auth fields; iPad/iPhone Safari should open the keyboard only after a user tap.',1)
+          p.write_text(s)
+          PY
+      - name: Commit fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app.js
+          git commit -m "Remove forced auth email autofocus on touch devices"
+          git push
