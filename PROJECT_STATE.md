@@ -1,6 +1,6 @@
 # Sideline Stats — Project State
 
-Last updated: October 2, 2026
+Last updated: October 5, 2026
 
 This file is the repository's durable project-state ledger. Read it before substantial development, deployment, recovery, or architecture work. Update it after meaningful production deployments, known-good baseline changes, major feature completions, architecture changes, database migrations/functions that materially affect the app, or important unresolved issues.
 
@@ -47,6 +47,27 @@ The October 2, 2026 recovery build is the current authoritative standalone Gridi
 - Parent viewer egress optimization restored: lightweight status/change-token polling rather than repeatedly downloading the full viewer payload.
 - Parent-viewer media/logo behavior optimized so logos are lazy-loaded/cached rather than unnecessarily refreshed with every status check.
 - Polling stops for finalized games.
+
+## October 5, 2026 — Coach Onboarding Verified
+
+Status: VERIFIED IN PRODUCTION
+
+The Gridiron coach invitation/onboarding flow has now been tested end-to-end with a fresh coach account and is working as intended.
+
+Verified behavior:
+
+- A coach invitation link routes an unsigned-in coach to the lightweight coach invitation/auth screen rather than the full app.
+- Mobile/iPad keyboard entry works correctly on the invitation form.
+- A new coach can enter email, password, and confirm password to create the account.
+- Supabase sends the email confirmation/authentication message successfully.
+- After the coach clicks the authentication link, the confirmed session is recognized and the coach invitation continues automatically; the user is not forced back through account creation.
+- If a confirmed user still needs to sign in, the post-confirmation state is sign-in mode with email + password only; confirm password is hidden.
+- On successful authentication, the coach invitation is redeemed automatically, the assigned team loads immediately, and the coach can see team statistics in the Analytics tab.
+- Fresh end-to-end test confirmed the invited coach landed directly in the Erie Tigers team and could view Analytics without creating a trial or a separate team.
+
+Relevant production change: coach confirmation/sign-in handoff in start.html, commit f186b77b03ee21676f24225fcb0abd3881a4e06e on gh-pages.
+
+This coach onboarding flow is now considered a working production checkpoint. Avoid changing it casually; preserve the automatic invitation-token handoff and direct team-load behavior when making future authentication/account changes.
 
 ## Gridiron Production Principle
 
