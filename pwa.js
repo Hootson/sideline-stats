@@ -8,9 +8,8 @@ window.addEventListener("appinstalled",()=>{sidelineInstallPrompt=null;document.
 try{const q=new URLSearchParams(location.search);if(q.get("checkout")==="cancelled"&&/^[0-9a-f-]{36}$/i.test(q.get("subscription_id")||""))sessionStorage.setItem(CHECKOUT_CANCEL_KEY,q.get("subscription_id"))}catch(_){}
 async function recordPendingCheckoutCancellation(){try{const subscriptionId=sessionStorage.getItem(CHECKOUT_CANCEL_KEY);if(!subscriptionId||!window.supabase?.createClient)return;const sb=window.supabase.createClient("https://eyuvgzhkhcpwtcbmsvct.supabase.co","sb_publishable_uMOkwO4jyHen4pz4zCkIuQ_Ss-wUf2l",{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});const {data:{session}}=await sb.auth.getSession();if(!session?.access_token)return;const {error}=await sb.functions.invoke("cancel-stripe-checkout",{body:{subscriptionId},headers:{Authorization:`Bearer ${session.access_token}`}});if(error)throw error;sessionStorage.removeItem(CHECKOUT_CANCEL_KEY)}catch(e){console.warn("Checkout cancellation analytics skipped",e)}}
 function installPasswordRecovery(){
- const signIn=document.querySelector('#authSignInBtn'),password=document.querySelector('#authPassword');if(!signIn||document.querySelector('#forgotPasswordBtn'))return;
+ const signIn=document.querySelector('#authSignInBtn');if(!signIn||document.querySelector('#forgotPasswordBtn'))return;
  const btn=document.createElement('button');btn.id='forgotPasswordBtn';btn.type='button';btn.className='btn ghost';btn.style.marginTop='8px';btn.textContent='Forgot Password?';btn.addEventListener('click',()=>{location.href='./forgot-password.html'});signIn.after(btn);
- const touch=('ontouchstart' in window)||(navigator.maxTouchPoints>0);if(touch&&password){password.addEventListener('focus',()=>{}, {once:true});const email=document.querySelector('#authEmail');email?.addEventListener('focus',e=>{if(!e.isTrusted)email.blur()},{once:true})}
 }
 function installRosterEditing(){
   const decorate=()=>{
