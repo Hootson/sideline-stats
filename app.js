@@ -395,7 +395,7 @@ function openAuth(){
   $("#authModal").classList.remove("hidden");
   $("#signupPlanChooser")?.classList.toggle("hidden",hasPendingAccountInvite());
   renderPlanSelection(onboardingPlan);
-  if(!cloudUser)setTimeout(()=>$("#authEmail")?.focus(),50);
+  // Do not programmatically focus auth fields; iPad/iPhone Safari should open the keyboard only after a user tap.
 }
 function closeOwnerDashboard(){$("#ownerDashboardModal")?.classList.add("hidden")}
 function ownerMetric(label,value,detail=""){return `<article class="owner-metric-card"><small>${label}</small><strong>${value}</strong>${detail?`<span>${detail}</span>`:""}</article>`}
