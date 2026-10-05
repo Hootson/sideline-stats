@@ -1,0 +1,1 @@
+route coach invites through lightweight auth
