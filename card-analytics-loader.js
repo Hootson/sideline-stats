@@ -1,0 +1,1 @@
+(()=>{for(const src of ['./analytics-client.js','./card-analytics.js']){const s=document.createElement('script');s.src=src+'?release=4.6.54';document.body.appendChild(s)}})();
