@@ -1,1 +1,1 @@
-run session-aware coach invite gate v2
+run session-aware coach invite gate v3
