@@ -13,22 +13,39 @@ jobs:
         with:
           ref: gh-pages
           fetch-depth: 0
-      - name: Fix authenticated coach invite handoff
+      - name: Add session-aware coach invite gate
         run: |
           python - <<'PY'
           from pathlib import Path
           p=Path('index.html')
           s=p.read_text()
-          redirect='''<script>\n(function(){\n  const p=new URLSearchParams(location.search),token=p.get('coachInvite');\n  if(token){const u=new URL('./start.html',location.href);u.searchParams.set('coachInvite',token);location.replace(u.href)}\n})();\n</script>\n'''
-          if redirect not in s:
-              raise SystemExit('old unconditional coach redirect not found')
-          s=s.replace(redirect,'',1)
+          marker='<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>\n'
+          gate='''<script id="coachInviteSessionGate">\n(function(){\n  const token=new URLSearchParams(location.search).get('coachInvite')||'';\n  if(!token)return;\n  document.documentElement.style.visibility='hidden';\n  const goStart=()=>{const u=new URL('./start.html',location.href);u.searchParams.set('coachInvite',token);location.replace(u.href)};\n  try{\n    const gate=window.supabase.createClient('https://eyuvgzhkhcpwtcbmsvct.supabase.co','sb_publishable_uMOkwO4jyHen4pz4zCkIuQ_Ss-wUf2l',{auth:{persistSession:true,autoRefreshToken:false,detectSessionInUrl:true}});\n    gate.auth.getSession().then(({data})=>{if(data?.session){document.documentElement.style.visibility='';}else{goStart();}}).catch(goStart);\n  }catch(_){goStart();}\n})();\n</script>\n'''
+          if 'id="coachInviteSessionGate"' in s:
+              raise SystemExit('session-aware gate already present')
+          if marker not in s:
+              raise SystemExit('Supabase script marker not found; refusing to modify index.html')
+          if s.count(marker) != 1:
+              raise SystemExit(f'expected exactly one marker, found {s.count(marker)}')
+          original_len=len(s)
+          s=s.replace(marker,marker+gate,1)
+          if len(s) <= original_len or '<main id="accountConfirmationPage"' not in s or '<div class="app">' not in s or '<script src="./app.js"></script>' not in s:
+              raise SystemExit('post-patch integrity check failed')
           p.write_text(s)
           PY
+      - name: Verify only intended insertion
+        run: |
+          git diff --check
+          git diff --stat
+          test "$(git diff --numstat -- index.html | awk '{print $2}')" = "0"
+          grep -q 'id="coachInviteSessionGate"' index.html
+          grep -q '<main id="accountConfirmationPage"' index.html
+          grep -q '<div class="app">' index.html
+          grep -q '<script src="./app.js"></script>' index.html
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html
-          git commit -m "Fix authenticated coach invite handoff"
+          git commit -m "Route new coach invites through lightweight auth"
           git push origin gh-pages
