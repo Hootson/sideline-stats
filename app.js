@@ -2450,8 +2450,21 @@ function finishSimpleDefensePlay(){
   persist();renderLiveGame();
   toast(`${g.possession==="ours"?S.team.name:g.opponent} ball — ${ordinal(g.down)} & ${g.distance}`);
   const ourDefTD=!!p.defensiveTouchdownPlayerId;
+  const opponentTD=p.extras.includes("TD")&&!ourDefTD;
   resetFlow();
   if(ourDefTD)showTryMenu();
+  else if(opponentTD)showOpponentTryMenu();
+}
+function showOpponentTryMenu(){
+  const g=currentGame();if(!g)return;
+  const opponent=g.opponent||"Opponent";
+  const choice=prompt(`${opponent} point after: enter 0 for no try/no good, 1 for +1, or 2 for +2`,"0");
+  if(choice===null)return;
+  const points=Number(choice);
+  if(points!==0&&points!==1&&points!==2){toast("Enter 0, 1, or 2");return showOpponentTryMenu()}
+  if(points)g.oppScore=Number(g.oppScore||0)+points;
+  persist();renderLiveGame();
+  toast(points?`${opponent} +${points} — kickoff next`:`No conversion — kickoff next`);
 }
 function finishTakeawayReturnYards(v){
   S.flow.returnYards=Number(v);S.flow.endSpot=Field.returnEndSpot(S.flow.takeawaySpot,S.flow.returnYards,S.flow.returningPossession||"ours");
