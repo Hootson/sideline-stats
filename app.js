@@ -2147,7 +2147,7 @@ $("#correctFieldPosition").addEventListener("click",()=>requestFieldSpot("start"
 function ensureDriveStart(next){const g=currentGame();if(!g)return;if(Field.validSpot(g.ballSpot)!==null){S.flow.startSpot=Number(g.ballSpot);next();return}requestFieldSpot("start",spot=>{g.ballSpot=spot;if(!(g.plays||[]).length)g.initialBallSpot=spot;S.flow.startSpot=spot;persist();if($("#fieldPositionText"))$("#fieldPositionText").textContent=Field.label(spot,S.team.name,g.opponent);next()})}
 function showEndPosition(after){ensureDriveStart(()=>requestFieldSpot("end",end=>{const g=currentGame(),start=Field.validSpot(S.flow.startSpot??g.ballSpot),yards=Field.yardsBetween(start,end,g.possession);S.flow.startSpot=start;S.flow.endSpot=end;S.flow.yards=yards;const goal=g.possession==="ours"?100:0;if(end===goal&&!S.flow.extras.includes("TD"))S.flow.extras.push("TD");after(yards)}))}
 
-const FLOW_STEP_IDS=["stepSub","stepPenaltyType","stepPenaltyPlayer","stepPenaltyYards","stepPenaltyDown","stepPlayer","stepDefenseCredits","stepDefenseYards","stepDefensePlay","stepDefensePass","stepDefenseSimpleYards","stepDefenseTacklers","stepDefenseOutcome","stepDefenseTurnoverPlayer","stepPassDefended","stepReturnYards","stepTryType","stepTryResult","stepKickoffResult","stepFieldGoalDistance","stepFieldGoalResult","stepIncompleteDrop","stepFumbleRecovery","stepYards","stepFieldPosition","stepExtras"];
+const FLOW_STEP_IDS=["stepSub","stepPenaltyType","stepPenaltyPlayer","stepPenaltyYards","stepPenaltyDown","stepPlayer","stepDefenseCredits","stepDefenseYards","stepDefensePlay","stepDefensePass","stepDefenseSimpleYards","stepDefenseTacklers","stepDefenseOutcome","stepDefenseTurnoverPlayer","stepPassDefended","stepReturnYards","stepTryType","stepTryResult","stepOpponentTryType","stepOpponentTryResult","stepKickoffResult","stepFieldGoalDistance","stepFieldGoalResult","stepIncompleteDrop","stepFumbleRecovery","stepYards","stepFieldPosition","stepExtras"];
 function scrollFlowStepIntoView(el){
   if(!el||el.classList.contains("hidden"))return;
   requestAnimationFrame(()=>setTimeout(()=>{
@@ -2164,7 +2164,7 @@ FLOW_STEP_IDS.forEach(id=>{
 
 function resetFlow(){
   S.flow={};
-  ["#stepSub","#stepPenaltyType","#stepPenaltyPlayer","#stepPenaltyYards","#stepPenaltyDown","#stepPlayer","#stepDefenseCredits","#stepDefenseYards","#stepDefensePlay","#stepDefensePass","#stepDefenseSimpleYards","#stepDefenseTacklers","#stepDefenseOutcome","#stepDefenseTurnoverPlayer","#stepPassDefended","#stepReturnYards","#stepTryType","#stepTryResult","#stepKickoffResult","#stepFieldGoalDistance","#stepFieldGoalResult","#stepIncompleteDrop","#stepFumbleRecovery","#stepYards","#stepFieldPosition","#stepExtras"].forEach(id=>{const el=$(id);if(el)el.classList.add("hidden")});
+  ["#stepSub","#stepPenaltyType","#stepPenaltyPlayer","#stepPenaltyYards","#stepPenaltyDown","#stepPlayer","#stepDefenseCredits","#stepDefenseYards","#stepDefensePlay","#stepDefensePass","#stepDefenseSimpleYards","#stepDefenseTacklers","#stepDefenseOutcome","#stepDefenseTurnoverPlayer","#stepPassDefended","#stepReturnYards","#stepTryType","#stepTryResult","#stepOpponentTryType","#stepOpponentTryResult","#stepKickoffResult","#stepFieldGoalDistance","#stepFieldGoalResult","#stepIncompleteDrop","#stepFumbleRecovery","#stepYards","#stepFieldPosition","#stepExtras"].forEach(id=>{const el=$(id);if(el)el.classList.add("hidden")});
   $("#stepMain").classList.remove("hidden");
   if($("#nextPlayCallSelect"))$("#nextPlayCallSelect").value="";
   $$(".extra,.choice,.player-select,.def-tackler,.def-turnover-player,.def-simple-yard,.yard,.penalty-choice,.penalty-yard").forEach(b=>{b.classList.remove("sel","selected")});
@@ -2464,15 +2464,26 @@ function finishSimpleDefensePlay(){
 }
 function showOpponentTryMenu(){
   const g=currentGame();if(!g)return;
-  const opponent=g.opponent||"Opponent";
-  const choice=prompt(`${opponent} point after: enter 0 for no try/no good, 1 for +1, or 2 for +2`,"0");
-  if(choice===null)return;
-  const points=Number(choice);
-  if(points!==0&&points!==1&&points!==2){toast("Enter 0, 1, or 2");return showOpponentTryMenu()}
-  if(points)g.oppScore=Number(g.oppScore||0)+points;
-  persist();renderLiveGame();
-  toast(points?`${opponent} +${points} — kickoff next`:`No conversion — kickoff next`);
+  S.flow={type:"Opponent Try",opponentTry:true,extras:[]};
+  $("#stepMain").classList.add("hidden");
+  $("#stepOpponentTryType").classList.remove("hidden");
 }
+$(".opponent-try-type").forEach(b=>b.addEventListener("click",()=>{
+  const points=Number(b.dataset.points||0);
+  $("#stepOpponentTryType").classList.add("hidden");
+  if(points===0){resetFlow();return}
+  S.flow={type:"Opponent Try",opponentTry:true,tryValue:points,extras:[]};
+  const good=$(".opponent-try-result[data-result='Good']");if(good)good.textContent=`GOOD +${points}`;
+  $("#stepOpponentTryResult").classList.remove("hidden");
+}));
+$(".opponent-try-result").forEach(b=>b.addEventListener("click",()=>{
+  const g=currentGame();if(!g)return resetFlow();
+  const points=b.dataset.result==="Good"?Number(S.flow.tryValue||0):0;
+  if(points)g.oppScore=Number(g.oppScore||0)+points;
+  $("#stepOpponentTryResult").classList.add("hidden");
+  persist();renderLiveGame();resetFlow();
+}));
+$(".opponent-try-cancel")?.addEventListener("click",()=>{$("#stepOpponentTryResult").classList.add("hidden");showOpponentTryMenu()});
 function finishTakeawayReturnYards(v){
   S.flow.returnYards=Number(v);S.flow.endSpot=Field.returnEndSpot(S.flow.takeawaySpot,S.flow.returnYards,S.flow.returningPossession||"ours");
   $("#stepReturnYards").classList.add("hidden");
