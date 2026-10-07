@@ -492,6 +492,15 @@
         <div class="muted">Touchdown recorded</div><h2>Point after</h2>
         <div class="grid2"><button class="choice try-type" data-try="Run" data-points="1">🏃<br>1-PT RUN</button><button class="choice try-type" data-try="Pass" data-points="1">🏈<br>1-PT PASS</button><button class="choice try-type" data-try="Kick" data-points="2">🦵<br>2-PT KICK</button><button class="choice try-type" data-try="Run" data-points="2">🏃<br>2-PT RUN</button><button class="choice try-type" data-try="Pass" data-points="2">🏈<br>2-PT PASS</button><button class="choice try-type" data-try="None" data-points="0">NO TRY</button></div>
       </div>
+      <div class="card hidden" id="stepOpponentTryType">
+        <div class="muted">Opponent touchdown recorded</div><h2>Point after</h2>
+        <div class="grid2"><button class="choice opponent-try-type" data-points="1">🏃<br>1-PT RUN</button><button class="choice opponent-try-type" data-points="1">🏈<br>1-PT PASS</button><button class="choice opponent-try-type" data-points="2">🦵<br>2-PT KICK</button><button class="choice opponent-try-type" data-points="2">🏃<br>2-PT RUN</button><button class="choice opponent-try-type" data-points="2">🏈<br>2-PT PASS</button><button class="choice opponent-try-type" data-points="0">NO TRY</button></div>
+      </div>
+      <div class="card hidden" id="stepOpponentTryResult">
+        <div class="muted">Opponent point after</div><h2>Result?</h2>
+        <div class="grid2"><button class="choice opponent-try-result" data-result="Good">GOOD</button><button class="choice opponent-try-result" data-result="No Good">NO GOOD</button></div>
+        <button class="btn ghost opponent-try-cancel" style="margin-top:12px">Cancel</button>
+      </div>
       <div class="card hidden" id="stepTryResult">
         <div class="muted" id="tryResultLabel">Point after</div><h2>Result?</h2>
         <div class="grid2"><button class="choice try-result" data-result="Good">GOOD +2</button><button class="choice try-result" data-result="No Good">NO GOOD</button></div>
