@@ -3097,7 +3097,7 @@ function renderSnaps(){
   }
   $("#recordSnapBtn").disabled=false;
 
-  const snapGame=snapViewGame();const gameTotal=snapGame?.snapRecords?.length||0;$("#recordSnapBtn").disabled=!currentGame()||gameReadOnly(currentGame());$("#undoLastSnapBtn").disabled=!currentGame()||gameReadOnly(currentGame())||!(currentGame()?.snapRecords?.length);
+  const snapGame=snapViewGame();const gameTotal=snapGame?.snapRecords?.length||0;$("#recordSnapBtn").disabled=!currentGame()||gameReadOnly(currentGame())||!document.querySelector('input[name="snapKind"]:checked');$("#undoLastSnapBtn").disabled=!currentGame()||gameReadOnly(currentGame())||!(currentGame()?.snapRecords?.length);
   const ordered=[...S.roster].sort((a,b)=>a.jersey-b.jersey);
   box.innerHTML=ordered.map(p=>{
     const snaps=currentGameSnapCount(p.id);
@@ -3201,8 +3201,10 @@ $("#shareSnapInviteBtn")?.addEventListener("click",()=>{
 });
 $("#snapInviteModal")?.addEventListener("click",e=>{if(e.target.id==="snapInviteModal")closeSnapInvite()});
 
+$('input[name="snapKind"]').forEach(input=>input.addEventListener("change",()=>{const g=currentGame();$("#recordSnapBtn").disabled=!g||gameReadOnly(g)||!document.querySelector('input[name="snapKind"]:checked')}));
 $("#recordSnapBtn").addEventListener("click",()=>{
   if(!S.roster.length)return toast("Add your roster first");
+  if(!document.querySelector('input[name="snapKind"]:checked'))return toast("Select Regular Play, Penalty, or Special Teams first");
   const onField=S.roster.filter(p=>snapSelections[p.id]!==false);
   if(!onField.length)return toast("No players selected");
 
@@ -3221,6 +3223,7 @@ $("#recordSnapBtn").addEventListener("click",()=>{
   }
 
   persist();
+  $(`input[name="snapKind"]`).forEach(input=>input.checked=false);
   toast(`Snap recorded for ${onField.length} players`);
 
   // Keep the current on-field lineup exactly as selected for the next play.
