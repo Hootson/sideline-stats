@@ -774,7 +774,7 @@ function simpleHash(value){
 }
 function cloudLocation(v){const x=String(v||"home").toLowerCase();return ["home","away","neutral"].includes(x)?x:"home"}
 function cloudGameStatus(g){return g?.status==="complete"?"final":g?.status==="final"?"final":g?.status==="archived"?"archived":"live"}
-function opponentPointsFromPlay(p){return p?.type==="Defense"&&p?.extras?.includes("TD")?6:0}
+function opponentPointsFromPlay(p){if(p?.type==="Defense"&&p?.extras?.includes("TD"))return 6;if(p?.type==="Try"&&p?.opponentTry&&p?.tryResult==="Good")return Number(p.points||p.tryValue||0);return 0}
 function cloudPendingItems(){
   if(!cloudLinked())return [];const out=[];
   for(const g of S.games||[]){
@@ -2407,6 +2407,7 @@ function finishDefenseAtEndSpot(){
     S.flow.tackleKind=(S.flow.tacklerIds||[]).length?(S.flow.yards<0?"TFL":"Tackle"):null;
     return finishSimpleDefensePlay();
   }
+  if(S.flow.extras?.includes("TD")&&!hasTakeaway){const g=currentGame(),start=Field.validSpot(S.flow.startSpot??g?.ballSpot);S.flow.startSpot=start;S.flow.endSpot=0;S.flow.yards=start===null?Number(S.flow.yards||0):Field.yardsBetween(start,0,"opp");S.flow.tackleKind=null;return finishSimpleDefensePlay()}
   showEndPosition(rawYards=>{
     const g=currentGame();if(!g)return;
     let yards=Number(rawYards||0);
@@ -2449,9 +2450,10 @@ function finishSimpleDefensePlay(){
   g.ourScore=displayedOurScore(g);
   persist();renderLiveGame();
   toast(`${g.possession==="ours"?S.team.name:g.opponent} ball — ${ordinal(g.down)} & ${g.distance}`);
-  const ourDefTD=!!p.defensiveTouchdownPlayerId;
+  const ourDefTD=!!p.defensiveTouchdownPlayerId,opponentTD=p.extras.includes("TD")&&!ourDefTD;
   resetFlow();
-  if(ourDefTD)showTryMenu();
+  if(ourDefTD)showTryMenu(false);
+  else if(opponentTD)showTryMenu(true);
 }
 function finishTakeawayReturnYards(v){
   S.flow.returnYards=Number(v);S.flow.endSpot=Field.returnEndSpot(S.flow.takeawaySpot,S.flow.returnYards,S.flow.returningPossession||"ours");
@@ -2676,9 +2678,9 @@ $$(".incomplete-drop").forEach(b=>b.addEventListener("click",()=>{
   recordNow();
 }));
 
-function showTryMenu(){S.flow={type:"Try",extras:[]};$("#stepMain").classList.add("hidden");$("#stepTryType").classList.remove("hidden");}
+function showTryMenu(opponentTry=false){S.flow={type:"Try",opponentTry:!!opponentTry,extras:[]};$("#stepMain").classList.add("hidden");$("#stepTryType").classList.remove("hidden");}
 function showTryResult(label){$("#tryResultLabel").textContent=label;const good=$(".try-result[data-result='Good']");if(good)good.textContent=`GOOD +${S.flow.tryValue}`;$("#stepTryResult").classList.remove("hidden");}
-$$(".try-type").forEach(b=>b.addEventListener("click",()=>{const t=b.dataset.try,tryValue=Number(b.dataset.points||0);$("#stepTryType").classList.add("hidden");if(t==="None")return resetFlow();S.flow={type:"Try",sub:t,tryType:t,tryValue,extras:[]};if(t==="Kick")showPlayers(`${tryValue}-point kick — select kicker`,"tryKicker");else if(t==="Run")showPlayers(`${tryValue}-point run — select runner`,"tryRunner");else showPlayers(`${tryValue}-point pass — select QB`,"tryQB");}));
+$(".try-type").forEach(b=>b.addEventListener("click",()=>{const t=b.dataset.try,tryValue=Number(b.dataset.points||0),opponentTry=!!S.flow.opponentTry;$("#stepTryType").classList.add("hidden");if(t==="None"){resetFlow();if(opponentTry)setTimeout(()=>$("#quickKickoff")?.click(),0);return}S.flow={type:"Try",sub:t,tryType:t,tryValue,opponentTry,extras:[]};if(opponentTry)return showTryResult(`${currentGame()?.opponent||"Opponent"} ${tryValue}-point ${String(t).toLowerCase()} try`);if(t==="Kick")showPlayers(`${tryValue}-point kick — select kicker`,"tryKicker");else if(t==="Run")showPlayers(`${tryValue}-point run — select runner`,"tryRunner");else showPlayers(`${tryValue}-point pass — select QB`,"tryQB");}));
 $$(".try-result").forEach(b=>b.addEventListener("click",()=>{S.flow.tryResult=b.dataset.result;S.flow.points=S.flow.tryResult==="Good"?Number(S.flow.tryValue||2):0;$("#stepTryResult").classList.add("hidden");recordNow()}));
 $$(".kickoff-result").forEach(b=>b.addEventListener("click",()=>{S.flow.kickoffResult=b.dataset.result;$("#stepKickoffResult").classList.add("hidden");if(S.flow.kickoffResult==="Touchback")return recordNow();showYards()}));
 
@@ -2710,6 +2712,7 @@ function recordNow(){
   p.stateAfter={...after};
   g.plays.push(p);
   g.possession=after.possession;g.down=after.down;g.distance=after.distance;g.ballSpot=after.ballSpot;
+  if(p.type==="Try"&&p.opponentTry&&p.tryResult==="Good")g.oppScore=Number(g.oppScore||0)+Number(p.points||p.tryValue||0);
   g.ourScore=displayedOurScore(g);
   selectedStatsGameId=g.id;
   persist();renderLiveGame();
@@ -2718,9 +2721,10 @@ function recordNow(){
   else if(p.extras?.includes("Fumble Lost"))toast(`${g.opponent} ball — 1st down`);
   else if(p.type==="Punt")toast(`${g.possession==="ours"?S.team.name:g.opponent} ball — 1st & 10`);
   else toast(`Play recorded — ${ordinal(g.down)} & ${g.distance}`);
-  const scoredTD=p.extras?.includes("TD");
+  const scoredTD=p.extras?.includes("TD"),opponentTry=!!p.opponentTry;
   resetFlow();
-  if(scoredTD)showTryMenu();
+  if(scoredTD)showTryMenu(false);
+  else if(opponentTry)setTimeout(()=>$("#quickKickoff")?.click(),0);
 }
 $("#undo").addEventListener("click",()=>{const g=currentGame();if(!g||!g.plays.length)return toast("Nothing to undo");g.plays.pop();rebuildGameState(g);g.ourScore=displayedOurScore(g);persist();renderLiveGame();toast("Last play removed")});
 
