@@ -25,7 +25,7 @@
   }catch(_){goStart();}
 })();
 </script>
-<style>.snap-kind-picker{display:flex;flex-wrap:wrap;gap:9px;margin:14px 0}.snap-kind-picker label{display:flex;align-items:center;gap:5px;font-size:13px;font-weight:700;border:1px solid #d6ded8;border-radius:10px;padding:9px 7px}.snap-kind-picker input{accent-color:#178a42}.snap-action-row{display:flex;gap:10px;align-items:stretch}.snap-action-row .btn{flex:1;min-width:0;margin:0;padding:14px 8px;font-size:15px}.snap-action-row #recordSnapBtn{background:#188943;color:white;border-color:#188943}</style></head>
+<style>.snap-kind-picker{display:flex;flex-wrap:wrap;gap:9px;margin:14px 0}.snap-kind-picker label{display:flex;align-items:center;gap:5px;font-size:13px;font-weight:700;border:1px solid #d6ded8;border-radius:10px;padding:9px 7px}.snap-kind-picker input{accent-color:#178a42}.snap-action-row{display:flex;gap:10px;align-items:stretch}.snap-action-row .btn{flex:1;min-width:0;margin:0;padding:14px 8px;font-size:15px}.snap-action-row #recordSnapBtn{background:#188943;color:white;border-color:#188943}.snap-action-row #recordSnapBtn:disabled{background:#b8c0bc;color:#525b56;border-color:#b8c0bc;opacity:1;cursor:not-allowed}</style></head>
 <body>
 <script>if(new URLSearchParams(location.search).get('accountConfirmed')==='1')document.body.classList.add('confirmation-mode')</script>
 <main id="accountConfirmationPage" class="account-confirmation-page" aria-live="polite">
@@ -624,7 +624,7 @@
     </div>
     <div class="card">
       <div id="snapRoster" class="snap-roster"></div>
-      <div class="snap-kind-picker" role="radiogroup" aria-label="Snap type"><label><input type="radio" name="snapKind" value="regular" checked> Regular Play</label><label><input type="radio" name="snapKind" value="penalty"> Penalty</label><label><input type="radio" name="snapKind" value="special_teams"> Special Teams</label></div><div class="snap-action-row"><button class="btn snap-record-btn" id="recordSnapBtn">Record Snap</button><button class="btn ghost" id="undoLastSnapBtn" type="button">Undo Last Snap</button></div>
+      <div class="snap-kind-picker" role="radiogroup" aria-label="Snap type"><label><input type="radio" name="snapKind" value="regular"> Regular Play</label><label><input type="radio" name="snapKind" value="penalty"> Penalty</label><label><input type="radio" name="snapKind" value="special_teams"> Special Teams</label></div><div class="snap-action-row"><button class="btn snap-record-btn" id="recordSnapBtn" disabled>Record Snap</button><button class="btn ghost" id="undoLastSnapBtn" type="button">Undo Last Snap</button></div>
       <button class="btn ghost" id="inviteSnapTrackerBtn" style="margin-top:12px">Invite Snap Tracker</button>
       <div class="share-tip">Send a game-only link to a second parent. They can record participation but cannot edit game stats.</div>
       <button class="btn ghost" id="shareSnapsBtn" style="margin-top:12px">Share Participation Report</button>
