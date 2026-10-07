@@ -992,7 +992,7 @@ async function createCloudSnapEvent(payload,cloudGameId){
 }
 async function syncSnapRecord(g,r,index,cloudGameId){
   if(!r.id)r.id=uid();const payload=buildCloudSnapPayload(g,r,index,cloudGameId),h=simpleHash(payload);payload.snap_number=index+1;if(S.cloud.snapHashes[r.id]===h)return;let id=S.cloud.snapIds[r.id];
-  if(!id){id=await createCloudSnapEvent(payload,cloudGameId);S.cloud.snapIds[r.id]=id}
+  if(!id){id=await createCloudSnapEvent(payload,cloudGameId);S.cloud.snapIds[r.id]=id;persist({skipCloud:true})}
   else{
     const {error}=await SB.from("snap_events").update({snap_number:payload.snap_number||1,quarter:payload.quarter,client_created_at:payload.client_created_at,active:true}).eq("id",id);if(error)throw error;
     const {error:de}=await SB.from("snap_participants").delete().eq("snap_event_id",id);if(de)throw de;
@@ -1099,11 +1099,11 @@ async function syncDeletedCloudPlays(){
 async function syncDeletedCloudSnaps(){
   let changed=false;
   const localSnapIds=new Set((S.games||[]).flatMap(g=>(g.snapRecords||[]).map(r=>r.id)));
-  for(const [localId,cloudId] of Object.entries(S.cloud.snapIds||{})){
+  for(const [localId,cloudId] of Object.entries({...S.cloud.snapIds,...(S.cloud.pendingSnapDeletes||{})})){
     if(localSnapIds.has(localId))continue;
     await assertCloudDeleteSafe("snap_events",cloudId,"Snap");
     const {error}=await SB.from("snap_events").update({active:false}).eq("id",cloudId);if(error)throw error;
-    delete S.cloud.snapIds[localId];delete S.cloud.snapHashes[localId];persist({skipCloud:true});changed=true;
+    delete S.cloud.snapIds[localId];delete S.cloud.snapHashes[localId];if(S.cloud.pendingSnapDeletes)delete S.cloud.pendingSnapDeletes[localId];persist({skipCloud:true});changed=true;
   }
   return changed;
 }
@@ -3236,6 +3236,8 @@ $("#undoLastSnapBtn").addEventListener("click",()=>{
   const g=currentGame();
   if(!g||gameReadOnly(g)||!Array.isArray(g.snapRecords)||!g.snapRecords.length)return toast("No snap to undo");
   const last=g.snapRecords.pop();
+  // Retain a cloud deletion marker until the remote event has been deactivated.
+  if(S.cloud?.snapIds?.[last.id]){if(!S.cloud.pendingSnapDeletes)S.cloud.pendingSnapDeletes={};S.cloud.pendingSnapDeletes[last.id]=S.cloud.snapIds[last.id]}
   for(const id of last.playerIds||[]){const p=S.roster.find(x=>x.id===id);if(p)p.snaps=Math.max(0,Number(p.snaps||0)-1)}
   persist();renderSnaps();toast("Last snap undone");
 });
