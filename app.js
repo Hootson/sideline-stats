@@ -2407,6 +2407,13 @@ function finishDefenseAtEndSpot(){
     S.flow.tackleKind=(S.flow.tacklerIds||[]).length?(S.flow.yards<0?"TFL":"Tackle"):null;
     return finishSimpleDefensePlay();
   }
+  if(S.flow.extras?.includes("TD")&&!hasTakeaway){
+    const g=currentGame(),start=Field.validSpot(S.flow.startSpot??g?.ballSpot);
+    S.flow.startSpot=start;S.flow.endSpot=0;
+    S.flow.yards=start===null?Number(S.flow.yards||0):Field.yardsBetween(start,0,"opp");
+    S.flow.tackleKind=null;
+    return finishSimpleDefensePlay();
+  }
   showEndPosition(rawYards=>{
     const g=currentGame();if(!g)return;
     let yards=Number(rawYards||0);
