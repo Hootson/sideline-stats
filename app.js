@@ -2468,7 +2468,7 @@ function showOpponentTryMenu(){
   $("#stepMain").classList.add("hidden");
   $("#stepOpponentTryType").classList.remove("hidden");
 }
-$(".opponent-try-type").forEach(b=>b.addEventListener("click",()=>{
+$$(".opponent-try-type").forEach(b=>b.addEventListener("click",()=>{
   const points=Number(b.dataset.points||0);
   $("#stepOpponentTryType").classList.add("hidden");
   if(points===0){resetFlow();return}
@@ -2476,7 +2476,7 @@ $(".opponent-try-type").forEach(b=>b.addEventListener("click",()=>{
   const good=$(".opponent-try-result[data-result='Good']");if(good)good.textContent=`GOOD +${points}`;
   $("#stepOpponentTryResult").classList.remove("hidden");
 }));
-$(".opponent-try-result").forEach(b=>b.addEventListener("click",()=>{
+$$(".opponent-try-result").forEach(b=>b.addEventListener("click",()=>{
   const g=currentGame();if(!g)return resetFlow();
   const points=b.dataset.result==="Good"?Number(S.flow.tryValue||0):0;
   if(points)g.oppScore=Number(g.oppScore||0)+points;
