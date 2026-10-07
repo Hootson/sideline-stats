@@ -3089,7 +3089,7 @@ function renderSnaps(){
   const box=$("#snapRoster");
   if(!S.roster.length){
     box.innerHTML='<span class="muted">Add your roster first.</span>';
-    $("#recordSnapBtn").disabled=true;
+    $("#recordSnapBtn").disabled=true;$("#undoLastSnapBtn").disabled=true;
     $("#snapOnFieldCount").textContent="0 on field";
     $("#snapTotalCount").textContent="0 snaps recorded";
     $("#playersUnderTen").textContent="0";
@@ -3097,7 +3097,7 @@ function renderSnaps(){
   }
   $("#recordSnapBtn").disabled=false;
 
-  const snapGame=snapViewGame();const gameTotal=snapGame?.snapRecords?.length||0;$("#recordSnapBtn").disabled=!currentGame()||gameReadOnly(currentGame());
+  const snapGame=snapViewGame();const gameTotal=snapGame?.snapRecords?.length||0;$("#recordSnapBtn").disabled=!currentGame()||gameReadOnly(currentGame());$("#undoLastSnapBtn").disabled=!currentGame()||gameReadOnly(currentGame())||!(currentGame()?.snapRecords?.length);
   const ordered=[...S.roster].sort((a,b)=>a.jersey-b.jersey);
   box.innerHTML=ordered.map(p=>{
     const snaps=currentGameSnapCount(p.id);
@@ -3215,7 +3215,8 @@ $("#recordSnapBtn").addEventListener("click",()=>{
     g.snapRecords.push({
       id:uid(),
       ts:Date.now(),
-      playerIds:onField.map(p=>p.id)
+      playerIds:onField.map(p=>p.id),
+      snapKind:document.querySelector('input[name="snapKind"]:checked')?.value||"regular"
     });
   }
 
@@ -3225,6 +3226,15 @@ $("#recordSnapBtn").addEventListener("click",()=>{
   // Keep the current on-field lineup exactly as selected for the next play.
   // The user changes personnel manually or taps Check All when needed.
   renderSnaps();
+});
+
+
+$("#undoLastSnapBtn").addEventListener("click",()=>{
+  const g=currentGame();
+  if(!g||gameReadOnly(g)||!Array.isArray(g.snapRecords)||!g.snapRecords.length)return toast("No snap to undo");
+  const last=g.snapRecords.pop();
+  for(const id of last.playerIds||[]){const p=S.roster.find(x=>x.id===id);if(p)p.snaps=Math.max(0,Number(p.snaps||0)-1)}
+  persist();renderSnaps();toast("Last snap undone");
 });
 
 
