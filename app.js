@@ -2464,14 +2464,9 @@ function finishSimpleDefensePlay(){
 }
 function showOpponentTryMenu(){
   const g=currentGame();if(!g)return;
-  const opponent=g.opponent||"Opponent";
-  const choice=prompt(`${opponent} point after: enter 0 for no try/no good, 1 for +1, or 2 for +2`,"0");
-  if(choice===null)return;
-  const points=Number(choice);
-  if(points!==0&&points!==1&&points!==2){toast("Enter 0, 1, or 2");return showOpponentTryMenu()}
-  if(points)g.oppScore=Number(g.oppScore||0)+points;
-  persist();renderLiveGame();
-  toast(points?`${opponent} +${points} — kickoff next`:`No conversion — kickoff next`);
+  S.flow={type:"Opponent Try",opponentTry:true,extras:[]};
+  $("#stepMain").classList.add("hidden");
+  $("#stepTryType").classList.remove("hidden");
 }
 function finishTakeawayReturnYards(v){
   S.flow.returnYards=Number(v);S.flow.endSpot=Field.returnEndSpot(S.flow.takeawaySpot,S.flow.returnYards,S.flow.returningPossession||"ours");
@@ -2698,8 +2693,8 @@ $$(".incomplete-drop").forEach(b=>b.addEventListener("click",()=>{
 
 function showTryMenu(){S.flow={type:"Try",extras:[]};$("#stepMain").classList.add("hidden");$("#stepTryType").classList.remove("hidden");}
 function showTryResult(label){$("#tryResultLabel").textContent=label;const good=$(".try-result[data-result='Good']");if(good)good.textContent=`GOOD +${S.flow.tryValue}`;$("#stepTryResult").classList.remove("hidden");}
-$$(".try-type").forEach(b=>b.addEventListener("click",()=>{const t=b.dataset.try,tryValue=Number(b.dataset.points||0);$("#stepTryType").classList.add("hidden");if(t==="None")return resetFlow();S.flow={type:"Try",sub:t,tryType:t,tryValue,extras:[]};if(t==="Kick")showPlayers(`${tryValue}-point kick — select kicker`,"tryKicker");else if(t==="Run")showPlayers(`${tryValue}-point run — select runner`,"tryRunner");else showPlayers(`${tryValue}-point pass — select QB`,"tryQB");}));
-$$(".try-result").forEach(b=>b.addEventListener("click",()=>{S.flow.tryResult=b.dataset.result;S.flow.points=S.flow.tryResult==="Good"?Number(S.flow.tryValue||2):0;$("#stepTryResult").classList.add("hidden");recordNow()}));
+$(".try-type").forEach(b=>b.addEventListener("click",()=>{const t=b.dataset.try,tryValue=Number(b.dataset.points||0),opponentTry=!!S.flow.opponentTry;$("#stepTryType").classList.add("hidden");if(t==="None")return resetFlow();if(opponentTry){S.flow={type:"Opponent Try",sub:t,tryType:t,tryValue,opponentTry:true,extras:[]};return showTryResult(`${currentGame()?.opponent||"Opponent"} ${tryValue}-point ${String(t).toLowerCase()} try`)}S.flow={type:"Try",sub:t,tryType:t,tryValue,extras:[]};if(t==="Kick")showPlayers(`${tryValue}-point kick — select kicker`,"tryKicker");else if(t==="Run")showPlayers(`${tryValue}-point run — select runner`,"tryRunner");else showPlayers(`${tryValue}-point pass — select QB`,"tryQB");}));
+$(".try-result").forEach(b=>b.addEventListener("click",()=>{S.flow.tryResult=b.dataset.result;S.flow.points=S.flow.tryResult==="Good"?Number(S.flow.tryValue||2):0;$("#stepTryResult").classList.add("hidden");if(S.flow.opponentTry){const g=currentGame(),points=Number(S.flow.points||0);if(g&&points)g.oppScore=Number(g.oppScore||0)+points;if(g){persist();renderLiveGame()}resetFlow();return}recordNow()}));
 $$(".kickoff-result").forEach(b=>b.addEventListener("click",()=>{S.flow.kickoffResult=b.dataset.result;$("#stepKickoffResult").classList.add("hidden");if(S.flow.kickoffResult==="Touchback")return recordNow();showYards()}));
 
 $$(".fumble-recovery-choice").forEach(b=>b.addEventListener("click",()=>{
