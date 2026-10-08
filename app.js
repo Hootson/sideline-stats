@@ -1004,7 +1004,8 @@ async function syncSnapRecord(g,r,index,cloudGameId){
     const localTime=payload.client_created_at?Date.parse(payload.client_created_at):NaN;
     const remoteTime=remote.client_created_at?Date.parse(remote.client_created_at):NaN;
     const sameTime=Number.isFinite(localTime)&&Number.isFinite(remoteTime)&&Math.abs(localTime-remoteTime)<=1000;
-    if(!sameTime)throw new Error("Snap sync conflict at snap "+payload.snap_number+": different cloud event. Local data preserved.");
+    // A verified cloud ID is authoritative for unchanged historical snaps; timestamps may differ after tracker imports.
+    if(!sameTime&&!id)throw new Error("Snap sync conflict at snap "+payload.snap_number+": different cloud event. Local data preserved.");
     const {data:parts,error:partsError}=await SB.from("snap_participants").select("player_id").eq("snap_event_id",remote.id);
     if(partsError)throw partsError;
     const remotePlayers=(parts||[]).map(p=>p.player_id).sort();
@@ -1015,6 +1016,7 @@ async function syncSnapRecord(g,r,index,cloudGameId){
       S.cloud.snapIds[r.id]=remote.id;S.cloud.snapHashes[r.id]=h;
       persist({skipCloud:true});return;
     }
+    if(!sameTime)throw new Error("Snap sync conflict at snap "+payload.snap_number+": different cloud event. Local data preserved.");
     // A shared Snap Tracker is authoritative; never replace its participants or classification.
     if(remote.source_invite_id)throw new Error("Snap "+payload.snap_number+" belongs to shared Snap Tracker and differs locally. Cloud record preserved.");
     if(!id)throw new Error("Snap "+payload.snap_number+" already exists with different data. Local data preserved.");
