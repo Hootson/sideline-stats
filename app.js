@@ -1543,6 +1543,17 @@ function downloadBlob(blob,name){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)
 }
 function downloadJson(obj,name){downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}),name)}
+$("#cloudDiagnosticBackupBtn")?.addEventListener("click",()=>{
+  // Read-only export. No cloud requests, writes, sync, or local state mutations.
+  const snapshot=JSON.parse(JSON.stringify(S));
+  // Credentials and session tokens are not needed to reconcile records.
+  if(snapshot.cloud){
+    for(const key of Object.keys(snapshot.cloud))if(/token|secret|password|session|apikey|accesskey|refreshkey/i.test(key))delete snapshot.cloud[key];
+  }
+  const pending=cloudPendingItems();
+  downloadJson({format:"sideline-sync-diagnostic",backupVersion:1,appVersion:window.SIDELINE_STATS_VERSION||"current",exportedAt:new Date().toISOString(),pendingCount:pending.length,pendingItems:pending,data:snapshot},`gridiron_sync_backup_${new Date().toISOString().slice(0,10)}.json`);
+  toast("Sync backup downloaded — no data changed");
+});
 $("#ownerBackupDataBtn")?.addEventListener("click",()=>{if(cloudUser?.app_metadata?.platform_admin!==true)return toast("Owner access is required");downloadJson({format:"sideline-stats-backup",backupVersion:1,appVersion:window.SIDELINE_STATS_VERSION||"current",exportedAt:new Date().toISOString(),data:S},`${(S.team?.name||"sideline_stats").replace(/[^a-z0-9]/gi,"_")}_recovery_backup.json`)});
 $("#ownerRestoreDataBtn")?.addEventListener("click",()=>{if(cloudUser?.app_metadata?.platform_admin!==true)return toast("Owner access is required");$("#ownerRestoreDataInput")?.click()});
 $("#ownerRestoreDataInput")?.addEventListener("change",async()=>{
