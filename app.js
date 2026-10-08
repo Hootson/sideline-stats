@@ -677,7 +677,7 @@ async function loadTeamFromCloud(options={}){
     demoPlayCalls=demoCallsQ.data||[];coachDemoPlaybook=(demoBookQ.data||[]).map(x=>({id:`demo-play-${String(x.call_number).padStart(2,"0")}`,number:x.call_number,name:x.call_name,demo:true}));
     const demoByPlay=new Map(demoPlayCalls.map(x=>[x.play_id,x]));
     const roster=players.filter(x=>x.active!==false).map(x=>({id:x.id,jersey:x.jersey_number??"",name:x.name||"Player",snaps:0}));
-    const localGames=games.map(g=>{const gp=plays.filter(x=>x.game_id===g.id).sort((a,b)=>a.sequence-b.sequence).map(r=>restoreCloudPlayWithDemo(r,credits.filter(c=>c.play_id===r.id&&c.metadata?.active!==false),penalties.find(q=>q.play_id===r.id),demoByPlay.get(r.id)));const sr=snaps.filter(x=>x.game_id===g.id).sort((a,b)=>a.snap_number-b.snap_number).map(x=>({id:x.id,ts:x.client_created_at?Date.parse(x.client_created_at):Date.parse(x.created_at),quarter:Number(x.quarter||1),playerIds:snapParts.filter(q=>q.snap_event_id===x.id).map(q=>q.player_id)}));const auto=gp.reduce((sum,p)=>sum+pointsFromPlay(p),0);const firstBefore=gp[0]?.stateBefore,lastAfter=gp[gp.length-1]?.stateAfter;return {id:g.id,opponent:g.opponent_name||"Opponent",opponentLogoData:g.opponent_logo_data||null,week:Number(g.week_number||1),date:`Week ${Number(g.week_number||1)}`,createdAt:Date.parse(g.created_at||new Date().toISOString()),finalizedAt:g.ended_at||null,location:g.location_type||"home",gameType:g.game_type||"regular",status:g.status==="final"?"complete":(g.status||"live"),ourScore:(g.status==="final"&&Number(g.team_score||0)===0&&auto>0)?auto:Number(g.team_score||0),scoreAdjustment:(g.status==="final"&&Number(g.team_score||0)===0&&auto>0)?0:Number(g.team_score||0)-auto,scoreModelVersion:2,oppScore:Number(g.opponent_score||0),openingKickoff:g.opening_kickoff||"receive",initialPossession:firstBefore?.possession||((g.opening_kickoff||"receive")==="kick"?"opp":"ours"),initialDown:1,initialDistance:10,initialBallSpot:Field.validSpot(firstBefore?.ballSpot),ballSpot:Field.validSpot(lastAfter?.ballSpot??g.current_state?.ballSpot),down:Number(g.current_down||1),distance:Number(g.current_distance||10),possession:localPossession(g.possession||"ours"),quarter:Number(g.current_quarter||1),cloudRevision:Number(g.revision||1),gamePlan:Array.isArray(g.game_plan)?g.game_plan:null,plays:gp,snapRecords:sr};});
+    const localGames=games.map(g=>{const gp=plays.filter(x=>x.game_id===g.id).sort((a,b)=>a.sequence-b.sequence).map(r=>restoreCloudPlayWithDemo(r,credits.filter(c=>c.play_id===r.id&&c.metadata?.active!==false),penalties.find(q=>q.play_id===r.id),demoByPlay.get(r.id)));const sr=snaps.filter(x=>x.game_id===g.id).sort((a,b)=>a.snap_number-b.snap_number).map(x=>({id:x.id,ts:x.client_created_at?Date.parse(x.client_created_at):Date.parse(x.created_at),quarter:Number(x.quarter||1),snapKind:x.snap_kind||"regular",playerIds:snapParts.filter(q=>q.snap_event_id===x.id).map(q=>q.player_id)}));const auto=gp.reduce((sum,p)=>sum+pointsFromPlay(p),0);const firstBefore=gp[0]?.stateBefore,lastAfter=gp[gp.length-1]?.stateAfter;return {id:g.id,opponent:g.opponent_name||"Opponent",opponentLogoData:g.opponent_logo_data||null,week:Number(g.week_number||1),date:`Week ${Number(g.week_number||1)}`,createdAt:Date.parse(g.created_at||new Date().toISOString()),finalizedAt:g.ended_at||null,location:g.location_type||"home",gameType:g.game_type||"regular",status:g.status==="final"?"complete":(g.status||"live"),ourScore:(g.status==="final"&&Number(g.team_score||0)===0&&auto>0)?auto:Number(g.team_score||0),scoreAdjustment:(g.status==="final"&&Number(g.team_score||0)===0&&auto>0)?0:Number(g.team_score||0)-auto,scoreModelVersion:2,oppScore:Number(g.opponent_score||0),openingKickoff:g.opening_kickoff||"receive",initialPossession:firstBefore?.possession||((g.opening_kickoff||"receive")==="kick"?"opp":"ours"),initialDown:1,initialDistance:10,initialBallSpot:Field.validSpot(firstBefore?.ballSpot),ballSpot:Field.validSpot(lastAfter?.ballSpot??g.current_state?.ballSpot),down:Number(g.current_down||1),distance:Number(g.current_distance||10),possession:localPossession(g.possession||"ours"),quarter:Number(g.current_quarter||1),cloudRevision:Number(g.revision||1),gamePlan:Array.isArray(g.game_plan)?g.game_plan:null,plays:gp,snapRecords:sr};});
     const cloud={teamId:team.id,seasonId:season.id,teamHash:null,playerIds:Object.fromEntries(players.map(x=>[x.id,x.id])),playerHashes:{},gameIds:Object.fromEntries(games.map(x=>[x.id,x.id])),deletedGames,playIds:Object.fromEntries(plays.map(x=>[x.id,x.id])),playHashes:{},gameHashes:{},creditIds:{},creditHashes:{},penaltyIds:{},penaltyHashes:{},snapIds:Object.fromEntries(snaps.map(x=>[x.id,x.id])),snapHashes:{},connectedAt:new Date().toISOString(),lastSyncAt:new Date().toISOString(),lastSyncError:null,remoteFingerprint:fingerprintLoadedCloudSnapshot(team,players,games,plays,credits,penalties,snaps,snapParts,demoPlayCalls,coachDemoPlaybook),hashVersion:2,deviceRole:options.roleOverride||"viewer",substituteGameId:options.substituteGameId||null,coachAccess:false,entitlementTier:options.roleOverride==="substitute_statkeeper"?"statkeeper":null,access:options.roleOverride==="substitute_statkeeper"?{tier:"statkeeper",paid_access_starts_at:new Date(Date.now()-60000).toISOString(),paid_access_ends_at:options.assignmentExpiresAt,access_source:"game_assignment",complimentary:false}:null};
     let voiceCorrections=S.cloud?.teamId===team.id&&S.team?.voiceCorrections?{...S.team.voiceCorrections}:{};
     const vcq=await SB.from("team_voice_corrections").select("heard_text,resolved_value").eq("team_id",team.id);
@@ -983,18 +983,18 @@ function buildCloudPenaltyPayload(g,p,cloudGameId,cloudPlayId){
 async function syncPenalty(g,p,cloudGameId,cloudPlayId){
   if(p.type!=="Penalty")return;const payload=buildCloudPenaltyPayload(g,p,cloudGameId,cloudPlayId);const h=simpleHash(payload);let id=S.cloud.penaltyIds[p.id];if(!id){id=cloudUuid();const {error}=await SB.from("penalties").insert({id,...payload});if(error)throw error;S.cloud.penaltyIds[p.id]=id}else if(S.cloud.penaltyHashes[p.id]!==h){const {error}=await SB.from("penalties").update(payload).eq("id",id);if(error)throw error}S.cloud.penaltyHashes[p.id]=h;
 }
-function buildCloudSnapPayload(g,r,index,cloudGameId){return {game_id:cloudGameId,created_by:cloudUser.id,snap_number:index+1,quarter:Number(r.quarter||g.quarter||1),client_created_at:r.ts?new Date(r.ts).toISOString():null,playerIds:[...(r.playerIds||[])].sort()}}
+function buildCloudSnapPayload(g,r,index,cloudGameId){return {game_id:cloudGameId,created_by:cloudUser.id,snap_number:index+1,quarter:Number(r.quarter||g.quarter||1),client_created_at:r.ts?new Date(r.ts).toISOString():null,playerIds:[...(r.playerIds||[])].sort(),snap_kind:r.snapKind||"regular"}}
 async function createCloudSnapEvent(payload,cloudGameId){
   const id=cloudUuid();
-  const {error}=await SB.from("snap_events").insert({id,game_id:cloudGameId,created_by:cloudUser.id,snap_number:payload.snap_number||1,quarter:payload.quarter,client_created_at:payload.client_created_at,active:true});if(error)throw error;
+  const {error}=await SB.from("snap_events").insert({id,game_id:cloudGameId,created_by:cloudUser.id,snap_number:payload.snap_number||1,quarter:payload.quarter,client_created_at:payload.client_created_at,snap_kind:payload.snap_kind,active:true});if(error)throw error;
   for(const localPid of payload.playerIds){const playerId=S.cloud.playerIds?.[localPid];if(!playerId)continue;const {error:pe}=await SB.from("snap_participants").insert({snap_event_id:id,player_id:playerId});if(pe)throw pe}
   return id;
 }
 async function syncSnapRecord(g,r,index,cloudGameId){
   if(!r.id)r.id=uid();const payload=buildCloudSnapPayload(g,r,index,cloudGameId),h=simpleHash(payload);payload.snap_number=index+1;if(S.cloud.snapHashes[r.id]===h)return;let id=S.cloud.snapIds[r.id];
-  if(!id){id=await createCloudSnapEvent(payload,cloudGameId);S.cloud.snapIds[r.id]=id}
+  if(!id){id=await createCloudSnapEvent(payload,cloudGameId);S.cloud.snapIds[r.id]=id;persist({skipCloud:true})}
   else{
-    const {error}=await SB.from("snap_events").update({snap_number:payload.snap_number||1,quarter:payload.quarter,client_created_at:payload.client_created_at,active:true}).eq("id",id);if(error)throw error;
+    const {error}=await SB.from("snap_events").update({snap_number:payload.snap_number||1,quarter:payload.quarter,client_created_at:payload.client_created_at,snap_kind:payload.snap_kind,active:true}).eq("id",id);if(error)throw error;
     const {error:de}=await SB.from("snap_participants").delete().eq("snap_event_id",id);if(de)throw de;
     for(const localPid of payload.playerIds){const playerId=S.cloud.playerIds?.[localPid];if(!playerId)continue;const {error:pe}=await SB.from("snap_participants").insert({snap_event_id:id,player_id:playerId});if(pe)throw pe}
   }
@@ -1099,11 +1099,11 @@ async function syncDeletedCloudPlays(){
 async function syncDeletedCloudSnaps(){
   let changed=false;
   const localSnapIds=new Set((S.games||[]).flatMap(g=>(g.snapRecords||[]).map(r=>r.id)));
-  for(const [localId,cloudId] of Object.entries(S.cloud.snapIds||{})){
+  for(const [localId,cloudId] of Object.entries({...S.cloud.snapIds,...(S.cloud.pendingSnapDeletes||{})})){
     if(localSnapIds.has(localId))continue;
     await assertCloudDeleteSafe("snap_events",cloudId,"Snap");
     const {error}=await SB.from("snap_events").update({active:false}).eq("id",cloudId);if(error)throw error;
-    delete S.cloud.snapIds[localId];delete S.cloud.snapHashes[localId];persist({skipCloud:true});changed=true;
+    delete S.cloud.snapIds[localId];delete S.cloud.snapHashes[localId];if(S.cloud.pendingSnapDeletes)delete S.cloud.pendingSnapDeletes[localId];persist({skipCloud:true});changed=true;
   }
   return changed;
 }
@@ -3089,7 +3089,7 @@ function renderSnaps(){
   const box=$("#snapRoster");
   if(!S.roster.length){
     box.innerHTML='<span class="muted">Add your roster first.</span>';
-    $("#recordSnapBtn").disabled=true;
+    $("#recordSnapBtn").disabled=true;$("#undoLastSnapBtn").disabled=true;
     $("#snapOnFieldCount").textContent="0 on field";
     $("#snapTotalCount").textContent="0 snaps recorded";
     $("#playersUnderTen").textContent="0";
@@ -3097,7 +3097,7 @@ function renderSnaps(){
   }
   $("#recordSnapBtn").disabled=false;
 
-  const snapGame=snapViewGame();const gameTotal=snapGame?.snapRecords?.length||0;$("#recordSnapBtn").disabled=!currentGame()||gameReadOnly(currentGame());
+  const snapGame=snapViewGame();const gameTotal=snapGame?.snapRecords?.length||0;$("#recordSnapBtn").disabled=!currentGame()||gameReadOnly(currentGame())||!document.querySelector('input[name="snapKind"]:checked');$("#undoLastSnapBtn").disabled=!currentGame()||gameReadOnly(currentGame())||!(currentGame()?.snapRecords?.length);
   const ordered=[...S.roster].sort((a,b)=>a.jersey-b.jersey);
   box.innerHTML=ordered.map(p=>{
     const snaps=currentGameSnapCount(p.id);
@@ -3201,8 +3201,10 @@ $("#shareSnapInviteBtn")?.addEventListener("click",()=>{
 });
 $("#snapInviteModal")?.addEventListener("click",e=>{if(e.target.id==="snapInviteModal")closeSnapInvite()});
 
+$$('input[name="snapKind"]').forEach(input=>input.addEventListener("change",()=>{const g=currentGame();$("#recordSnapBtn").disabled=!g||gameReadOnly(g)||!document.querySelector('input[name="snapKind"]:checked')}));
 $("#recordSnapBtn").addEventListener("click",()=>{
   if(!S.roster.length)return toast("Add your roster first");
+  if(!document.querySelector('input[name="snapKind"]:checked'))return toast("Select Regular Play, Penalty, or Special Teams first");
   const onField=S.roster.filter(p=>snapSelections[p.id]!==false);
   if(!onField.length)return toast("No players selected");
 
@@ -3215,16 +3217,29 @@ $("#recordSnapBtn").addEventListener("click",()=>{
     g.snapRecords.push({
       id:uid(),
       ts:Date.now(),
-      playerIds:onField.map(p=>p.id)
+      playerIds:onField.map(p=>p.id),
+      snapKind:document.querySelector('input[name="snapKind"]:checked')?.value||"regular"
     });
   }
 
   persist();
+  $$(`input[name="snapKind"]`).forEach(input=>input.checked=false);
   toast(`Snap recorded for ${onField.length} players`);
 
   // Keep the current on-field lineup exactly as selected for the next play.
   // The user changes personnel manually or taps Check All when needed.
   renderSnaps();
+});
+
+
+$("#undoLastSnapBtn").addEventListener("click",()=>{
+  const g=currentGame();
+  if(!g||gameReadOnly(g)||!Array.isArray(g.snapRecords)||!g.snapRecords.length)return toast("No snap to undo");
+  const last=g.snapRecords.pop();
+  // Retain a cloud deletion marker until the remote event has been deactivated.
+  if(S.cloud?.snapIds?.[last.id]){if(!S.cloud.pendingSnapDeletes)S.cloud.pendingSnapDeletes={};S.cloud.pendingSnapDeletes[last.id]=S.cloud.snapIds[last.id]}
+  for(const id of last.playerIds||[]){const p=S.roster.find(x=>x.id===id);if(p)p.snaps=Math.max(0,Number(p.snaps||0)-1)}
+  persist();renderSnaps();toast("Last snap undone");
 });
 
 
