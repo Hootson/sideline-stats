@@ -1003,7 +1003,7 @@ async function syncSnapRecord(g,r,index,cloudGameId){
     ?await remoteQuery.eq("id",id).eq("game_id",cloudGameId).eq("active",true).maybeSingle()
     :await remoteQuery.eq("game_id",cloudGameId).eq("snap_number",payload.snap_number).eq("active",true).limit(2);
   if(lookupError)throw lookupError;
-  if(!id&&Array.isArray(remote)&&matched.length>1)throw new Error("Multiple cloud snaps at snap "+payload.snap_number+"; local data preserved.");
+  if(!id&&Array.isArray(remote)&&remote.length>1)throw new Error("Multiple cloud snaps at snap "+payload.snap_number+"; local data preserved.");
   const matched=Array.isArray(remote)?remote[0]||null:remote;
   if(matched&&id&&matched.id!==id)throw new Error("Snap "+payload.snap_number+" cloud identity changed. Local data preserved.");
   if(matched){
