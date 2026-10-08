@@ -5,6 +5,10 @@ const token=new URLSearchParams(location.search).get('token')||'';
 const qkey=`sidelineSnapQueue:${token}`;
 const skey=`sidelineSnapSelection:${token}`;
 const gkey=`sidelineSnapGame:${token}`;
+const lastKey=`sidelineSnapLast:${token}`;
+const snapKind=()=>document.querySelector('input[name="snapKind"]:checked')?.value||null;
+const lastSnap=()=>{try{return JSON.parse(localStorage.getItem(lastKey)||'null')}catch{return null}};
+const setLastSnap=item=>item?localStorage.setItem(lastKey,JSON.stringify(item)):localStorage.removeItem(lastKey);
 let game=null,players=[],selected=new Set(),counts={},syncing=false,linkValid=true,offlineShellReady=false;
 const $=s=>document.querySelector(s);
 function uuid(){return crypto.randomUUID?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0,v=c==='x'?r:(r&3|8);return v.toString(16)})}
@@ -21,14 +25,38 @@ function status(){const pending=queue().length;$('#syncStatus').textContent=navi
 function minimum(){const n=Number(game?.team?.snapMinimum);return Number.isInteger(n)&&n>=1&&n<=100?n:10}
 function luminance(hex){const m=String(hex||'').match(/^#([0-9a-f]{6})$/i);if(!m)return 0;return [0,2,4].map(i=>parseInt(m[1].slice(i,i+2),16)/255).map(v=>v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4)).reduce((n,v,i)=>n+v*[.2126,.7152,.0722][i],0)}
 function render(){const min=minimum(),gameTotal=Number(game?.snapCount||0),ordered=[...players].sort((a,b)=>Number(a.jersey)-Number(b.jersey)),p=game?.team?.primary||'#177b46',a=game?.team?.accent||'#f0b33b';document.documentElement.style.setProperty('--p',p);document.documentElement.style.setProperty('--a',a);document.documentElement.style.setProperty('--p-ink',luminance(p)>.46?'#111':'#fff');document.documentElement.style.setProperty('--a-ink',luminance(a)>.46?'#111':'#fff');$('#teamName').textContent=game?`${game.team.name} vs ${game.game.opponent}`:'Snap Tracker';$('#gameMeta').textContent=game?`Week ${game.game.week||'?'} • Q${game.game.quarter||1} • ${game.game.teamScore}-${game.game.opponentScore}`:'Loading…';$('#snapCount').textContent=gameTotal;$('#minimumLabel').textContent=`${min}-Snap Minimum`;$('#playersBelowMinimum').textContent=players.filter(p=>Number(counts[p.id]||0)<min).length;$('#totalPlayerSnaps').textContent=`${gameTotal} total snap${gameTotal===1?'':'s'}`;$('#players').innerHTML=ordered.map(p=>{const count=Number(counts[p.id]||0),done=count>=min,pct=Math.min(100,(count/min)*100),snapPct=gameTotal?Math.round((count/gameTotal)*100):0;return `<label class="player ${selected.has(p.id)?'in':''} ${done?'complete':'needs'}"><input type="checkbox" data-id="${p.id}" ${selected.has(p.id)?'checked':''}><div class="player-main"><div class="player-name"><span class="num">#${p.jersey}</span><span class="name">${escapeHtml(p.name)}</span></div></div><div class="progress"><div class="progress-top"><span class="progress-count">${count} / ${min}</span><span class="progress-status ${done?'done':''}">${done?'MET':`NEEDS ${Math.max(0,min-count)}`}</span></div><div class="bar"><div class="bar-fill ${done?'done':''}" style="width:${pct}%"></div></div></div><div class="usage" aria-label="${count} of ${gameTotal} total snaps, ${snapPct} percent"><strong>${snapPct}%</strong><span>${count} of ${gameTotal}</span><small>SNAP %</small></div></label>`}).join('');document.querySelectorAll('.player input').forEach(ch=>ch.addEventListener('change',()=>{ch.checked?selected.add(ch.dataset.id):selected.delete(ch.dataset.id);saveSelection();renderSelectionOnly()}));renderSelectionOnly();status()}
-function renderSelectionOnly(){document.querySelectorAll('.player').forEach(el=>{const ch=el.querySelector('input');el.classList.toggle('in',ch.checked)});$('#onFieldCount').textContent=`${selected.size} on field`;$('#recordSnap').disabled=!selected.size||!linkValid}
+function renderSelectionOnly(){document.querySelectorAll('.player').forEach(el=>{const ch=el.querySelector('input');el.classList.toggle('in',ch.checked)});$('#onFieldCount').textContent=`${selected.size} on field`;$('#recordSnap').disabled=!selected.size||!linkValid||!snapKind();$('#undoSnap').disabled=!lastSnap()||!linkValid||syncing}
 function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function applyGame(d){game=d;players=d.players||[];counts=d.playerSnapCounts||{};linkValid=true;const prior=loadSelection();selected=new Set([...prior].filter(id=>players.some(p=>p.id===id)));if(!selected.size)players.forEach(p=>selected.add(p.id));saveSelection();saveGameCache();render()}
 async function refresh(){if(!token){linkValid=false;msg('This snap tracker link is missing its game token.',true);return}const cached=loadGameCache();if(cached){applyGame(cached);msg('Saved game loaded — checking for updates…')}try{const d=await rpc('get_snap_tracker_game',{p_token:token});applyGame(d);clearMsg();await flush()}catch(e){if(cached&&(navigator.onLine===false||e.networkError)){applyGame(cached);msg('Offline copy loaded — recorded snaps will sync when service returns.');status();return}linkValid=false;msg(e.message||'Could not load this game.',true);renderSelectionOnly();status()}}
-async function flush(){if(syncing||navigator.onLine===false||!token||!linkValid)return;let items=queue();if(!items.length){status();return}syncing=true;try{while(items.length){const item=items[0];await rpc('submit_snap_tracker_event',{p_token:token,p_client_event_id:item.id,p_player_ids:item.playerIds,p_quarter:item.quarter,p_client_created_at:item.createdAt});items.shift();saveQueue(items)}await refreshCounts()}catch(e){console.warn(e);if(e.status){linkValid=false;msg(e.message||'This link can no longer sync.',true)}status()}finally{syncing=false;renderSelectionOnly();status()}}
+async function flush(){if(syncing||navigator.onLine===false||!token||!linkValid)return;let items=queue();if(!items.length){status();return}syncing=true;try{while(items.length){const item=items[0];await rpc('submit_snap_tracker_event_v2',{p_token:token,p_client_event_id:item.id,p_player_ids:item.playerIds,p_snap_kind:item.snapKind||"regular",p_quarter:item.quarter,p_client_created_at:item.createdAt});items.shift();saveQueue(items)}await refreshCounts()}catch(e){console.warn(e);if(e.status){linkValid=false;msg(e.message||'This link can no longer sync.',true)}status()}finally{syncing=false;renderSelectionOnly();status()}}
 async function refreshCounts(){try{const d=await rpc('get_snap_tracker_game',{p_token:token});applyGame(d);clearMsg()}catch(e){console.warn(e)}}
 $('#checkAll').addEventListener('click',()=>{players.forEach(p=>selected.add(p.id));saveSelection();render()});
-$('#recordSnap').addEventListener('click',async()=>{if(!selected.size||!linkValid)return;const item={id:uuid(),playerIds:[...selected],quarter:game?.game?.quarter||null,createdAt:new Date().toISOString()};const items=queue();items.push(item);saveQueue(items);game.snapCount=(game.snapCount||0)+1;item.playerIds.forEach(id=>counts[id]=(counts[id]||0)+1);saveGameCache();render();$('#recordSnap').textContent='Recorded ✓';setTimeout(()=>$('#recordSnap').textContent='Record Snap',650);await flush()});
+document.querySelectorAll('input[name="snapKind"]').forEach(el=>el.addEventListener('change',renderSelectionOnly));
+$('#recordSnap').addEventListener('click',async()=>{
+  const kind=snapKind();
+  if(!selected.size||!linkValid||!kind||syncing)return;
+  const item={id:uuid(),playerIds:[...selected],snapKind:kind,quarter:game?.game?.quarter||null,createdAt:new Date().toISOString()};
+  const items=queue();items.push(item);saveQueue(items);setLastSnap(item);
+  game.snapCount=(game.snapCount||0)+1;item.playerIds.forEach(id=>counts[id]=(counts[id]||0)+1);
+  document.querySelectorAll('input[name="snapKind"]').forEach(el=>el.checked=false);
+  saveGameCache();render();$('#recordSnap').textContent='Recorded ✓';
+  setTimeout(()=>$('#recordSnap').textContent='Record Snap',650);await flush();
+});
+$('#undoSnap').addEventListener('click',async()=>{
+  const item=lastSnap();if(!item||!linkValid||syncing)return;
+  const items=queue(),pending=items.some(x=>x.id===item.id);
+  $('#undoSnap').disabled=true;
+  try{
+    if(pending){saveQueue(items.filter(x=>x.id!==item.id));}
+    else {await rpc('undo_snap_tracker_event',{p_token:token,p_client_event_id:item.id});}
+    setLastSnap(null);
+    if(game){game.snapCount=Math.max(0,(game.snapCount||0)-1);item.playerIds.forEach(id=>counts[id]=Math.max(0,(counts[id]||0)-1));saveGameCache();}
+    render();if(navigator.onLine!==false)await refreshCounts();
+    msg('Last snap undone.');
+  }catch(e){console.warn(e);msg(e.message||'Could not undo snap.',true);renderSelectionOnly();}
+});
+
 window.addEventListener('online',()=>{linkValid=true;flush()});setInterval(async()=>{if(navigator.onLine!==false){if(queue().length)await flush();else await refreshCounts()}else status()},10000);
 if(navigator.serviceWorker?.ready)navigator.serviceWorker.ready.then(()=>{offlineShellReady=true;status()}).catch(()=>{});
 refresh();
