@@ -1629,6 +1629,14 @@ $("#addPlayer").addEventListener("click",()=>{
   S.roster.push({id:uid(),jersey:j,name:n,snaps:0});$("#jersey").value="";$("#player").value="";persist();renderRoster()
 });
 $("#goGames").addEventListener("click",()=>go("game"));
+$("#exitActiveGameBtn")?.addEventListener("click",()=>{
+  if(isSubstituteStatkeeper())return;
+  if(!currentGame())return;
+  S.activeGameId=null;
+  persist({skipCloud:true});
+  renderGameArea();
+  toast("Returned to saved games. Game data preserved.");
+});
 
 function renderGameArea(){
   const g=currentGame();
