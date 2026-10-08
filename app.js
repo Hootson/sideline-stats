@@ -992,9 +992,37 @@ async function createCloudSnapEvent(payload,cloudGameId){
 }
 async function syncSnapRecord(g,r,index,cloudGameId){
   if(!r.id)r.id=uid();const payload=buildCloudSnapPayload(g,r,index,cloudGameId),h=simpleHash(payload);payload.snap_number=index+1;if(S.cloud.snapHashes[r.id]===h)return;let id=S.cloud.snapIds[r.id];
-  if(!id){id=await createCloudSnapEvent(payload,cloudGameId);S.cloud.snapIds[r.id]=id;persist({skipCloud:true})}
+  if(!id){
+    // An invited tracker may have already written this snap to Supabase.
+    // Never insert a second event at an occupied game/snap number.
+    const {data:existing,error:lookupError}=await SB.from("snap_events")
+      .select("id,client_created_at,snap_kind,source_invite_id")
+      .eq("game_id",cloudGameId).eq("snap_number",payload.snap_number).eq("active",true).maybeSingle();
+    if(lookupError)throw lookupError;
+    if(existing){
+      const localTime=payload.client_created_at?Date.parse(payload.client_created_at):NaN;
+      const remoteTime=existing.client_created_at?Date.parse(existing.client_created_at):NaN;
+      // Match event identity, not just its ordinal position; mismatches require review.
+      if(existing.id!==r.id&&(!Number.isFinite(localTime)||!Number.isFinite(remoteTime)||Math.abs(localTime-remoteTime)>1000)){
+        throw new Error("Snap sync conflict at snap "+payload.snap_number+": a different snap already exists in the cloud. Local data was preserved.");
+      }
+      const {data:parts,error:partsError}=await SB.from("snap_participants").select("player_id").eq("snap_event_id",existing.id);
+      if(partsError)throw partsError;
+      const remotePlayers=(parts||[]).map(p=>p.player_id).sort();
+      const localPlayers=payload.playerIds.map(p=>S.cloud.playerIds?.[p]).filter(Boolean).sort();
+      if(remotePlayers.length!==localPlayers.length||remotePlayers.some((p,i)=>p!==localPlayers[i])){
+        throw new Error("Snap sync conflict at snap "+payload.snap_number+": player selections differ. Local data was preserved.");
+      }
+      id=existing.id;S.cloud.snapIds[r.id]=id;
+      // Invited tracker events are authoritative for their own classification.
+      if(existing.source_invite_id&&existing.snap_kind!==payload.snap_kind)r.snapKind=existing.snap_kind||"regular";
+      S.cloud.snapHashes[r.id]=simpleHash(buildCloudSnapPayload(g,r,index,cloudGameId));
+      persist({skipCloud:true});return;
+    }
+    id=await createCloudSnapEvent(payload,cloudGameId);S.cloud.snapIds[r.id]=id;persist({skipCloud:true})
+  }
   else{
-    const {error}=await SB.from("snap_events").update({snap_number:payload.snap_number||1,quarter:payload.quarter,client_created_at:payload.client_created_at,snap_kind:payload.snap_kind,active:true}).eq("id",id);if(error)throw error;
+    const {error}=await SB.from("snap_events").update({quarter:payload.quarter,client_created_at:payload.client_created_at,snap_kind:payload.snap_kind,active:true}).eq("id",id);if(error)throw error;
     const {error:de}=await SB.from("snap_participants").delete().eq("snap_event_id",id);if(de)throw de;
     for(const localPid of payload.playerIds){const playerId=S.cloud.playerIds?.[localPid];if(!playerId)continue;const {error:pe}=await SB.from("snap_participants").insert({snap_event_id:id,player_id:playerId});if(pe)throw pe}
   }
