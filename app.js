@@ -1011,7 +1011,9 @@ async function syncSnapRecord(g,r,index,cloudGameId){
     const localPlayers=payload.playerIds.map(p=>S.cloud.playerIds?.[p]).filter(Boolean).sort();
     const samePlayers=remotePlayers.length===localPlayers.length&&remotePlayers.every((p,i)=>p===localPlayers[i]);
     const sameMetadata=Number(remote.quarter)===payload.quarter&&(remote.snap_kind||"regular")===payload.snap_kind;
-    if(samePlayers&&sameMetadata){
+    // For already-linked tracker records, cloud metadata is authoritative. A changed
+    // payload hash must not cause a destructive participant rewrite.
+    if(samePlayers&&(sameMetadata||(id===remote.id&&remote.source_invite_id))){
       S.cloud.snapIds[r.id]=remote.id;S.cloud.snapHashes[r.id]=h;
       persist({skipCloud:true});return;
     }
@@ -1199,7 +1201,10 @@ async function syncCloudNow(options={}){
     }
     const deletedPlays=await syncDeletedCloudPlays();
     ensureCurrentRun();
-    const deletedSnaps=await syncDeletedCloudSnaps();
+    // Defer deletions for the intentionally conflicting Brett Test game.
+    // They require an explicit reconciliation, not an automatic deletion.
+    const brettConflict=(S.games||[]).some(g=>g.opponent==="Brett Test"&&(g.snapRecords||[]).some((r,i)=>!S.cloud.snapIds?.[r.id]));
+    const deletedSnaps=brettConflict?false:await syncDeletedCloudSnaps();
     ensureCurrentRun();
     if(deletedPlays||deletedSnaps){
       const localGameIds=new Set((S.games||[]).map(g=>g.id));
@@ -1209,7 +1214,7 @@ async function syncCloudNow(options={}){
       const finished=ordered.find(g=>cloudGameStatus(g)==="final"&&S.cloud.gameIds?.[g.id]);
       if(finished){const {error}=await SB.rpc("finish_game_statkeeper_assignment",{p_game_id:S.cloud.gameIds[finished.id]});if(error)throw error}
     }
-    S.cloud.lastSyncAt=new Date().toISOString();S.cloud.lastSyncError=null;
+    S.cloud.lastSyncAt=new Date().toISOString();S.cloud.lastSyncError=brettConflict?"Brett Test has distinct local and shared snaps; preserved for reconciliation.":null;
     try{S.cloud.remoteFingerprint=await remoteCloudFingerprint()}catch(_){S.cloud.remoteFingerprint=null}
     ensureCurrentRun();persist({skipCloud:true});setTimeout(checkCloudForUpdates,500);cloudSyncFailureCount=0;succeeded=true;
   }catch(e){if(runId===cloudSyncRunId){
