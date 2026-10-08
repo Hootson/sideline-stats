@@ -1118,6 +1118,14 @@ async function syncDeletedCloudPlays(){
   const localPlayIds=new Set((S.games||[]).flatMap(g=>(g.plays||[]).map(p=>p.id)));
   for(const [localId,cloudId] of Object.entries(S.cloud.playIds||{})){
     if(localPlayIds.has(localId))continue;
+    // A removed test game is already archived; its children are not individually deleted.
+    // Clear only mappings whose cloud parent is confirmed archived, never historical games.
+    const {data:playParent,error:playParentError}=await SB.from("plays").select("game_id,games!inner(status)").eq("id",cloudId).maybeSingle();
+    if(playParentError)throw playParentError;
+    if(playParent?.games?.status==="archived"){
+      delete S.cloud.playIds[localId];delete S.cloud.playHashes[localId];
+      persist({skipCloud:true});changed=true;continue;
+    }
     await assertCloudDeleteSafe("plays",cloudId,"Play");
     const {error}=await SB.from("plays").update({deleted_at:new Date().toISOString()}).eq("id",cloudId);if(error)throw error;
     if(S.cloud.penaltyIds?.[localId]){const {error:pe}=await SB.from("penalties").update({accepted:false,metadata:{local_play_id:localId,active:false}}).eq("id",S.cloud.penaltyIds[localId]);if(pe)throw pe}
@@ -1131,6 +1139,14 @@ async function syncDeletedCloudSnaps(){
   const localSnapIds=new Set((S.games||[]).flatMap(g=>(g.snapRecords||[]).map(r=>r.id)));
   for(const [localId,cloudId] of Object.entries({...S.cloud.snapIds,...(S.cloud.pendingSnapDeletes||{})})){
     if(localSnapIds.has(localId))continue;
+    // Archived games retain their snap history; do not attempt child deletions.
+    const {data:snapParent,error:snapParentError}=await SB.from("snap_events").select("game_id,games!inner(status)").eq("id",cloudId).maybeSingle();
+    if(snapParentError)throw snapParentError;
+    if(snapParent?.games?.status==="archived"){
+      delete S.cloud.snapIds[localId];delete S.cloud.snapHashes[localId];
+      if(S.cloud.pendingSnapDeletes)delete S.cloud.pendingSnapDeletes[localId];
+      persist({skipCloud:true});changed=true;continue;
+    }
     await assertCloudDeleteSafe("snap_events",cloudId,"Snap");
     const {data:remote,error:checkError}=await SB.from("snap_events").select("id,source_invite_id,active").eq("id",cloudId).maybeSingle();
     if(checkError)throw checkError;
