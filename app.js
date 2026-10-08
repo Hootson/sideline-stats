@@ -1022,7 +1022,7 @@ async function syncSnapRecord(g,r,index,cloudGameId){
     id=await createCloudSnapEvent(payload,cloudGameId);S.cloud.snapIds[r.id]=id;persist({skipCloud:true})
   }
   else{
-    const {error}=await SB.from("snap_events").update({snap_number:payload.snap_number||1,quarter:payload.quarter,client_created_at:payload.client_created_at,snap_kind:payload.snap_kind,active:true}).eq("id",id);if(error)throw error;
+    const {error}=await SB.from("snap_events").update({quarter:payload.quarter,client_created_at:payload.client_created_at,snap_kind:payload.snap_kind,active:true}).eq("id",id);if(error)throw error;
     const {error:de}=await SB.from("snap_participants").delete().eq("snap_event_id",id);if(de)throw de;
     for(const localPid of payload.playerIds){const playerId=S.cloud.playerIds?.[localPid];if(!playerId)continue;const {error:pe}=await SB.from("snap_participants").insert({snap_event_id:id,player_id:playerId});if(pe)throw pe}
   }
