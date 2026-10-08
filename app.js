@@ -1179,23 +1179,40 @@ async function syncCloudNow(options={}){
     if(!substitute){await syncDeletedCloudGames();ensureCurrentRun()}
     const priorityGameId=options.priorityGameId||S.activeGameId;
     const ordered=[...(S.games||[])].filter(g=>!substitute||S.cloud.gameIds?.[g.id]===S.cloud.substituteGameId).sort((a,b)=>(b.id===priorityGameId)-(a.id===priorityGameId));
-    const published=[];
+    const published=[],gameSyncErrors=[];
     for(const g of ordered){
       if(!cloudGameNeedsSync(g)){if(g.id===options.priorityGameId)priorityGameSynced=true;continue}
-      const cloudGameId=await ensureCloudGame(g);ensureCurrentRun();
-      for(let i=0;i<(g.plays||[]).length;i++){await syncOnePlay(g,g.plays[i],i,cloudGameId);ensureCurrentRun()}
-      for(let i=0;i<(g.snapRecords||[]).length;i++){await syncSnapRecord(g,g.snapRecords[i],i,cloudGameId);ensureCurrentRun()}
-      await ensureCloudGame(g);ensureCurrentRun();
-      try{await publishCloudGame(cloudGameId)}catch(e){delete S.cloud.gameHashes[g.id];persist({skipCloud:true});throw e}
-      ensureCurrentRun();published.push(cloudGameId);if(g.id===options.priorityGameId)priorityGameSynced=true;
+      try{
+        const cloudGameId=await ensureCloudGame(g);ensureCurrentRun();
+        for(let i=0;i<(g.plays||[]).length;i++){await syncOnePlay(g,g.plays[i],i,cloudGameId);ensureCurrentRun()}
+        for(let i=0;i<(g.snapRecords||[]).length;i++){await syncSnapRecord(g,g.snapRecords[i],i,cloudGameId);ensureCurrentRun()}
+        await ensureCloudGame(g);ensureCurrentRun();
+        try{await publishCloudGame(cloudGameId)}catch(e){delete S.cloud.gameHashes[g.id];persist({skipCloud:true});throw e}
+        ensureCurrentRun();published.push(cloudGameId);if(g.id===options.priorityGameId)priorityGameSynced=true;
+      }catch(e){
+        ensureCurrentRun();
+        if(isCloudAuthorizationError(e))throw e;
+        const gameLabel=String(g.opponent||g.name||g.week||"Unknown game");
+        gameSyncErrors.push(gameLabel+": "+(e?.message||"Sync failed"));
+        console.warn("Cloud game sync isolated",gameLabel,e);
+      }
     }
-    const deletedPlays=await syncDeletedCloudPlays();
-    ensureCurrentRun();
-    const deletedSnaps=await syncDeletedCloudSnaps();
-    ensureCurrentRun();
-    if(deletedPlays||deletedSnaps){
-      const localGameIds=new Set((S.games||[]).map(g=>g.id));
-      for(const [localId,cloudGameId] of Object.entries(S.cloud.gameIds||{}))if(localGameIds.has(localId)&&cloudGameId&&!published.includes(cloudGameId))await publishCloudGame(cloudGameId);
+    // Never process queued deletions while any game's sync is unresolved.
+    // Deletions may reference the same cloud rows as a conflicting game.
+    if(!gameSyncErrors.length){
+      const deletedPlays=await syncDeletedCloudPlays();
+      ensureCurrentRun();
+      const deletedSnaps=await syncDeletedCloudSnaps();
+      ensureCurrentRun();
+      if(deletedPlays||deletedSnaps){
+        const localGameIds=new Set((S.games||[]).map(g=>g.id));
+        for(const [localId,cloudGameId] of Object.entries(S.cloud.gameIds||{}))if(localGameIds.has(localId)&&cloudGameId&&!published.includes(cloudGameId))await publishCloudGame(cloudGameId);
+      }
+    }
+    if(gameSyncErrors.length){
+      S.cloud.lastSyncError=("Sync conflict in "+gameSyncErrors[0]).slice(0,120);
+      persist({skipCloud:true});
+      throw new Error(S.cloud.lastSyncError);
     }
     if(substitute){
       const finished=ordered.find(g=>cloudGameStatus(g)==="final"&&S.cloud.gameIds?.[g.id]);
