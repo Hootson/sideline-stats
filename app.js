@@ -1130,7 +1130,10 @@ async function syncDeletedCloudSnaps(){
   for(const [localId,cloudId] of Object.entries({...S.cloud.snapIds,...(S.cloud.pendingSnapDeletes||{})})){
     if(localSnapIds.has(localId))continue;
     await assertCloudDeleteSafe("snap_events",cloudId,"Snap");
-    const {error}=await SB.from("snap_events").update({active:false}).eq("id",cloudId);if(error)throw error;
+    const {data:remote,error:checkError}=await SB.from("snap_events").select("id,source_invite_id,active").eq("id",cloudId).maybeSingle();
+    if(checkError)throw checkError;
+    if(remote?.source_invite_id)throw new Error("Shared Snap Tracker snap is queued for deletion. Cloud record preserved; review required.");
+    const {error}=await SB.from("snap_events").update({active:false}).eq("id",cloudId).is("source_invite_id",null);if(error)throw error;
     delete S.cloud.snapIds[localId];delete S.cloud.snapHashes[localId];if(S.cloud.pendingSnapDeletes)delete S.cloud.pendingSnapDeletes[localId];persist({skipCloud:true});changed=true;
   }
   return changed;
