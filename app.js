@@ -991,42 +991,42 @@ async function createCloudSnapEvent(payload,cloudGameId){
   return id;
 }
 async function syncSnapRecord(g,r,index,cloudGameId){
-  if(!r.id)r.id=uid();const payload=buildCloudSnapPayload(g,r,index,cloudGameId),h=simpleHash(payload);payload.snap_number=index+1;if(S.cloud.snapHashes[r.id]===h)return;let id=S.cloud.snapIds[r.id];
-  if(!id){
-    // An invited tracker may have already written this snap to Supabase.
-    // Never insert a second event at an occupied game/snap number.
-    const {data:existing,error:lookupError}=await SB.from("snap_events")
-      .select("id,client_created_at,snap_kind,source_invite_id")
-      .eq("game_id",cloudGameId).eq("snap_number",payload.snap_number).eq("active",true).maybeSingle();
-    if(lookupError)throw lookupError;
-    if(existing){
-      const localTime=payload.client_created_at?Date.parse(payload.client_created_at):NaN;
-      const remoteTime=existing.client_created_at?Date.parse(existing.client_created_at):NaN;
-      // Match event identity, not just its ordinal position; mismatches require review.
-      if(existing.id!==r.id&&(!Number.isFinite(localTime)||!Number.isFinite(remoteTime)||Math.abs(localTime-remoteTime)>1000)){
-        throw new Error("Snap sync conflict at snap "+payload.snap_number+": a different snap already exists in the cloud. Local data was preserved.");
-      }
-      const {data:parts,error:partsError}=await SB.from("snap_participants").select("player_id").eq("snap_event_id",existing.id);
-      if(partsError)throw partsError;
-      const remotePlayers=(parts||[]).map(p=>p.player_id).sort();
-      const localPlayers=payload.playerIds.map(p=>S.cloud.playerIds?.[p]).filter(Boolean).sort();
-      if(remotePlayers.length!==localPlayers.length||remotePlayers.some((p,i)=>p!==localPlayers[i])){
-        throw new Error("Snap sync conflict at snap "+payload.snap_number+": player selections differ. Local data was preserved.");
-      }
-      id=existing.id;S.cloud.snapIds[r.id]=id;
-      // Invited tracker events are authoritative for their own classification.
-      if(existing.source_invite_id&&existing.snap_kind!==payload.snap_kind)r.snapKind=existing.snap_kind||"regular";
-      S.cloud.snapHashes[r.id]=simpleHash(buildCloudSnapPayload(g,r,index,cloudGameId));
+  if(!r.id)r.id=uid();
+  const payload=buildCloudSnapPayload(g,r,index,cloudGameId),h=simpleHash(payload);
+  if(S.cloud.snapHashes[r.id]===h)return;
+  const id=S.cloud.snapIds[r.id];
+  const {data:remote,error:lookupError}=await SB.from("snap_events")
+    .select("id,game_id,snap_number,quarter,client_created_at,snap_kind,active,source_invite_id")
+    .eq("game_id",cloudGameId).eq("snap_number",payload.snap_number).eq("active",true).maybeSingle();
+  if(lookupError)throw lookupError;
+  if(remote&&id&&remote.id!==id)throw new Error("Snap "+payload.snap_number+" cloud identity changed. Local data preserved.");
+  if(remote){
+    const localTime=payload.client_created_at?Date.parse(payload.client_created_at):NaN;
+    const remoteTime=remote.client_created_at?Date.parse(remote.client_created_at):NaN;
+    const sameTime=Number.isFinite(localTime)&&Number.isFinite(remoteTime)&&Math.abs(localTime-remoteTime)<=1000;
+    if(!sameTime)throw new Error("Snap sync conflict at snap "+payload.snap_number+": different cloud event. Local data preserved.");
+    const {data:parts,error:partsError}=await SB.from("snap_participants").select("player_id").eq("snap_event_id",remote.id);
+    if(partsError)throw partsError;
+    const remotePlayers=(parts||[]).map(p=>p.player_id).sort();
+    const localPlayers=payload.playerIds.map(p=>S.cloud.playerIds?.[p]).filter(Boolean).sort();
+    const samePlayers=remotePlayers.length===localPlayers.length&&remotePlayers.every((p,i)=>p===localPlayers[i]);
+    const sameMetadata=Number(remote.quarter)===payload.quarter&&(remote.snap_kind||"regular")===payload.snap_kind;
+    if(samePlayers&&sameMetadata){
+      S.cloud.snapIds[r.id]=remote.id;S.cloud.snapHashes[r.id]=h;
       persist({skipCloud:true});return;
     }
-    id=await createCloudSnapEvent(payload,cloudGameId);S.cloud.snapIds[r.id]=id;persist({skipCloud:true})
-  }
-  else{
-    const {error}=await SB.from("snap_events").update({quarter:payload.quarter,client_created_at:payload.client_created_at,snap_kind:payload.snap_kind,active:true}).eq("id",id);if(error)throw error;
+    // A shared Snap Tracker is authoritative; never replace its participants or classification.
+    if(remote.source_invite_id)throw new Error("Snap "+payload.snap_number+" belongs to shared Snap Tracker and differs locally. Cloud record preserved.");
+    if(!id)throw new Error("Snap "+payload.snap_number+" already exists with different data. Local data preserved.");
+    const {error:updateError}=await SB.from("snap_events").update({quarter:payload.quarter,client_created_at:payload.client_created_at,snap_kind:payload.snap_kind}).eq("id",id).eq("active",true);
+    if(updateError)throw updateError;
     const {error:de}=await SB.from("snap_participants").delete().eq("snap_event_id",id);if(de)throw de;
-    for(const localPid of payload.playerIds){const playerId=S.cloud.playerIds?.[localPid];if(!playerId)continue;const {error:pe}=await SB.from("snap_participants").insert({snap_event_id:id,player_id:playerId});if(pe)throw pe}
+    for(const playerId of localPlayers){const {error:pe}=await SB.from("snap_participants").insert({snap_event_id:id,player_id:playerId});if(pe)throw pe}
+    S.cloud.snapHashes[r.id]=h;persist({skipCloud:true});return;
   }
-  S.cloud.snapHashes[r.id]=h;
+  if(id)throw new Error("Previously synced snap "+payload.snap_number+" is missing from cloud. Local data preserved.");
+  const createdId=await createCloudSnapEvent(payload,cloudGameId);
+  S.cloud.snapIds[r.id]=createdId;S.cloud.snapHashes[r.id]=h;persist({skipCloud:true});
 }
 function buildCloudGamePayload(g){
   return {season_id:S.cloud.seasonId,created_by:cloudUser.id,opponent_name:g.opponent||"Opponent",opponent_logo_data:g.opponentLogoData||null,week_number:Number(g.week||1),game_date:null,location_type:cloudLocation(g.location),game_type:["regular","playoff","scrimmage","other"].includes(g.gameType)?g.gameType:"regular",status:cloudGameStatus(g),opening_kickoff:g.openingKickoff||null,current_quarter:Number(g.quarter||1),team_score:Math.max(0,Number(displayedOurScore(g)||0)),opponent_score:Math.max(0,Number(g.oppScore||0)),possession:g.possession==="opp"?"opponent":"ours",current_down:Number(g.down||1),current_distance:Number(g.distance||10),game_plan:normalizeGamePlan(g),ended_at:window.SidelineGameLifecycle.stableEndedAt(g),current_state:{quarter:Number(g.quarter||1),team_score:Math.max(0,Number(displayedOurScore(g)||0)),opponent_score:Math.max(0,Number(g.oppScore||0)),possession:g.possession==="opp"?"opponent":"ours",down:Number(g.down||1),distance:Number(g.distance||10),ballSpot:Field.validSpot(g.ballSpot)}};
@@ -1130,7 +1130,10 @@ async function syncDeletedCloudSnaps(){
   for(const [localId,cloudId] of Object.entries({...S.cloud.snapIds,...(S.cloud.pendingSnapDeletes||{})})){
     if(localSnapIds.has(localId))continue;
     await assertCloudDeleteSafe("snap_events",cloudId,"Snap");
-    const {error}=await SB.from("snap_events").update({active:false}).eq("id",cloudId);if(error)throw error;
+    const {data:remote,error:checkError}=await SB.from("snap_events").select("id,source_invite_id,active").eq("id",cloudId).maybeSingle();
+    if(checkError)throw checkError;
+    if(remote?.source_invite_id)throw new Error("Shared Snap Tracker snap is queued for deletion. Cloud record preserved; review required.");
+    const {error}=await SB.from("snap_events").update({active:false}).eq("id",cloudId).is("source_invite_id",null);if(error)throw error;
     delete S.cloud.snapIds[localId];delete S.cloud.snapHashes[localId];if(S.cloud.pendingSnapDeletes)delete S.cloud.pendingSnapDeletes[localId];persist({skipCloud:true});changed=true;
   }
   return changed;
