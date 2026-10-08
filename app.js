@@ -1182,7 +1182,17 @@ async function syncCloudNow(options={}){
       if(!cloudGameNeedsSync(g)){if(g.id===options.priorityGameId)priorityGameSynced=true;continue}
       const cloudGameId=await ensureCloudGame(g);ensureCurrentRun();
       for(let i=0;i<(g.plays||[]).length;i++){await syncOnePlay(g,g.plays[i],i,cloudGameId);ensureCurrentRun()}
-      for(let i=0;i<(g.snapRecords||[]).length;i++){await syncSnapRecord(g,g.snapRecords[i],i,cloudGameId);ensureCurrentRun()}
+      // A deliberately concurrent test game may contain distinct events at the same ordinal.
+      // Preserve both copies and continue syncing real games instead of blocking the entire season.
+      let testSnapConflict=false;
+      for(let i=0;i<(g.snapRecords||[]).length;i++){
+        try{await syncSnapRecord(g,g.snapRecords[i],i,cloudGameId);ensureCurrentRun()}
+        catch(e){
+          if(g.opponent==="Brett Test"&&/Snap sync conflict|different cloud event|belongs to shared Snap Tracker|already exists with different data|cloud identity changed/.test(String(e?.message||""))){testSnapConflict=true;console.warn("Preserved distinct Brett Test snap",i+1,e.message);break}
+          throw e;
+        }
+      }
+      if(testSnapConflict){S.cloud.lastSyncError="Brett Test contains different local and tracker snaps; both preserved. Other games can sync.";persist({skipCloud:true});continue}
       await ensureCloudGame(g);ensureCurrentRun();
       try{await publishCloudGame(cloudGameId)}catch(e){delete S.cloud.gameHashes[g.id];persist({skipCloud:true});throw e}
       ensureCurrentRun();published.push(cloudGameId);if(g.id===options.priorityGameId)priorityGameSynced=true;
