@@ -3201,7 +3201,7 @@ $("#shareSnapInviteBtn")?.addEventListener("click",()=>{
 });
 $("#snapInviteModal")?.addEventListener("click",e=>{if(e.target.id==="snapInviteModal")closeSnapInvite()});
 
-$('input[name="snapKind"]').forEach(input=>input.addEventListener("change",()=>{const g=currentGame();$("#recordSnapBtn").disabled=!g||gameReadOnly(g)||!document.querySelector('input[name="snapKind"]:checked')}));
+$$('input[name="snapKind"]').forEach(input=>input.addEventListener("change",()=>{const g=currentGame();$("#recordSnapBtn").disabled=!g||gameReadOnly(g)||!document.querySelector('input[name="snapKind"]:checked')}));
 $("#recordSnapBtn").addEventListener("click",()=>{
   if(!S.roster.length)return toast("Add your roster first");
   if(!document.querySelector('input[name="snapKind"]:checked'))return toast("Select Regular Play, Penalty, or Special Teams first");
@@ -3223,7 +3223,7 @@ $("#recordSnapBtn").addEventListener("click",()=>{
   }
 
   persist();
-  $(`input[name="snapKind"]`).forEach(input=>input.checked=false);
+  $$(`input[name="snapKind"]`).forEach(input=>input.checked=false);
   toast(`Snap recorded for ${onField.length} players`);
 
   // Keep the current on-field lineup exactly as selected for the next play.
