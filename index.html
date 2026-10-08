@@ -25,7 +25,7 @@
   }catch(_){goStart();}
 })();
 </script>
-<style>.snap-kind-picker{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:14px 0}.snap-kind-picker label{display:flex;align-items:center;justify-content:center;text-align:center;position:relative;min-width:0;min-height:62px;padding:10px 5px;font-size:13px;line-height:1.25;font-weight:800;border:2px solid #d6ded8;border-radius:12px;background:#fff;cursor:pointer;overflow:hidden}.snap-kind-picker input{position:absolute;opacity:0;width:1px;height:1px}.snap-kind-picker label:has(input:checked){border-color:#188943;background:#e6f5eb;color:#146d37;box-shadow:inset 0 0 0 1px #188943}.snap-kind-picker label:has(input:focus-visible){outline:3px solid #188943;outline-offset:2px}.snap-action-row{display:flex;gap:10px;align-items:stretch}.snap-action-row .btn{flex:1;min-width:0;margin:0;padding:14px 8px;font-size:15px}.snap-action-row #recordSnapBtn{background:#188943;color:white;border-color:#188943}.snap-action-row #recordSnapBtn:disabled{background:#b8c0bc;color:#525b56;border-color:#b8c0bc;opacity:1;cursor:not-allowed}</style></head>
+<style>.snap-kind-picker{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:14px 0}.snap-kind-picker label{display:flex;align-items:center;justify-content:center;text-align:center;position:relative;min-width:0;min-height:62px;padding:10px 5px;font-size:13px;line-height:1.25;font-weight:800;border:2px solid #d6ded8;border-radius:12px;background:#fff;cursor:pointer;overflow:hidden}.snap-kind-picker input{position:absolute;opacity:0;width:1px;height:1px}.snap-kind-picker label:has(input:checked){border-color:var(--s);background:color-mix(in srgb,var(--s) 20%,white);color:#122018;box-shadow:inset 0 0 0 1px var(--s)}.snap-kind-picker label:has(input:focus-visible){outline:3px solid var(--s);outline-offset:2px}.snap-action-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;align-items:stretch}.snap-action-row .btn{min-width:0;margin:0;padding:13px 5px;font-size:13px;line-height:1.2;white-space:normal}.snap-action-row #recordSnapBtn{background:var(--s);color:#122018;border-color:var(--s)}.snap-action-row #recordSnapBtn:disabled{background:#b8c0bc;color:#525b56;border-color:#b8c0bc;opacity:1;cursor:not-allowed}</style></head>
 <body>
 <script>if(new URLSearchParams(location.search).get('accountConfirmed')==='1')document.body.classList.add('confirmation-mode')</script>
 <main id="accountConfirmationPage" class="account-confirmation-page" aria-live="polite">
@@ -605,7 +605,7 @@
           <h2 style="margin:0">Snap Tracker</h2>
           <div class="muted">Set the players on the field once. Your lineup stays the same after each recorded snap until you change it.</div>
         </div>
-        <button class="btn ghost small" id="checkAllSnaps">Check All</button>
+        
       </div>
       <div class="snap-summary">
         <span class="snap-pill" id="snapOnFieldCount">0 on field</span>
@@ -624,7 +624,7 @@
     </div>
     <div class="card">
       <div id="snapRoster" class="snap-roster"></div>
-      <div class="snap-kind-picker" role="radiogroup" aria-label="Snap type"><label><input type="radio" name="snapKind" value="regular"> Regular Play</label><label><input type="radio" name="snapKind" value="penalty"> Penalty</label><label><input type="radio" name="snapKind" value="special_teams"> Special Teams</label></div><div class="snap-action-row"><button class="btn snap-record-btn" id="recordSnapBtn" disabled>Record Snap</button><button class="btn ghost" id="undoLastSnapBtn" type="button">Undo Last Snap</button></div>
+      <div class="snap-kind-picker" role="radiogroup" aria-label="Snap type"><label><input type="radio" name="snapKind" value="regular"> Regular Play</label><label><input type="radio" name="snapKind" value="penalty"> Penalty</label><label><input type="radio" name="snapKind" value="special_teams"> Special Teams</label></div><div class="snap-action-row"><button class="btn ghost" id="checkAllSnaps" type="button">Check All</button><button class="btn snap-record-btn" id="recordSnapBtn" disabled>Record Snap</button><button class="btn ghost" id="undoLastSnapBtn" type="button">Undo Last Snap</button></div>
       <button class="btn ghost" id="inviteSnapTrackerBtn" style="margin-top:12px">Invite Snap Tracker</button>
       <div class="share-tip">Send a game-only link to a second parent. They can record participation but cannot edit game stats.</div>
       <button class="btn ghost" id="shareSnapsBtn" style="margin-top:12px">Share Participation Report</button>
@@ -800,7 +800,7 @@
 <div id="ownerDashboardModal" class="modal-backdrop hidden"><div class="modal-card owner-dashboard-modal"><button id="ownerDashboardCloseBtn" class="modal-close" aria-label="Close">×</button><h2>Sideline Stats Traction</h2><div class="muted">Private owner view • live production activity</div><div id="ownerMetrics" class="owner-metrics"><div class="inline-note">Loading traction data…</div></div><section class="owner-metric-section"><h3>Emergency local recovery</h3><div class="muted">Platform-admin only. Supabase remains the authoritative source for cloud-linked teams.</div><div class="data-tools"><button class="btn ghost" id="ownerBackupDataBtn" type="button">Download Recovery Backup</button><button class="btn ghost" id="ownerRestoreDataBtn" type="button">Restore Local Backup</button></div><input id="ownerRestoreDataInput" type="file" accept="application/json,.json" class="hidden"></section></div></div>
 <div class="toast" id="toast"></div>
 
-<script src="./version.js?release=4.6.47"></script>
+<script src="./version.js?release=4.6.48"></script>
 <script src="./field-orientation.js"></script>
 <script src="./field-position.js"></script>
 <script src="./cloud-conflict.js"></script>
@@ -812,7 +812,7 @@
 <script src="./commercial-access.js?release=4.6.9"></script>
 <script src="./storage-snapshot.js?release=4.6.9"></script>
 <script src="./cloud-pagination.js"></script>
-<script src="./app.js?release=4.6.47"></script>
+<script src="./app.js?release=4.6.48"></script>
 
 <script src="./pwa.js?release=4.6.9"></script>
 
