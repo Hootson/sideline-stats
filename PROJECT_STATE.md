@@ -1,3 +1,7 @@
+## October 10 — v4.6.60 On-demand cloud logo restoration
+
+Confirmed Erie Tigers team logo (258,555 characters) and Week 8 Broomfield Blitz opponent logo (1,753,642 characters) remain present in Supabase. Local quota fallback may omit embedded images. Added on-demand, missing-only, current-game-only logo recovery using narrow team/game selects (no full-season fetch), once per game per session, and no polling. Existing cloud logo columns are never set to null by team/game update payloads when local media is missing. No SQL writes performed. Browser syntax check passed; iPhone visual test pending. Large original opponent image remains ~1.75MB on first retrieval; future optimization should resize/re-encode uploads and separate media from game state, not repeatedly transfer original. Egress cost not guaranteed until observed.
+
 
 ## October 10 — v4.6.59 Egress Root-Cause Investigation
 

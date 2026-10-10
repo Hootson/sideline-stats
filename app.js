@@ -689,6 +689,7 @@ async function loadTeamFromCloud(options={}){
     cloudRemoteUpdates=false;rememberTeam(team.id);coachSelection=null;coachDebriefs=[];coachOwnDebrief=null;
     persist({skipCloud:true});await resolveCloudDeviceRole();normalizePlaybook();normalizeRoster();normalizeGames();syncChrome();populateSetup();initializeSnapSelections();renderRoster();renderGameArea();renderSnaps();renderStats();updateCloudUI();if(isCloudStatkeeper()&&Object.keys(S.cloud.deletedGames||{}).length)scheduleCloudSync(0);
     go(refreshing?priorScreen:(options.destination||"roster"));
+    if(currentGame())void restoreMissingCloudLogos(currentGame().id);
     if(isCloudCoach())setTimeout(maybePromptCoachDebrief,250);
     if(!autoRefresh)toast(refreshing?"Latest cloud changes loaded":"Cloud team loaded on this device");
     // Role is already resolved above. Avoid fetching the whole season again.
@@ -1030,6 +1031,8 @@ function buildCloudTeamPayload(){return {name:S.team.name,team_identifier:S.team
 async function ensureCloudTeam(){
   if(!cloudLinked())return;
   const payload=buildCloudTeamPayload(),h=simpleHash(payload);if(S.cloud.teamHash===h)return;
+  // A quota-reduced local snapshot may omit logos. Never erase cloud media.
+  if(!payload.logo_data)delete payload.logo_data;
   const {error}=await SB.from("teams").update(payload).eq("id",S.cloud.teamId);
   if(error)throw error;
   S.cloud.teamHash=h;persist({skipCloud:true});
@@ -1047,12 +1050,14 @@ async function ensureCloudGame(g){
       if(!existing)throw error;
       id=existing.id;
       const update={...payload};delete update.created_by;delete update.season_id;
+    if(!update.opponent_logo_data)delete update.opponent_logo_data;
       const {data:updated,error:updateError}=await SB.from("games").update(update).eq("id",id).select("revision").single();if(updateError)throw updateError;writtenRevision=Number(updated?.revision||existing.revision||0);
     }else{id=data.id;writtenRevision=Number(data.revision||0)}
     S.cloud.gameIds[g.id]=id;S.cloud.gameHashes[g.id]=h;if(writtenRevision)S.cloud.deleteRevisions[`games:${id}`]=writtenRevision;persist({skipCloud:true});
   }else if(S.cloud.gameHashes?.[g.id]!==h){
     // Game state (especially score) is authoritative on the active statkeeper.
     const update={...payload};delete update.created_by;delete update.season_id;
+    if(!update.opponent_logo_data)delete update.opponent_logo_data;
     const {data:updated,error}=await SB.from("games").update(update).eq("id",id).select("revision").single();if(error)throw error;S.cloud.gameHashes[g.id]=h;writtenRevision=Number(updated?.revision||0);if(writtenRevision)S.cloud.deleteRevisions[`games:${id}`]=writtenRevision;persist({skipCloud:true});
   }
   return id;
@@ -1299,6 +1304,39 @@ function colorContrast(a,b){const x=colorLuminance(a),y=colorLuminance(b);return
 function colors(){let p=S.team?.primary||"#177b46",s=S.team?.secondary||"#f0b33b",ink=colorLuminance(p)>.46?"#111111":"#ffffff",active=colorContrast(p,s)>=3?s:ink;document.documentElement.style.setProperty("--p",p);document.documentElement.style.setProperty("--s",s);document.documentElement.style.setProperty("--nav-text",ink);document.documentElement.style.setProperty("--nav-muted",ink==="#ffffff"?"#ffffffb8":"#111111a6");document.documentElement.style.setProperty("--nav-active",active);document.querySelector('meta[name="theme-color"]').setAttribute("content",p)}
 function teamExists(){return !!(S.team&&S.team.name)}
 function currentGame(){return S.games.find(g=>g.id===S.activeGameId)||null}
+// Cloud images are fetched only when absent locally, and only for the
+// currently viewed game. Avoid fetching the full season or polling images.
+const logoFetches=new Map(),logoChecked=new Set();
+async function restoreMissingCloudLogos(gameId){
+  if(!SB||!cloudUser||!cloudLinked()||navigator.onLine===false)return;
+  const g=(S.games||[]).find(x=>x.id===gameId);if(!g)return;
+  const missingTeam=!S.team?.logoData,missingGame=!g.opponentLogoData;
+  if(!missingTeam&&!missingGame)return;
+  const key=String(S.cloud.teamId)+":"+String(S.cloud.gameIds?.[g.id]||g.id);
+  if(logoChecked.has(key))return;
+  if(logoFetches.has(key))return logoFetches.get(key);
+  const task=(async()=>{
+    let changed=false;
+    if(missingTeam){
+      const {data,error}=await SB.from("teams").select("logo_data").eq("id",S.cloud.teamId).single();
+      if(error)throw error;
+      if(data?.logo_data&&!S.team.logoData){S.team.logoData=data.logo_data;changed=true}
+    }
+    if(missingGame){
+      const {data,error}=await SB.from("games").select("opponent_logo_data").eq("id",S.cloud.gameIds?.[g.id]||g.id).single();
+      if(error)throw error;
+      if(data?.opponent_logo_data&&!g.opponentLogoData){g.opponentLogoData=data.opponent_logo_data;changed=true}
+    }
+    if(changed){
+      // Preserve cloud hash state; restored media is already present remotely.
+      // Do not alter synchronization hashes: image recovery must never mask
+      // unrelated unsynced edits or cause historical game writes.
+      persist({skipCloud:true});renderGameArea();syncChrome();
+    }
+  })().then(()=>logoChecked.add(key)).catch(e=>console.warn("Cloud logo recovery skipped",e)).finally(()=>logoFetches.delete(key));
+  logoFetches.set(key,task);return task;
+}
+
 function gameCorrectionsOpen(g=currentGame()){return !!(g?.status==="complete"&&g?.correctionsOpen)}
 function gameReadOnly(g=currentGame()){return !!(g?.status==="complete"&&!g?.correctionsOpen)}
 function isCloudViewer(){return !!(S.cloud?.teamId&&S.cloud?.seasonId&&cloudDeviceRole()==="viewer")}
@@ -1346,7 +1384,7 @@ function go(name){
   $$("#coachNav [data-go]").forEach(b=>b.classList.toggle("active",b.dataset.go===name));
   document.body.classList.toggle("coach-mode",name==="coach");
   $("#topTitle").textContent={setup:"Sideline Stats",roster:"Roster & Playbook",game:"Game",snaps:"Snaps",stats:isCloudViewer()?"Game Center":"Team Stats",coach:"Coach Pro",share:"Share"}[name];
-  if(name==="game")renderGameArea();
+  if(name==="game"){renderGameArea();if(currentGame())void restoreMissingCloudLogos(currentGame().id)}
   if(name==="snaps")renderSnaps();
   if(name==="stats"){if(!isCloudViewer()&&currentGame())selectedStatsGameId=currentGame().id;renderStats();}
   if(name==="coach"){renderCoach();if(hasCoachAccess()&&["overview","offense","defense","debrief"].includes(coachTab))loadCoachDebriefs().then(renderCoach)}
