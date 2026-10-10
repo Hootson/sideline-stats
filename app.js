@@ -688,7 +688,8 @@ async function loadTeamFromCloud(options={}){
     for(const g of localGames)S.cloud.gameHashes[g.id]=simpleHash(buildCloudGamePayload(g));for(const g of localGames)(g.snapRecords||[]).forEach((r,i)=>S.cloud.snapHashes[r.id]=simpleHash(buildCloudSnapPayload(g,r,i,g.id)));
     cloudRemoteUpdates=false;rememberTeam(team.id);coachSelection=null;coachDebriefs=[];coachOwnDebrief=null;
     persist({skipCloud:true});await resolveCloudDeviceRole();normalizePlaybook();normalizeRoster();normalizeGames();syncChrome();populateSetup();initializeSnapSelections();renderRoster();renderGameArea();renderSnaps();renderStats();updateCloudUI();if(isCloudStatkeeper()&&Object.keys(S.cloud.deletedGames||{}).length)scheduleCloudSync(0);
-    go(refreshing?priorScreen:(options.destination||"roster"));\n    if(currentGame())void restoreMissingCloudLogos(currentGame().id);
+    go(refreshing?priorScreen:(options.destination||"roster"));
+    if(currentGame())void restoreMissingCloudLogos(currentGame().id);
     if(isCloudCoach())setTimeout(maybePromptCoachDebrief,250);
     if(!autoRefresh)toast(refreshing?"Latest cloud changes loaded":"Cloud team loaded on this device");
     // Role is already resolved above. Avoid fetching the whole season again.
@@ -1029,7 +1030,9 @@ async function ensureCloudRoster(){
 function buildCloudTeamPayload(){return {name:S.team.name,team_identifier:S.team.identifier||null,grade:S.team.grade||null,primary_color:S.team.primary||null,accent_color:S.team.secondary||null,logo_data:S.team.logoData||null,snap_minimum:teamSnapMinimum(),playbook:teamPlaybook(),intended_plan:S.team.planIntent||onboardingPlan}}
 async function ensureCloudTeam(){
   if(!cloudLinked())return;
-  const payload=buildCloudTeamPayload(),h=simpleHash(payload);if(S.cloud.teamHash===h)return;\n  // A quota-reduced local snapshot may omit logos. Never erase cloud media.\n  if(!payload.logo_data)delete payload.logo_data;
+  const payload=buildCloudTeamPayload(),h=simpleHash(payload);if(S.cloud.teamHash===h)return;
+  // A quota-reduced local snapshot may omit logos. Never erase cloud media.
+  if(!payload.logo_data)delete payload.logo_data;
   const {error}=await SB.from("teams").update(payload).eq("id",S.cloud.teamId);
   if(error)throw error;
   S.cloud.teamHash=h;persist({skipCloud:true});
@@ -1046,13 +1049,15 @@ async function ensureCloudGame(g){
       const normalized=String(payload.opponent_name||"").trim().toLowerCase(),existing=(matches||[]).find(row=>String(row.opponent_name||"").trim().toLowerCase()===normalized);
       if(!existing)throw error;
       id=existing.id;
-      const update={...payload};delete update.created_by;delete update.season_id;\n    if(!update.opponent_logo_data)delete update.opponent_logo_data;
+      const update={...payload};delete update.created_by;delete update.season_id;
+    if(!update.opponent_logo_data)delete update.opponent_logo_data;
       const {data:updated,error:updateError}=await SB.from("games").update(update).eq("id",id).select("revision").single();if(updateError)throw updateError;writtenRevision=Number(updated?.revision||existing.revision||0);
     }else{id=data.id;writtenRevision=Number(data.revision||0)}
     S.cloud.gameIds[g.id]=id;S.cloud.gameHashes[g.id]=h;if(writtenRevision)S.cloud.deleteRevisions[`games:${id}`]=writtenRevision;persist({skipCloud:true});
   }else if(S.cloud.gameHashes?.[g.id]!==h){
     // Game state (especially score) is authoritative on the active statkeeper.
-    const update={...payload};delete update.created_by;delete update.season_id;\n    if(!update.opponent_logo_data)delete update.opponent_logo_data;
+    const update={...payload};delete update.created_by;delete update.season_id;
+    if(!update.opponent_logo_data)delete update.opponent_logo_data;
     const {data:updated,error}=await SB.from("games").update(update).eq("id",id).select("revision").single();if(error)throw error;S.cloud.gameHashes[g.id]=h;writtenRevision=Number(updated?.revision||0);if(writtenRevision)S.cloud.deleteRevisions[`games:${id}`]=writtenRevision;persist({skipCloud:true});
   }
   return id;
