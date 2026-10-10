@@ -1442,9 +1442,9 @@ function go(name){
   $$("#coachNav [data-go]").forEach(b=>b.classList.toggle("active",b.dataset.go===name));
   document.body.classList.toggle("coach-mode",name==="coach");
   $("#topTitle").textContent={setup:"Sideline Stats",roster:"Roster & Playbook",game:"Game",snaps:"Snaps",stats:isCloudViewer()?"Game Center":"Team Stats",coach:"Coach Pro",share:"Share"}[name];
-  if(name==="game"){renderGameArea();if(currentGame())void restoreMissingCloudLogos(currentGame().id)}
+  if(name==="game"){renderGameArea();if(currentGame()){void restoreMissingCloudLogos(currentGame().id);void verifyFinalGameFromCloud(currentGame().id)}}
   if(name==="snaps")renderSnaps();
-  if(name==="stats"){if(!isCloudViewer()&&currentGame())selectedStatsGameId=currentGame().id;renderStats();if(statsScope==="game"&&selectedStatsGameId)void verifyFinalGameFromCloud(selectedStatsGameId);}
+  if(name==="stats"){if(!isCloudViewer()&&currentGame())selectedStatsGameId=currentGame().id;renderStats();if(selectedStatsGameId)void verifyFinalGameFromCloud(selectedStatsGameId);}
   if(name==="coach"){renderCoach();if(hasCoachAccess()&&["overview","offense","defense","debrief"].includes(coachTab))loadCoachDebriefs().then(renderCoach)}
   renderQuickStart();
   
