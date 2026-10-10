@@ -1046,13 +1046,13 @@ async function ensureCloudGame(g){
       const normalized=String(payload.opponent_name||"").trim().toLowerCase(),existing=(matches||[]).find(row=>String(row.opponent_name||"").trim().toLowerCase()===normalized);
       if(!existing)throw error;
       id=existing.id;
-      const update={...payload};delete update.created_by;delete update.season_id;
+      const update={...payload};delete update.created_by;delete update.season_id;\n    if(!update.opponent_logo_data)delete update.opponent_logo_data;
       const {data:updated,error:updateError}=await SB.from("games").update(update).eq("id",id).select("revision").single();if(updateError)throw updateError;writtenRevision=Number(updated?.revision||existing.revision||0);
     }else{id=data.id;writtenRevision=Number(data.revision||0)}
     S.cloud.gameIds[g.id]=id;S.cloud.gameHashes[g.id]=h;if(writtenRevision)S.cloud.deleteRevisions[`games:${id}`]=writtenRevision;persist({skipCloud:true});
   }else if(S.cloud.gameHashes?.[g.id]!==h){
     // Game state (especially score) is authoritative on the active statkeeper.
-    const update={...payload};delete update.created_by;delete update.season_id;
+    const update={...payload};delete update.created_by;delete update.season_id;\n    if(!update.opponent_logo_data)delete update.opponent_logo_data;
     const {data:updated,error}=await SB.from("games").update(update).eq("id",id).select("revision").single();if(error)throw error;S.cloud.gameHashes[g.id]=h;writtenRevision=Number(updated?.revision||0);if(writtenRevision)S.cloud.deleteRevisions[`games:${id}`]=writtenRevision;persist({skipCloud:true});
   }
   return id;
