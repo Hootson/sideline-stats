@@ -688,7 +688,7 @@ async function loadTeamFromCloud(options={}){
     for(const g of localGames)S.cloud.gameHashes[g.id]=simpleHash(buildCloudGamePayload(g));for(const g of localGames)(g.snapRecords||[]).forEach((r,i)=>S.cloud.snapHashes[r.id]=simpleHash(buildCloudSnapPayload(g,r,i,g.id)));
     cloudRemoteUpdates=false;rememberTeam(team.id);coachSelection=null;coachDebriefs=[];coachOwnDebrief=null;
     persist({skipCloud:true});await resolveCloudDeviceRole();normalizePlaybook();normalizeRoster();normalizeGames();syncChrome();populateSetup();initializeSnapSelections();renderRoster();renderGameArea();renderSnaps();renderStats();updateCloudUI();if(isCloudStatkeeper()&&Object.keys(S.cloud.deletedGames||{}).length)scheduleCloudSync(0);
-    go(refreshing?priorScreen:(options.destination||"roster"));
+    go(refreshing?priorScreen:(options.destination||"roster"));\n    if(currentGame())void restoreMissingCloudLogos(currentGame().id);
     if(isCloudCoach())setTimeout(maybePromptCoachDebrief,250);
     if(!autoRefresh)toast(refreshing?"Latest cloud changes loaded":"Cloud team loaded on this device");
     // Role is already resolved above. Avoid fetching the whole season again.
@@ -1378,7 +1378,7 @@ function go(name){
   $$("#coachNav [data-go]").forEach(b=>b.classList.toggle("active",b.dataset.go===name));
   document.body.classList.toggle("coach-mode",name==="coach");
   $("#topTitle").textContent={setup:"Sideline Stats",roster:"Roster & Playbook",game:"Game",snaps:"Snaps",stats:isCloudViewer()?"Game Center":"Team Stats",coach:"Coach Pro",share:"Share"}[name];
-  if(name==="game")renderGameArea();
+  if(name==="game"){renderGameArea();if(currentGame())void restoreMissingCloudLogos(currentGame().id)}
   if(name==="snaps")renderSnaps();
   if(name==="stats"){if(!isCloudViewer()&&currentGame())selectedStatsGameId=currentGame().id;renderStats();}
   if(name==="coach"){renderCoach();if(hasCoachAccess()&&["overview","offense","defense","debrief"].includes(coachTab))loadCoachDebriefs().then(renderCoach)}
