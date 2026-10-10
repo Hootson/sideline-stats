@@ -63,18 +63,17 @@
     // Always preserve the previous successfully written snapshot on quota errors.
     const full=JSON.stringify(state);
     let usedCompactMain=false,usedCompressedMain=false,recoverySaved=false,mainSaved=false;
-    try{storage.setItem(key,full);mainSaved=true}
-    catch(fullError){
-      const small=JSON.stringify(compact(state));
-      try{storage.setItem(key,small);usedCompactMain=true;mainSaved=true}
-      catch(compactError){
-        // Compression is an emergency fallback, not work done on every play.
-        const compressed=encode(small);
-        try{storage.setItem(key,compressed);usedCompactMain=true;usedCompressedMain=true;mainSaved=true}
-        catch(compressedError){
-          const err=new Error("Browser storage quota prevented saving game data. Previous saved snapshot preserved.");
-          err.cause=compressedError;throw err;
-        }
+    // Prefer compact JSON (images are still retained in memory and in explicit
+    // downloadable backups). This prevents large data: URLs from filling quota.
+    const small=JSON.stringify(compact(state));
+    try{storage.setItem(key,small);usedCompactMain=small!==full;mainSaved=true}
+    catch(compactError){
+      // Compression is an emergency fallback, not work done on every play.
+      const compressed=encode(small);
+      try{storage.setItem(key,compressed);usedCompactMain=true;usedCompressedMain=true;mainSaved=true}
+      catch(compressedError){
+        const err=new Error("Browser storage quota prevented saving game data. Previous saved snapshot preserved.");
+        err.cause=compressedError;throw err;
       }
     }
     // Recovery is a separate, compressed safety copy. Throttle the CPU-intensive
