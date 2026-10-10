@@ -237,7 +237,7 @@ function queueRealtimeRefresh(){
     try{await loadTeamFromCloud({refresh:true,auto:true})}
     catch(e){console.warn("Realtime refresh failed",e)}
     finally{cloudAutoRefreshRunning=false;if(cloudRealtimeRefreshQueued)queueRealtimeRefresh()}
-  },650);
+  },1500);
 }
 function scheduleCloudRealtimeReconnect(){
   if(cloudRealtimeReconnectTimer||isCloudStatkeeper()||!SB||!cloudUser||!cloudLinked()||navigator.onLine===false)return;
@@ -256,9 +256,8 @@ function startCloudRealtime(options={}){
     ch=ch.on('postgres_changes',{event:'*',schema:'public',table:'penalties',filter:`game_id=eq.${gid}`},queueRealtimeRefresh);
     ch=ch.on('postgres_changes',{event:'*',schema:'public',table:'snap_events',filter:`game_id=eq.${gid}`},queueRealtimeRefresh);
   }
-  // Child rows do not contain game_id; their RLS policies limit delivery to readable team data.
-  ch=ch.on('postgres_changes',{event:'*',schema:'public',table:'play_credits'},queueRealtimeRefresh);
-  ch=ch.on('postgres_changes',{event:'*',schema:'public',table:'snap_participants'},queueRealtimeRefresh);
+  // Child rows change frequently. A published game revision is the single
+  // notification that its complete state is ready; do not reload per credit/snap.
   cloudRealtimeChannel=ch.subscribe(status=>{
     cloudRealtimeConnected=status==='SUBSCRIBED';
     if(status==='SUBSCRIBED'&&cloudRealtimeReconnectTimer){clearTimeout(cloudRealtimeReconnectTimer);cloudRealtimeReconnectTimer=null}
@@ -692,8 +691,8 @@ async function loadTeamFromCloud(options={}){
     go(refreshing?priorScreen:(options.destination||"roster"));
     if(isCloudCoach())setTimeout(maybePromptCoachDebrief,250);
     if(!autoRefresh)toast(refreshing?"Latest cloud changes loaded":"Cloud team loaded on this device");
-    // Recheck membership after every load so an owner/statkeeper cannot remain stuck in viewer mode.
-    setTimeout(checkCloudForUpdates,1200);startCloudRealtime({preserveRefresh:true});
+    // Role is already resolved above. Avoid fetching the whole season again.
+    startCloudRealtime({preserveRefresh:true});
   }catch(e){console.error("Cloud restore failed",e);toast(e?.message||"Could not load cloud team")}
   finally{if(btn){btn.disabled=false;btn.textContent=refreshing?"Refresh Cloud":"Load Cloud Team"}updateCloudUI()}
 }
@@ -874,21 +873,9 @@ async function remoteCloudFingerprint(){
   return simpleHash({team:teamQ.data,players:sort(playersQ.data),games:sort(gamesQ.data),plays:sort(plays),credits:sort(credits),penalties:sort(penalties),snaps:sort(snaps),snapParts:sort(snapParts),demoCalls:sort(demoCalls,"play_id"),demoBook:sort(demoBook,"number")});
 }
 async function checkCloudForUpdates(){
-  if(isCloudStatkeeper()||cloudRemoteCheckRunning||cloudLiveCheckRunning||cloudAutoRefreshRunning||!SB||!cloudUser||!cloudLinked()||navigator.onLine===false)return;
-  cloudRemoteCheckRunning=true;
-  try{
-    const fp=await remoteCloudFingerprint();
-    if(!S.cloud.remoteFingerprint){
-      S.cloud.remoteFingerprint=fp;cloudRemoteUpdates=false;persist({skipCloud:true});updateCloudUI();return;
-    }
-    cloudRemoteUpdates=fp!==S.cloud.remoteFingerprint;
-    updateCloudUI();
-    if(cloudRemoteUpdates){
-      cloudAutoRefreshRunning=true;
-      try{await loadTeamFromCloud({refresh:true,auto:true})}
-      finally{cloudAutoRefreshRunning=false}
-    }
-  }catch(e){console.warn("Cloud update check failed",e)}finally{cloudRemoteCheckRunning=false}
+  // Revision-only check: never fetch full-season plays/credits/snap participants
+  // just to determine whether a refresh is needed.
+  return checkLiveGameRevisions();
 }
 function liveGameRevisionsChanged(rows){
   const local=new Map((S.games||[]).map(g=>[S.cloud?.gameIds?.[g.id]||g.id,Number(g.cloudRevision||0)]));
@@ -1036,7 +1023,7 @@ function buildCloudGamePayload(g){
 async function ensureCloudRoster(){
   if(!cloudLinked())return;const localIds=new Set();
   for(const p of S.roster||[]){localIds.add(p.id);const payload={season_id:S.cloud.seasonId,jersey_number:String(p.jersey??""),name:p.name||"Player",active:true},h=simpleHash(payload);let id=S.cloud.playerIds?.[p.id];if(id){if(S.cloud.playerHashes?.[p.id]===h)continue;const {error}=await SB.from("players").update({jersey_number:payload.jersey_number,name:payload.name,active:true}).eq("id",id);if(error)throw error}else{const {data,error}=await SB.from("players").insert(payload).select("id").single();if(error)throw error;S.cloud.playerIds[p.id]=data.id}S.cloud.playerHashes[p.id]=h}
-  for(const [localId,cloudId] of Object.entries(S.cloud.playerIds||{})){if(localIds.has(localId))continue;const {error}=await SB.from("players").update({active:false}).eq("id",cloudId);if(error)throw error;delete S.cloud.playerHashes[localId]}
+  for(const [localId,cloudId] of Object.entries(S.cloud.playerIds||{})){if(localIds.has(localId))continue;if(S.cloud.playerHashes?.[localId]==="inactive")continue;const {error}=await SB.from("players").update({active:false}).eq("id",cloudId);if(error)throw error;S.cloud.playerHashes[localId]="inactive"}
   persist({skipCloud:true});
 }
 function buildCloudTeamPayload(){return {name:S.team.name,team_identifier:S.team.identifier||null,grade:S.team.grade||null,primary_color:S.team.primary||null,accent_color:S.team.secondary||null,logo_data:S.team.logoData||null,snap_minimum:teamSnapMinimum(),playbook:teamPlaybook(),intended_plan:S.team.planIntent||onboardingPlan}}
