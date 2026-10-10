@@ -1173,6 +1173,29 @@ async function syncDeletedCloudGames(){
   }
   return changed;
 }
+// A previously finalized cloud game must never be reopened by a stale local snapshot.
+// Reconcile only lifecycle metadata; do not replace plays, snaps, or scores.
+async function reconcileCloudFinalStatuses(){
+  if(!cloudLinked()||!isCloudStatkeeper())return false;
+  const candidates=(S.games||[]).filter(g=>g.status!=="complete"&&g.status!=="final"&&S.cloud.gameIds?.[g.id]);
+  if(!candidates.length)return false;
+  const ids=[...new Set(candidates.map(g=>S.cloud.gameIds[g.id]))];
+  const {data,error}=await SB.from("games").select("id,status,ended_at").in("id",ids);
+  if(error)throw error;
+  const finals=new Map((data||[]).filter(row=>row.status==="final").map(row=>[row.id,row]));
+  let changed=false;
+  for(const g of candidates){
+    const row=finals.get(S.cloud.gameIds[g.id]);if(!row)continue;
+    g.status="complete";g.correctionsOpen=false;
+    if(row.ended_at)g.finalizedAt=row.ended_at;
+    // Mark the restored lifecycle state as acknowledged. Do not push unrelated
+    // local snapshot fields back to a finalized cloud game just to fix its status.
+    S.cloud.gameHashes[g.id]=simpleHash(buildCloudGamePayload(g));
+    changed=true;
+  }
+  if(changed){persist({skipCloud:true});renderGameArea();updateCloudUI();}
+  return changed;
+}
 async function syncCloudNow(options={}){
   if(options.forceRestart&&cloudSyncRunning){
     if(cloudSyncStartedAt&&Date.now()-cloudSyncStartedAt<5000){cloudSyncRequested=true;return false}
@@ -1189,7 +1212,7 @@ async function syncCloudNow(options={}){
   const ensureCurrentRun=()=>{if(runId!==cloudSyncRunId)throw new Error("Cloud sync was restarted")};
   try{
     const substitute=isSubstituteStatkeeper();
-    if(!substitute){await ensureCloudTeam();ensureCurrentRun();await ensureCloudRoster();ensureCurrentRun()}
+    if(!substitute){await reconcileCloudFinalStatuses();ensureCurrentRun();await ensureCloudTeam();ensureCurrentRun();await ensureCloudRoster();ensureCurrentRun()}
     // Release identities from locally deleted games before inserting replacements.
     // This keeps delete-and-recreate (for example, adding a forgotten logo) atomic from the user's perspective.
     if(!substitute){await syncDeletedCloudGames();ensureCurrentRun()}
