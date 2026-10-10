@@ -1304,6 +1304,64 @@ function colorContrast(a,b){const x=colorLuminance(a),y=colorLuminance(b);return
 function colors(){let p=S.team?.primary||"#177b46",s=S.team?.secondary||"#f0b33b",ink=colorLuminance(p)>.46?"#111111":"#ffffff",active=colorContrast(p,s)>=3?s:ink;document.documentElement.style.setProperty("--p",p);document.documentElement.style.setProperty("--s",s);document.documentElement.style.setProperty("--nav-text",ink);document.documentElement.style.setProperty("--nav-muted",ink==="#ffffff"?"#ffffffb8":"#111111a6");document.documentElement.style.setProperty("--nav-active",active);document.querySelector('meta[name="theme-color"]').setAttribute("content",p)}
 function teamExists(){return !!(S.team&&S.team.name)}
 function currentGame(){return S.games.find(g=>g.id===S.activeGameId)||null}
+/* Finalized games: compare tiny cloud play manifests, not full-season data.
+   Import missing cloud plays without replacing local edits or triggering writes. */
+const verifiedFinalGames=new Map(),verifyingFinalGames=new Set();
+async function verifyFinalGameFromCloud(gameId){
+  const g=(S.games||[]).find(x=>x.id===gameId);
+  if(!g||g.status!=="complete"||!SB||!cloudUser||!cloudLinked()||navigator.onLine===false||cloudSyncRunning||cloudSyncTimer||cloudSyncRequested)return;
+  const cloudGameId=S.cloud.gameIds?.[g.id]||g.id,key=String(S.cloud.teamId)+":"+cloudGameId;
+  if(verifyingFinalGames.has(key)||Date.now()-(verifiedFinalGames.get(key)||0)<300000)return;
+  verifyingFinalGames.add(key);
+  try{
+    // A compact manifest costs far less than downloading plays, credits and snaps.
+    const {data:manifest,error}=await SB.from("plays").select("id,revision").eq("game_id",cloudGameId).is("deleted_at",null).order("sequence");
+    if(error)throw error;
+    const localIds=new Set((g.plays||[]).map(p=>String(p.id)));
+    const missing=(manifest||[]).filter(row=>!localIds.has(String(row.id)));
+    // Do not merge into a game containing local-only plays awaiting upload.\n    if((g.plays||[]).some(p=>!S.cloud.playIds?.[p.id]))return;
+    if(!missing.length){verifiedFinalGames.set(key,Date.now());return}
+    // If local changes are pending, never replace/merge under an active writer.
+    if(cloudSyncRunning||cloudSyncTimer||cloudSyncRequested)return;
+    const ids=missing.map(x=>x.id);
+    const {data:rows,error:pe}=await SB.from("plays").select("*").in("id",ids).is("deleted_at",null).order("sequence");
+    if(pe)throw pe;
+    if((rows||[]).length!==ids.length)throw new Error("Incomplete cloud play recovery");
+    const credits=await CloudPagination.selectAllByIds(SB,{table:"play_credits",column:"play_id",ids});
+    const {data:penalties,error:penError}=await SB.from("penalties").select("*").in("play_id",ids).eq("accepted",true);
+    if(penError)throw penError;
+    if(cloudSyncRunning||cloudSyncTimer||cloudSyncRequested)return;
+    const target=(S.games||[]).find(x=>x.id===gameId);
+    if(!target||target.status!=="complete")return;
+    let added=0;
+    for(const row of rows||[]){
+      if(target.plays.some(p=>String(p.id)===String(row.id)))continue;
+      const c=credits.filter(x=>x.play_id===row.id&&x.metadata?.active!==false);
+      const p=restorePlayFromCloud(row,c,(penalties||[]).find(x=>x.play_id===row.id));
+      target.plays.push(p);S.cloud.playIds[p.id]=row.id;
+      for(const credit of buildCloudCredits(p)){
+        const remote=c.find(x=>x.player_id===credit.playerLocalId&&x.credit_type===credit.credit_type);
+        if(remote){const ck=creditKey(p.id,credit);S.cloud.creditIds[ck]=remote.id;S.cloud.creditHashes[ck]=simpleHash(credit)}
+      }
+      added++;
+    }
+    if(added){
+      target.plays.sort((a,b)=>Number(a.ts||0)-Number(b.ts||0));
+      for(const row of rows||[]){
+        const p=target.plays.find(x=>x.id===row.id);if(!p)continue;
+        const idx=target.plays.indexOf(p);
+        S.cloud.playHashes[p.id]=simpleHash(buildCloudPlayPayload(target,p,idx,cloudGameId));
+      }
+      // This is a read-only cloud recovery: do not upload or overwrite anything.
+      persist({skipCloud:true});
+      renderGameArea();renderStats();
+      toast("Recovered "+added+" missing play"+(added===1?"":"s")+" from Supabase");
+    }
+    verifiedFinalGames.set(key,Date.now());
+  }catch(e){console.warn("Final game verification skipped",e)}
+  finally{verifyingFinalGames.delete(key)}
+}
+
 // Cloud images are fetched only when absent locally, and only for the
 // currently viewed game. Avoid fetching the full season or polling images.
 const logoFetches=new Map(),logoChecked=new Set();
@@ -1384,9 +1442,9 @@ function go(name){
   $$("#coachNav [data-go]").forEach(b=>b.classList.toggle("active",b.dataset.go===name));
   document.body.classList.toggle("coach-mode",name==="coach");
   $("#topTitle").textContent={setup:"Sideline Stats",roster:"Roster & Playbook",game:"Game",snaps:"Snaps",stats:isCloudViewer()?"Game Center":"Team Stats",coach:"Coach Pro",share:"Share"}[name];
-  if(name==="game"){renderGameArea();if(currentGame())void restoreMissingCloudLogos(currentGame().id)}
+  if(name==="game"){renderGameArea();if(currentGame()){void restoreMissingCloudLogos(currentGame().id);void verifyFinalGameFromCloud(currentGame().id)}}
   if(name==="snaps")renderSnaps();
-  if(name==="stats"){if(!isCloudViewer()&&currentGame())selectedStatsGameId=currentGame().id;renderStats();}
+  if(name==="stats"){if(!isCloudViewer()&&currentGame())selectedStatsGameId=currentGame().id;renderStats();if(selectedStatsGameId)void verifyFinalGameFromCloud(selectedStatsGameId);}
   if(name==="coach"){renderCoach();if(hasCoachAccess()&&["overview","offense","defense","debrief"].includes(coachTab))loadCoachDebriefs().then(renderCoach)}
   renderQuickStart();
   
