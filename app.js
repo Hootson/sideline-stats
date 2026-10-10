@@ -1319,6 +1319,7 @@ async function verifyFinalGameFromCloud(gameId){
     if(error)throw error;
     const localIds=new Set((g.plays||[]).map(p=>String(p.id)));
     const missing=(manifest||[]).filter(row=>!localIds.has(String(row.id)));
+    // Do not merge into a game containing local-only plays awaiting upload.\n    if((g.plays||[]).some(p=>!S.cloud.playIds?.[p.id]))return;
     if(!missing.length){verifiedFinalGames.set(key,Date.now());return}
     // If local changes are pending, never replace/merge under an active writer.
     if(cloudSyncRunning||cloudSyncTimer||cloudSyncRequested)return;
