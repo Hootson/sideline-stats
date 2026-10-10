@@ -1306,13 +1306,14 @@ function teamExists(){return !!(S.team&&S.team.name)}
 function currentGame(){return S.games.find(g=>g.id===S.activeGameId)||null}
 // Cloud images are fetched only when absent locally, and only for the
 // currently viewed game. Avoid fetching the full season or polling images.
-const logoFetches=new Map();
+const logoFetches=new Map(),logoChecked=new Set();
 async function restoreMissingCloudLogos(gameId){
   if(!SB||!cloudUser||!cloudLinked()||navigator.onLine===false)return;
   const g=(S.games||[]).find(x=>x.id===gameId);if(!g)return;
   const missingTeam=!S.team?.logoData,missingGame=!g.opponentLogoData;
   if(!missingTeam&&!missingGame)return;
   const key=String(S.cloud.teamId)+":"+String(S.cloud.gameIds?.[g.id]||g.id);
+  if(logoChecked.has(key))return;
   if(logoFetches.has(key))return logoFetches.get(key);
   const task=(async()=>{
     let changed=false;
@@ -1332,7 +1333,7 @@ async function restoreMissingCloudLogos(gameId){
       // unrelated unsynced edits or cause historical game writes.
       persist({skipCloud:true});renderGameArea();syncChrome();
     }
-  })().catch(e=>console.warn("Cloud logo recovery skipped",e)).finally(()=>logoFetches.delete(key));
+  })().then(()=>logoChecked.add(key)).catch(e=>console.warn("Cloud logo recovery skipped",e)).finally(()=>logoFetches.delete(key));
   logoFetches.set(key,task);return task;
 }
 
