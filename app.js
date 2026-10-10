@@ -96,11 +96,11 @@ function load(){
       for(const k of MIGRATION_KEYS){raw=localStorage.getItem(k);if(raw)break}
       if(raw)localStorage.setItem(KEY,raw);
     }
-    return raw?Object.assign({},empty,JSON.parse(raw)):JSON.parse(JSON.stringify(empty));
+    return raw?Object.assign({},empty,window.SidelineStorageSnapshot.parse(raw)):JSON.parse(JSON.stringify(empty));
   }catch(e){
     try{
       const recovery=localStorage.getItem(RECOVERY_KEY);
-      return recovery?Object.assign({},empty,JSON.parse(recovery)):JSON.parse(JSON.stringify(empty));
+      return recovery?Object.assign({},empty,window.SidelineStorageSnapshot.parse(recovery)):JSON.parse(JSON.stringify(empty));
     }catch(_){return JSON.parse(JSON.stringify(empty))}
   }
 }
@@ -308,7 +308,7 @@ async function restoreRememberedTeam(){
   if(cloudLinked()){
     rememberTeam(S.cloud.teamId);
     await resolveCloudDeviceRole();
-    if(navigator.onLine!==false&&(!isCloudStatkeeper()||cloudPendingCount()===0)){
+    if(navigator.onLine!==false&&!isCloudStatkeeper()){
       try{
         const remoteFingerprint=await remoteCloudFingerprint();
         if(S.cloud.remoteFingerprint&&remoteFingerprint!==S.cloud.remoteFingerprint){
@@ -908,8 +908,8 @@ async function checkLiveGameRevisions(){
     }
   }catch(e){console.warn("Live game check failed",e)}finally{cloudLiveCheckRunning=false}
 }
-setInterval(checkLiveGameRevisions,3000);
-setInterval(checkCloudForUpdates,15000);
+setInterval(checkLiveGameRevisions,15000);
+// The 15-second full-season fingerprint poll is intentionally disabled.\n// Realtime notifications and lightweight revision checks remain enabled.
 function cloudStateForPlay(g,p,index){
   const plays=g.plays||[];let teamScore=Number(g.scoreAdjustment||0),oppScore=0;
   for(let i=0;i<=index&&i<plays.length;i++){teamScore+=pointsFromPlay(plays[i]);oppScore+=opponentPointsFromPlay(plays[i])}
@@ -1258,8 +1258,8 @@ async function syncCloudNow(options={}){
       if(finished){const {error}=await SB.rpc("finish_game_statkeeper_assignment",{p_game_id:S.cloud.gameIds[finished.id]});if(error)throw error}
     }
     S.cloud.lastSyncAt=new Date().toISOString();S.cloud.lastSyncError=null;
-    try{S.cloud.remoteFingerprint=await remoteCloudFingerprint()}catch(_){S.cloud.remoteFingerprint=null}
-    ensureCurrentRun();persist({skipCloud:true});setTimeout(checkCloudForUpdates,500);cloudSyncFailureCount=0;succeeded=true;
+    // Do not re-download all season data after every upload.\n    // Viewers use lightweight game revisions to detect updates.
+    ensureCurrentRun();persist({skipCloud:true});cloudSyncFailureCount=0;succeeded=true;
   }catch(e){if(runId===cloudSyncRunId){
     console.error("Cloud sync failed",e);
     if(isCloudAuthorizationError(e)&&!options.authRetryAttempt){
