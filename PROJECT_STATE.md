@@ -1,3 +1,10 @@
+
+## October 10 — v4.6.59 Egress Root-Cause Investigation
+
+Production edge logs 08:00–11:00 MDT: 2,817 GET snap_participants, 2,467 GET play_credits, 1,238 PATCH players (HTTP 204), 703 snap tracker RPC GET equivalents. The 1,238 player PATCHes targeted five unchanged player IDs ~236–251 times each, confirming a repeated inactive-roster write loop. Requests for credits/participants shared one client/IP and correlate with full-season viewer refreshes; this is more specific than an ordinary multi-viewer explanation.
+
+Fixes: inactive roster players now get `playerHashes[id]='inactive'` after successful deactivation, preventing re-PATCH every sync; realtime subscription no longer triggers full-season refresh per play_credit/snap_participant row; post-load full-season recheck removed; checkCloudForUpdates now delegates to lightweight game revisions; realtime debounce increased to 1.5s; snap tracker background polling disabled and foreground interval changed 10s→60s (immediate writes remain). Version bumped 4.6.59. No database records modified. JS syntax checked. **Production egress and device regression still need verification.**
+
 # Sideline Stats — Project State
 
 Last updated: October 10, 2026
