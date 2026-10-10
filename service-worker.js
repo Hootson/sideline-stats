@@ -1,5 +1,5 @@
-const RELEASE='4.6.57';
-const CACHE='bleacher-butt-gridiron-v4-6-57-quota-safe-snapshot-20261010';
+const RELEASE='4.6.58';
+const CACHE='bleacher-butt-gridiron-v4-6-58-storage-egress-20261010';
 const ASSETS=['./','./index.html','./styles.css','./voice-followup.css','./followup-loader.js','./version.js','./cloud-pagination.js','./storage-snapshot.js','./app.js','./field-position.js','./field-orientation.js','./cloud-conflict.js','./game-lifecycle.js','./voice-workflow.js','./edit-play-model.js','./voice-play.js','./coach-analytics.js','./commercial-access.js','./owner-business.css','./owner-business.js','./pwa.js','./player-profile.js','./brand-header-gridiron.webp','./brand-field.png','./icon.png','./snap-tracker.html','./snap-tracker.js','./parent-viewer.html','./parent-viewer.js','./player-card-vintage-2.js','./player-card-front-align-pass1.js','./player-card-grid-debug.js'];
 
 self.addEventListener('install',event=>{
