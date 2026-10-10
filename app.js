@@ -1725,7 +1725,7 @@ function renderGameList(){
       </div>
     </div>`).join("");
   $$(".open-game").forEach(b=>b.addEventListener("click",()=>{const g=gameById(b.dataset.id);if(!g)return;g.correctionsOpen=false;S.activeGameId=g.id;selectedStatsGameId=g.id;persist();renderGameArea()}));
-  $$("edit-saved-game").forEach(b=>b.addEventListener("click",()=>{
+  $$(".edit-saved-game").forEach(b=>b.addEventListener("click",()=>{
     const g=gameById(b.dataset.id);if(!g)return;
     if(isSubstituteStatkeeper()||!isTeamStatkeeper())return toast("Only the team statkeeper can edit this game.");
     selectedStatsGameId=g.id;
