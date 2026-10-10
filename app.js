@@ -1029,7 +1029,7 @@ async function ensureCloudRoster(){
 function buildCloudTeamPayload(){return {name:S.team.name,team_identifier:S.team.identifier||null,grade:S.team.grade||null,primary_color:S.team.primary||null,accent_color:S.team.secondary||null,logo_data:S.team.logoData||null,snap_minimum:teamSnapMinimum(),playbook:teamPlaybook(),intended_plan:S.team.planIntent||onboardingPlan}}
 async function ensureCloudTeam(){
   if(!cloudLinked())return;
-  const payload=buildCloudTeamPayload(),h=simpleHash(payload);if(S.cloud.teamHash===h)return;
+  const payload=buildCloudTeamPayload(),h=simpleHash(payload);if(S.cloud.teamHash===h)return;\n  // A quota-reduced local snapshot may omit logos. Never erase cloud media.\n  if(!payload.logo_data)delete payload.logo_data;
   const {error}=await SB.from("teams").update(payload).eq("id",S.cloud.teamId);
   if(error)throw error;
   S.cloud.teamHash=h;persist({skipCloud:true});
