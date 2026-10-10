@@ -1,4 +1,4 @@
-window.SIDELINE_STATS_VERSION="4.6.57";
+window.SIDELINE_STATS_VERSION="4.6.58";
 
 // Cloud/logo/score safety repairs.
 (()=>{
@@ -31,8 +31,8 @@ window.SIDELINE_STATS_VERSION="4.6.57";
   function repairStoredState(key){
     try{
       const raw=localStorage.getItem(key);if(!raw)return;
-      const state=JSON.parse(raw);
-      if(repairDefensiveReturnScores(state))localStorage.setItem(key,JSON.stringify(state));
+      const state=window.SidelineStorageSnapshot?.parse(raw)||JSON.parse(raw);
+      if(repairDefensiveReturnScores(state))localStorage.setItem(key,window.SidelineStorageSnapshot?.encode(JSON.stringify(state))||JSON.stringify(state));
     }catch(_){ }
   }
   repairStoredState(DATA_KEY);
@@ -54,7 +54,7 @@ window.SIDELINE_STATS_VERSION="4.6.57";
   function repairedLocalOpponentScoreForCloudGame(url){
     try{
       const m=String(url).match(/[?&]id=eq\.([0-9a-f-]{36})/i);if(!m)return null;
-      const state=JSON.parse(localStorage.getItem(DATA_KEY)||'null');if(!state)return null;
+      const state=window.SidelineStorageSnapshot?.parse(localStorage.getItem(DATA_KEY)||'null')||JSON.parse(localStorage.getItem(DATA_KEY)||'null');if(!state)return null;
       repairDefensiveReturnScores(state);
       const cloudId=m[1],pairs=Object.entries(state.cloud?.gameIds||{}),localId=(pairs.find(([,v])=>String(v)===cloudId)||[])[0];
       const game=(state.games||[]).find(g=>String(g.id)===String(localId));

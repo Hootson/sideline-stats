@@ -136,6 +136,16 @@ Status: **PARTIALLY VERIFIED — generation/open events recorded; sharing attrib
 - User supplied screenshot confirming **Cloud synced**, no visible pending operations or error, at approximately **1:01 PM Mountain Time on October 8**. This verifies the reported device sync state, **not** a full row-by-row audit of historical Weeks 2–7.
 - Historical Weeks 2–7 statistics should be protected and separately audited before any destructive reconciliation. No direct production database mutation was performed during the 4.6.54 code deployment.
 
+
+## October 10, 2026 — v4.6.58 Storage & Supabase Egress Architecture
+
+- **Problem:** iPhone localStorage quota errors continued through 4.6.57 even with successful cloud sync. October 10 diagnostic backup includes Weeks 2–8; preserve all records and keep manual Sync Backup available.
+- **Storage design:** new `storage-snapshot.js` versioned `SSZ1:` LZW codec. Legacy plain JSON snapshots still load; compressed main/recovery snapshots decode transparently. Main snapshot first attempts complete JSON, then compressed complete state, then compressed state without embedded image data if quota-constrained. Existing snapshots are not proactively deleted. Compressed recovery copy is best effort and limited to one update per 30 seconds during a session. Manual downloaded Sync Backup remains full JSON.
+- **Migration compatibility:** `version.js` loads after the codec and its legacy score-repair/fetch safety reads compressed snapshots. Compression does not alter game statistics or cloud payloads.
+- **Egress reduction:** removed per-sync full-season `remoteCloudFingerprint()` fetch (which included plays, credits, penalties, snaps, snap participants, and coach demo records), removed repeating 15-second full-season fingerprint poll, and reduced lightweight viewer game revision polling from 3 to 15 seconds. Realtime notification and manual Refresh Cloud remain available. This lowers repetitive Supabase outbound reads; quantify with Supabase egress dashboard after deployment.
+- **Verification:** JavaScript syntax checked on four release files; compression round-trip tested with synthetic football plays and Unicode. **Real-device migration and quota testing remain required.** No SQL/data deletion performed.
+- **Known caveat:** 30-second throttled recovery is not guaranteed to contain the most recent unsynced play if the primary local save fails; cloud sync and manual backups remain important. Avoid clearing Safari data or resetting team.
+
 ## When to Update This File
 
 Update PROJECT_STATE.md when any of the following happens:
