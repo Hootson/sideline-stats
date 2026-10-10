@@ -108,7 +108,7 @@ function persist(opts={}){
   try{
     const result=window.SidelineStorageSnapshot.save(localStorage,KEY,RECOVERY_KEY,S);
     if(result.usedCompactMain)console.warn("Device snapshot saved without cached images to stay within browser storage limits",result);
-  }catch(e){console.error("Save failed",e);toast("Device storage is full. Keep this screen open and tap Retry Sync.")}
+  }catch(e){console.error("Save failed",e);toast("Local game save failed. Keep this screen open, download a Sync Backup, and tap Retry Sync. Do not clear browser data.")}
   try{if(typeof updateCloudUI==="function")updateCloudUI()}catch(e){console.warn("Cloud status redraw failed",e)}
   if(!opts.skipCloud&&typeof scheduleCloudSync==="function")scheduleCloudSync();
 }
