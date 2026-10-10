@@ -1,6 +1,6 @@
 # Sideline Stats — Project State
 
-Last updated: October 5, 2026
+Last updated: October 10, 2026
 
 This file is the repository's durable project-state ledger. Read it before substantial development, deployment, recovery, or architecture work. Update it after meaningful production deployments, known-good baseline changes, major feature completions, architecture changes, database migrations/functions that materially affect the app, or important unresolved issues.
 
@@ -116,6 +116,25 @@ Gridiron was reconstructed to the last reliable standalone architecture while pr
 After team restoration worked, the playbook was partially recovered from historical data and sufficient current playbook data was restored for normal use. Recent standalone Gridiron improvements were then brought back into the recovery build, including optimized player-photo handling, photo removal/replacement, editable roster synchronization, parent-viewer egress reduction, and lazy-loaded/cached logo media.
 
 The tested recovery build was then promoted to the normal GitHub Pages production root while `/recovery-test/` was preserved. A permanent known-good branch, `gridiron-known-good-2026-10-02`, was created so this state can be recovered without reconstructing history from conversation memory.
+
+
+## October 10, 2026 — Player Card Analytics Verified
+
+Status: **PARTIALLY VERIFIED — generation/open events recorded; sharing attribution remains unverified.**
+
+- **Correct telemetry source:** Supabase `public.viewer_events`, using `event_type`, `player_id`, `game_id`, `session_id`, and `created_at`. **Do not query `public.analytics_events` for player-card activity:** that table contains billing/trial events and had no card events when checked. Earlier reports of zero card activity were caused by querying the wrong table.
+- Verified live on October 10 (Mountain Time): **3 `player_card_generate` events** for player **Bryce**, approximately **1:31–1:32 PM MDT**, and **2 `player_card_open` events** with no player ID. Three generation events are not proof of three distinct cards or people.
+- No `player_card_share` event was found in the October 10 card-event query. This does **not** establish that nobody shared a card; instrumented share/download success and actual recipient opens must be distinguished and independently validated.
+- **Do not implement a duplicate analytics system in `analytics_events`.** First trace the existing `viewer_events` instrumentation and the public player-card UI, then add only missing event coverage and test it end to end.
+- The previously reported **Connor** card and several other cards are historical user reports, not reconfirmed by the October 10 query. Preserve this distinction in future reporting.
+
+## October 8–10, 2026 — Gridiron Sync Recovery
+
+- **Production release: 4.6.54** on `gh-pages` (merged PR #19, commit `3696e29794f3154747ef161f937a4b3bdbcd9eca`). The October 2 known-good recovery branch remains preserved; it is **not** the same commit as current production.
+- Version 4.6.53 introduced **Back to Saved Games** without requiring finalization. User deleted the unfinalized **Brett Test** game; Supabase subsequently confirmed that game's cloud record was **archived**.
+- Version 4.6.54 avoids attempting individual cloud deletions of plays/snaps whose parent game is confirmed archived; other deletion safety checks remain in place.
+- User supplied screenshot confirming **Cloud synced**, no visible pending operations or error, at approximately **1:01 PM Mountain Time on October 8**. This verifies the reported device sync state, **not** a full row-by-row audit of historical Weeks 2–7.
+- Historical Weeks 2–7 statistics should be protected and separately audited before any destructive reconciliation. No direct production database mutation was performed during the 4.6.54 code deployment.
 
 ## When to Update This File
 
