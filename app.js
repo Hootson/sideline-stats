@@ -1720,14 +1720,31 @@ function renderGameList(){
       <div class="game-info"><strong>${esc(S.team.name)} vs ${esc(g.opponent)} <span class="game-type-badge ${(g.gameType||"regular")==="playoff"?"playoff":"regular"}">${(g.gameType||"regular")==="playoff"?"PLAYOFF":"REGULAR"}</span></strong><span>${(g.gameType||"regular")==="playoff"?"Playoff":"Regular Season"} • Week ${g.week||String(g.date||"").replace(/\D/g,"")||"?"} • ${g.location} • ${displayedOurScore(g)}-${g.oppScore}</span></div>
       <div style="display:flex;gap:6px">
         <button class="btn ghost small open-game" data-id="${g.id}">${g.status==="complete"?"View":"Open"}</button>
-        <button class="btn ghost small edit-saved-game" data-id="${g.id}">Edit</button>
+        <button class="btn ghost small edit-saved-game" data-id="${g.id}">${g.status==="complete"?"Correct Plays":"Edit Details"}</button>
         <button class="btn danger small delete-game" data-id="${g.id}">Delete</button>
       </div>
     </div>`).join("");
   $$(".open-game").forEach(b=>b.addEventListener("click",()=>{const g=gameById(b.dataset.id);if(!g)return;g.correctionsOpen=false;S.activeGameId=g.id;selectedStatsGameId=g.id;persist();renderGameArea()}));
-  $$(".edit-saved-game").forEach(b=>b.addEventListener("click",()=>{
+  $(".edit-saved-game").forEach(b=>b.addEventListener("click",()=>{
     const g=gameById(b.dataset.id);if(!g)return;
-    selectedStatsGameId=g.id;openEditGame(g);
+    if(isSubstituteStatkeeper()||!isTeamStatkeeper())return toast("Only the team statkeeper can edit this game.");
+    selectedStatsGameId=g.id;
+    if(g.status==="complete"){
+      if(!confirm(`Open corrections for ${S.team.name} vs ${g.opponent}? The game stays Final, and its original finalization time and coach window will not restart.`))return;
+      S.activeGameId=g.id;
+      g.correctionsOpen=true;
+      persist({skipCloud:true});
+      renderGameArea();
+      go("game");
+      $("#completedGameActions")?.scrollIntoView({behavior:"smooth",block:"start"});
+      toast("Corrections open — select a recent play to edit. Close Corrections when finished.");
+      return;
+    }
+    S.activeGameId=g.id;
+    persist({skipCloud:true});
+    renderGameArea();
+    go("game");
+    openEditGame(g);
   }));
   $$(".delete-game").forEach(b=>b.addEventListener("click",()=>{
     const g=gameById(b.dataset.id); if(!g)return;
