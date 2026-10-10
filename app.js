@@ -1323,8 +1323,8 @@ async function restoreMissingCloudLogos(gameId){
     }
     if(changed){
       // Preserve cloud hash state; restored media is already present remotely.
-      if(S.team?.logoData)S.cloud.teamHash=simpleHash(buildCloudTeamPayload());
-      if(g.opponentLogoData)S.cloud.gameHashes[g.id]=simpleHash(buildCloudGamePayload(g));
+      // Do not alter synchronization hashes: image recovery must never mask
+      // unrelated unsynced edits or cause historical game writes.
       persist({skipCloud:true});renderGameArea();syncChrome();
     }
   })().catch(e=>console.warn("Cloud logo recovery skipped",e)).finally(()=>logoFetches.delete(key));
