@@ -57,7 +57,7 @@ $('#undoSnap').addEventListener('click',async()=>{
   }catch(e){console.warn(e);msg(e.message||'Could not undo snap.',true);renderSelectionOnly();}
 });
 
-window.addEventListener('online',()=>{linkValid=true;flush()});setInterval(async()=>{if(navigator.onLine!==false){if(queue().length)await flush();else await refreshCounts()}else status()},10000);
+window.addEventListener('online',()=>{linkValid=true;flush()});document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&navigator.onLine!==false)refreshCounts()});setInterval(async()=>{if(document.visibilityState==='visible'&&navigator.onLine!==false){if(queue().length)await flush();else await refreshCounts()}else status()},60000);
 if(navigator.serviceWorker?.ready)navigator.serviceWorker.ready.then(()=>{offlineShellReady=true;status()}).catch(()=>{});
 refresh();
 })();
