@@ -307,14 +307,19 @@ async function restoreRememberedTeam(){
   if(cloudLinked()){
     rememberTeam(S.cloud.teamId);
     await resolveCloudDeviceRole();
+    // Do not block opening the app on an expensive full-season fingerprint.
+    // Cloud changes can be refreshed explicitly; normal background sync remains available.
     if(navigator.onLine!==false&&!isCloudStatkeeper()){
-      try{
-        const remoteFingerprint=await remoteCloudFingerprint();
-        if(S.cloud.remoteFingerprint&&remoteFingerprint!==S.cloud.remoteFingerprint){
-          await loadTeamFromCloud({refresh:true,auto:true});
-          return;
-        }
-      }catch(e){console.warn("Startup cloud refresh check failed",e)}
+      setTimeout(async()=>{
+        if(!SB||!cloudUser||!cloudLinked()||navigator.onLine===false||cloudAutoRefreshRunning)return;
+        try{
+          const remoteFingerprint=await remoteCloudFingerprint();
+          if(S.cloud.remoteFingerprint&&remoteFingerprint!==S.cloud.remoteFingerprint&&!cloudAutoRefreshRunning){
+            cloudAutoRefreshRunning=true;
+            try{await loadTeamFromCloud({refresh:true,auto:true})}finally{cloudAutoRefreshRunning=false}
+          }
+        }catch(e){console.warn("Background cloud refresh check failed",e)}
+      },1800);
     }
     updateCloudUI();
     if(isCloudCoach())setTimeout(maybePromptCoachDebrief,250);
