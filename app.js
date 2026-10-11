@@ -96,7 +96,15 @@ function load(){
       for(const k of MIGRATION_KEYS){raw=localStorage.getItem(k);if(raw)break}
       if(raw)localStorage.setItem(KEY,raw);
     }
-    return raw?Object.assign({},empty,window.SidelineStorageSnapshot.parse(raw)):JSON.parse(JSON.stringify(empty));
+    // A blank or partially saved primary snapshot must not hide an intact recovery.
+    const main=raw?window.SidelineStorageSnapshot.parse(raw):null;
+    if(main?.team?.name)return Object.assign({},empty,main);
+    const backupRaw=localStorage.getItem(RECOVERY_KEY);
+    if(backupRaw){
+      const backup=window.SidelineStorageSnapshot.parse(backupRaw);
+      if(backup?.team?.name)return Object.assign({},empty,backup);
+    }
+    return main?Object.assign({},empty,main):JSON.parse(JSON.stringify(empty));
   }catch(e){
     try{
       const recovery=localStorage.getItem(RECOVERY_KEY);
@@ -309,7 +317,7 @@ async function restoreRememberedTeam(){
     await resolveCloudDeviceRole();
     // Do not block opening the app on an expensive full-season fingerprint.
     // Cloud changes can be refreshed explicitly; normal background sync remains available.
-    if(navigator.onLine!==false&&!isCloudStatkeeper()){
+    if(false){ // Disabled: full-season fingerprint causes excessive startup egress.
       setTimeout(async()=>{
         if(!SB||!cloudUser||!cloudLinked()||navigator.onLine===false||cloudAutoRefreshRunning)return;
         try{
