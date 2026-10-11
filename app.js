@@ -842,7 +842,7 @@ function scheduleCloudSync(delay=150){
   if(cloudSyncRunning){
     // Never start a second writer while the original network request may still complete.
     // A slow connection is not evidence that the first request was cancelled.
-    else{cloudSyncRequested=true;return}
+    cloudSyncRequested=true;return;
   }
   if(cloudSyncTimer)clearTimeout(cloudSyncTimer);
   cloudSyncTimer=setTimeout(()=>{cloudSyncTimer=null;syncCloudNow()},delay);
