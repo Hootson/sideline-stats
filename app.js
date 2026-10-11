@@ -113,6 +113,7 @@ function load(){
   }
 }
 function persist(opts={}){
+  invalidatePendingStatus();
   try{
     const result=window.SidelineStorageSnapshot.save(localStorage,KEY,RECOVERY_KEY,S);
     if(result.usedCompactMain)console.warn("Device snapshot saved without cached images to stay within browser storage limits",result);
@@ -381,7 +382,7 @@ function updateCloudUI(force){
     const rb=$("#cloudRefreshBtn");if(rb)rb.textContent=pending>0&&isCloudStatkeeper()?"Retry Sync":cloudRemoteUpdates?"Load Updates":"Refresh Cloud";
     const when=S.cloud?.lastSyncAt?` • Last sync ${new Date(S.cloud.lastSyncAt).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})}`:"";
     const err=S.cloud?.lastSyncError?` • Sync paused: ${S.cloud.lastSyncError}`:"";
-    const pendingDetail=pending>0?` • Pending: ${cloudPendingItems().slice(0,3).join(", ")}${pending>3?` +${pending-3} more`:""}`:"";
+    const pendingDetail=pending>0?` • Pending: ${cachedPendingItems().slice(0,3).join(", ")}${pending>3?` +${pending-3} more`:""}`:"";
     const mode=!isCloudStatkeeper()&&cloudRealtimeConnected?" • Watching live — new stats load automatically":"";
     meta.textContent=`${cloudUser.email||"Signed in"} • Games, stats, penalties + snaps are local-first and sync automatically${mode}${when}${pendingDetail}${err}`;
   }
@@ -811,7 +812,15 @@ function cloudPendingItems(){
   for(const cloudId of Object.keys(S.cloud.deletedGames||{}))if(!queuedDeletedCloudIds.has(cloudId))out.push("deleted game");
   return out;
 }
-function cloudPendingCount(){return cloudPendingItems().length}
+// Cache the expensive season-wide pending scan for status redraws.
+let pendingStatusCache=null,pendingStatusCacheAt=0;
+function invalidatePendingStatus(){pendingStatusCache=null;pendingStatusCacheAt=0}
+function cachedPendingItems(){
+  const now=Date.now();
+  if(pendingStatusCache&&now-pendingStatusCacheAt<2500)return pendingStatusCache;
+  pendingStatusCache=cloudPendingItems();pendingStatusCacheAt=now;return pendingStatusCache;
+}
+function cloudPendingCount(){return cachedPendingItems().length}
 function rebaseCloudHashesV443(){
   if(!S.cloud||Number(S.cloud.hashVersion||1)>=2||S.cloud.lastSyncError||!teamExists())return;
   try{
