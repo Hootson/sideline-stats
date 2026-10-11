@@ -832,7 +832,8 @@ function scheduleCloudSync(delay=150){
     return;
   }
   if(cloudSyncRunning){
-    if(cloudSyncStartedAt&&Date.now()-cloudSyncStartedAt>15000)resetStaleCloudSync();
+    // Never start a second writer while the original network request may still complete.
+    // A slow connection is not evidence that the first request was cancelled.
     else{cloudSyncRequested=true;return}
   }
   if(cloudSyncTimer)clearTimeout(cloudSyncTimer);
@@ -1195,8 +1196,7 @@ async function reconcileCloudFinalStatuses(){
 }
 async function syncCloudNow(options={}){
   if(options.forceRestart&&cloudSyncRunning){
-    if(cloudSyncStartedAt&&Date.now()-cloudSyncStartedAt<5000){cloudSyncRequested=true;return false}
-    resetStaleCloudSync("Manual retry restarted a stalled sync");
+    cloudSyncRequested=true;return false;
   }
   if(cloudSyncRunning){cloudSyncRequested=true;return false}
   if(!SB||!cloudUser||!cloudLinked()||navigator.onLine===false||!isCloudStatkeeper())return false;
@@ -1204,7 +1204,7 @@ async function syncCloudNow(options={}){
   cloudSyncRunning=true;cloudSyncStartedAt=Date.now();updateCloudUI();
   cloudSyncWatchdog=setTimeout(()=>{
     if(runId!==cloudSyncRunId||!cloudSyncRunning)return;
-    resetStaleCloudSync("Cloud sync timed out — retrying automatically");scheduleCloudSync(250);
+    S.cloud.lastSyncError="Cloud sync is taking longer than expected";updateCloudUI();
   },15000);
   const ensureCurrentRun=()=>{if(runId!==cloudSyncRunId)throw new Error("Cloud sync was restarted")};
   try{
@@ -1314,7 +1314,7 @@ function currentGame(){return S.games.find(g=>g.id===S.activeGameId)||null}
 const verifiedFinalGames=new Map(),verifyingFinalGames=new Set();
 async function verifyFinalGameFromCloud(gameId){
   const g=(S.games||[]).find(x=>x.id===gameId);
-  if(!g||g.status!=="complete"||!SB||!cloudUser||!cloudLinked()||navigator.onLine===false||cloudSyncRunning||cloudSyncTimer||cloudSyncRequested)return;
+  if(!g||g.status!=="complete"||isCloudStatkeeper()||!SB||!cloudUser||!cloudLinked()||navigator.onLine===false||cloudSyncRunning||cloudSyncTimer||cloudSyncRequested)return;
   const cloudGameId=S.cloud.gameIds?.[g.id]||g.id,key=String(S.cloud.teamId)+":"+cloudGameId;
   if(verifyingFinalGames.has(key)||Date.now()-(verifiedFinalGames.get(key)||0)<300000)return;
   verifyingFinalGames.add(key);
