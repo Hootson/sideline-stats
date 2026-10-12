@@ -3178,12 +3178,69 @@ function currentGameSnapCount(playerId){
   if(!g||!Array.isArray(g.snapRecords))return 0;
   return g.snapRecords.reduce((sum,r)=>sum+(r.playerIds||[]).includes(playerId),0);
 }
+
+let snapRecoveryBusy=false;
+async function recoverVisibleGameSnapsReadOnly(){
+  if(snapRecoveryBusy)return;
+  const game=snapViewGame(),cloudId=game&&(S.cloud?.gameIds?.[game.id]||game.id);
+  if(!game||!cloudId||!SB||!cloudUser||!cloudLinked()||navigator.onLine===false)return toast("Sign in and connect to the internet before recovering snaps.");
+  snapRecoveryBusy=true;
+  const button=document.getElementById("recoverCloudSnapsBtn");
+  if(button){button.disabled=true;button.textContent="Checking cloud snaps…";}
+  try{
+    // Read only: no uploads, no deletion, and no whole-team cloud refresh.
+    const {data:events,error}=await SB.from("snap_events").select("id,snap_number,quarter,client_created_at,created_at,snap_kind").eq("game_id",cloudId).eq("active",true).order("snap_number");
+    if(error)throw error;
+    const remote=events||[];
+    if(!remote.length)return toast("No active cloud snaps found for this game.");
+    const parts=await CloudPagination.selectAllByIds(SB,{table:"snap_participants",column:"snap_event_id",ids:remote.map(x=>x.id),columns:"snap_event_id,player_id"});
+    const byEvent=new Map();
+    for(const p of parts){if(!byEvent.has(p.snap_event_id))byEvent.set(p.snap_event_id,[]);byEvent.get(p.snap_event_id).push(p.player_id);}
+    const rosterIds=new Set(S.roster.map(p=>p.id));
+    const cloudToLocal=new Map(Object.entries(S.cloud.playerIds||{}).map(([local,cloud])=>[cloud,local]));
+    const mapped=remote.map(row=>({number:Number(row.snap_number),id:row.id,ts:Date.parse(row.client_created_at||row.created_at),quarter:Number(row.quarter||1),snapKind:row.snap_kind||"regular",playerIds:(byEvent.get(row.id)||[]).map(id=>cloudToLocal.get(id)||(rosterIds.has(id)?id:null))}));
+    if(mapped.some(r=>!Number.isInteger(r.number)||r.number<1||r.playerIds.some(id=>!id)))throw Error("Cloud player mapping is incomplete; no local data changed.");
+    const local=Array.isArray(game.snapRecords)?game.snapRecords:[];
+    const uniqueNumbers=new Set(mapped.map(r=>r.number));
+    if(uniqueNumbers.size!==mapped.length)throw Error("Cloud has duplicate active snap numbers; review required.");
+    const localIds=new Set(local.map(r=>r.id));
+    const remoteById=new Map(mapped.map(r=>[r.id,r]));
+    // Only recover a clearly missing suffix. Never guess at missing middle snaps or rewrite existing records.
+    const comparePlayers=(a,b)=>JSON.stringify([...(a||[])].sort())===JSON.stringify([...(b||[])].sort());
+    for(let i=0;i<local.length;i++){
+      const row=local[i],matched=remoteById.get(row.id)||mapped[i];
+      if(!matched||matched.number!==i+1||Number(row.quarter||1)!==matched.quarter||!comparePlayers(row.playerIds,matched.playerIds)){
+        throw Error("Local and cloud snap histories differ; no local records were changed.");
+      }
+    }
+    const additions=mapped.filter(r=>r.number>local.length);
+    if(mapped.some(r=>r.number<=local.length&&!localIds.has(r.id)&&!local[r.number-1]))throw Error("Missing middle snap; no local records were changed.");
+    if(additions.some(r=>localIds.has(r.id)))throw Error("Snap ordering conflict; no local records were changed.");
+    if(!additions.length)return toast("This game's cloud snaps are already present locally.");
+    if(!confirm(`Found ${additions.length} additional cloud snaps for ${game.opponent}. Append them to this device only? Existing plays, scores and snaps will not be changed.`))return;
+    if(!S.games.includes(game)||snapViewGame()!==game)throw Error("Game changed during recovery; nothing saved.");
+    game.snapRecords=[...local,...additions.sort((a,b)=>a.number-b.number).map(({number,...record})=>record)];
+    persist({skipCloud:true});
+    renderSnaps();
+    toast(`Recovered ${additions.length} snaps locally. Cloud uploads remain disabled.`);
+  }catch(e){console.warn("Safe snap recovery stopped",e);toast("Snap recovery stopped: "+String(e?.message||e).slice(0,140));}
+  finally{snapRecoveryBusy=false;const b=document.getElementById("recoverCloudSnapsBtn");if(b){b.disabled=false;b.textContent="Check cloud for missing snaps";}}
+}
 function renderSnaps(){
   normalizeRoster();
   if(!Object.keys(snapSelections).length)initializeSnapSelections();
   const minimum=teamSnapMinimum();
   if($("#snapMinimumLabel"))$("#snapMinimumLabel").textContent=`${minimum}-Snap Minimum`;
 
+  const recoveryHost=document.getElementById("snapTotalCount");
+  if(recoveryHost&&!document.getElementById("recoverCloudSnapsBtn")){
+    const button=document.createElement("button");
+    button.id="recoverCloudSnapsBtn";button.type="button";button.className="btn ghost small";
+    button.textContent="Check cloud for missing snaps";
+    button.style.marginLeft="8px";
+    button.addEventListener("click",recoverVisibleGameSnapsReadOnly);
+    recoveryHost.insertAdjacentElement("afterend",button);
+  }
   const box=$("#snapRoster");
   if(!S.roster.length){
     box.innerHTML='<span class="muted">Add your roster first.</span>';
