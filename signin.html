@@ -16,6 +16,8 @@ p{color:#68736b;line-height:1.5;margin:0 0 16px;font-size:16px}
 label{display:block;color:#10291b;font-size:15px;font-weight:800;margin:20px 0 8px}
 input{display:block;width:100%;height:54px;padding:13px 14px;border:1px solid #dbe3de;border-radius:12px;font-size:17px;background:#fff;color:#122018;-webkit-appearance:none;appearance:none}
 input:focus{outline:2px solid #177b46;outline-offset:1px}
+/* Native iOS text selection/focus; this page deliberately has no nested modal. */
+input{-webkit-user-select:text;user-select:text;touch-action:manipulation}
 button{display:block;width:100%;background:#fff;color:#177b46;border:1px solid #dbe3de;border-radius:12px;padding:14px;font-size:17px;font-weight:800;margin-top:18px;min-height:54px}
 button:disabled{opacity:.6}
 #message{margin:13px 0 0;padding:10px 12px;min-height:64px;border:1px solid #dbe3de;background:#f7faf8;border-radius:11px;color:#68736b;line-height:1.4;font-size:14px}
@@ -35,6 +37,11 @@ button:disabled{opacity:.6}
 <script>
 (function(){
 const form=document.getElementById("loginForm"),message=document.getElementById("message"),button=document.getElementById("submit");
+// Keep focus inside the user tap so iOS Safari displays the software keyboard.
+for(const id of ["email","password"]){
+ const field=document.getElementById(id);
+ field.addEventListener("touchend",()=>{if(document.activeElement!==field)field.focus()},{passive:true});
+}
 form.addEventListener("submit",async function(event){
  event.preventDefault();
  if(!window.supabase?.createClient){message.textContent="Sign-in service unavailable. Check your connection and try again.";return;}
@@ -49,7 +56,7 @@ form.addEventListener("submit",async function(event){
    // The main app consumes and clears this immediately after authentication.
    sessionStorage.setItem("gridiron-auth-handoff",JSON.stringify({access_token:result.data.session.access_token,refresh_token:result.data.session.refresh_token}));
    message.style.color="#177b46";message.textContent="Signed in. Returning to Gridiron…";
-   location.replace("./?signedIn=1&release=4.6.66-active-owned-team");
+   location.replace("./?signedIn=1&release=4.6.67-keyboard-safe-login");
  }catch(err){message.classList.add("error");message.textContent=err?.message||"Could not sign in.";button.disabled=false;}
 });
 })();
