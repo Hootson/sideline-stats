@@ -410,7 +410,13 @@ function openAuth(){
   $("#authModal").classList.remove("hidden");
   $("#signupPlanChooser")?.classList.toggle("hidden",hasPendingAccountInvite());
   renderPlanSelection(onboardingPlan);
-  if(!cloudUser)setTimeout(()=>$("#authEmail")?.focus(),50);
+  // iOS requires a direct user gesture for keyboard activation; delayed
+  // programmatic focus can leave the field focused without opening the keyboard.
+  if(!cloudUser){
+    const email=$("#authEmail");
+    email?.removeAttribute("readonly");
+    email?.removeAttribute("disabled");
+  }
 }
 function closeOwnerDashboard(){$("#ownerDashboardModal")?.classList.add("hidden")}
 function ownerMetric(label,value,detail=""){return `<article class="owner-metric-card"><small>${label}</small><strong>${value}</strong>${detail?`<span>${detail}</span>`:""}</article>`}
@@ -1395,6 +1401,11 @@ setInterval(()=>{if(!cloudSyncTimer&&document.visibilityState==="visible"&&navig
 
 $("#cloudAccountBtn")?.addEventListener("click",openAuth);
 $("#cloudSignInBtn")?.addEventListener("click",openAuth); $("#cloudSignOutBtn")?.addEventListener("click",cloudSignOut); $("#cloudConnectTeamBtn")?.addEventListener("click",connectTeamToCloud); $("#cloudLoadTeamBtn")?.addEventListener("click",()=>loadTeamFromCloud()); $("#cloudRefreshBtn")?.addEventListener("click",refreshFromCloud);
+// Let the user explicitly tap the field: this opens the native iOS keyboard.
+["authEmail","authPassword"].forEach(id=>{
+  const field=$("#"+id);
+  field?.addEventListener("touchend",()=>{if(document.activeElement!==field)field.focus()},{passive:true});
+});
 $("#authCloseBtn")?.addEventListener("click",closeAuth); $("#authSignInBtn")?.addEventListener("click",authSignIn); $("#authCreateBtn")?.addEventListener("click",authCreate);
 $("#viewPlansBtn")?.addEventListener("click",()=>openPlans());$("#plansCloseBtn")?.addEventListener("click",closePlans);$("#plansModal")?.addEventListener("click",e=>{if(e.target.id==="plansModal")closePlans()});$$('.plan-checkout').forEach(btn=>btn.addEventListener('click',()=>beginPlanCheckout(btn.dataset.plan,btn)));
 $("#ownerDashboardBtn")?.addEventListener("click",openOwnerDashboard);$("#ownerDashboardCloseBtn")?.addEventListener("click",closeOwnerDashboard);$("#ownerDashboardModal")?.addEventListener("click",e=>{if(e.target.id==="ownerDashboardModal")closeOwnerDashboard()});
