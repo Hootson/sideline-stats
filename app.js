@@ -408,7 +408,13 @@ function openAuth(){
     $("#ownerDashboardBtn")?.classList.toggle("hidden",cloudUser?.app_metadata?.platform_admin!==true);
   }
   $("#authModal").classList.remove("hidden");
-  $("#signupPlanChooser")?.classList.toggle("hidden",hasPendingAccountInvite());
+  const existingLogin=!cloudUser;
+  $("#authHeading").textContent=existingLogin?"Sign in to Gridiron":"Account settings";
+  $("#authIntro").textContent=existingLogin?"Use your existing account. Your saved games remain on this device.":"";
+  $("#signupPlanChooser")?.classList.toggle("hidden",existingLogin||hasPendingAccountInvite());
+  $("#authCreateBtn")?.classList.toggle("hidden",existingLogin);
+  $("#authSignInBtn")?.classList.toggle("hidden",!existingLogin);
+  if(existingLogin)$("#authSignInBtn").textContent="Sign In";
   renderPlanSelection(onboardingPlan);
   // iOS requires a direct user gesture for keyboard activation; delayed
   // programmatic focus can leave the field focused without opening the keyboard.
