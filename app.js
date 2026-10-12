@@ -844,6 +844,7 @@ function resetStaleCloudSync(message="Previous sync stalled — retrying"){
 }
 function scheduleCloudSync(delay=150){
   if(!SB||!cloudUser||!cloudLinked())return;
+  delay=Math.max(1200,delay);
   if(!isCloudStatkeeper()){
     if(!cloudRoleResolvePromise)cloudRoleResolvePromise=resolveCloudDeviceRole().then(role=>{cloudRoleResolvePromise=null;if(role==="statkeeper"||role==="substitute_statkeeper")scheduleCloudSync(delay)}).catch(e=>{cloudRoleResolvePromise=null;console.warn("Could not verify statkeeper role",e)});
     return;
@@ -1126,8 +1127,39 @@ async function ensureCloudTeam(){
   if(error)throw error;
   S.cloud.teamHash=h;persist({skipCloud:true});
 }
+async function ensureCloudRosterAdditive(){
+  if(!cloudLinked())return;
+  // Do not deactivate absent players or overwrite existing roster rows automatically.
+  for(const p of S.roster||[]){
+    if(S.cloud.playerIds?.[p.id])continue;
+    const payload={season_id:S.cloud.seasonId,jersey_number:String(p.jersey??""),name:p.name||"Player",active:true};
+    const {data:existing,error:lookupError}=await SB.from("players").select("id,name,jersey_number").eq("season_id",S.cloud.seasonId).eq("jersey_number",payload.jersey_number).limit(2);
+    if(lookupError)throw lookupError;
+    if((existing||[]).length){
+      const match=existing.find(x=>String(x.name||"").trim().toLowerCase()===String(payload.name).trim().toLowerCase());
+      if(!match)throw new Error("Roster number collision: "+payload.jersey_number+". Cloud unchanged.");
+      S.cloud.playerIds[p.id]=match.id;
+    }else{
+      const {data,error}=await SB.from("players").insert(payload).select("id").single();
+      if(error)throw error;
+      S.cloud.playerIds[p.id]=data.id;
+    }
+    S.cloud.playerHashes[p.id]=simpleHash(payload);
+    persist({skipCloud:true});
+  }
+}
 async function ensureCloudGame(g){
   let id=S.cloud.gameIds?.[g.id],writtenRevision=null;const payload=buildCloudGamePayload(g);const h=simpleHash(payload);
+  if(id){
+    const {data:remote,error:verifyError}=await SB.from("games").select("id,season_id,opponent_name,week_number,game_type,status").eq("id",id).maybeSingle();
+    if(verifyError)throw verifyError;
+    if(!remote||String(remote.season_id)!==String(S.cloud.seasonId)||
+       String(remote.opponent_name||"").trim().toLowerCase()!==String(payload.opponent_name||"").trim().toLowerCase()||
+       Number(remote.week_number)!==Number(payload.week_number)||
+       String(remote.game_type)!==String(payload.game_type)){
+      throw new Error("Cloud game identity mismatch. No changes uploaded for "+String(g.opponent||"game"));
+    }
+  }
   if(!id){
     const {data,error}=await SB.from("games").insert(payload).select("id,revision").single();
     if(error){
@@ -1143,6 +1175,13 @@ async function ensureCloudGame(g){
     }else{id=data.id;writtenRevision=Number(data.revision||0)}
     S.cloud.gameIds[g.id]=id;S.cloud.gameHashes[g.id]=h;if(writtenRevision)S.cloud.deleteRevisions[`games:${id}`]=writtenRevision;persist({skipCloud:true});
   }else if(S.cloud.gameHashes?.[g.id]!==h){
+    // Reject remote edits newer than our last acknowledged game revision.
+    // Missing revision knowledge is not permission to overwrite cloud state.
+    const {data:remoteVersion,error:versionError}=await SB.from("games").select("revision").eq("id",id).single();
+    if(versionError)throw versionError;
+    const knownRevision=Number(S.cloud.deleteRevisions?.[`games:${id}`]||0);
+    if(!knownRevision||Number(remoteVersion?.revision||0)>knownRevision)
+      throw new Error("Cloud game has unverified changes. Local copy retained; no overwrite.");
     // Game state (especially score) is authoritative on the active statkeeper.
     const update={...payload};delete update.created_by;delete update.season_id;
     const {data:updated,error}=await SB.from("games").update(update).eq("id",id).select("revision").single();if(error)throw error;S.cloud.gameHashes[g.id]=h;writtenRevision=Number(updated?.revision||0);if(writtenRevision)S.cloud.deleteRevisions[`games:${id}`]=writtenRevision;persist({skipCloud:true});
@@ -1271,9 +1310,7 @@ async function assertCloudGameIdentitySafe(){
   }
 }
 function syncCloudNow(options={}){
-  // SAFE ROLLBACK: never upload stale or duplicated local records.
-  console.warn("Cloud writes paused during v4.6.54 rollback pending reconciliation");
-  return Promise.resolve(false);
+  // Guarded local-first upload: local saves never wait for this async worker.
   if(options.forceRestart&&cloudSyncRunning){
     if(cloudSyncStartedAt&&Date.now()-cloudSyncStartedAt<5000){cloudSyncRequested=true;return false}
     resetStaleCloudSync("Manual retry restarted a stalled sync");
@@ -1295,10 +1332,10 @@ function syncCloudNow(options={}){
   const ensureCurrentRun=()=>{if(runId!==cloudSyncRunId)throw new Error("Cloud sync was restarted")};
   try{
     const substitute=isSubstituteStatkeeper();
-    if(!substitute){await ensureCloudTeam();ensureCurrentRun();await ensureCloudRoster();ensureCurrentRun()}
-    // Release identities from locally deleted games before inserting replacements.
-    // This keeps delete-and-recreate (for example, adding a forgotten logo) atomic from the user's perspective.
-    if(!substitute){await syncDeletedCloudGames();ensureCurrentRun()}
+    // Reconcile game records first. Never mutate the team/roster or archive records
+    // based on an old local snapshot during automatic background synchronization.
+    // Existing cloud player mappings are retained; new players can be uploaded separately.
+    if(!substitute){await ensureCloudRosterAdditive();ensureCurrentRun()}
     const priorityGameId=options.priorityGameId||S.activeGameId;
     const ordered=[...(S.games||[])].filter(g=>!substitute||S.cloud.gameIds?.[g.id]===S.cloud.substituteGameId).sort((a,b)=>(b.id===priorityGameId)-(a.id===priorityGameId));
     const published=[],gameSyncErrors=[];
@@ -1319,18 +1356,8 @@ function syncCloudNow(options={}){
         console.warn("Cloud game sync isolated",gameLabel,e);
       }
     }
-    // Never process queued deletions while any game's sync is unresolved.
-    // Deletions may reference the same cloud rows as a conflicting game.
-    if(!gameSyncErrors.length){
-      const deletedPlays=await syncDeletedCloudPlays();
-      ensureCurrentRun();
-      const deletedSnaps=await syncDeletedCloudSnaps();
-      ensureCurrentRun();
-      if(deletedPlays||deletedSnaps){
-        const localGameIds=new Set((S.games||[]).map(g=>g.id));
-        for(const [localId,cloudGameId] of Object.entries(S.cloud.gameIds||{}))if(localGameIds.has(localId)&&cloudGameId&&!published.includes(cloudGameId))await publishCloudGame(cloudGameId);
-      }
-    }
+    // Never infer deletions from missing local records. Explicit deletion
+    // reconciliation must be handled separately after cloud verification.
     if(gameSyncErrors.length){
       S.cloud.lastSyncError=("Sync conflict in "+gameSyncErrors[0]).slice(0,120);
       persist({skipCloud:true});
@@ -1341,7 +1368,8 @@ function syncCloudNow(options={}){
       if(finished){const {error}=await SB.rpc("finish_game_statkeeper_assignment",{p_game_id:S.cloud.gameIds[finished.id]});if(error)throw error}
     }
     S.cloud.lastSyncAt=new Date().toISOString();S.cloud.lastSyncError=null;
-    try{S.cloud.remoteFingerprint=await remoteCloudFingerprint()}catch(_){S.cloud.remoteFingerprint=null}
+    // Avoid a full-table cloud fingerprint read after every upload batch.
+    S.cloud.remoteFingerprint=null
     ensureCurrentRun();persist({skipCloud:true});setTimeout(checkCloudForUpdates,500);cloudSyncFailureCount=0;succeeded=true;
   }catch(e){if(runId===cloudSyncRunId){
     console.error("Cloud sync failed",e);
@@ -1363,7 +1391,7 @@ function syncCloudNow(options={}){
 }
 window.addEventListener("online",()=>{if(isCloudStatkeeper())scheduleCloudSync(150);else setTimeout(checkLiveGameRevisions,100);setTimeout(checkCloudForUpdates,500)});
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){if(isCloudStatkeeper())scheduleCloudSync(100);else setTimeout(checkLiveGameRevisions,100);setTimeout(checkCloudForUpdates,500)}else if(isCloudStatkeeper()&&cloudPendingCount()>0)scheduleCloudSync(0)});
-setInterval(()=>{if(!cloudSyncTimer&&document.visibilityState==="visible"&&navigator.onLine!==false&&isCloudStatkeeper()&&cloudPendingCount()>0)scheduleCloudSync(0)},5000);
+setInterval(()=>{if(!cloudSyncTimer&&document.visibilityState==="visible"&&navigator.onLine!==false&&isCloudStatkeeper()&&cloudPendingCount()>0)scheduleCloudSync(0)},30000);
 
 $("#cloudAccountBtn")?.addEventListener("click",openAuth);
 $("#cloudSignInBtn")?.addEventListener("click",openAuth); $("#cloudSignOutBtn")?.addEventListener("click",cloudSignOut); $("#cloudConnectTeamBtn")?.addEventListener("click",connectTeamToCloud); $("#cloudLoadTeamBtn")?.addEventListener("click",()=>loadTeamFromCloud()); $("#cloudRefreshBtn")?.addEventListener("click",refreshFromCloud);
