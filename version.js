@@ -1,4 +1,4 @@
-window.SIDELINE_STATS_VERSION="4.6.65";
+window.SIDELINE_STATS_VERSION="4.6.66";
 
 // Cloud/logo/score safety repairs.
 (()=>{
