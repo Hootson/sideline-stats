@@ -38,6 +38,10 @@ form.addEventListener("submit",async function(event){
    const email=document.getElementById("email").value.trim(),password=document.getElementById("password").value;
    const result=await client.auth.signInWithPassword({email,password});
    if(result.error)throw result.error;
+   if(!result.data?.session?.access_token||!result.data?.session?.refresh_token)throw new Error("Sign-in returned no usable session. Please retry.");
+   // Temporary same-tab transfer, in addition to Supabase persisted storage.
+   // The main app consumes and clears this immediately after authentication.
+   sessionStorage.setItem("gridiron-auth-handoff",JSON.stringify({access_token:result.data.session.access_token,refresh_token:result.data.session.refresh_token}));
    message.style.color="#177b46";message.textContent="Signed in. Returning to Gridiron…";
    location.replace("./?signedIn=1");
  }catch(err){message.textContent=err?.message||"Could not sign in.";button.disabled=false;}
