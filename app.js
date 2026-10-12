@@ -849,7 +849,7 @@ function scheduleCloudSync(delay=150){
     return;
   }
   if(cloudSyncRunning){
-    if(cloudSyncStartedAt&&Date.now()-cloudSyncStartedAt>15000)resetStaleCloudSync();
+    if(cloudSyncStartedAt&&Date.now()-cloudSyncStartedAt>120000)resetStaleCloudSync();
     else{cloudSyncRequested=true;return}
   }
   if(cloudSyncTimer)clearTimeout(cloudSyncTimer);
@@ -1291,7 +1291,7 @@ function syncCloudNow(options={}){
   cloudSyncWatchdog=setTimeout(()=>{
     if(runId!==cloudSyncRunId||!cloudSyncRunning)return;
     resetStaleCloudSync("Cloud sync timed out — retrying automatically");scheduleCloudSync(250);
-  },15000);
+  },120000);
   const ensureCurrentRun=()=>{if(runId!==cloudSyncRunId)throw new Error("Cloud sync was restarted")};
   try{
     const substitute=isSubstituteStatkeeper();
