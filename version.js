@@ -1,4 +1,4 @@
-window.SIDELINE_STATS_VERSION="4.6.54";
+window.SIDELINE_STATS_VERSION="4.6.54-safe";
 
 // Cloud/logo/score safety repairs.
 (()=>{
@@ -68,6 +68,12 @@ window.SIDELINE_STATS_VERSION="4.6.54";
     try{url=typeof input==='string'?input:(input?.url||'')}catch(_){ }
     const method=String(init?.method||input?.method||'GET').toUpperCase();
     const isWrite=method==='PATCH'||method==='POST'||method==='PUT';
+    // Read-only cloud quarantine: preserve all local game edits, never write cloud
+    // until Broomfield 8-12 and duplicate play queues have been reconciled.
+    if(url.includes('/rest/v1/')&&['POST','PUT','PATCH','DELETE'].includes(method)){
+      console.warn('Cloud REST write blocked during safe rollback',method,url.split('?')[0]);
+      return new Response(JSON.stringify({message:'Cloud writes paused during rollback'}),{status:503,headers:{'Content-Type':'application/json'}});
+    }
     let nextInit=init,teamRemovalAllowed=false,oppRemovalAllowed=false;
     if(isWrite&&url.includes('/rest/v1/')&&typeof init?.body==='string'){
       try{
