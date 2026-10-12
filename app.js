@@ -1341,7 +1341,7 @@ async function assertCloudGameIdentitySafe(){
     }
   }
 }
-function syncCloudNow(options={}){
+async function syncCloudNow(options={}){
   // Guarded local-first upload: local saves never wait for this async worker.
   if(options.forceRestart&&cloudSyncRunning){
     if(cloudSyncStartedAt&&Date.now()-cloudSyncStartedAt<5000){cloudSyncRequested=true;return false}
