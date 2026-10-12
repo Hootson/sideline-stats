@@ -288,6 +288,7 @@ async function initCloud(){
     if(cloudUser){showReturningTeamLoader();try{rebaseCloudHashesV443();if(!await redeemPendingGameStatkeeperInvite()&&!await redeemPendingTeamInvite())await restoreRememberedTeam();await handleCheckoutReturn()}finally{await hideReturningTeamLoader()}}else{updateCloudUI();if(pendingGameStatkeeperInviteToken()){showReturningTeamLoader();try{const token=pendingGameStatkeeperInviteToken();const {data:quick,error:quickError}=await SB.functions.invoke("game-statkeeper-quick-session",{body:{token}});if(quickError||!quick?.access_token)throw quickError||new Error(quick?.error||"Could not start secure game session");const {data:setData,error:setError}=await SB.auth.setSession({access_token:quick.access_token,refresh_token:quick.refresh_token});if(setError)throw setError;cloudUser=setData?.user||setData?.session?.user||null;const {data:team,error:teamError}=await SB.from("teams").select("id,name,team_identifier,grade,primary_color,accent_color,logo_data,snap_minimum,playbook,intended_plan,timezone,created_at,updated_at").eq("id",quick.team_id).single();if(teamError)throw teamError;clearPendingGameStatkeeperInvite();await loadTeamFromCloud({team,auto:true,skipReplaceConfirm:true,destination:"game",substituteGameId:quick.game_id,roleOverride:"substitute_statkeeper",assignmentExpiresAt:quick.invite_expires_at});toast(`Ready to keep stats for ${team.name}`)}catch(e){console.error("Quick statkeeper session failed",e);toast(e?.message||"Could not open the game statkeeper link")}finally{await hideReturningTeamLoader()}}else if(pendingTeamInviteToken()){openAuth();$("#authMessage").textContent="Create an account or sign in to accept this team invitation."}else if(!teamExists())setTimeout(openAuth,250)}
     if(isCloudStatkeeper())scheduleCloudSync(300);else setTimeout(checkCloudForUpdates,500);
     setTimeout(startCloudRealtime,800);
+    setTimeout(importMissingCloudGamesReadOnly,1600);
     SB.auth.onAuthStateChange((_event,session)=>{
       cloudUser=session?.user||null;
       setTimeout(async()=>{
@@ -882,6 +883,63 @@ async function remoteCloudFingerprint(){
   const bookQ=await SB.from("coach_demo_playbook").select("call_number,call_name").eq("team_id",S.cloud.teamId);if(bookQ.error)throw bookQ.error;demoBook=(bookQ.data||[]).map(x=>({number:x.call_number,name:x.call_name}));
   const sort=(a,k='id')=>[...(a||[])].sort((x,y)=>String(x[k]||'').localeCompare(String(y[k]||'')));
   return simpleHash({team:teamQ.data,players:sort(playersQ.data),games:sort(gamesQ.data),plays:sort(plays),credits:sort(credits),penalties:sort(penalties),snaps:sort(snaps),snapParts:sort(snapParts),demoCalls:sort(demoCalls,"play_id"),demoBook:sort(demoBook,"number")});
+}
+// v4.6.54-safe: import only games absent on this device. Never replace local games.
+let missingGameImportRunning=false;
+async function importMissingCloudGamesReadOnly(){
+  if(missingGameImportRunning||!SB||!cloudUser||!cloudLinked()||navigator.onLine===false)return;
+  missingGameImportRunning=true;
+  try{
+    const teamId=S.cloud.teamId,seasonId=S.cloud.seasonId;
+    const {data:headers,error:headerError}=await SB.from("games").select("*").eq("season_id",seasonId).neq("status","archived").order("created_at");
+    if(headerError)throw headerError;
+    const known=new Set((S.games||[]).map(g=>String(S.cloud?.gameIds?.[g.id]||g.id)));
+    const missing=(headers||[]).filter(g=>!known.has(String(g.id))&&!(S.cloud?.deletedGames||{})[g.id]);
+    if(!missing.length)return;
+    const {data:players,error:playerError}=await SB.from("players").select("id,name,jersey_number").eq("season_id",seasonId);
+    if(playerError)throw playerError;
+    const rosterByCloudId=new Map();
+    for(const p of players||[]){
+      const local=(S.roster||[]).find(x=>String(S.cloud?.playerIds?.[x.id]||x.id)===String(p.id))
+        ||(S.roster||[]).find(x=>String(x.jersey)===String(p.jersey_number)&&String(x.name||"").trim().toLowerCase()===String(p.name||"").trim().toLowerCase());
+      if(local)rosterByCloudId.set(p.id,local.id);
+    }
+    const imported=[];
+    for(const row of missing){
+      if(S.cloud.teamId!==teamId||S.cloud.seasonId!==seasonId)throw Error("Team changed during import.");
+      // Avoid adding a duplicate if this device has the game under a different local ID.
+      const duplicate=(S.games||[]).some(g=>Number(g.week)===Number(row.week_number)&&String(g.opponent||"").trim().toLowerCase()===String(row.opponent_name||"").trim().toLowerCase());
+      if(duplicate)continue;
+      const [pq,sq,penq]=await Promise.all([
+        SB.from("plays").select("*").eq("game_id",row.id).is("deleted_at",null).order("sequence"),
+        SB.from("snap_events").select("*").eq("game_id",row.id).eq("active",true).order("snap_number"),
+        SB.from("penalties").select("*").eq("game_id",row.id).eq("accepted",true)
+      ]);
+      if(pq.error||sq.error||penq.error)throw pq.error||sq.error||penq.error;
+      const playRows=pq.data||[],snapRows=sq.data||[];
+      const credits=playRows.length?await CloudPagination.selectAllByIds(SB,{table:"play_credits",column:"play_id",ids:playRows.map(x=>x.id)}):[];
+      const participants=snapRows.length?await CloudPagination.selectAllByIds(SB,{table:"snap_participants",column:"snap_event_id",ids:snapRows.map(x=>x.id)}):[];
+      // A missing roster mapping must not silently drop a participant.
+      const unmapped=participants.some(x=>!rosterByCloudId.has(x.player_id));
+      if(unmapped){console.warn("Skipping cloud game with unmapped snap participants",row.id);continue;}
+      const gp=playRows.map(p=>restoreCloudPlayWithDemo(p,credits.filter(c=>c.play_id===p.id&&c.metadata?.active!==false),(penq.data||[]).find(q=>q.play_id===p.id),null));
+      const sr=snapRows.map(x=>({id:x.id,ts:Date.parse(x.client_created_at||x.created_at||new Date().toISOString()),quarter:Number(x.quarter||1),snapKind:x.snap_kind||"regular",playerIds:participants.filter(q=>q.snap_event_id===x.id).map(q=>rosterByCloudId.get(q.player_id))}));
+      const auto=gp.reduce((n,p)=>n+pointsFromPlay(p),0);
+      const score=Number(row.team_score||0);
+      const game={id:row.id,opponent:row.opponent_name||"Opponent",opponentLogoData:row.opponent_logo_data||null,week:Number(row.week_number||1),date:"Week "+Number(row.week_number||1),createdAt:Date.parse(row.created_at||new Date().toISOString()),finalizedAt:row.ended_at||null,location:row.location_type||"home",gameType:row.game_type||"regular",status:row.status==="final"?"complete":(row.status||"live"),ourScore:score,scoreAdjustment:score-auto,scoreModelVersion:2,oppScore:Number(row.opponent_score||0),openingKickoff:row.opening_kickoff||"receive",initialPossession:gp[0]?.stateBefore?.possession||"ours",initialDown:1,initialDistance:10,initialBallSpot:Field.validSpot(gp[0]?.stateBefore?.ballSpot),ballSpot:Field.validSpot(gp[gp.length-1]?.stateAfter?.ballSpot??row.current_state?.ballSpot),down:Number(row.current_down||1),distance:Number(row.current_distance||10),possession:localPossession(row.possession||"ours"),quarter:Number(row.current_quarter||1),cloudRevision:Number(row.revision||1),gamePlan:Array.isArray(row.game_plan)?row.game_plan:null,plays:gp,snapRecords:sr};
+      imported.push(game);
+    }
+    if(!imported.length)return;
+    if(S.cloud.teamId!==teamId||S.cloud.seasonId!==seasonId)throw Error("Team changed during import.");
+    // One atomic local snapshot after all reads complete; no Supabase writes.
+    for(const g of imported){
+      if((S.games||[]).some(x=>x.id===g.id))continue;
+      S.games.push(g);S.cloud.gameIds[g.id]=g.id;
+    }
+    persist({skipCloud:true});normalizeGames();renderGameArea();renderSnaps();renderStats();
+    toast(imported.length+" missing cloud game(s) restored to this device.");
+  }catch(e){console.warn("Safe missing-game import skipped",e)}
+  finally{missingGameImportRunning=false}
 }
 async function checkCloudForUpdates(){
   if(isCloudStatkeeper()||cloudRemoteCheckRunning||cloudLiveCheckRunning||cloudAutoRefreshRunning||!SB||!cloudUser||!cloudLinked()||navigator.onLine===false)return;
