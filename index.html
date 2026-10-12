@@ -817,6 +817,49 @@
 <script src="./app.js?release=4.6.54-local-finalize"></script>
 
 <script src="./pwa.js?release=4.6.9"></script>
+<script>
+/* Independent, read-only emergency backup for iOS Home Screen web apps. */
+(function(){
+  const button=document.getElementById('cloudDiagnosticBackupBtn');
+  if(!button)return;
+  button.addEventListener('click',async function(event){
+    event.preventDefault();event.stopImmediatePropagation();
+    const previous=button.textContent;
+    let status=document.getElementById('ssBackupExportStatus');
+    if(!status){status=document.createElement('div');status.id='ssBackupExportStatus';status.setAttribute('role','status');status.style.cssText='font-size:13px;margin-top:8px;overflow-wrap:anywhere';button.parentElement.appendChild(status)}
+    try{
+      const raw=localStorage.getItem('sidelineStatsData');
+      if(!raw)throw new Error('No saved local game data was found on this device.');
+      const data=JSON.parse(raw);
+      if(!Array.isArray(data.games))throw new Error('Saved data does not contain a valid games list.');
+      const exportData={format:'sideline-local-emergency-backup',backupVersion:1,exportedAt:new Date().toISOString(),data};
+      const filename='gridiron_local_backup_'+new Date().toISOString().slice(0,10)+'.json';
+      const file=new File([JSON.stringify(exportData,null,2)],filename,{type:'application/json'});
+      button.textContent='Preparing backup…';
+      status.textContent='Preparing '+data.games.length+' saved game(s).';
+      if(navigator.canShare?.({files:[file]})&&navigator.share){
+        try{
+          await navigator.share({files:[file],title:'Gridiron Local Backup'});
+          status.textContent='Backup shared. Confirm that the JSON file was saved in Files before continuing.';
+          button.textContent='Backup shared';
+          return;
+        }catch(err){
+          if(err?.name==='AbortError'){status.textContent='Share canceled. No data was changed.';return}
+        }
+      }
+      const url=URL.createObjectURL(file);
+      const link=document.createElement('a');link.href=url;link.download=filename;link.style.display='none';document.body.appendChild(link);link.click();link.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),60000);
+      status.textContent='Download requested: '+filename+'. Check Files > Downloads. If no file appears, open the app in Safari and try again.';
+      button.textContent='Backup requested';
+    }catch(err){
+      status.textContent='Backup failed: '+(err?.message||String(err));
+      button.textContent='Backup failed';
+    }finally{setTimeout(()=>{button.textContent=previous},3500)}
+  },true);
+})();
+</script>
+
 
 </body>
 </html>
