@@ -450,22 +450,30 @@ async function restoreRememberedTeam(){
     // Use only lightweight headers for discovery; full data loads after the
     // user chooses a team, reducing network egress for multi-team accounts.
     const {data:teams,error:teamError}=await SB.from("teams")
-      .select("id,name,team_identifier,grade")
+      .select("id,name,team_identifier,grade,owner_user_id")
       .eq("sport","football")
       .order("created_at",{ascending:true});
     if(teamError)throw teamError;
     const available=teams||[];
-    // Only present a team chooser when this edition actually has 2+ teams.
-    // Basketball/Hardcourt ownership must not add a Gridiron selection step.
-    const chosen=available.length===1?available[0]:null;
+    // Count OWNED football teams first. Membership/viewer access to additional
+    // teams must not force an extra tap when the account owns one team.
+    const owned=available.filter(t=>String(t.owner_user_id||"")===String(cloudUser.id));
+    const candidates=owned.length?owned:available;
+    // When only one team is owned, go straight there; don't count teams the
+    // owner may also access as a viewer. Multiple owned teams still require a
+    // selection. For accounts with no owned team, honor the last team the user
+    // explicitly opened so viewer/statkeeper memberships do not add taps.
+    const remembered=rememberedTeamId();
+    const chosen=candidates.length===1?candidates[0]:
+      (!owned.length&&remembered?candidates.find(t=>t.id===remembered)||null:null);
     if(chosen){
       await openExistingCloudTeam(chosen);
-      if(!cloudLinked())showExistingCloudTeamPicker(available,"Your team was found, but loading its games failed. Tap to retry. No data was erased.");
+      if(!cloudLinked())showExistingCloudTeamPicker(candidates,"Your team was found, but loading its games failed. Tap to retry. No data was erased.");
     }else{
       // An account with multiple teams cannot be safely auto-selected.
       // Previously this silently returned null and stranded users on
       // "Create your team" after successful login.
-      showExistingCloudTeamPicker(available);
+      showExistingCloudTeamPicker(candidates);
       updateCloudUI();
     }
   }catch(e){
