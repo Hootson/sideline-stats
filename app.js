@@ -340,6 +340,15 @@ async function handleCheckoutReturn(){
   }
   toast("Payment is processing. Reopen Settings in a moment.");
 }
+async function openExistingCloudTeam(team,options={}){
+  // Discovery intentionally omits bulky team assets; fetch only the chosen team
+  // before reconstructing its season and games.
+  const {data:full,error}=await SB.from("teams")
+    .select("id,name,team_identifier,grade,primary_color,accent_color,logo_data,snap_minimum,playbook,intended_plan,timezone,created_at,updated_at")
+    .eq("id",team.id).single();
+  if(error)throw error;
+  await loadTeamFromCloud({team:full,auto:true,skipReplaceConfirm:true,destination:"roster",...options});
+}
 function showExistingCloudTeamPicker(teams, errorMessage=""){
   if(teamExists())return;
   const anchor=$("#cloudSetupCard");
@@ -376,7 +385,7 @@ function showExistingCloudTeamPicker(teams, errorMessage=""){
     button.addEventListener("click",async()=>{
       panel.querySelectorAll("button").forEach(b=>b.disabled=true);
       button.textContent="Opening "+team.name+"…";
-      await loadTeamFromCloud({team,auto:true,skipReplaceConfirm:true,destination:"roster"});
+      try{await openExistingCloudTeam(team)}catch(error){console.warn("Cloud team open failed",error)}
       if(cloudLinked()){
         panel.remove();
         $("#quickStartCard")?.classList.remove("hidden");
@@ -446,7 +455,7 @@ async function restoreRememberedTeam(){
     const available=teams||[],preferredId=rememberedTeamId();
     const chosen=available.find(t=>t.id===preferredId)||(available.length===1?available[0]:null);
     if(chosen){
-      await loadTeamFromCloud({team:chosen,auto:true,skipReplaceConfirm:true,destination:"roster"});
+      await openExistingCloudTeam(chosen);
       if(!cloudLinked())showExistingCloudTeamPicker(available,"Your team was found, but loading its games failed. Tap to retry. No data was erased.");
     }else{
       // An account with multiple teams cannot be safely auto-selected.
