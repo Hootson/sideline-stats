@@ -434,8 +434,12 @@ function showExistingCloudTeamPicker(teams, errorMessage=""){
 async function restoreRememberedTeam(){
   if(!cloudUser||cloudAutoTeamLoadRunning)return;
   if(cloudLinked()){
+    const priorRole=cloudDeviceRole();
     rememberTeam(S.cloud.teamId);
-    await resolveCloudDeviceRole();
+    const verifiedRole=await resolveCloudDeviceRole();
+    // A returning owner may have a viewer-only page cached from a failed
+    // earlier role lookup. Restore the statkeeper tabs and roster immediately.
+    if(priorRole==="viewer"&&verifiedRole==="statkeeper"&&teamExists())go("roster");
     if(navigator.onLine!==false&&(!isCloudStatkeeper()||cloudPendingCount()===0)){
       try{
         const remoteFingerprint=await remoteCloudFingerprint();
