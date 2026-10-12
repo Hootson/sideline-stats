@@ -526,7 +526,7 @@ function openAuth(){
   // Preserve invitation/signup routes that still need the registration modal.
   if(!cloudUser && !hasPendingAccountInvite() &&
      !new URLSearchParams(location.search).has("signup")){
-    location.assign(new URL("./signin.html?release=4.6.67-native-login",location.href).href);
+    location.assign(new URL("./signin.html?release=4.6.67-keyboard-safe-login",location.href).href);
     return;
   }
   $("#signedOutAccountPane")?.classList.toggle("hidden",!!cloudUser);
