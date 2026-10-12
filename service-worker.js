@@ -16,7 +16,8 @@ self.addEventListener('activate',event=>{
       try{
         const u=new URL(client.url);
         if(u.origin!==self.location.origin)continue;
-        if(u.pathname.endsWith('/parent-viewer.html')||u.pathname.endsWith('/snap-tracker.html'))continue;
+        // Never reload a sign-in or password screen while the user is typing on iOS.
+        if(['/signin.html','/forgot-password.html','/reset-password.html','/parent-viewer.html','/snap-tracker.html'].some(path=>u.pathname.endsWith(path)))continue;
         if(u.searchParams.get('ssRelease')===RELEASE)continue;
         u.searchParams.set('ssRelease',RELEASE);
         await client.navigate(u.toString());
