@@ -1175,6 +1175,13 @@ async function ensureCloudGame(g){
     }else{id=data.id;writtenRevision=Number(data.revision||0)}
     S.cloud.gameIds[g.id]=id;S.cloud.gameHashes[g.id]=h;if(writtenRevision)S.cloud.deleteRevisions[`games:${id}`]=writtenRevision;persist({skipCloud:true});
   }else if(S.cloud.gameHashes?.[g.id]!==h){
+    // Reject remote edits newer than our last acknowledged game revision.
+    // Missing revision knowledge is not permission to overwrite cloud state.
+    const {data:remoteVersion,error:versionError}=await SB.from("games").select("revision").eq("id",id).single();
+    if(versionError)throw versionError;
+    const knownRevision=Number(S.cloud.deleteRevisions?.[`games:${id}`]||0);
+    if(!knownRevision||Number(remoteVersion?.revision||0)>knownRevision)
+      throw new Error("Cloud game has unverified changes. Local copy retained; no overwrite.");
     // Game state (especially score) is authoritative on the active statkeeper.
     const update={...payload};delete update.created_by;delete update.season_id;
     const {data:updated,error}=await SB.from("games").update(update).eq("id",id).select("revision").single();if(error)throw error;S.cloud.gameHashes[g.id]=h;writtenRevision=Number(updated?.revision||0);if(writtenRevision)S.cloud.deleteRevisions[`games:${id}`]=writtenRevision;persist({skipCloud:true});
