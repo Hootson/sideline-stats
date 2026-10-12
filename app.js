@@ -1252,7 +1252,25 @@ async function syncDeletedCloudGames(){
   }
   return changed;
 }
-async function syncCloudNow(options={}){
+async function assertCloudGameIdentitySafe(){
+  if(!cloudLinked())return;
+  const mapped=new Map();
+  const gameIds=new Set((S.games||[]).map(g=>String(g.id)));
+  for(const [localId,cloudId] of Object.entries(S.cloud?.gameIds||{})){
+    if(!gameIds.has(String(localId))||!cloudId)continue;
+    if(mapped.has(String(cloudId))&&mapped.get(String(cloudId))!==String(localId)){
+      throw new Error("Two local games reference the same cloud game. Sync is blocked to prevent data loss.");
+    }
+    mapped.set(String(cloudId),String(localId));
+  }
+  // A mapped cloud ID must never be re-used by a different local game.
+  for(const g of S.games||[]){
+    if(!S.cloud?.gameIds?.[g.id]&&mapped.has(String(g.id))&&mapped.get(String(g.id))!==String(g.id)){
+      throw new Error("Cloud game ID collision. Sync is blocked to prevent overwriting another game.");
+    }
+  }
+}
+function syncCloudNow(options={}){
   // SAFE ROLLBACK: never upload stale or duplicated local records.
   console.warn("Cloud writes paused during v4.6.54 rollback pending reconciliation");
   return Promise.resolve(false);
@@ -1262,6 +1280,12 @@ async function syncCloudNow(options={}){
   }
   if(cloudSyncRunning){cloudSyncRequested=true;return false}
   if(!SB||!cloudUser||!cloudLinked()||navigator.onLine===false||!isCloudStatkeeper())return false;
+  try{assertCloudGameIdentitySafe()}catch(e){
+    S.cloud.lastSyncError=e.message;
+    persist({skipCloud:true});
+    console.error("Cloud sync preflight blocked",e);
+    return false;
+  }
   const runId=++cloudSyncRunId;let succeeded=false,retryAfterAuth=false,priorityGameSynced=!options.priorityGameId;
   cloudSyncRunning=true;cloudSyncStartedAt=Date.now();updateCloudUI();
   cloudSyncWatchdog=setTimeout(()=>{
