@@ -1137,9 +1137,9 @@ async function ensureCloudGame(g){
       if(lookupError)throw lookupError;
       const normalized=String(payload.opponent_name||"").trim().toLowerCase(),existing=(matches||[]).find(row=>String(row.opponent_name||"").trim().toLowerCase()===normalized);
       if(!existing)throw error;
-      id=existing.id;
-      const update={...payload};delete update.created_by;delete update.season_id;
-      const {data:updated,error:updateError}=await SB.from("games").update(update).eq("id",id).select("revision").single();if(updateError)throw updateError;writtenRevision=Number(updated?.revision||existing.revision||0);
+      // Never silently adopt and overwrite another game's cloud identity.
+      // A collision must be resolved using explicit game IDs, not opponent/week matching.
+      throw new Error("Cloud game identity collision for "+String(payload.opponent_name||"game")+". Existing cloud game was left unchanged.");
     }else{id=data.id;writtenRevision=Number(data.revision||0)}
     S.cloud.gameIds[g.id]=id;S.cloud.gameHashes[g.id]=h;if(writtenRevision)S.cloud.deleteRevisions[`games:${id}`]=writtenRevision;persist({skipCloud:true});
   }else if(S.cloud.gameHashes?.[g.id]!==h){
