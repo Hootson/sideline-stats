@@ -4,27 +4,33 @@
 <title>Sign in — Gridiron Edition</title>
 <meta name="theme-color" content="#177b46">
 <style>
-*{box-sizing:border-box}body{margin:0;background:#eef4ef;color:#10291b;font:16px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-main{max-width:430px;margin:44px auto;padding:22px}header{text-align:center;color:#177b46;font-weight:900;margin-bottom:30px}
-section{background:white;border-radius:18px;padding:24px;box-shadow:0 8px 25px #1834231a}
-h1{font-size:26px;margin:0 0 10px}p{color:#526359;line-height:1.45}
-label{display:block;font-weight:700;font-size:14px;margin:20px 0 8px}
-input{display:block;width:100%;padding:15px 12px;border:1px solid #abbeb1;border-radius:10px;font-size:17px;background:white;color:#122018;appearance:none;-webkit-appearance:none}
-input:focus{outline:2px solid #177b46}button{width:100%;background:#177b46;color:white;border:0;border-radius:10px;padding:15px;font-size:17px;font-weight:800;margin-top:23px}
-button:disabled{opacity:.6}#message{min-height:22px;margin:14px 0;color:#b42318}
-a{color:#177b46;font-weight:700;text-decoration:none}.back{display:block;text-align:center;margin-top:20px}
-</style></head><body><main>
-<header>BLEACHER STATS · GRIDIRON EDITION</header>
-<section><h1>Sign in</h1>
-<p>Use your existing Gridiron account. Your saved games remain on this device.</p>
+*{box-sizing:border-box}
+html{min-height:100%;-webkit-text-size-adjust:100%}
+body{margin:0;min-height:100vh;min-height:100dvh;background:#10291b;color:#10291b;font:16px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.stadium{height:170px;background:#15351f url("./brand-header-gridiron.webp") center/cover no-repeat}
+.screen{min-height:calc(100dvh - 170px);background:#0009;padding:0 14px 32px;display:flow-root}
+main{position:relative;max-width:430px;margin:-118px auto 0;background:white;border-radius:18px;padding:24px 20px 22px;box-shadow:0 15px 45px #0008}
+.close{position:absolute;right:20px;top:20px;display:grid;place-items:center;width:40px;height:40px;border:1px solid #dbe3de;border-radius:50%;background:#fff;box-shadow:0 2px 8px #0002;color:#10291b;font-size:28px;font-weight:400;line-height:1;text-decoration:none}
+h1{font-size:27px;line-height:1.2;margin:0 52px 12px 0;font-weight:850}
+p{color:#68736b;line-height:1.5;margin:0 0 16px;font-size:16px}
+label{display:block;color:#10291b;font-size:15px;font-weight:800;margin:20px 0 8px}
+input{display:block;width:100%;height:54px;padding:13px 14px;border:1px solid #dbe3de;border-radius:12px;font-size:17px;background:#fff;color:#122018;-webkit-appearance:none;appearance:none}
+input:focus{outline:2px solid #177b46;outline-offset:1px}
+button{display:block;width:100%;background:#fff;color:#177b46;border:1px solid #dbe3de;border-radius:12px;padding:14px;font-size:17px;font-weight:800;margin-top:18px;min-height:54px}
+button:disabled{opacity:.6}
+#message{margin:13px 0 0;padding:10px 12px;min-height:64px;border:1px solid #dbe3de;background:#f7faf8;border-radius:11px;color:#68736b;line-height:1.4;font-size:14px}
+#message.error{color:#b42318}
+@media(min-width:700px){.stadium{height:210px}.screen{min-height:calc(100dvh - 210px)}main{margin-top:-150px}}
+</style></head><body><div class="stadium" aria-hidden="true"></div><div class="screen"><main>
+<a class="close" href="./" aria-label="Close sign in">×</a>
+<h1>Sign in to Gridiron</h1>
+<p>Use your existing account. Your saved games remain on this device.</p>
 <form id="loginForm">
-<label for="email">Email</label><input id="email" type="email" autocomplete="username" autocapitalize="none" inputmode="email" required>
-<label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required>
+<label for="email">Email</label><input id="email" type="email" autocomplete="username" autocapitalize="none" inputmode="email" placeholder="you@example.com" required>
+<label for="password">Password</label><input id="password" type="password" autocomplete="current-password" placeholder="At least 6 characters" required>
 <button type="submit" id="submit">Sign In</button>
-<div id="message" role="status" aria-live="polite"></div>
-</form></section>
-<a class="back" href="./">Back to Gridiron</a>
-</main>
+<div id="message" role="status" aria-live="polite">Your team data remains saved on this device.</div>
+</form></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 (function(){
@@ -32,7 +38,7 @@ const form=document.getElementById("loginForm"),message=document.getElementById(
 form.addEventListener("submit",async function(event){
  event.preventDefault();
  if(!window.supabase?.createClient){message.textContent="Sign-in service unavailable. Check your connection and try again.";return;}
- button.disabled=true;message.textContent="Signing in…";
+ button.disabled=true;message.classList.remove("error");message.textContent="Signing in…";
  try{
    const client=window.supabase.createClient("https://eyuvgzhkhcpwtcbmsvct.supabase.co","sb_publishable_uMOkwO4jyHen4pz4zCkIuQ_Ss-wUf2l",{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
    const email=document.getElementById("email").value.trim(),password=document.getElementById("password").value;
@@ -43,8 +49,8 @@ form.addEventListener("submit",async function(event){
    // The main app consumes and clears this immediately after authentication.
    sessionStorage.setItem("gridiron-auth-handoff",JSON.stringify({access_token:result.data.session.access_token,refresh_token:result.data.session.refresh_token}));
    message.style.color="#177b46";message.textContent="Signed in. Returning to Gridiron…";
-   location.replace("./?signedIn=1");
- }catch(err){message.textContent=err?.message||"Could not sign in.";button.disabled=false;}
+   location.replace("./?signedIn=1&release=4.6.62-native-login");
+ }catch(err){message.classList.add("error");message.textContent=err?.message||"Could not sign in.";button.disabled=false;}
 });
 })();
 </script>
