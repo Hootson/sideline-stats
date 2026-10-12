@@ -340,6 +340,68 @@ async function handleCheckoutReturn(){
   }
   toast("Payment is processing. Reopen Settings in a moment.");
 }
+function showExistingCloudTeamPicker(teams, errorMessage=""){
+  if(teamExists())return;
+  const anchor=$("#cloudSetupCard");
+  if(!anchor)return;
+  // Keep the account's cloud teams separate from locally created team data.
+  // Never create a new team as part of restoring an existing account.
+  let panel=$("#existingCloudTeamPicker");
+  if(!panel){
+    panel=document.createElement("section");
+    panel.id="existingCloudTeamPicker";
+    panel.className="card";
+    anchor.insertAdjacentElement("afterend",panel);
+  }
+  panel.replaceChildren();
+  const heading=document.createElement("h2");
+  heading.textContent="Your existing teams";
+  heading.style.marginTop="0";
+  panel.append(heading);
+  const detail=document.createElement("p");
+  detail.className="muted";
+  detail.textContent=errorMessage||"You're signed in. Select the team you want to open.";
+  panel.append(detail);
+  $("#quickStartCard")?.classList.add("hidden");
+  if($("#setupHeading"))$("#setupHeading").textContent="Open your team";
+  if($("#setupSub"))$("#setupSub").textContent="Your existing team is stored in your account. No new setup is needed.";
+  const createCard=$("#saveTeam")?.closest(".card");
+  if(createCard)createCard.classList.toggle("hidden",!!teams.length||!!errorMessage);
+  for(const team of teams){
+    const button=document.createElement("button");
+    button.className="btn ghost";
+    button.type="button";
+    button.style.cssText="display:block;width:100%;text-align:left;margin:10px 0;font-size:16px;padding:15px";
+    button.textContent=team.name+(team.team_identifier?" — "+team.team_identifier:"")+(team.grade?" ("+team.grade+")":"");
+    button.addEventListener("click",async()=>{
+      panel.querySelectorAll("button").forEach(b=>b.disabled=true);
+      button.textContent="Opening "+team.name+"…";
+      await loadTeamFromCloud({team,auto:true,skipReplaceConfirm:true,destination:"roster"});
+      if(cloudLinked()){
+        panel.remove();
+        $("#quickStartCard")?.classList.remove("hidden");
+      }else{
+        showExistingCloudTeamPicker(teams,"Couldn't open the team. Your cloud and local games are unchanged. Tap the team to retry.");
+      }
+    });
+    panel.append(button);
+  }
+  if(errorMessage||!teams.length){
+    const retry=document.createElement("button");
+    retry.type="button";
+    retry.className="btn";
+    retry.textContent="Retry finding my teams";
+    retry.addEventListener("click",async()=>{
+      retry.disabled=true;
+      retry.textContent="Looking for teams…";
+      await restoreRememberedTeam();
+    });
+    panel.append(retry);
+  }
+  if(!errorMessage&&!teams.length){
+    detail.textContent="No existing teams were returned for this account. You can create a new team below if this is a new account.";
+  }
+}
 async function restoreRememberedTeam(){
   if(!cloudUser||cloudAutoTeamLoadRunning)return;
   if(cloudLinked()){
@@ -362,18 +424,42 @@ async function restoreRememberedTeam(){
   if(navigator.onLine===false){updateCloudUI();return}
   cloudAutoTeamLoadRunning=true;
   try{
-    const {data:assignments,error:assignmentError}=await SB.rpc("get_my_game_statkeeper_assignment",{p_team_id:null,p_game_id:null});
-    if(assignmentError)throw assignmentError;
-    const assignment=Array.isArray(assignments)?assignments[0]:assignments;
+    // A missing/disabled substitute-assignment RPC must not block a normal
+    // account owner from finding their existing teams.
+    let assignment=null;
+    try{
+      const result=await SB.rpc("get_my_game_statkeeper_assignment",{p_team_id:null,p_game_id:null});
+      if(result.error)console.warn("Substitute assignment lookup unavailable; trying regular teams",result.error);
+      else assignment=Array.isArray(result.data)?result.data[0]:result.data;
+    }catch(e){console.warn("Substitute assignment lookup skipped",e)}
     if(assignment?.team_id&&assignment?.game_id){
-      const {data:assignedTeam,error:assignedTeamError}=await SB.from("teams").select("id,name,team_identifier,grade,primary_color,accent_color,logo_data,snap_minimum,playbook,intended_plan,timezone,created_at,updated_at").eq("id",assignment.team_id).single();if(assignedTeamError)throw assignedTeamError;
-      await loadTeamFromCloud({team:assignedTeam,auto:true,skipReplaceConfirm:true,destination:"game",substituteGameId:assignment.game_id,roleOverride:"substitute_statkeeper",assignmentExpiresAt:assignment.expires_at});return;
+      const {data:assignedTeam,error:assignedTeamError}=await SB.from("teams").select("id,name,team_identifier,grade,primary_color,accent_color,logo_data,snap_minimum,playbook,intended_plan,timezone,created_at,updated_at").eq("id",assignment.team_id).single();
+      if(assignedTeamError)throw assignedTeamError;
+      await loadTeamFromCloud({team:assignedTeam,auto:true,skipReplaceConfirm:true,destination:"game",substituteGameId:assignment.game_id,roleOverride:"substitute_statkeeper",assignmentExpiresAt:assignment.expires_at});
+      return;
     }
-    const preferredId=rememberedTeamId();
-    const team=await chooseCloudTeam({preferredId,onlyAutomatic:true});
-    if(team)await loadTeamFromCloud({team,auto:true,skipReplaceConfirm:true,destination:"roster"});
-    else updateCloudUI();
-  }catch(e){console.warn("Automatic team restore failed",e);updateCloudUI()}
+    // Use only lightweight headers for discovery; full data loads after the
+    // user chooses a team, reducing network egress for multi-team accounts.
+    const {data:teams,error:teamError}=await SB.from("teams")
+      .select("id,name,team_identifier,grade").order("created_at",{ascending:true});
+    if(teamError)throw teamError;
+    const available=teams||[],preferredId=rememberedTeamId();
+    const chosen=available.find(t=>t.id===preferredId)||(available.length===1?available[0]:null);
+    if(chosen){
+      await loadTeamFromCloud({team:chosen,auto:true,skipReplaceConfirm:true,destination:"roster"});
+      if(!cloudLinked())showExistingCloudTeamPicker(available,"Your team was found, but loading its games failed. Tap to retry. No data was erased.");
+    }else{
+      // An account with multiple teams cannot be safely auto-selected.
+      // Previously this silently returned null and stranded users on
+      // "Create your team" after successful login.
+      showExistingCloudTeamPicker(available);
+      updateCloudUI();
+    }
+  }catch(e){
+    console.warn("Automatic team restore failed",e);
+    showExistingCloudTeamPicker([],e?.message||"Couldn't look up your teams. Check your connection and retry.");
+    updateCloudUI();
+  }
   finally{cloudAutoTeamLoadRunning=false}
 }
 function cloudLinked(){return !!(teamExists()&&S.cloud?.teamId&&S.cloud?.seasonId)}
@@ -391,7 +477,7 @@ async function refreshCloudSessionForSync(){
 }
 function updateCloudUI(force){
   const dot=$("#cloudDot"), text=$("#cloudStatusText"), meta=$("#cloudMeta"), acct=$("#cloudAccountBtn"); if(!dot||!text)return;
-  $("#cloudSetupCard")?.classList.toggle("hidden",!teamExists());
+  $("#cloudSetupCard")?.classList.remove("hidden");
   dot.className="cloud-dot"; acct?.classList.remove("connected");
   $("#cloudSignInBtn")?.classList.toggle("hidden",!!cloudUser); $("#cloudSignOutBtn")?.classList.toggle("hidden",!cloudUser);
   $("#cloudConnectTeamBtn")?.classList.toggle("hidden",!cloudUser||!teamExists()||cloudLinked()); $("#cloudLoadTeamBtn")?.classList.toggle("hidden",!cloudUser||cloudLinked()); $("#cloudRefreshBtn")?.classList.toggle("hidden",!cloudUser||!cloudLinked());
