@@ -2120,6 +2120,34 @@ function applyHalftimeKickoff(g){
   return true;
 }
 
+let scoreRecoveryBusy=false;
+async function recoverCurrentGameScoreReadOnly(){
+  if(scoreRecoveryBusy)return;
+  const g=currentGame(),cloudId=g&&(S.cloud?.gameIds?.[g.id]||g.id);
+  if(!g||!cloudId||!SB||!cloudUser||!cloudLinked()||navigator.onLine===false)return toast("Connect to your cloud team before checking the score.");
+  scoreRecoveryBusy=true;
+  const button=document.getElementById("recoverCloudScoreBtn");
+  if(button){button.disabled=true;button.textContent="Checking score…";}
+  try{
+    const {data,error}=await SB.from("games").select("id,team_score,opponent_score").eq("id",cloudId).single();
+    if(error)throw error;
+    const ours=Number(data?.team_score),opp=Number(data?.opponent_score);
+    if(!Number.isFinite(ours)||!Number.isFinite(opp)||ours<0||opp<0)throw Error("Cloud score is invalid.");
+    const oldOurs=displayedOurScore(g),oldOpp=Number(g.oppScore||0);
+    if(oldOurs===ours&&oldOpp===opp)return toast("Score already matches the cloud.");
+    if(!confirm(`Cloud score for ${g.opponent}: ${ours}–${opp}. This device: ${oldOurs}–${oldOpp}. Apply the cloud score to this device only? Plays and snaps will remain unchanged.`))return;
+    if(currentGame()!==g)throw Error("Game changed; no score saved.");
+    // Only the two score fields and adjustment change; no game reload or cloud writes.
+    g.scoreAdjustment=ours-autoPoints(g);
+    g.scoreModelVersion=2;
+    g.ourScore=ours;
+    g.oppScore=opp;
+    persist({skipCloud:true});
+    renderLiveGame();
+    toast("Score corrected locally; cloud uploads remain paused.");
+  }catch(e){console.warn("Score recovery stopped",e);toast("Score check stopped: "+String(e?.message||e).slice(0,130));}
+  finally{scoreRecoveryBusy=false;const b=document.getElementById("recoverCloudScoreBtn");if(b){b.disabled=false;b.textContent="Check cloud score";}}
+}
 function renderLiveGame(){
   const g=currentGame();if(!g)return;
   const substitute=isSubstituteStatkeeper();
@@ -2139,6 +2167,15 @@ function renderLiveGame(){
   ensureScoreModel(g);
   $("#teamGame").textContent=S.team.name;
   $("#oppGame").textContent=g.opponent;
+  const scoreHost=document.getElementById("ourScore");
+  if(scoreHost&&!document.getElementById("recoverCloudScoreBtn")){
+    const button=document.createElement("button");
+    button.type="button";button.id="recoverCloudScoreBtn";button.className="btn ghost small";
+    button.textContent="Check cloud score";
+    button.style.cssText="display:block;margin:8px auto;font-size:12px";
+    button.addEventListener("click",recoverCurrentGameScoreReadOnly);
+    scoreHost.parentElement?.appendChild(button);
+  }
   $("#ourScore").textContent=displayedOurScore(g);
   $("#oppScore").textContent=g.oppScore;
   $("#gameDate").textContent=`${(g.gameType||"regular")==="playoff"?"Playoff":"Regular Season"} • Week ${g.week||String(g.date||"").replace(/\D/g,"")||"?"}`;
