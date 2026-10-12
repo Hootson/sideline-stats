@@ -115,13 +115,17 @@ function load(){
     }catch(_){return JSON.parse(JSON.stringify(empty))}
   }
 }
+let persistCloudUiRefreshPending=false;
 function persist(opts={}){
   try{
     const result=window.SidelineStorageSnapshot.save(localStorage,KEY,RECOVERY_KEY,S);
     if(result.usedCompactMain)console.warn("Device snapshot saved without cached images",result);
   }catch(e){console.error("Save failed",e);toast("Local save failed. Export a backup. Do not clear browser data.")}
-  // Rollback safety: keep local saves responsive and disable cloud uploads until reconciliation.
-  if(typeof updateCloudUI==="function")setTimeout(()=>{try{updateCloudUI()}catch(e){console.warn(e)}},300);
+  // Local-first: coalesce UI refreshes instead of scheduling one timer per saved play.
+  if(typeof updateCloudUI==="function"&&!persistCloudUiRefreshPending){
+    persistCloudUiRefreshPending=true;
+    setTimeout(()=>{persistCloudUiRefreshPending=false;try{updateCloudUI()}catch(e){console.warn(e)}},300);
+  }
 }
 
 function lastTeamStorageKey(){return cloudUser?.id?`${LAST_TEAM_KEY_PREFIX}${cloudUser.id}`:null}
@@ -660,6 +664,12 @@ async function chooseCloudTeam(options={}){
 }
 async function loadTeamFromCloud(options={}){
   if(!SB||!cloudUser)return openAuth();if(navigator.onLine===false)return toast("Connect to the internet to load cloud data");
+  // Never replace a local statkeeper's unsynced games with an older cloud snapshot.
+  // This applies to automatic refresh and explicit load alike.
+  if(teamExists()&&(S.games||[]).some(g=>cloudGameNeedsSync(g))){
+    toast("Local games have unsynced changes. Cloud load is blocked to protect them.");
+    return;
+  }
   const refreshing=!!options.refresh, autoRefresh=!!options.auto;
   const priorScreen=$('.screen.active')?.dataset?.screen||"setup";
   if(!refreshing&&teamExists()&&!options.skipReplaceConfirm&&!confirm("Load a cloud team on this device? This will replace the current local team, roster and games. Cloud-linked team data remains stored in Supabase."))return;
