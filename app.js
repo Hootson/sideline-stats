@@ -3201,18 +3201,24 @@ async function recoverVisibleGameSnapsReadOnly(){
     const mapped=remote.map(row=>({number:Number(row.snap_number),id:row.id,ts:Date.parse(row.client_created_at||row.created_at),quarter:Number(row.quarter||1),snapKind:row.snap_kind||"regular",playerIds:(byEvent.get(row.id)||[]).map(id=>cloudToLocal.get(id)||(rosterIds.has(id)?id:null))}));
     if(mapped.some(r=>!Number.isInteger(r.number)||r.number<1||r.playerIds.some(id=>!id)))throw Error("Cloud player mapping is incomplete; no local data changed.");
     const local=Array.isArray(game.snapRecords)?game.snapRecords:[];
-    // Match by cloud ID first, then by ordinal for older local-only snaps.
+    const uniqueNumbers=new Set(mapped.map(r=>r.number));
+    if(uniqueNumbers.size!==mapped.length)throw Error("Cloud has duplicate active snap numbers; review required.");
     const localIds=new Set(local.map(r=>r.id));
-    const additions=mapped.filter(r=>!localIds.has(r.id)&&r.number>local.length);
-    const overlap=mapped.filter(r=>r.number<=local.length&&!localIds.has(r.id));
-    if(overlap.length){
-      // Do not guess which local record corresponds to an existing cloud snap.
-      throw Error("Local and cloud snap histories overlap with different IDs. Recovery stopped to protect local data.");
+    const remoteById=new Map(mapped.map(r=>[r.id,r]));
+    // Only recover a clearly missing suffix. Never guess at missing middle snaps or rewrite existing records.
+    const comparePlayers=(a,b)=>JSON.stringify([...(a||[])].sort())===JSON.stringify([...(b||[])].sort());
+    for(let i=0;i<local.length;i++){
+      const row=local[i],matched=remoteById.get(row.id)||mapped[i];
+      if(!matched||matched.number!==i+1||Number(row.quarter||1)!==matched.quarter||!comparePlayers(row.playerIds,matched.playerIds)){
+        throw Error("Local and cloud snap histories differ; no local records were changed.");
+      }
     }
+    const additions=mapped.filter(r=>r.number>local.length);
+    if(mapped.some(r=>r.number<=local.length&&!localIds.has(r.id)&&!local[r.number-1]))throw Error("Missing middle snap; no local records were changed.");
+    if(additions.some(r=>localIds.has(r.id)))throw Error("Snap ordering conflict; no local records were changed.");
     if(!additions.length)return toast("This game's cloud snaps are already present locally.");
     if(!confirm(`Found ${additions.length} additional cloud snaps for ${game.opponent}. Append them to this device only? Existing plays, scores and snaps will not be changed.`))return;
-    // Recheck that the user has not switched games while the request was running.
-    if(!S.games.includes(game))throw Error("Game changed during recovery; nothing saved.");
+    if(!S.games.includes(game)||snapViewGame()!==game)throw Error("Game changed during recovery; nothing saved.");
     game.snapRecords=[...local,...additions.sort((a,b)=>a.number-b.number).map(({number,...record})=>record)];
     persist({skipCloud:true});
     renderSnaps();
