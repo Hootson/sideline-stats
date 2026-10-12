@@ -1124,8 +1124,10 @@ async function checkLiveGameRevisions(){
     }
   }catch(e){console.warn("Live game check failed",e)}finally{cloudLiveCheckRunning=false}
 }
-setInterval(checkLiveGameRevisions,3000);
-setInterval(checkCloudForUpdates,15000);
+// Realtime handles active change notifications; polling is a low-frequency
+// fallback to reduce Supabase reads and egress when nothing has changed.
+setInterval(checkLiveGameRevisions,15000);
+setInterval(checkCloudForUpdates,60000);
 function cloudStateForPlay(g,p,index){
   const plays=g.plays||[];let teamScore=Number(g.scoreAdjustment||0),oppScore=0;
   for(let i=0;i<=index&&i<plays.length;i++){teamScore+=pointsFromPlay(plays[i]);oppScore+=opponentPointsFromPlay(plays[i])}
