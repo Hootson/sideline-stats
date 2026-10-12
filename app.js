@@ -364,7 +364,10 @@ async function openExistingCloudTeam(team,options={}){
     .select("id,name,team_identifier,grade,primary_color,accent_color,logo_data,snap_minimum,playbook,intended_plan,timezone,created_at,updated_at")
     .eq("id",team.id).single();
   if(error)throw error;
-  await loadTeamFromCloud({team:full,auto:true,skipReplaceConfirm:true,destination:"roster",...options});
+  // Discovery returned the authenticated owner ID; preserve that verified role
+  // throughout initial loading instead of flashing the viewer-only interface.
+  const verifiedOwner=String(team.owner_user_id||"")===String(cloudUser?.id||"");
+  await loadTeamFromCloud({team:full,auto:true,skipReplaceConfirm:true,destination:"roster",...(verifiedOwner?{roleOverride:"statkeeper"}:{}),...options});
 }
 function showExistingCloudTeamPicker(teams, errorMessage=""){
   if(teamExists())return;
