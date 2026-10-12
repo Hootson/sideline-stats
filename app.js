@@ -1360,6 +1360,7 @@ function colorContrast(a,b){const x=colorLuminance(a),y=colorLuminance(b);return
 function colors(){let p=S.team?.primary||"#177b46",s=S.team?.secondary||"#f0b33b",ink=colorLuminance(p)>.46?"#111111":"#ffffff",active=colorContrast(p,s)>=3?s:ink;document.documentElement.style.setProperty("--p",p);document.documentElement.style.setProperty("--s",s);document.documentElement.style.setProperty("--nav-text",ink);document.documentElement.style.setProperty("--nav-muted",ink==="#ffffff"?"#ffffffb8":"#111111a6");document.documentElement.style.setProperty("--nav-active",active);document.querySelector('meta[name="theme-color"]').setAttribute("content",p)}
 function teamExists(){return !!(S.team&&S.team.name)}
 function currentGame(){return S.games.find(g=>g.id===S.activeGameId)||null}
+window.SidelineActiveGameId=()=>currentGame()?.id||null;
 function gameCorrectionsOpen(g=currentGame()){return !!(g?.status==="complete"&&g?.correctionsOpen)}
 function gameReadOnly(g=currentGame()){return !!(g?.status==="complete"&&!g?.correctionsOpen)}
 function isCloudViewer(){return !!(S.cloud?.teamId&&S.cloud?.seasonId&&cloudDeviceRole()==="viewer")}
