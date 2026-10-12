@@ -112,13 +112,22 @@ function load(){
     }catch(_){return JSON.parse(JSON.stringify(empty))}
   }
 }
+let cloudStatusRedrawTimer=null;
+function scheduleCloudStatusRedraw(){
+  if(cloudStatusRedrawTimer)return;
+  cloudStatusRedrawTimer=setTimeout(()=>{
+    cloudStatusRedrawTimer=null;
+    try{if(typeof updateCloudUI==="function")updateCloudUI()}catch(e){console.warn("Cloud status redraw failed",e)}
+  },300);
+}
 function persist(opts={}){
   invalidatePendingStatus();
   try{
     const result=window.SidelineStorageSnapshot.save(localStorage,KEY,RECOVERY_KEY,S);
     if(result.usedCompactMain)console.warn("Device snapshot saved without cached images to stay within browser storage limits",result);
   }catch(e){console.error("Save failed",e);toast("Local game save failed. Keep this screen open, download a Sync Backup, and tap Retry Sync. Do not clear browser data.")}
-  try{if(typeof updateCloudUI==="function")updateCloudUI()}catch(e){console.warn("Cloud status redraw failed",e)}
+  // Never perform season-wide cloud hashing inside the synchronous local-save path.
+  scheduleCloudStatusRedraw();
   if(!opts.skipCloud&&typeof scheduleCloudSync==="function")scheduleCloudSync();
 }
 
