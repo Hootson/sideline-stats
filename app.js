@@ -408,7 +408,7 @@ function showExistingCloudTeamPicker(teams, errorMessage=""){
     panel.append(retry);
   }
   if(!errorMessage&&!teams.length){
-    detail.textContent="No existing teams were returned for this account. You can create a new team below if this is a new account.";
+    detail.textContent="No Gridiron teams were found for this account. Other editions do not count as Gridiron teams.";
   }
 }
 async function restoreRememberedTeam(){
@@ -450,10 +450,14 @@ async function restoreRememberedTeam(){
     // Use only lightweight headers for discovery; full data loads after the
     // user chooses a team, reducing network egress for multi-team accounts.
     const {data:teams,error:teamError}=await SB.from("teams")
-      .select("id,name,team_identifier,grade").order("created_at",{ascending:true});
+      .select("id,name,team_identifier,grade")
+      .eq("sport","football")
+      .order("created_at",{ascending:true});
     if(teamError)throw teamError;
-    const available=teams||[],preferredId=rememberedTeamId();
-    const chosen=available.find(t=>t.id===preferredId)||(available.length===1?available[0]:null);
+    const available=teams||[];
+    // Only present a team chooser when this edition actually has 2+ teams.
+    // Basketball/Hardcourt ownership must not add a Gridiron selection step.
+    const chosen=available.length===1?available[0]:null;
     if(chosen){
       await openExistingCloudTeam(chosen);
       if(!cloudLinked())showExistingCloudTeamPicker(available,"Your team was found, but loading its games failed. Tap to retry. No data was erased.");
@@ -793,8 +797,7 @@ function restoreCloudPlayWithDemo(row,credits,penalty,demo){
   return play;
 }
 async function chooseCloudTeam(options={}){
-  const {data,error}=await SB.from("teams").select("id,name,team_identifier,grade,primary_color,accent_color,logo_data,snap_minimum,playbook,intended_plan,timezone,created_at,updated_at").order("created_at",{ascending:true});if(error)throw error;if(!data?.length)throw new Error("No cloud teams found for this account");if(data.length===1)return data[0];
-  if(options.preferredId){const preferred=data.find(t=>t.id===options.preferredId);if(preferred)return preferred}
+  const {data,error}=await SB.from("teams").select("id,name,team_identifier,grade,primary_color,accent_color,logo_data,snap_minimum,playbook,intended_plan,timezone,created_at,updated_at").eq("sport","football").order("created_at",{ascending:true});if(error)throw error;if(!data?.length)throw new Error("No Gridiron teams found for this account");if(data.length===1)return data[0];
   if(options.onlyAutomatic)return null;
   const lines=data.map((t,i)=>`${i+1}. ${t.name}${t.team_identifier?` — ${t.team_identifier}`:""}${t.grade?` — ${t.grade}`:""}`).join("\n");const ans=prompt(`Choose a team to load:\n\n${lines}\n\nEnter 1-${data.length}`);if(ans===null)return null;const n=Number(ans);if(!Number.isInteger(n)||n<1||n>data.length)throw new Error("That team number was not valid");return data[n-1];
 }
