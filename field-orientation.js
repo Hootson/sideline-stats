@@ -53,7 +53,7 @@
     return shouldMirror(quarter)?100-n:n;
   }
   function refreshFieldVisuals(){
-    const q=document.getElementById('quarterCard');
+    document.dispatchEvent(new CustomEvent('sideline:field-orientation-changed'));const q=document.getElementById('quarterCard');
     if(q){q.classList.toggle('ss-orientation-refresh');requestAnimationFrame(()=>q.classList.toggle('ss-orientation-refresh'))}
   }
   function makeSelect(id,label,options,value){
