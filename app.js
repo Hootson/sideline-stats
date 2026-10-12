@@ -90,27 +90,37 @@ function priorGameWithPlan(g){
 }
 
 function load(){
+  // Safe rollback: new compressed snapshots must remain readable.
+  const parse=(raw)=>window.SidelineStorageSnapshot.parse(raw);
   try{
     let raw=localStorage.getItem(KEY);
     if(!raw){
       for(const k of MIGRATION_KEYS){raw=localStorage.getItem(k);if(raw)break}
       if(raw)localStorage.setItem(KEY,raw);
     }
-    return raw?Object.assign({},empty,JSON.parse(raw)):JSON.parse(JSON.stringify(empty));
+    const main=raw?parse(raw):null;
+    if(main?.team?.name)return Object.assign({},empty,main);
+    const recovery=localStorage.getItem(RECOVERY_KEY);
+    if(recovery){
+      const restored=parse(recovery);
+      if(restored?.team?.name)return Object.assign({},empty,restored);
+    }
+    return main?Object.assign({},empty,main):JSON.parse(JSON.stringify(empty));
   }catch(e){
+    console.error("Local data decode failed; preserving stored snapshots",e);
     try{
       const recovery=localStorage.getItem(RECOVERY_KEY);
-      return recovery?Object.assign({},empty,JSON.parse(recovery)):JSON.parse(JSON.stringify(empty));
+      return recovery?Object.assign({},empty,parse(recovery)):JSON.parse(JSON.stringify(empty));
     }catch(_){return JSON.parse(JSON.stringify(empty))}
   }
 }
 function persist(opts={}){
   try{
     const result=window.SidelineStorageSnapshot.save(localStorage,KEY,RECOVERY_KEY,S);
-    if(result.usedCompactMain)console.warn("Device snapshot saved without cached images to stay within browser storage limits",result);
-  }catch(e){console.error("Save failed",e);toast("Device storage is full. Keep this screen open and tap Retry Sync.")}
-  try{if(typeof updateCloudUI==="function")updateCloudUI()}catch(e){console.warn("Cloud status redraw failed",e)}
-  if(!opts.skipCloud&&typeof scheduleCloudSync==="function")scheduleCloudSync();
+    if(result.usedCompactMain)console.warn("Device snapshot saved without cached images",result);
+  }catch(e){console.error("Save failed",e);toast("Local save failed. Export a backup. Do not clear browser data.")}
+  // Rollback safety: keep local saves responsive and disable cloud uploads until reconciliation.
+  if(typeof updateCloudUI==="function")setTimeout(()=>{try{updateCloudUI()}catch(e){console.warn(e)}},300);
 }
 
 function lastTeamStorageKey(){return cloudUser?.id?`${LAST_TEAM_KEY_PREFIX}${cloudUser.id}`:null}
@@ -1174,6 +1184,9 @@ async function syncDeletedCloudGames(){
   return changed;
 }
 async function syncCloudNow(options={}){
+  // SAFE ROLLBACK: never upload stale or duplicated local records.
+  console.warn("Cloud writes paused during v4.6.54 rollback pending reconciliation");
+  return Promise.resolve(false);
   if(options.forceRestart&&cloudSyncRunning){
     if(cloudSyncStartedAt&&Date.now()-cloudSyncStartedAt<5000){cloudSyncRequested=true;return false}
     resetStaleCloudSync("Manual retry restarted a stalled sync");
