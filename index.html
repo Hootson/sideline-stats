@@ -830,7 +830,8 @@
     try{
       const raw=localStorage.getItem('sidelineStatsData');
       if(!raw)throw new Error('No saved local game data was found on this device.');
-      const data=JSON.parse(raw);
+      const data=window.SidelineStorageSnapshot?.parse(raw);
+      if(!data)throw new Error('Could not decode the saved snapshot. The original data was not changed.');
       if(!Array.isArray(data.games))throw new Error('Saved data does not contain a valid games list.');
       const exportData={format:'sideline-local-emergency-backup',backupVersion:1,exportedAt:new Date().toISOString(),data};
       const filename='gridiron_local_backup_'+new Date().toISOString().slice(0,10)+'.json';
