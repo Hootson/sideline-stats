@@ -459,10 +459,13 @@ async function restoreRememberedTeam(){
     // teams must not force an extra tap when the account owns one team.
     const owned=available.filter(t=>String(t.owner_user_id||"")===String(cloudUser.id));
     const candidates=owned.length?owned:available;
-    // A single owned team (or single accessible team without ownership) opens
-    // automatically, even if other teams are visible to this account.
-    // If two or more are owned, offer a choice instead of guessing.
-    const chosen=candidates.length===1?candidates[0]:null;
+    // When only one team is owned, go straight there; don't count teams the
+    // owner may also access as a viewer. Multiple owned teams still require a
+    // selection. For accounts with no owned team, honor the last team the user
+    // explicitly opened so viewer/statkeeper memberships do not add taps.
+    const remembered=rememberedTeamId();
+    const chosen=candidates.length===1?candidates[0]:
+      (!owned.length&&remembered?candidates.find(t=>t.id===remembered)||null:null);
     if(chosen){
       await openExistingCloudTeam(chosen);
       if(!cloudLinked())showExistingCloudTeamPicker(candidates,"Your team was found, but loading its games failed. Tap to retry. No data was erased.");
