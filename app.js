@@ -526,7 +526,7 @@ function openAuth(){
   // Preserve invitation/signup routes that still need the registration modal.
   if(!cloudUser && !hasPendingAccountInvite() &&
      !new URLSearchParams(location.search).has("signup")){
-    location.assign(new URL("./signin.html?release=4.6.62-native-login",location.href).href);
+    location.assign(new URL("./signin.html?release=4.6.67-native-login",location.href).href);
     return;
   }
   $("#signedOutAccountPane")?.classList.toggle("hidden",!!cloudUser);
@@ -1544,7 +1544,11 @@ document.addEventListener("visibilitychange",()=>{if(document.visibilityState===
 setInterval(()=>{if(!cloudSyncTimer&&document.visibilityState==="visible"&&navigator.onLine!==false&&isCloudStatkeeper()&&cloudPendingCount()>0)scheduleCloudSync(0)},30000);
 
 $("#cloudAccountBtn")?.addEventListener("click",openAuth);
-// Sign In navigates to the independent login page. $("#cloudSignOutBtn")?.addEventListener("click",cloudSignOut); $("#cloudConnectTeamBtn")?.addEventListener("click",connectTeamToCloud); $("#cloudLoadTeamBtn")?.addEventListener("click",()=>loadTeamFromCloud()); $("#cloudRefreshBtn")?.addEventListener("click",refreshFromCloud);
+// Sign In uses the native standalone login page, while cloud controls retain their own handlers.
+$("#cloudSignOutBtn")?.addEventListener("click",cloudSignOut);
+$("#cloudConnectTeamBtn")?.addEventListener("click",connectTeamToCloud);
+$("#cloudLoadTeamBtn")?.addEventListener("click",()=>loadTeamFromCloud());
+$("#cloudRefreshBtn")?.addEventListener("click",refreshFromCloud);
 // Let the user explicitly tap the field: this opens the native iOS keyboard.
 ["authEmail","authPassword"].forEach(id=>{
   const field=$("#"+id);
