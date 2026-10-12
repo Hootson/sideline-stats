@@ -890,6 +890,9 @@
     var trigger=event.target.closest&&event.target.closest('#cloudSignInBtn');
     if(!trigger)return;
     showLogin();
+    // Synchronous focus in the actual tap gesture is required for the iOS keyboard.
+    var email=document.getElementById('authEmail');
+    if(email){email.disabled=false;email.readOnly=false;email.focus();}
   },true);
 })();
 </script>
