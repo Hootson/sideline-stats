@@ -2038,6 +2038,7 @@ function ensureInitialGameState(g){
 function stateWithBallPosition(before,after,p){
   const out=normalizeGameState(after),start=Field.validSpot(p.startSpot??before.ballSpot);let end=Field.validSpot(p.endSpot);
   if(p.type==="Game State Correction"){out.ballSpot=Field.validSpot(p.correctedBallSpot??out.ballSpot??start);return out}
+  if(p.type==="Penalty"){const yards=Number(p.penaltyYards||0);out.ballSpot=start===null?null:Field.advanceSpot(start,yards,before.possession);return out}
   if(end===null&&p.type==="Possession Switch")end=start;
   if(end===null&&p.type==="Punt")end=Field.puntEndSpot(start,p.yards,before.possession,p.opponentReturnYards||0);
   if(end===null&&Field.validSpot(p.takeawaySpot)!==null)end=Field.returnEndSpot(p.takeawaySpot,p.returnYards||0,after.possession);
