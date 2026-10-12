@@ -610,6 +610,15 @@ async function shareGameStatkeeperInvite(){
   if(!gameStatkeeperInviteShareData||!navigator.share)return copyGameStatkeeperInvite();
   try{await navigator.share(gameStatkeeperInviteShareData)}catch(e){if(e?.name!=="AbortError")copyGameStatkeeperInvite()}
 }
+// Navigation is local-first. Avoid an RPC every time Game is opened.
+const gameStatkeeperStatusLastChecked=new Map();
+function scheduleGameStatkeeperStatusRefresh(gameId){
+  if(!SB||!cloudUser||!cloudLinked()||navigator.onLine===false)return;
+  const now=Date.now();
+  if(now-(gameStatkeeperStatusLastChecked.get(gameId)||0)<60000)return;
+  gameStatkeeperStatusLastChecked.set(gameId,now);
+  setTimeout(()=>{if(currentGame()?.id===gameId)void refreshGameStatkeeperStatus()},0);
+}
 async function refreshGameStatkeeperStatus(){
   const g=currentGame(),cloudGameId=g&&S.cloud.gameIds?.[g.id];if(!SB||!cloudUser||!cloudGameId||!isTeamStatkeeper())return;
   try{
@@ -1797,7 +1806,7 @@ function renderGameArea(){
   $("#liveGame").classList.toggle("hidden",!g);
   renderGameList();
   renderNewGamePlanSources();
-  if(g){renderGamePlanManager();renderLiveGame();if(isTeamStatkeeper())setTimeout(refreshGameStatkeeperStatus,0)}
+  if(g){renderGamePlanManager();renderLiveGame();if(isTeamStatkeeper())scheduleGameStatkeeperStatusRefresh(g.id)}
 }
 function renderNewGamePlanSources(){
   const select=$("#newGamePlanSource");if(!select)return;const prior=select.value;
