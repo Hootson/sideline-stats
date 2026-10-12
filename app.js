@@ -289,7 +289,27 @@ async function initCloud(){
   try{
     if(!window.supabase?.createClient){updateCloudUI("unavailable");return}
     SB=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+    // Complete same-tab login handoff before starting team restoration.
+    // Never write session credentials into game storage or URLs.
+    let handoff=null;
+    try{
+      const saved=sessionStorage.getItem("gridiron-auth-handoff");
+      if(saved)handoff=JSON.parse(saved);
+    }catch(error){console.warn("Login handoff unavailable",error)}
+    if(handoff?.access_token&&handoff?.refresh_token){
+      const {data:recovered,error:recoverError}=await SB.auth.setSession(handoff);
+      if(!recoverError&&recovered?.session?.user){
+        try{sessionStorage.removeItem("gridiron-auth-handoff")}catch(_){}
+      }else console.warn("Login handoff could not be restored",recoverError);
+    }
     const {data}=await SB.auth.getSession();cloudUser=data?.session?.user||null;cloudReady=true;
+    if(new URLSearchParams(location.search).has("signedIn")){
+      const clean=new URL(location.href);
+      clean.searchParams.delete("signedIn");
+      history.replaceState({},"",clean.href);
+      if(!cloudUser)toast("Login session did not transfer. Your local games are unchanged.");
+      else updateCloudUI();
+    }
     if(cloudUser){showReturningTeamLoader();try{rebaseCloudHashesV443();if(!await redeemPendingGameStatkeeperInvite()&&!await redeemPendingTeamInvite())await restoreRememberedTeam();await handleCheckoutReturn()}finally{await hideReturningTeamLoader()}}else{updateCloudUI();if(pendingGameStatkeeperInviteToken()){showReturningTeamLoader();try{const token=pendingGameStatkeeperInviteToken();const {data:quick,error:quickError}=await SB.functions.invoke("game-statkeeper-quick-session",{body:{token}});if(quickError||!quick?.access_token)throw quickError||new Error(quick?.error||"Could not start secure game session");const {data:setData,error:setError}=await SB.auth.setSession({access_token:quick.access_token,refresh_token:quick.refresh_token});if(setError)throw setError;cloudUser=setData?.user||setData?.session?.user||null;const {data:team,error:teamError}=await SB.from("teams").select("id,name,team_identifier,grade,primary_color,accent_color,logo_data,snap_minimum,playbook,intended_plan,timezone,created_at,updated_at").eq("id",quick.team_id).single();if(teamError)throw teamError;clearPendingGameStatkeeperInvite();await loadTeamFromCloud({team,auto:true,skipReplaceConfirm:true,destination:"game",substituteGameId:quick.game_id,roleOverride:"substitute_statkeeper",assignmentExpiresAt:quick.invite_expires_at});toast(`Ready to keep stats for ${team.name}`)}catch(e){console.error("Quick statkeeper session failed",e);toast(e?.message||"Could not open the game statkeeper link")}finally{await hideReturningTeamLoader()}}else if(pendingTeamInviteToken()){openAuth();$("#authMessage").textContent="Create an account or sign in to accept this team invitation."}else if(!teamExists())setTimeout(openAuth,250)}
     if(isCloudStatkeeper())scheduleCloudSync(300);else setTimeout(checkCloudForUpdates,500);
     setTimeout(startCloudRealtime,800);
