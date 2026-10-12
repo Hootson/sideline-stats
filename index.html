@@ -862,5 +862,36 @@
 </script>
 
 
+<script id="gridiron-direct-login">
+/* Independent sign-in entry point: available even if the main app fails to initialize. */
+(function(){
+  function showLogin(){
+    var modal=document.getElementById('authModal');
+    if(!modal)return;
+    var signedOut=document.getElementById('signedOutAccountPane');
+    var signedIn=document.getElementById('signedInAccountPane');
+    if(signedOut)signedOut.classList.remove('hidden');
+    if(signedIn)signedIn.classList.add('hidden');
+    modal.classList.remove('hidden');
+    var heading=document.getElementById('authHeading');
+    if(heading)heading.textContent='Sign in to Gridiron';
+    var intro=document.getElementById('authIntro');
+    if(intro)intro.textContent='Enter your existing account email and password.';
+    var chooser=document.getElementById('signupPlanChooser');
+    if(chooser)chooser.classList.add('hidden');
+    var create=document.getElementById('authCreateBtn');
+    if(create)create.classList.add('hidden');
+    var login=document.getElementById('authSignInBtn');
+    if(login){login.classList.remove('hidden');login.textContent='Sign In';}
+    modal.scrollTop=0;
+    if(signedOut)signedOut.scrollTop=0;
+  }
+  document.addEventListener('click',function(event){
+    var trigger=event.target.closest&&event.target.closest('#cloudSignInBtn');
+    if(!trigger)return;
+    showLogin();
+  },true);
+})();
+</script>
 </body>
 </html>
