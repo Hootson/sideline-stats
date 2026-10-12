@@ -328,7 +328,7 @@ async function initCloud(){
       if(!cloudUser)toast("Login session did not transfer. Your local games are unchanged.");
       else updateCloudUI();
     }
-    if(cloudUser){showReturningTeamLoader();try{rebaseCloudHashesV443();if(!await redeemPendingGameStatkeeperInvite()&&!await redeemPendingTeamInvite())await restoreRememberedTeam();await handleCheckoutReturn()}finally{await hideReturningTeamLoader()}}else{updateCloudUI();if(pendingGameStatkeeperInviteToken()){showReturningTeamLoader();try{const token=pendingGameStatkeeperInviteToken();const {data:quick,error:quickError}=await SB.functions.invoke("game-statkeeper-quick-session",{body:{token}});if(quickError||!quick?.access_token)throw quickError||new Error(quick?.error||"Could not start secure game session");const {data:setData,error:setError}=await SB.auth.setSession({access_token:quick.access_token,refresh_token:quick.refresh_token});if(setError)throw setError;cloudUser=setData?.user||setData?.session?.user||null;const {data:team,error:teamError}=await SB.from("teams").select("id,name,team_identifier,grade,primary_color,accent_color,logo_data,snap_minimum,playbook,intended_plan,timezone,created_at,updated_at").eq("id",quick.team_id).single();if(teamError)throw teamError;clearPendingGameStatkeeperInvite();await loadTeamFromCloud({team,auto:true,skipReplaceConfirm:true,destination:"game",substituteGameId:quick.game_id,roleOverride:"substitute_statkeeper",assignmentExpiresAt:quick.invite_expires_at});toast(`Ready to keep stats for ${team.name}`)}catch(e){console.error("Quick statkeeper session failed",e);toast(e?.message||"Could not open the game statkeeper link")}finally{await hideReturningTeamLoader()}}else if(pendingTeamInviteToken()){openAuth();$("#authMessage").textContent="Create an account or sign in to accept this team invitation."}else if(!teamExists()&&!returningFromLogin)setTimeout(openAuth,250)}
+    if(cloudUser){showReturningTeamLoader();try{rebaseCloudHashesV443();if(!await redeemPendingGameStatkeeperInvite()&&!await redeemPendingTeamInvite())await restoreRememberedTeam();await handleCheckoutReturn()}finally{await hideReturningTeamLoader()}}else{updateCloudUI();if(pendingGameStatkeeperInviteToken()){showReturningTeamLoader();try{const token=pendingGameStatkeeperInviteToken();const {data:quick,error:quickError}=await SB.functions.invoke("game-statkeeper-quick-session",{body:{token}});if(quickError||!quick?.access_token)throw quickError||new Error(quick?.error||"Could not start secure game session");const {data:setData,error:setError}=await SB.auth.setSession({access_token:quick.access_token,refresh_token:quick.refresh_token});if(setError)throw setError;cloudUser=setData?.user||setData?.session?.user||null;const {data:team,error:teamError}=await SB.from("teams").select("id,name,team_identifier,grade,primary_color,accent_color,logo_data,snap_minimum,playbook,intended_plan,timezone,created_at,updated_at").eq("id",quick.team_id).single();if(teamError)throw teamError;clearPendingGameStatkeeperInvite();await loadTeamFromCloud({team,auto:true,skipReplaceConfirm:true,destination:"game",substituteGameId:quick.game_id,roleOverride:"substitute_statkeeper",assignmentExpiresAt:quick.invite_expires_at});toast(`Ready to keep stats for ${team.name}`)}catch(e){console.error("Quick statkeeper session failed",e);toast(e?.message||"Could not open the game statkeeper link")}finally{await hideReturningTeamLoader()}}else if(pendingTeamInviteToken()){openAuth();$("#authMessage").textContent="Create an account or sign in to accept this team invitation."}else if(!returningFromLogin)setTimeout(offerNativeSignInWhenSignedOut,250)}
     if(isCloudStatkeeper())scheduleCloudSync(300);else setTimeout(checkCloudForUpdates,500);
     setTimeout(startCloudRealtime,800);
     setTimeout(importMissingCloudGamesReadOnly,1600);
@@ -539,6 +539,20 @@ function updateCloudUI(force){
     meta.textContent=`${cloudUser.email||"Signed in"} • Games, stats, penalties + snaps are local-first and sync automatically${mode}${when}${pendingDetail}${err}`;
   }
   else{dot.classList.add("warn");text.textContent="Signed in — team not connected";meta.textContent=`${cloudUser.email||"Signed in"} • Connect this team or load one already stored in the cloud.`}
+}
+// Offer the native sign-in once when a Safari session has expired, even if
+// that browser has an old cloud-linked team cached. Never bounce in a loop
+// when someone closes the sign-in page, and never interrupt offline PWA use.
+function offerNativeSignInWhenSignedOut(){
+  if(cloudUser||navigator.onLine===false||hasPendingAccountInvite()||new URLSearchParams(location.search).has("signup"))return;
+  const standalone=window.matchMedia?.("(display-mode: standalone)")?.matches||navigator.standalone===true;
+  if(teamExists()&&(!cloudLinked()||standalone))return;
+  const flag="gridiron-native-signin-offered";
+  try{
+    if(sessionStorage.getItem(flag)==="1")return;
+    sessionStorage.setItem(flag,"1");
+  }catch(error){console.warn("Native sign-in auto-prompt skipped",error);return}
+  openAuth();
 }
 function openAuth(){
   // iOS Safari reliably opens the keyboard in a normal document, not in this
