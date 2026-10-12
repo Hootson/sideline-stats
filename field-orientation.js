@@ -15,7 +15,7 @@
   function teamKey(data=readData()){
     return data?.cloud?.teamId||`${data?.team?.name||'team'}|${data?.team?.season||'season'}`;
   }
-  function activeGameId(data=readData()){const id=data?.activeGameId;if(id&&(data.games||[]).some(g=>g.id===id))return id;const live=document.getElementById('liveGame');if(live&&!live.classList.contains('hidden')){const visible=(data.games||[]).filter(g=>g.status==='live');if(visible.length===1)return visible[0].id}return id||null}
+  function activeGameId(data=readData()){const liveId=window.SidelineActiveGameId?.();if(liveId)return liveId;const id=data?.activeGameId;if(id&&(data.games||[]).some(g=>g.id===id))return id;const live=document.getElementById('liveGame');if(live&&!live.classList.contains('hidden')){const visible=(data.games||[]).filter(g=>g.status==='live');if(visible.length===1)return visible[0].id}return id||null}
   function teamDefaults(data=readData()){
     const s=readSettings(),t=s.teams?.[teamKey(data)]||{};
     return {startDirection:t.startDirection==='left'?'left':'right',flipSchedule:t.flipSchedule==='halftime'?'halftime':'quarter'};
