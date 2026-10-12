@@ -1,0 +1,21 @@
+name: Validate Gridiron JavaScript
+on:
+  push:
+    branches: [gh-pages]
+  pull_request:
+    branches: [gh-pages]
+jobs:
+  javascript-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify application JavaScript syntax
+        run: |
+          node --check app.js
+          node --check version.js
+          node --check service-worker.js
+          node --check pwa.js
+          node --check storage-snapshot.js
