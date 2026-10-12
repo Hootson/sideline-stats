@@ -81,7 +81,7 @@
   function installFlipButton(){
     const actions=document.querySelector('.score-actions');if(!actions||document.getElementById('flipFieldBtn'))return;
     const btn=document.createElement('button');btn.className='score-action';btn.id='flipFieldBtn';btn.type='button';btn.textContent='⇄ Flip Field';btn.title='Reverse the visual field direction for this game';actions.appendChild(btn);
-    btn.addEventListener('click',()=>{const id=activeGameId();if(!id)return;const cfg=gameSettings(id);const next=cfg.startDirection==='right'?'left':'right';saveGameSettings(id,next,cfg.flipSchedule);refreshFieldVisuals();btn.textContent='✓ Field Flipped';setTimeout(()=>btn.textContent='⇄ Flip Field',900)});
+    btn.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();const data=readData();const id=activeGameId(data);if(!id){btn.textContent='Open a game first';setTimeout(()=>btn.textContent='⇄ Flip Field',1400);return}const cfg=gameSettings(id,data);const next=cfg.startDirection==='right'?'left':'right';saveGameSettings(id,next,cfg.flipSchedule);const verified=gameSettings(id).startDirection===next;if(!verified){btn.textContent='Flip failed — try again';setTimeout(()=>btn.textContent='⇄ Flip Field',1800);return}refreshFieldVisuals();btn.textContent='✓ Field Flipped';setTimeout(()=>btn.textContent='⇄ Flip Field',1100)});
   }
   function install(){hydrateFromSnapshot();injectStyles();installNewGameControls();installEditControls();installFlipButton()}
   if(typeof document!=='undefined'){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else setTimeout(install,0)}
