@@ -56,7 +56,7 @@ form.addEventListener("submit",async function(event){
    // The main app consumes and clears this immediately after authentication.
    sessionStorage.setItem("gridiron-auth-handoff",JSON.stringify({access_token:result.data.session.access_token,refresh_token:result.data.session.refresh_token}));
    message.style.color="#177b46";message.textContent="Signed in. Returning to Gridiron…";
-   location.replace("./?signedIn=1&release=4.6.68-owner-statkeeper");
+   location.replace("./?signedIn=1&release=4.6.69-owner-role-restored");
  }catch(err){message.classList.add("error");message.textContent=err?.message||"Could not sign in.";button.disabled=false;}
 });
 })();
