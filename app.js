@@ -187,37 +187,54 @@ async function recordViewerEvent(eventType,gameId=null){if(!SB||!cloudLinked()||
 
 async function resolveCloudDeviceRole(){
   if(!SB||!cloudUser||!S.cloud?.teamId||!S.cloud?.seasonId)return cloudDeviceRole();
+  const teamId=S.cloud.teamId;
   try{
-    const {data:assignment,error:assignmentError}=await SB.rpc("get_my_game_statkeeper_assignment",{p_team_id:S.cloud.teamId,p_game_id:S.cloud.substituteGameId||null});
-    if(assignmentError)throw assignmentError;
-    const substitute=Array.isArray(assignment)?assignment[0]:assignment;
-    if(substitute?.game_id){
-      S.cloud.deviceRole="substitute_statkeeper";S.cloud.substituteGameId=substitute.game_id;S.cloud.entitlementTier="statkeeper";S.cloud.coachAccess=false;
-      S.cloud.access={tier:"statkeeper",paid_access_starts_at:new Date(Date.now()-60000).toISOString(),paid_access_ends_at:substitute.expires_at,access_source:"game_assignment",complimentary:false};
-      persist({skipCloud:true});syncChrome();updateCloudUI();return "substitute_statkeeper";
-    }
-    const {data:team,error:teamErr}=await SB.from("teams").select("owner_user_id").eq("id",S.cloud.teamId).single();
+    // Verify ownership FIRST. A broken optional substitute-invite lookup must
+    // never strand the authenticated team owner in the parent viewer screen.
+    const {data:team,error:teamErr}=await SB.from("teams").select("owner_user_id").eq("id",teamId).single();
     if(teamErr)throw teamErr;
-    let role=team?.owner_user_id===cloudUser.id?"statkeeper":"viewer";
-    if(role!=="statkeeper"){
-      const {data:member,error:memberErr}=await SB.from("team_members").select("is_admin,is_statkeeper,is_coach,status").eq("team_id",S.cloud.teamId).eq("user_id",cloudUser.id).maybeSingle();
+    const isOwner=String(team?.owner_user_id||"")===String(cloudUser.id);
+    let role=isOwner?"statkeeper":"viewer";
+    if(!isOwner){
+      // Substitutes still get their assigned game, but the RPC is not a
+      // prerequisite for normal owner/member authorization.
+      try{
+        const result=await SB.rpc("get_my_game_statkeeper_assignment",{p_team_id:teamId,p_game_id:S.cloud.substituteGameId||null});
+        if(result.error)console.warn("Substitute assignment lookup unavailable",result.error);
+        else{
+          const substitute=Array.isArray(result.data)?result.data[0]:result.data;
+          if(substitute?.game_id&&String(substitute.team_id)===String(teamId)){
+            S.cloud.deviceRole="substitute_statkeeper";S.cloud.substituteGameId=substitute.game_id;S.cloud.entitlementTier="statkeeper";S.cloud.coachAccess=false;
+            S.cloud.access={tier:"statkeeper",paid_access_starts_at:new Date(Date.now()-60000).toISOString(),paid_access_ends_at:substitute.expires_at,access_source:"game_assignment",complimentary:false};
+            persist({skipCloud:true});syncChrome();updateCloudUI();return "substitute_statkeeper";
+          }
+        }
+      }catch(error){console.warn("Substitute assignment lookup skipped",error)}
+      const {data:member,error:memberErr}=await SB.from("team_members").select("is_admin,is_statkeeper,is_coach,status").eq("team_id",teamId).eq("user_id",cloudUser.id).maybeSingle();
       if(memberErr)throw memberErr;
       if(member?.status==="active"&&(member.is_admin||member.is_statkeeper))role="statkeeper";
       else if(member?.status==="active"&&member.is_coach)role="coach";
-    }
-    const {data:entitlement,error:entitlementErr}=await SB.from("team_entitlements").select("tier,trial_used,trial_started_at,trial_ends_at,paid_access_starts_at,paid_access_ends_at,coach_seat_limit,access_source,complimentary").eq("team_id",S.cloud.teamId).maybeSingle();
-    if(entitlementErr)throw entitlementErr;
-    const access=window.SidelineCommercialAccess?.resolve(entitlement);
+    }else S.cloud.substituteGameId=null;
+    // A billing/entitlement read is not part of role authorization. If it
+    // fails, keep the verified role and existing access snapshot intact.
     S.cloud.deviceRole=role;
+    let entitlement=S.cloud.access||null;
+    try{
+      const q=await SB.from("team_entitlements").select("tier,trial_used,trial_started_at,trial_ends_at,paid_access_starts_at,paid_access_ends_at,coach_seat_limit,access_source,complimentary").eq("team_id",teamId).maybeSingle();
+      if(q.error)console.warn("Team plan lookup unavailable; keeping verified role",q.error);
+      else entitlement=q.data||null;
+    }catch(error){console.warn("Team plan lookup skipped; keeping verified role",error)}
+    const access=window.SidelineCommercialAccess?.resolve(entitlement);
     S.cloud.entitlementTier=entitlement?.tier||null;
-    S.cloud.access=entitlement||null;
+    S.cloud.access=entitlement;
     S.cloud.coachAccess=!!access?.coachAccess;
-    persist({skipCloud:true});
-    syncChrome();
-    updateCloudUI();
+    persist({skipCloud:true});syncChrome();updateCloudUI();
     if(role==="viewer")setTimeout(()=>recordViewerEvent("open",S.activeGameId||selectedStatsGameId),0);
     return role;
-  }catch(e){console.warn("Could not resolve cloud role",e);return cloudDeviceRole()}
+  }catch(error){
+    console.warn("Could not verify cloud role; leaving existing local view intact",error);
+    return cloudDeviceRole();
+  }
 }
 
 let cloudRealtimeChannel=null,cloudRealtimeTimer=null,cloudRealtimeReconnectTimer=null,cloudRealtimeConnected=false,cloudRealtimeRefreshQueued=false,cloudLiveCheckRunning=false;
