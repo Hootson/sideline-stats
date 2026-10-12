@@ -1,5 +1,6 @@
 (function(){
 const KEY="sidelineStatsData";
+const CLOUD_WRITES_PAUSED=true;
 const RECOVERY_KEY="sidelineStatsRecovery";
 const LAST_TEAM_KEY_PREFIX="sidelineStatsLastTeam:";
 const PENDING_TEAM_INVITE_KEY="sidelineStatsPendingTeamInvite";
@@ -1914,17 +1915,17 @@ $("#endGameBtn").addEventListener("click",async()=>{
     if(wasCorrections&&cloudLinked()&&navigator.onLine!==false)syncCloudNow({forceRestart:true,priorityGameId:g.id}).catch(e=>console.warn("Correction sync will retry",e));
     renderGameArea();toast(wasCorrections?"Corrections closed — finalization window unchanged":"Game closed");return;
   }
-  if(!confirm(`Finalize the game vs ${g.opponent}? The viewer scoreboard will show Final and each active coach will have 24 hours to submit or skip the debrief.`))return;
+  if(!confirm(CLOUD_WRITES_PAUSED?`Finalize ${g.opponent} on this device? Cloud sync is paused, so the game will NOT yet be finalized for viewers or coaches. Keep this device data and make a backup.`:`Finalize the game vs ${g.opponent}? The viewer scoreboard will show Final and each active coach will have 24 hours to submit or skip the debrief.`))return;
   const btn=$("#endGameBtn");if(btn){btn.disabled=true;btn.textContent="Finalizing…"}
   try{
-    if(cloudLinked()&&navigator.onLine!==false){
+    if(!CLOUD_WRITES_PAUSED&&cloudLinked()&&navigator.onLine!==false){
       const preflight=await syncCloudNow({forceRestart:true,priorityGameId:g.id});
       if(!preflight||cloudGameNeedsSync(g))throw new Error("This game is not fully synced yet. Tap Retry Sync, then finalize again.");
     }
     g.status="complete";g.correctionsOpen=false;g.finalizedAt=g.finalizedAt||new Date().toISOString();selectedStatsGameId=g.id;S.activeGameId=null;persist();
     let cloudFinalized=!cloudLinked();
-    if(cloudLinked()&&navigator.onLine!==false){cloudFinalized=await syncCloudNow({forceRestart:true,priorityGameId:g.id});if(!cloudFinalized||cloudGameNeedsSync(g))throw new Error("Finalization is saved on this phone and will finish when cloud sync succeeds.")}
-    toast(isSubstituteStatkeeper()?"Game finalized — access will close after sync":"Game finalized — the 24-hour coach window is open");
+    if(!CLOUD_WRITES_PAUSED&&cloudLinked()&&navigator.onLine!==false){cloudFinalized=await syncCloudNow({forceRestart:true,priorityGameId:g.id});if(!cloudFinalized||cloudGameNeedsSync(g))throw new Error("Finalization is saved on this phone and will finish when cloud sync succeeds.")}
+    toast(CLOUD_WRITES_PAUSED?"Game finalized on this device only — cloud sync is paused":isSubstituteStatkeeper()?"Game finalized — access will close after sync":"Game finalized — the 24-hour coach window is open");
   }catch(e){console.error("Game finalization sync failed",e);toast(e?.message||"Finalization is saved and will retry automatically")}
   finally{if(btn){btn.disabled=false;btn.textContent="Finalize Game"}if(isSubstituteStatkeeper())go("stats");else renderGameArea()}
 });
