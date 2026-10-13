@@ -2672,15 +2672,15 @@ function renderGameList(){
   const cloudOnly=Object.entries(S.cloud?.removedFromDevice||{}).filter(([,v])=>v?.seasonId===S.cloud.seasonId);
   if(!S.games.length&&!cloudOnly.length){list.innerHTML='<span class="muted">No games yet.</span>';return}
   list.innerHTML=[...S.games].sort((a,b)=>b.date.localeCompare(a.date)).map(g=>`
-    <div class="game-card">
+    <div class="game-card saved-game-card">
       <div class="game-info"><strong>${esc(S.team.name)} vs ${esc(g.opponent)} <span class="game-type-badge ${(g.gameType||"regular")==="playoff"?"playoff":"regular"}">${(g.gameType||"regular")==="playoff"?"PLAYOFF":"REGULAR"}</span></strong><span>${(g.gameType||"regular")==="playoff"?"Playoff":"Regular Season"} • Week ${g.week||String(g.date||"").replace(/\D/g,"")||"?"} • ${g.location} • ${displayedOurScore(g)}-${g.oppScore}</span></div>
-      <div style="display:flex;gap:6px">
+      <div class="saved-game-actions">
         <button class="btn ghost small open-game" data-id="${g.id}">${g.status==="complete"?"View":"Open"}</button>
         <button class="btn ghost small edit-saved-game" data-id="${g.id}">Edit</button>
         <button class="btn ghost small remove-device-game" data-id="${g.id}">Remove from phone</button>
       </div>
     </div>`).join("")+cloudOnly.map(([id,info])=>`
-    <div class="game-card" data-cloud-only="${id}">
+    <div class="game-card saved-game-card" data-cloud-only="${id}">
       <div class="game-info"><strong>${esc(S.team.name)} vs ${esc(info.opponent||"Game")}</strong><span>Week ${Number(info.week||1)} • ☁️ Supabase backup • Removed from phone</span></div>
       <button class="btn ghost small restore-device-game" data-id="${id}">Restore to phone</button>
     </div>`).join("");
