@@ -878,7 +878,7 @@ async function loadTeamFromCloud(options={}){
   if(!refreshing&&teamExists()&&!options.skipReplaceConfirm&&!confirm("Load a cloud team on this device? This will replace the current local team, roster and games. Cloud-linked team data remains stored in Supabase."))return;
   const btn=refreshing?$("#cloudRefreshBtn"):$("#cloudLoadTeamBtn");if(btn){btn.disabled=true;btn.textContent=refreshing?"Refreshing…":"Loading…"}
   const priorActiveCloudId=S.activeGameId?(S.cloud?.gameIds?.[S.activeGameId]||S.activeGameId):null;
-  const priorSeasonId=S.cloud?.seasonId||null,priorDeletedGames={...(S.cloud?.deletedGames||{})},priorDeleteRevisions={...(S.cloud?.deleteRevisions||{})},priorRemovedFromDevice={...(S.cloud?.removedFromDevice||{})};
+  const priorSeasonId=S.cloud?.seasonId||null,priorDeletedGames={...(S.cloud?.deletedGames||{})},priorDeleteRevisions={...(S.cloud?.deleteRevisions||{})},priorRemovedFromDevice={...(S.cloud?.removedFromDevice||{})},priorSafeSyncGames={...(S.cloud?.safeSyncGames||{})},priorCloudGameIds={...(S.cloud?.gameIds||{})};
   try{
     let team=options.team||null;
     if(!team&&refreshing&&S.cloud?.teamId){const q=await SB.from("teams").select("id,name,team_identifier,grade,primary_color,accent_color,logo_data,snap_minimum,playbook,intended_plan,timezone,created_at,updated_at").eq("id",S.cloud.teamId).single();if(q.error)throw q.error;team=q.data}
@@ -909,13 +909,39 @@ async function loadTeamFromCloud(options={}){
     if(!vcq.error)for(const row of vcq.data||[]){const value=row.resolved_value?.value??row.resolved_value?.text??row.resolved_value;if(typeof value==="string"&&row.heard_text)voiceCorrections[row.heard_text]=value}else console.warn("Voice corrections could not be loaded",vcq.error);
     S={team:{name:team.name,identifier:team.team_identifier||"",grade:team.grade||"5th Grade",season:season.name||String(season.season_year||"Season"),primary:team.primary_color||"#177b46",secondary:team.accent_color||"#f0b33b",logoData:team.logo_data||null,snapMinimum:Number(team.snap_minimum||10),playbook:Array.isArray(team.playbook)?team.playbook:[],coachDemoPlaybook,voiceCorrections,planIntent:team.intended_plan||"team_pro"},roster,games:localGames,activeGameId:options.substituteGameId||((refreshing&&priorActiveCloudId&&localGames.some(x=>x.id===priorActiveCloudId))?priorActiveCloudId:null),flow:{},editingPlayId:null,cloud};
     S.cloud.removedFromDevice=priorSeasonId===season.id?priorRemovedFromDevice:{};
-    S.cloud.safeSyncGames=priorSeasonId===season.id?{...(S.cloud.safeSyncGames||{})}:{};
+    // Safely reconstruct eligible new-game sync tickets after IDs are replaced
+    // by authoritative cloud IDs. Never transfer a ticket to a different game.
+    S.cloud.safeSyncGames={};
+    if(priorSeasonId===season.id){
+      for(const [priorLocalId,ticket] of Object.entries(priorSafeSyncGames)){
+        const cloudId=priorCloudGameIds[priorLocalId]||ticket.cloudId;
+        const recovered=S.games.find(g=>g.id===cloudId);
+        const matchingRow=games.find(row=>row.id===cloudId);
+        if(!recovered||!matchingRow||S.cloud.removedFromDevice[cloudId])continue;
+        if(String(recovered.opponent)!==String(matchingRow.opponent_name)||
+          Number(recovered.week)!==Number(matchingRow.week_number)||
+          String(recovered.gameType||"regular")!==String(matchingRow.game_type)||
+          ticket.seasonId!==season.id)continue;
+        // Re-loading the server confirms this exact snapshot and its revision.
+        S.cloud.safeSyncGames[cloudId]={...ticket,cloudId,seasonId:season.id,
+          createdAt:recovered.createdAt,lastRevision:Number(matchingRow.revision||0),
+          lastSnapshotHash:null,lastError:null};
+      }
+    }
     S.cloud.deleteRevisions=priorSeasonId===season.id?priorDeleteRevisions:{};for(const g of games)S.cloud.deleteRevisions[`games:${g.id}`]=Number(g.revision||0);for(const p of plays)S.cloud.deleteRevisions[`plays:${p.id}`]=Number(p.revision||0);for(const r of snaps)S.cloud.deleteRevisions[`snap_events:${r.id}`]=Number(r.revision||0);
     S.cloud.teamHash=simpleHash(buildCloudTeamPayload());for(const p of S.roster)S.cloud.playerHashes[p.id]=simpleHash({season_id:S.cloud.seasonId,jersey_number:String(p.jersey??""),name:p.name||"Player",active:true});
     for(const p of plays){const lp=localGames.flatMap(x=>x.plays).find(x=>x.id===p.id);if(!lp)continue;const g=localGames.find(x=>x.id===p.game_id);const idx=g.plays.findIndex(x=>x.id===p.id);S.cloud.playHashes[p.id]=simpleHash(buildCloudPlayPayload(g,lp,idx,g.id));for(const c of buildCloudCredits(lp)){const row=credits.find(x=>x.play_id===p.id&&x.player_id===c.playerLocalId&&x.credit_type===c.credit_type&&x.metadata?.active!==false);if(row){const key=creditKey(lp.id,c);S.cloud.creditIds[key]=row.id;S.cloud.creditHashes[key]=simpleHash(c)}}const pen=penalties.find(x=>x.play_id===p.id);if(pen){S.cloud.penaltyIds[lp.id]=pen.id;S.cloud.penaltyHashes[lp.id]=simpleHash(buildCloudPenaltyPayload(g,lp,g.id,p.id))}}
     for(const g of localGames)S.cloud.gameHashes[g.id]=simpleHash(buildCloudGamePayload(g));for(const g of localGames)(g.snapRecords||[]).forEach((r,i)=>S.cloud.snapHashes[r.id]=simpleHash(buildCloudSnapPayload(g,r,i,g.id)));
     cloudRemoteUpdates=false;rememberTeam(team.id);coachSelection=null;coachDebriefs=[];coachOwnDebrief=null;
-    persist({skipCloud:true});await resolveCloudDeviceRole();normalizePlaybook();normalizeRoster();normalizeGames();syncChrome();populateSetup();initializeSnapSelections();renderRoster();renderGameArea();renderSnaps();renderStats();updateCloudUI();if(isCloudStatkeeper()&&Object.keys(S.cloud.deletedGames||{}).length)scheduleCloudSync(0);
+    persist({skipCloud:true});await resolveCloudDeviceRole();normalizePlaybook();normalizeRoster();normalizeGames();
+    // Compute acknowledgement hashes after game normalization, otherwise the
+    // next startup can mistakenly re-upload a freshly restored cloud game.
+    for(const game of S.games||[]){
+      const ticket=S.cloud.safeSyncGames?.[game.id];
+      if(ticket&&ticket.cloudId===S.cloud.gameIds?.[game.id])
+        ticket.lastSnapshotHash=safeSyncFingerprint(game);
+    }
+    persist({skipCloud:true});syncChrome();populateSetup();initializeSnapSelections();renderRoster();renderGameArea();renderSnaps();renderStats();updateCloudUI();if(isCloudStatkeeper()&&Object.keys(S.cloud.deletedGames||{}).length)scheduleCloudSync(0);
     go(refreshing?priorScreen:(options.destination||"roster"));
     if(isCloudCoach())setTimeout(maybePromptCoachDebrief,250);
     if(!autoRefresh)toast(refreshing?"Latest cloud changes loaded":"Cloud team loaded on this device");
