@@ -539,6 +539,16 @@ function updateCloudUI(force){
   acct?.classList.add("connected"); if(acct)acct.textContent=teamExists()?`⚙ ${S.team.name}`:"⚙ Settings";
   if(cloudLinked()){
     const pending=cloudPendingCount();
+    if(CLOUD_WRITES_PAUSED&&isCloudStatkeeper()){
+      const guardedPending=typeof safeSyncPending==="function"&&safeSyncPending();
+      dot.classList.add(guardedPending?"warn":"on");
+      text.textContent=guardedPending?"New-game backup pending":"New-game sync active • History protected";
+      const rb=$("#cloudRefreshBtn");if(rb)rb.textContent="Check New-Game Backup";
+      const last=S.cloud?.lastSyncAt?" • Last verified backup "+new Date(S.cloud.lastSyncAt).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"}):"";
+      const issue=S.cloud?.lastSyncError?" • "+S.cloud.lastSyncError:"";
+      meta.textContent=`${cloudUser.email||"Signed in"} • Newly created games back up in the background. ${pending} older local/cloud changes remain protected from automatic overwrites. Removing a finalized game from this phone requires a full Supabase check.${last}${issue}`;
+      return;
+    }
     if(pending>0){dot.classList.add("warn");text.textContent=`Cloud connected — ${pending} pending`;}
     else if(cloudRemoteUpdates){dot.classList.add("warn");text.textContent="Cloud has updates";}
     else{dot.classList.add("on");text.textContent=!isCloudStatkeeper()&&cloudRealtimeConnected?"Live updates on":"Cloud synced";}
@@ -931,6 +941,15 @@ async function switchCloudTeam(){
 async function refreshFromCloud(){
   if(!cloudLinked())return toast("Connect or load a cloud team first");
   if(navigator.onLine===false)return toast("Connect to the internet to refresh");
+  if(CLOUD_WRITES_PAUSED&&isTeamStatkeeper()){
+    const btn=$("#cloudRefreshBtn");if(btn){btn.disabled=true;btn.textContent="Checking guarded games…"}
+    try{
+      const ok=await runSafeSyncQueue();
+      updateCloudUI();
+      return toast(ok?"New-game backup checked. Historical conflicts remain protected.":
+        "New-game backup needs attention. Phone data was preserved.");
+    }finally{if(btn){btn.disabled=false;updateCloudUI()}}
+  }
   const pending=cloudPendingCount();
   if(pending>0){
     const btn=$("#cloudRefreshBtn");if(btn){btn.disabled=true;btn.textContent="Refreshing Sign-In…"}
@@ -2678,10 +2697,13 @@ $("#endGameBtn").addEventListener("click",async()=>{
   if(g.status==="complete"){
     const wasCorrections=gameCorrectionsOpen(g);
     g.correctionsOpen=false;selectedStatsGameId=g.id;S.activeGameId=null;persist();
-    if(wasCorrections&&cloudLinked()&&navigator.onLine!==false)syncCloudNow({forceRestart:true,priorityGameId:g.id}).catch(e=>console.warn("Correction sync will retry",e));
+    if(wasCorrections&&cloudLinked()&&navigator.onLine!==false){
+      if(safeSyncEligible(g))scheduleSafeSync(1500);
+      else if(!CLOUD_WRITES_PAUSED)syncCloudNow({forceRestart:true,priorityGameId:g.id}).catch(e=>console.warn("Correction sync will retry",e));
+    }
     renderGameArea();toast(wasCorrections?"Corrections closed — finalization window unchanged":"Game closed");return;
   }
-  if(!confirm(CLOUD_WRITES_PAUSED?`Finalize ${g.opponent} on this device? Cloud sync is paused, so the game will NOT yet be finalized for viewers or coaches. Keep this device data and make a backup.`:`Finalize the game vs ${g.opponent}? The viewer scoreboard will show Final and each active coach will have 24 hours to submit or skip the debrief.`))return;
+  if(!confirm(safeSyncEligible(g)?`Finalize ${g.opponent}? It will save immediately on this phone and automatically back up to Supabase when connected.`:CLOUD_WRITES_PAUSED?`Finalize ${g.opponent} on this device? Historical cloud synchronization remains paused until conflicts are verified; local game data will be preserved.`:`Finalize the game vs ${g.opponent}? The viewer scoreboard will show Final and each active coach will have 24 hours to submit or skip the debrief.`))return;
   const btn=$("#endGameBtn");if(btn){btn.disabled=true;btn.textContent="Finalizing…"}
   try{
     if(!CLOUD_WRITES_PAUSED&&cloudLinked()&&navigator.onLine!==false){
@@ -2691,7 +2713,8 @@ $("#endGameBtn").addEventListener("click",async()=>{
     g.status="complete";g.correctionsOpen=false;g.finalizedAt=g.finalizedAt||new Date().toISOString();selectedStatsGameId=g.id;S.activeGameId=null;persist();
     let cloudFinalized=!cloudLinked();
     if(!CLOUD_WRITES_PAUSED&&cloudLinked()&&navigator.onLine!==false){cloudFinalized=await syncCloudNow({forceRestart:true,priorityGameId:g.id});if(!cloudFinalized||cloudGameNeedsSync(g))throw new Error("Finalization is saved on this phone and will finish when cloud sync succeeds.")}
-    toast(CLOUD_WRITES_PAUSED?"Game finalized on this device only — cloud sync is paused":isSubstituteStatkeeper()?"Game finalized — access will close after sync":"Game finalized — the 24-hour coach window is open");
+    if(safeSyncEligible(g))scheduleSafeSync(1200);
+    toast(safeSyncEligible(g)?"Game finalized on phone — guarded cloud backup queued":CLOUD_WRITES_PAUSED?"Game finalized locally — historic cloud sync protected":isSubstituteStatkeeper()?"Game finalized — access will close after sync":"Game finalized — the 24-hour coach window is open");
   }catch(e){console.error("Game finalization sync failed",e);toast(e?.message||"Finalization is saved and will retry automatically")}
   finally{if(btn){btn.disabled=false;btn.textContent="Finalize Game"}if(isSubstituteStatkeeper())go("stats");else renderGameArea()}
 });
