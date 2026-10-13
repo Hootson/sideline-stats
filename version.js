@@ -92,6 +92,11 @@ window.SIDELINE_STATS_VERSION="4.6.70";
           rows.length===1&&body.status!=='archived'&&body.deleted_at===undefined;
         return false;
       }
+      if(table==='players'){
+        if(method!=='POST')return false;
+        return rows.every(r=>r.season_id===grant.seasonId&&r.active===true
+          &&grant.rosterRows?.has(String(r.jersey_number)+'::'+String(r.name)));
+      }
       if(!grant.gameId)return false;
       if(table==='plays'){
         if(method==='POST')return rows.every(r=>r.game_id===grant.gameId&&grant.playIds.has(r.id)&&
