@@ -68,11 +68,62 @@ window.SIDELINE_STATS_VERSION="4.6.70";
     try{url=typeof input==='string'?input:(input?.url||'')}catch(_){ }
     const method=String(init?.method||input?.method||'GET').toUpperCase();
     const isWrite=method==='PATCH'||method==='POST'||method==='PUT';
-    // Read-only cloud quarantine: preserve all local game edits, never write cloud
-    // until Broomfield 8-12 and duplicate play queues have been reconciled.
-    if(url.includes('/rest/v1/')&&['POST','PUT','PATCH','DELETE'].includes(method)){
+    // The historical bulk uploader remains quarantined. Permit only verified,
+    // narrowly scoped writes issued by the new-game synchronization worker.
+    function allowedGuardedWrite(){
+      const grant=window.SidelineSafeWriteGrant;
+      if(!grant||!grant.active||Date.now()-grant.startedAt>120000)return false;
+      let parsed,body={};
+      try{parsed=new URL(url,location.href);body=init?.body?JSON.parse(init.body):{}}
+      catch(_){return false}
+      if(parsed.origin!=='https://eyuvgzhkhcpwtcbmsvct.supabase.co')return false;
+      const segments=parsed.pathname.split('/');
+      const table=segments.length===4&&segments[1]==='rest'&&segments[2]==='v1'?segments[3]:null;
+      if(!table)return false;
+      const rows=Array.isArray(body)?body:[body];
+      if(!rows.length)return false;
+      const param=key=>{const value=parsed.searchParams.get(key)||'';return value.startsWith('eq.')?value.slice(3):null};
+      const eqId=param('id');
+      if(table==='games'){
+        if(method==='POST')return !grant.gameId&&rows.length===1&&
+          rows[0].season_id===grant.seasonId&&rows[0].opponent_name===grant.opponent&&
+          Number(rows[0].week_number)===grant.week&&rows[0].status==='live';
+        if(method==='PATCH')return !!grant.gameId&&eqId===grant.gameId&&
+          rows.length===1&&body.status!=='archived'&&body.deleted_at===undefined;
+        return false;
+      }
+      if(!grant.gameId)return false;
+      if(table==='plays'){
+        if(method==='POST')return rows.every(r=>r.game_id===grant.gameId&&grant.playIds.has(r.id)&&
+          Number.isInteger(Number(r.sequence))&&Number(r.sequence)>0);
+        if(method==='PATCH')return !!eqId&&grant.playIds.has(eqId)&&body.deleted_at===undefined;
+        return false;
+      }
+      if(table==='play_credits'){
+        if(method==='POST')return rows.every(r=>grant.playIds.has(r.play_id)&&r.player_id&&r.credit_type);
+        if(method==='PATCH')return !!eqId&&grant.creditIds.has(eqId);
+        return false;
+      }
+      if(table==='penalties'){
+        if(method==='POST')return rows.every(r=>r.game_id===grant.gameId&&grant.playIds.has(r.play_id));
+        if(method==='PATCH')return !!eqId&&grant.penaltyIds.has(eqId);
+        return false;
+      }
+      if(table==='snap_events'){
+        if(method==='POST')return rows.every(r=>r.game_id===grant.gameId&&grant.snapIds.has(r.id));
+        if(method==='PATCH')return !!eqId&&grant.snapIds.has(eqId)&&body.game_id===undefined;
+        return false;
+      }
+      if(table==='snap_participants'){
+        if(method==='POST')return rows.every(r=>grant.snapIds.has(r.snap_event_id)&&r.player_id);
+        // Deleting participant associations remains blocked until separately reviewed.
+        return false;
+      }
+      return false;
+    }
+    if(url.includes('/rest/v1/')&&['POST','PUT','PATCH','DELETE'].includes(method)&&!allowedGuardedWrite()){
       console.warn('Cloud REST write blocked during safe rollback',method,url.split('?')[0]);
-      return new Response(JSON.stringify({message:'Cloud writes paused during rollback'}),{status:503,headers:{'Content-Type':'application/json'}});
+      return new Response(JSON.stringify({message:'Historical sync quarantined. Only guarded new-game uploads allowed.'}),{status:503,headers:{'Content-Type':'application/json'}});
     }
     let nextInit=init,teamRemovalAllowed=false,oppRemovalAllowed=false;
     if(isWrite&&url.includes('/rest/v1/')&&typeof init?.body==='string'){
