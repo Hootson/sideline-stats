@@ -1406,9 +1406,39 @@ function buildCloudCredits(p){
 }
 function creditKey(localPlayId,c){return `${localPlayId}::${c.playerLocalId}::${c.credit_type}`}
 async function syncPlayCredits(p,cloudPlayId){
-  const credits=buildCloudCredits(p),active=new Set();
-  for(const c of credits){const key=creditKey(p.id,c);active.add(key);const playerId=S.cloud.playerIds?.[c.playerLocalId];if(!playerId)continue;const payload={play_id:cloudPlayId,player_id:playerId,credit_type:c.credit_type,value:c.value,metadata:{...(c.metadata||{}),local_play_id:p.id,active:true}};const h=simpleHash(c);let id=S.cloud.creditIds[key];if(!id){id=cloudUuid();const {error}=await SB.from("play_credits").insert({id,...payload});if(error)throw error;S.cloud.creditIds[key]=id}else if(S.cloud.creditHashes[key]!==h){const {error}=await SB.from("play_credits").update({value:payload.value,metadata:payload.metadata}).eq("id",id);if(error)throw error}S.cloud.creditHashes[key]=h}
-  for(const [key,id] of Object.entries(S.cloud.creditIds||{})){if(!key.startsWith(`${p.id}::`)||active.has(key))continue;const h="inactive";if(S.cloud.creditHashes[key]!==h){const {error}=await SB.from("play_credits").update({value:0,metadata:{local_play_id:p.id,active:false}}).eq("id",id);if(error)throw error;S.cloud.creditHashes[key]=h}}
+  const credits=buildCloudCredits(p),active=new Set(),toInsert=[];
+  for(const c of credits){
+    const key=creditKey(p.id,c);active.add(key);
+    const playerId=S.cloud.playerIds?.[c.playerLocalId];if(!playerId)continue;
+    const payload={play_id:cloudPlayId,player_id:playerId,credit_type:c.credit_type,
+      value:c.value,metadata:{...(c.metadata||{}),local_play_id:p.id,active:true}};
+    const h=simpleHash(c),id=S.cloud.creditIds[key];
+    if(!id){toInsert.push({key,hash:h,row:{id:cloudUuid(),...payload}});continue}
+    if(S.cloud.creditHashes[key]!==h){
+      const {error}=await SB.from("play_credits").update({value:payload.value,
+        metadata:payload.metadata}).eq("id",id);
+      if(error)throw error;
+    }
+    S.cloud.creditHashes[key]=h;
+  }
+  // One atomic insert per play instead of a separate request for each credit.
+  if(toInsert.length){
+    const {error}=await SB.from("play_credits").insert(toInsert.map(item=>item.row));
+    if(error)throw error;
+    for(const item of toInsert){
+      S.cloud.creditIds[item.key]=item.row.id;
+      S.cloud.creditHashes[item.key]=item.hash;
+    }
+  }
+  for(const [key,id] of Object.entries(S.cloud.creditIds||{})){
+    if(!key.startsWith(p.id+"::")||active.has(key))continue;
+    if(S.cloud.creditHashes[key]!=="inactive"){
+      const {error}=await SB.from("play_credits").update({value:0,
+        metadata:{local_play_id:p.id,active:false}}).eq("id",id);
+      if(error)throw error;
+      S.cloud.creditHashes[key]="inactive";
+    }
+  }
 }
 function penaltyDownResult(v){return ({replay:"replay_same",unchanged:"replay_same",next:"next_down",automatic1st:"automatic_first",loss:"loss_of_down"})[v]||"replay_same"}
 function buildCloudPenaltyPayload(g,p,cloudGameId,cloudPlayId){
