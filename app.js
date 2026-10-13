@@ -1631,9 +1631,19 @@ async function safeSyncOwnedGame(g){
       const p=copy.plays[i],remote=cloudPlays[i]||null;
       let playId=S.cloud.playIds?.[p.id]||remote?.id||cloudUuid();
       if(remote&&playId!==remote.id)throw Error("Play "+(i+1)+" cloud ID conflict.");
+      const newlyMapped=!S.cloud.playIds[p.id];
       S.cloud.playIds[p.id]=playId;grant.playIds.add(playId);
-      persist({skipCloud:true});
+      if(newlyMapped)persist({skipCloud:true});
       const payload=buildCloudPlayPayload(copy,p,i,gameId),hash=simpleHash(payload);
+      const unchangedPlay=!!remote&&S.cloud.playHashes[p.id]===hash;
+      const unchangedCredits=buildCloudCredits(p).every(c=>{
+        const key=creditKey(p.id,c);
+        return !!S.cloud.creditIds[key]&&S.cloud.creditHashes[key]===simpleHash(c);
+      });
+      const unchangedPenalty=p.type!=="Penalty"||
+        (!!S.cloud.penaltyIds[p.id]&&S.cloud.penaltyHashes[p.id]===
+          simpleHash(buildCloudPenaltyPayload(copy,p,gameId,playId)));
+      if(unchangedPlay&&unchangedCredits&&unchangedPenalty)continue;
       let playRevision=Number(remote?.revision||0);
       if(!remote){
         if(i!==cloudPlays.length)throw Error("Cannot append after an unresolved play gap.");
@@ -1781,7 +1791,10 @@ async function runSafeSyncQueue(){
     else if(safeSyncFailureCount<3)
       setTimeout(()=>scheduleSafeSync(30000),5000);
     return allOkay;
-  }finally{safeSyncRunning=false;updateCloudUI()}
+  }finally{
+    safeSyncRunning=false;updateCloudUI();
+    if(safeSyncFailureCount<3&&safeSyncPending())scheduleSafeSync(7500);
+  }
 }
 
 function cloudGameNeedsSync(g){
