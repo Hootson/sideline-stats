@@ -1579,7 +1579,8 @@ async function safeSyncOwnedGame(g){
     throw Error("Duplicate local snap IDs: cloud backup paused");
   const grant={active:true,startedAt:Date.now(),gameId:null,
     seasonId:t.seasonId,opponent:copy.opponent,week:Number(copy.week),
-    playIds:new Set(),creditIds:new Set(),penaltyIds:new Set(),snapIds:new Set()};
+    playIds:new Set(),creditIds:new Set(),penaltyIds:new Set(),snapIds:new Set(),
+    rosterRows:new Set()};
   if(window.SidelineSafeWriteGrant)throw Error("Another protected upload is active");
   window.SidelineSafeWriteGrant=grant;
   const checked=()=>{
@@ -1591,6 +1592,35 @@ async function safeSyncOwnedGame(g){
   let gameId=S.cloud.gameIds?.[g.id]||t.cloudId||null,rev=Number(t.lastRevision||0);
   try{
     checked();
+    // Add only validated missing roster members. Existing cloud roster rows
+    // are never overwritten or deactivated by game synchronization.
+    const cloudRoster=requireData(await SB.from("players")
+      .select("id,jersey_number,name,active").eq("season_id",t.seasonId))||[];
+    for(const person of S.roster||[]){
+      const body={season_id:t.seasonId,jersey_number:String(person.jersey??""),
+        name:person.name||"Player",active:true};
+      const linked=S.cloud.playerIds?.[person.id];
+      if(linked){
+        const row=cloudRoster.find(p=>p.id===linked);
+        if(!row||String(row.jersey_number)!==body.jersey_number||
+          String(row.name)!==body.name)
+          throw Error("Roster differs from cloud for #"+body.jersey_number+
+            "; historical roster data preserved.");
+        continue;
+      }
+      const conflicts=cloudRoster.filter(p=>String(p.jersey_number)===body.jersey_number);
+      const match=conflicts.find(p=>String(p.name)===body.name);
+      if(match){S.cloud.playerIds[person.id]=match.id;}
+      else{
+        if(conflicts.length)throw Error("Roster number collision: #"+body.jersey_number);
+        grant.rosterRows.add(body.jersey_number+"::"+body.name);
+        const added=requireData(await SB.from("players").insert(body).select("id").single());
+        S.cloud.playerIds[person.id]=added.id;
+        cloudRoster.push({...body,id:added.id});
+      }
+      S.cloud.playerHashes[person.id]=simpleHash(body);
+      persist({skipCloud:true});
+    }
     if(!gameId){
       const matches=requireData(await SB.from("games").select("id,opponent_name")
         .eq("season_id",t.seasonId).eq("week_number",Number(copy.week))
