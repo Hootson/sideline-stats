@@ -581,7 +581,7 @@ function openAuth(){
   // Preserve invitation/signup routes that still need the registration modal.
   if(!cloudUser && !hasPendingAccountInvite() &&
      !new URLSearchParams(location.search).has("signup")){
-    location.assign(new URL("./signin.html?release=4.6.72-verified-cloud-library",location.href).href);
+    location.assign(new URL("./signin.html?release=4.6.73-verified-sync-refresh",location.href).href);
     return;
   }
   $("#signedOutAccountPane")?.classList.toggle("hidden",!!cloudUser);
