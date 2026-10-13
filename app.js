@@ -2187,34 +2187,148 @@ $("#copyPreviousGamePlanBtn")?.addEventListener("click",()=>{
   if(g.gamePlan?.length&&!confirm(`Replace this game plan with Week ${prior.week} vs ${prior.opponent}?`))return;
   g.gamePlan=cloneJson(normalizeGamePlan(prior));normalizeGamePlan(g);persist();renderGamePlanManager();renderNextPlayCallOptions();toast(`Copied Week ${prior.week} game plan`);
 });
+// Verified local-only removal. Never enqueue a Supabase archive or infer one
+// from a game missing on the phone. A mismatched play prevents removal.
+async function verifyGameStoredInSupabase(g){
+  if(!SB||!cloudUser||!cloudLinked()||navigator.onLine===false)
+    throw Error("Sign in and connect to the internet first.");
+  const cloudId=S.cloud?.gameIds?.[g.id];
+  if(!cloudId)throw Error("This game has not been linked to Supabase.");
+  if(!["complete","final"].includes(g.status))throw Error("Finalize the game first.");
+  const [hq,pq,sq,pnq]=await Promise.all([
+    SB.from("games").select("id,season_id,opponent_name,week_number,status,team_score,opponent_score").eq("id",cloudId).single(),
+    SB.from("plays").select("id,sequence,event_data").eq("game_id",cloudId).is("deleted_at",null).order("sequence"),
+    SB.from("snap_events").select("id,snap_number,quarter,snap_kind").eq("game_id",cloudId).eq("active",true).order("snap_number"),
+    SB.from("penalties").select("id,play_id").eq("game_id",cloudId).eq("accepted",true)
+  ]);
+  for(const result of [hq,pq,sq,pnq])if(result.error)throw result.error;
+  const header=hq.data,plays=pq.data||[],snaps=sq.data||[],localPlays=g.plays||[],localSnaps=g.snapRecords||[];
+  if(header?.season_id!==S.cloud.seasonId||header.opponent_name!==g.opponent
+     ||Number(header.week_number)!==Number(g.week)||header.status!=="final"
+     ||Number(header.team_score)!==Number(displayedOurScore(g))
+     ||Number(header.opponent_score)!==Number(g.oppScore))
+     throw Error("Cloud game identity, status, or score differs. Nothing removed.");
+  if(plays.length!==localPlays.length||snaps.length!==localSnaps.length)
+    throw Error("Play or snap counts differ from Supabase. Nothing removed.");
+  const canonical=value=>JSON.stringify(value,function(_key,v){
+    if(v&&typeof v==="object"&&!Array.isArray(v))
+      return Object.fromEntries(Object.keys(v).sort().map(k=>[k,v[k]]));
+    return v;
+  });
+  for(let i=0;i<plays.length;i++){
+    const remote=plays[i],local=localPlays[i];
+    if(Number(remote.sequence)!==i+1||!(remote.id===local.id||remote.event_data?.local_id===local.id))
+      throw Error("Play "+(i+1)+" identity differs. Nothing removed.");
+    const raw={...local};delete raw.cloudRevision;delete raw.cloudEditedAt;
+    if(raw.playCall?.demo)delete raw.playCall;
+    if(canonical(raw)!==canonical(remote.event_data?.raw))
+      throw Error("Play "+(i+1)+" has different cloud data. Nothing removed.");
+  }
+  const [parts,credits]=await Promise.all([
+    snaps.length?CloudPagination.selectAllByIds(SB,{
+      table:"snap_participants",column:"snap_event_id",ids:snaps.map(r=>r.id),
+      columns:"snap_event_id,player_id"
+    }):[],
+    plays.length?CloudPagination.selectAllByIds(SB,{
+      table:"play_credits",column:"play_id",ids:plays.map(p=>p.id),
+      columns:"play_id,player_id,credit_type,value,metadata"
+    }):[]
+  ]);
+  const rosterMap=S.cloud?.playerIds||{};
+  for(let i=0;i<snaps.length;i++){
+    const local=localSnaps[i],remote=snaps[i];
+    if(Number(remote.snap_number)!==i+1||Number(remote.quarter||1)!==Number(local.quarter||1)
+       ||String(remote.snap_kind||"regular")!==String(local.snapKind||"regular"))
+       throw Error("Snap "+(i+1)+" differs. Nothing removed.");
+    const expected=(local.playerIds||[]).map(id=>rosterMap[id]||id).sort();
+    const actual=parts.filter(x=>x.snap_event_id===remote.id).map(x=>x.player_id).sort();
+    if(JSON.stringify(expected)!==JSON.stringify(actual))
+       throw Error("Snap "+(i+1)+" player assignments differ. Nothing removed.");
+  }
+  for(let i=0;i<plays.length;i++){
+    const local=localPlays[i];
+    const expected=buildCloudCredits(local).map(c=>[rosterMap[c.playerLocalId]||c.playerLocalId,c.credit_type,Number(c.value)].join("|")).sort();
+    const actual=credits.filter(x=>x.play_id===plays[i].id&&x.metadata?.active!==false&&Number(x.value)!==0)
+      .map(c=>[c.player_id,c.credit_type,Number(c.value)].join("|")).sort();
+    if(JSON.stringify(expected)!==JSON.stringify(actual))
+      throw Error("Play "+(i+1)+" stat credits differ. Nothing removed.");
+  }
+  if((pnq.data||[]).length!==localPlays.filter(p=>p.type==="Penalty").length)
+    throw Error("Penalty count differs. Nothing removed.");
+  return cloudId;
+}
+function detachVerifiedGameFromPhone(g,cloudId){
+  if(!S.cloud.removedFromDevice)S.cloud.removedFromDevice={};
+  S.cloud.removedFromDevice[cloudId]={
+    opponent:g.opponent,week:g.week,localId:g.id,
+    seasonId:S.cloud.seasonId,removedAt:new Date().toISOString()
+  };
+  // Removing phone data is NOT a cloud deletion. Clear the old client mappings
+  // so no legacy reconciliation can interpret these absent rows as deletions.
+  delete S.cloud.deletedGames?.[cloudId];
+  delete S.cloud.gameIds?.[g.id];delete S.cloud.gameHashes?.[g.id];
+  for(const p of g.plays||[]){
+    delete S.cloud.playIds?.[p.id];delete S.cloud.playHashes?.[p.id];
+    delete S.cloud.penaltyIds?.[p.id];delete S.cloud.penaltyHashes?.[p.id];
+    for(const key of Object.keys(S.cloud.creditIds||{}))if(key.startsWith(p.id+"::")){
+      delete S.cloud.creditIds[key];delete S.cloud.creditHashes[key];
+    }
+  }
+  for(const snap of g.snapRecords||[]){
+    delete S.cloud.snapIds?.[snap.id];delete S.cloud.snapHashes?.[snap.id];
+  }
+  S.games=S.games.filter(x=>x!==g);
+  if(S.activeGameId===g.id)S.activeGameId=null;
+  if(selectedStatsGameId===g.id)selectedStatsGameId=null;
+  persist({skipCloud:true});renderGameArea();renderSnaps();renderStats();
+}
+async function removeGameFromPhone(g){
+  if(!g)return;
+  if(!["complete","final"].includes(g.status))
+    return toast("Only finalized games can be removed from this phone.");
+  if(!S.cloud?.gameIds?.[g.id])
+    return toast("Game has no verified cloud link. Phone data preserved.");
+  if(!confirm(`Verify ${g.opponent} in Supabase and remove only its phone copy?`))return;
+  try{
+    const id=await verifyGameStoredInSupabase(g);
+    if(!S.games.includes(g)||S.cloud?.gameIds?.[g.id]!==id)
+      throw Error("Game changed during verification.");
+    if(!confirm(`Verified ${(g.plays||[]).length} plays and ${(g.snapRecords||[]).length} snaps in Supabase. Remove ${g.opponent} from this phone? Cloud records will stay.`))return;
+    detachVerifiedGameFromPhone(g,id);
+    toast("Phone copy removed. Supabase preserved.");
+  }catch(e){console.warn("Local-only removal blocked",e);toast("Not removed: "+String(e?.message||e).slice(0,125))}
+}
+
 function renderGameList(){
   const list=$("#gameList");
-  if(!S.games.length){list.innerHTML='<span class="muted">No games yet.</span>';return}
+  const cloudOnly=Object.entries(S.cloud?.removedFromDevice||{}).filter(([,v])=>v?.seasonId===S.cloud.seasonId);
+  if(!S.games.length&&!cloudOnly.length){list.innerHTML='<span class="muted">No games yet.</span>';return}
   list.innerHTML=[...S.games].sort((a,b)=>b.date.localeCompare(a.date)).map(g=>`
     <div class="game-card">
       <div class="game-info"><strong>${esc(S.team.name)} vs ${esc(g.opponent)} <span class="game-type-badge ${(g.gameType||"regular")==="playoff"?"playoff":"regular"}">${(g.gameType||"regular")==="playoff"?"PLAYOFF":"REGULAR"}</span></strong><span>${(g.gameType||"regular")==="playoff"?"Playoff":"Regular Season"} • Week ${g.week||String(g.date||"").replace(/\D/g,"")||"?"} • ${g.location} • ${displayedOurScore(g)}-${g.oppScore}</span></div>
       <div style="display:flex;gap:6px">
         <button class="btn ghost small open-game" data-id="${g.id}">${g.status==="complete"?"View":"Open"}</button>
         <button class="btn ghost small edit-saved-game" data-id="${g.id}">Edit</button>
-        <button class="btn danger small delete-game" data-id="${g.id}">Delete</button>
+        <button class="btn ghost small remove-device-game" data-id="${g.id}">Remove from phone</button>
       </div>
+    </div>`).join("")+cloudOnly.map(([id,info])=>`
+    <div class="game-card" data-cloud-only="${id}">
+      <div class="game-info"><strong>${esc(S.team.name)} vs ${esc(info.opponent||"Game")}</strong><span>Week ${Number(info.week||1)} • ☁️ Supabase backup • Removed from phone</span></div>
+      <button class="btn ghost small restore-device-game" data-id="${id}">Restore to phone</button>
     </div>`).join("");
-  $$(".open-game").forEach(b=>b.addEventListener("click",()=>{const g=gameById(b.dataset.id);if(!g)return;g.correctionsOpen=false;S.activeGameId=g.id;selectedStatsGameId=g.id;persist();renderGameArea()}));
+  $(".restore-device-game").forEach(btn=>btn.addEventListener("click",async()=>{
+    btn.disabled=true;btn.textContent="Restoring…";
+    try{await importMissingCloudGamesReadOnly({restoreCloudId:btn.dataset.id})}
+    finally{btn.disabled=false;btn.textContent="Restore to phone"}
+  }));
+  $(".open-game").forEach(b=>b.addEventListener("click",()=>{const g=gameById(b.dataset.id);if(!g)return;g.correctionsOpen=false;S.activeGameId=g.id;selectedStatsGameId=g.id;persist();renderGameArea()}));
   $$(".edit-saved-game").forEach(b=>b.addEventListener("click",()=>{
     const g=gameById(b.dataset.id);if(!g)return;
     selectedStatsGameId=g.id;openEditGame(g);
   }));
-  $$(".delete-game").forEach(b=>b.addEventListener("click",()=>{
-    const g=gameById(b.dataset.id); if(!g)return;
-    const scope=(g.plays?.length||0)+(g.snapRecords?.length||0);
-    const warning=g.status==="complete"?`This is a FINAL game. Delete ${g.opponent} and its ${scope} stored play/snap records?`:`Delete the game vs ${g.opponent}? This removes its ${scope} stored play/snap records.`;
-    if(!confirm(warning))return;
-    if(g.status==="complete"&&!confirm("Final confirmation: this historical game cannot be restored from the app after deletion. Continue?"))return;
-    const cloudId=S.cloud?.gameIds?.[g.id];
-    if(cloudId){if(!S.cloud.deletedGames)S.cloud.deletedGames={};S.cloud.deletedGames[cloudId]={localId:g.id,seasonId:S.cloud.seasonId,deletedAt:new Date().toISOString()};const knownRevision=Math.max(Number(g.cloudRevision||0),Number(S.cloud.deleteRevisions?.[`games:${cloudId}`]||0));if(knownRevision)S.cloud.deleteRevisions[`games:${cloudId}`]=knownRevision}
-    S.games=S.games.filter(x=>x.id!==g.id); if(S.activeGameId===g.id)S.activeGameId=null;
-    persist();renderGameArea();toast("Game deleted");
-  }))
+  $$(".remove-device-game").forEach(b=>b.addEventListener("click",()=>{
+    const g=gameById(b.dataset.id);if(g)removeGameFromPhone(g);
+  }));
 }
 $("#newOpponentLogo").addEventListener("change",e=>{
   const file=e.target.files?.[0];if(!file)return;
