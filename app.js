@@ -20,6 +20,7 @@ if(!S.cloud.playerIds)S.cloud.playerIds={};
 if(!S.cloud.playerHashes)S.cloud.playerHashes={};
 if(!S.cloud.gameIds)S.cloud.gameIds={};
 if(!S.cloud.deletedGames)S.cloud.deletedGames={};
+if(!S.cloud.removedFromDevice)S.cloud.removedFromDevice={};
 if(!S.cloud.playIds)S.cloud.playIds={};
 if(!S.cloud.playHashes)S.cloud.playHashes={};
 if(!S.cloud.gameHashes)S.cloud.gameHashes={};
@@ -865,7 +866,7 @@ async function loadTeamFromCloud(options={}){
   if(!refreshing&&teamExists()&&!options.skipReplaceConfirm&&!confirm("Load a cloud team on this device? This will replace the current local team, roster and games. Cloud-linked team data remains stored in Supabase."))return;
   const btn=refreshing?$("#cloudRefreshBtn"):$("#cloudLoadTeamBtn");if(btn){btn.disabled=true;btn.textContent=refreshing?"Refreshing…":"Loading…"}
   const priorActiveCloudId=S.activeGameId?(S.cloud?.gameIds?.[S.activeGameId]||S.activeGameId):null;
-  const priorSeasonId=S.cloud?.seasonId||null,priorDeletedGames={...(S.cloud?.deletedGames||{})},priorDeleteRevisions={...(S.cloud?.deleteRevisions||{})};
+  const priorSeasonId=S.cloud?.seasonId||null,priorDeletedGames={...(S.cloud?.deletedGames||{})},priorDeleteRevisions={...(S.cloud?.deleteRevisions||{})},priorRemovedFromDevice={...(S.cloud?.removedFromDevice||{})};
   try{
     let team=options.team||null;
     if(!team&&refreshing&&S.cloud?.teamId){const q=await SB.from("teams").select("id,name,team_identifier,grade,primary_color,accent_color,logo_data,snap_minimum,playbook,intended_plan,timezone,created_at,updated_at").eq("id",S.cloud.teamId).single();if(q.error)throw q.error;team=q.data}
@@ -874,7 +875,7 @@ async function loadTeamFromCloud(options={}){
     let gameQuery=SB.from("games").select("*").eq("season_id",season.id).neq("status","archived").order("created_at");if(options.substituteGameId)gameQuery=gameQuery.eq("id",options.substituteGameId);
     const [pr,gr]=await Promise.all([SB.from("players").select("*").eq("season_id",season.id).order("created_at"),gameQuery]);if(pr.error)throw pr.error;if(gr.error)throw gr.error;
     const players=pr.data||[],deletedGames=priorSeasonId===season.id?priorDeletedGames:{},deletedCloudIds=new Set(Object.keys(deletedGames));
-    const games=(gr.data||[]).filter(game=>!deletedCloudIds.has(game.id)),gameIds=games.map(x=>x.id);
+    const games=(gr.data||[]).filter(game=>!deletedCloudIds.has(game.id)&&!(priorSeasonId===season.id&&priorRemovedFromDevice[game.id])),gameIds=games.map(x=>x.id);
     let plays=[],credits=[],penalties=[],snaps=[],snapParts=[],demoPlayCalls=[],coachDemoPlaybook=[];
     if(gameIds.length){const [a,b,c]=await Promise.all([SB.from("plays").select("*").in("game_id",gameIds).is("deleted_at",null).order("sequence"),SB.from("penalties").select("*").in("game_id",gameIds).eq("accepted",true),SB.from("snap_events").select("*").in("game_id",gameIds).eq("active",true).order("snap_number")]);if(a.error)throw a.error;if(b.error)throw b.error;if(c.error)throw c.error;plays=a.data||[];penalties=b.data||[];snaps=c.data||[];
       const playIds=plays.map(x=>x.id);if(playIds.length)credits=await CloudPagination.selectAllByIds(SB,{table:"play_credits",column:"play_id",ids:playIds});
@@ -895,6 +896,7 @@ async function loadTeamFromCloud(options={}){
     const vcq=await SB.from("team_voice_corrections").select("heard_text,resolved_value").eq("team_id",team.id);
     if(!vcq.error)for(const row of vcq.data||[]){const value=row.resolved_value?.value??row.resolved_value?.text??row.resolved_value;if(typeof value==="string"&&row.heard_text)voiceCorrections[row.heard_text]=value}else console.warn("Voice corrections could not be loaded",vcq.error);
     S={team:{name:team.name,identifier:team.team_identifier||"",grade:team.grade||"5th Grade",season:season.name||String(season.season_year||"Season"),primary:team.primary_color||"#177b46",secondary:team.accent_color||"#f0b33b",logoData:team.logo_data||null,snapMinimum:Number(team.snap_minimum||10),playbook:Array.isArray(team.playbook)?team.playbook:[],coachDemoPlaybook,voiceCorrections,planIntent:team.intended_plan||"team_pro"},roster,games:localGames,activeGameId:options.substituteGameId||((refreshing&&priorActiveCloudId&&localGames.some(x=>x.id===priorActiveCloudId))?priorActiveCloudId:null),flow:{},editingPlayId:null,cloud};
+    S.cloud.removedFromDevice=priorSeasonId===season.id?priorRemovedFromDevice:{};
     S.cloud.deleteRevisions=priorSeasonId===season.id?priorDeleteRevisions:{};for(const g of games)S.cloud.deleteRevisions[`games:${g.id}`]=Number(g.revision||0);for(const p of plays)S.cloud.deleteRevisions[`plays:${p.id}`]=Number(p.revision||0);for(const r of snaps)S.cloud.deleteRevisions[`snap_events:${r.id}`]=Number(r.revision||0);
     S.cloud.teamHash=simpleHash(buildCloudTeamPayload());for(const p of S.roster)S.cloud.playerHashes[p.id]=simpleHash({season_id:S.cloud.seasonId,jersey_number:String(p.jersey??""),name:p.name||"Player",active:true});
     for(const p of plays){const lp=localGames.flatMap(x=>x.plays).find(x=>x.id===p.id);if(!lp)continue;const g=localGames.find(x=>x.id===p.game_id);const idx=g.plays.findIndex(x=>x.id===p.id);S.cloud.playHashes[p.id]=simpleHash(buildCloudPlayPayload(g,lp,idx,g.id));for(const c of buildCloudCredits(lp)){const row=credits.find(x=>x.play_id===p.id&&x.player_id===c.playerLocalId&&x.credit_type===c.credit_type&&x.metadata?.active!==false);if(row){const key=creditKey(lp.id,c);S.cloud.creditIds[key]=row.id;S.cloud.creditHashes[key]=simpleHash(c)}}const pen=penalties.find(x=>x.play_id===p.id);if(pen){S.cloud.penaltyIds[lp.id]=pen.id;S.cloud.penaltyHashes[lp.id]=simpleHash(buildCloudPenaltyPayload(g,lp,g.id,p.id))}}
@@ -1033,6 +1035,7 @@ function resetStaleCloudSync(message="Previous sync stalled — retrying"){
   S.cloud.lastSyncError=message;persist({skipCloud:true});updateCloudUI();
 }
 function scheduleCloudSync(delay=150){
+  if(CLOUD_WRITES_PAUSED)return; // Historical queue quarantined; scoped safe sync runs separately.
   if(!SB||!cloudUser||!cloudLinked())return;
   delay=Math.max(1200,delay);
   if(!isCloudStatkeeper()){
@@ -1202,7 +1205,7 @@ async function adoptRecoveredFilmReviewReadOnly(){
 
 // v4.6.54-safe: import only games absent on this device. Never replace local games.
 let missingGameImportRunning=false;
-async function importMissingCloudGamesReadOnly(){
+async function importMissingCloudGamesReadOnly(options={}){
   if(missingGameImportRunning||!SB||!cloudUser||!cloudLinked()||navigator.onLine===false)return;
   missingGameImportRunning=true;
   try{
@@ -1210,7 +1213,8 @@ async function importMissingCloudGamesReadOnly(){
     const {data:headers,error:headerError}=await SB.from("games").select("*").eq("season_id",seasonId).neq("status","archived").order("created_at");
     if(headerError)throw headerError;
     const known=new Set((S.games||[]).map(g=>String(S.cloud?.gameIds?.[g.id]||g.id)));
-    const missing=(headers||[]).filter(g=>!known.has(String(g.id))&&!(S.cloud?.deletedGames||{})[g.id]);
+    const restoreId=options.restoreCloudId||null;
+    const missing=(headers||[]).filter(g=>!known.has(String(g.id))&&!(S.cloud?.deletedGames||{})[g.id]&&(restoreId?String(g.id)===String(restoreId):!(S.cloud?.removedFromDevice||{})[g.id]));
     if(!missing.length)return;
     const {data:players,error:playerError}=await SB.from("players").select("id,name,jersey_number").eq("season_id",seasonId);
     if(playerError)throw playerError;
@@ -1220,7 +1224,7 @@ async function importMissingCloudGamesReadOnly(){
         ||(S.roster||[]).find(x=>String(x.jersey)===String(p.jersey_number)&&String(x.name||"").trim().toLowerCase()===String(p.name||"").trim().toLowerCase());
       if(local)rosterByCloudId.set(p.id,local.id);
     }
-    const imported=[];
+    const imported=[],loadedGameRows=[],loadedCredits=[],loadedPenalties=[],loadedHeaders=[];
     for(const row of missing){
       if(S.cloud.teamId!==teamId||S.cloud.seasonId!==seasonId)throw Error("Team changed during import.");
       // Avoid adding a duplicate if this device has the game under a different local ID.
@@ -1233,7 +1237,8 @@ async function importMissingCloudGamesReadOnly(){
       ]);
       if(pq.error||sq.error||penq.error)throw pq.error||sq.error||penq.error;
       const playRows=pq.data||[],snapRows=sq.data||[];
-      const credits=playRows.length?await CloudPagination.selectAllByIds(SB,{table:"play_credits",column:"play_id",ids:playRows.map(x=>x.id)}):[];
+      loadedGameRows.push(...playRows);loadedHeaders.push(row);loadedPenalties.push(...(penq.data||[]));
+      const credits=playRows.length?await CloudPagination.selectAllByIds(SB,{table:"play_credits",column:"play_id",ids:playRows.map(x=>x.id)}):[];loadedCredits.push(...credits);
       const participants=snapRows.length?await CloudPagination.selectAllByIds(SB,{table:"snap_participants",column:"snap_event_id",ids:snapRows.map(x=>x.id)}):[];
       // A missing roster mapping must not silently drop a participant.
       const unmapped=participants.some(x=>!rosterByCloudId.has(x.player_id));
@@ -1251,9 +1256,28 @@ async function importMissingCloudGamesReadOnly(){
     for(const g of imported){
       if((S.games||[]).some(x=>x.id===g.id))continue;
       S.games.push(g);S.cloud.gameIds[g.id]=g.id;
+      const rowsById=new Map(loadedGameRows.filter(p=>p.game_id===g.id).map(p=>[p.id,p]));
+      for(let i=0;i<(g.plays||[]).length;i++){
+        const p=g.plays[i],remote=rowsById.get(p.id);if(!remote)continue;
+        S.cloud.playIds[p.id]=remote.id;S.cloud.deleteRevisions[`plays:${remote.id}`]=Number(remote.revision||1);
+        S.cloud.playHashes[p.id]=simpleHash(buildCloudPlayPayload(g,p,i,g.id));
+        for(const c of buildCloudCredits(p)){
+          const credit=loadedCredits.find(r=>r.play_id===remote.id&&r.player_id===(S.cloud.playerIds?.[c.playerLocalId]||c.playerLocalId)&&r.credit_type===c.credit_type&&r.metadata?.active!==false);
+          if(credit){const key=creditKey(p.id,c);S.cloud.creditIds[key]=credit.id;S.cloud.creditHashes[key]=simpleHash(c)}
+        }
+        const pen=loadedPenalties.find(x=>x.play_id===remote.id);
+        if(pen){S.cloud.penaltyIds[p.id]=pen.id;S.cloud.penaltyHashes[p.id]=simpleHash(buildCloudPenaltyPayload(g,p,g.id,p.id))}
+      }
+      (g.snapRecords||[]).forEach((snap,i)=>{
+        S.cloud.snapIds[snap.id]=snap.id;S.cloud.snapHashes[snap.id]=simpleHash(buildCloudSnapPayload(g,snap,i,g.id));
+      });
+      S.cloud.gameHashes[g.id]=simpleHash(buildCloudGamePayload(g));
+      const header=loadedHeaders.find(h=>h.id===g.id);
+      if(header?.revision)S.cloud.deleteRevisions[`games:${g.id}`]=Number(header.revision);
+      delete S.cloud.removedFromDevice[g.id];
     }
     persist({skipCloud:true});normalizeGames();renderGameArea();renderSnaps();renderStats();
-    toast(imported.length+" missing cloud game(s) restored to this device.");
+    toast(imported.length+" cloud game(s) restored to this device.");
   }catch(e){console.warn("Safe missing-game import skipped",e)}
   finally{missingGameImportRunning=false}
 }
@@ -1617,6 +1641,7 @@ async function assertCloudGameIdentitySafe(){
 }
 async function syncCloudNow(options={}){
   // Guarded local-first upload: local saves never wait for this async worker.
+  if(CLOUD_WRITES_PAUSED)return false; // Never run legacy bulk writer on unresolved 2026 conflicts.
   if(options.forceRestart&&cloudSyncRunning){
     if(cloudSyncStartedAt&&Date.now()-cloudSyncStartedAt<5000){cloudSyncRequested=true;return false}
     resetStaleCloudSync("Manual retry restarted a stalled sync");
