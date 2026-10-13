@@ -581,7 +581,7 @@ function openAuth(){
   // Preserve invitation/signup routes that still need the registration modal.
   if(!cloudUser && !hasPendingAccountInvite() &&
      !new URLSearchParams(location.search).has("signup")){
-    location.assign(new URL("./signin.html?release=4.6.70-film-review-snap-recovery",location.href).href);
+    location.assign(new URL("./signin.html?release=4.6.71-guarded-new-game-sync",location.href).href);
     return;
   }
   $("#signedOutAccountPane")?.classList.toggle("hidden",!!cloudUser);
