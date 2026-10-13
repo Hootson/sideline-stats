@@ -1399,8 +1399,12 @@ async function syncPenalty(g,p,cloudGameId,cloudPlayId){
 function buildCloudSnapPayload(g,r,index,cloudGameId){return {game_id:cloudGameId,created_by:cloudUser.id,snap_number:index+1,quarter:Number(r.quarter||g.quarter||1),client_created_at:r.ts?new Date(r.ts).toISOString():null,playerIds:[...(r.playerIds||[])].sort(),snap_kind:r.snapKind||"regular"}}
 async function createCloudSnapEvent(payload,cloudGameId){
   const id=cloudUuid();
+  if(window.SidelineSafeWriteGrant?.gameId===cloudGameId)
+    window.SidelineSafeWriteGrant.snapIds.add(id);
+  const playerIds=(payload.playerIds||[]).map(localPid=>S.cloud.playerIds?.[localPid]);
+  if(playerIds.some(id=>!id))throw Error("Unmapped snap participant; cloud unchanged.");
   const {error}=await SB.from("snap_events").insert({id,game_id:cloudGameId,created_by:cloudUser.id,snap_number:payload.snap_number||1,quarter:payload.quarter,client_created_at:payload.client_created_at,snap_kind:payload.snap_kind,active:true});if(error)throw error;
-  for(const localPid of payload.playerIds){const playerId=S.cloud.playerIds?.[localPid];if(!playerId)continue;const {error:pe}=await SB.from("snap_participants").insert({snap_event_id:id,player_id:playerId});if(pe)throw pe}
+  if(playerIds.length){const {error:pe}=await SB.from("snap_participants").insert(playerIds.map(player_id=>({snap_event_id:id,player_id})));if(pe)throw pe}
   return id;
 }
 async function syncSnapRecord(g,r,index,cloudGameId){
@@ -1524,6 +1528,238 @@ async function ensureCloudGame(g){
 async function publishCloudGame(cloudGameId){
   const {data,error}=await SB.rpc("publish_game_update",{p_game_id:cloudGameId});if(error)throw error;const revision=Number(data||0);if(revision)S.cloud.deleteRevisions[`games:${cloudGameId}`]=revision;
 }
+// V4.6.71: Only newly created, explicitly enrolled games may auto-upload.
+// Existing historic games and all cloud deletions remain strictly quarantined.
+let safeSyncTimer=null,safeSyncRunning=false,safeSyncFailureCount=0;
+function safeSyncEligible(g){
+  const t=g&&S.cloud?.safeSyncGames?.[g.id];
+  return !!(t&&t.seasonId===S.cloud.seasonId&&t.createdAt===g.createdAt
+    &&!S.cloud?.removedFromDevice?.[S.cloud.gameIds?.[g.id]]);
+}
+function safeSyncFingerprint(g){const v={...g};delete v.cloudRevision;return simpleHash(v)}
+function safeSyncPending(){return (S.games||[]).some(g=>safeSyncEligible(g)
+  &&S.cloud.safeSyncGames[g.id].lastSnapshotHash!==safeSyncFingerprint(g))}
+function scheduleSafeSync(delay=5000){
+  if(!SB||!cloudUser||!cloudLinked()||!isTeamStatkeeper()||navigator.onLine===false)return;
+  if(!safeSyncPending())return;
+  if(safeSyncTimer)clearTimeout(safeSyncTimer);
+  safeSyncTimer=setTimeout(()=>{safeSyncTimer=null;runSafeSyncQueue()},Math.max(1200,delay));
+}
+function safeCanonical(v){return JSON.stringify(v,function(_k,x){
+  if(x&&typeof x==="object"&&!Array.isArray(x))
+    return Object.fromEntries(Object.keys(x).sort().map(k=>[k,x[k]]));return x;
+})}
+async function safeSyncOwnedGame(g){
+  if(!safeSyncEligible(g)||!isTeamStatkeeper())return false;
+  const t=S.cloud.safeSyncGames[g.id],copy=JSON.parse(JSON.stringify(g)),
+    digest=safeSyncFingerprint(copy);
+  if(t.lastSnapshotHash===digest)return true;
+  if(new Set((copy.plays||[]).map(p=>p.id)).size!==(copy.plays||[]).length)
+    throw Error("Duplicate local play IDs: cloud backup paused");
+  if(new Set((copy.snapRecords||[]).map(p=>p.id)).size!==(copy.snapRecords||[]).length)
+    throw Error("Duplicate local snap IDs: cloud backup paused");
+  const grant={active:true,startedAt:Date.now(),gameId:null,
+    seasonId:t.seasonId,opponent:copy.opponent,week:Number(copy.week),
+    playIds:new Set(),creditIds:new Set(),penaltyIds:new Set(),snapIds:new Set()};
+  if(window.SidelineSafeWriteGrant)throw Error("Another protected upload is active");
+  window.SidelineSafeWriteGrant=grant;
+  const checked=()=>{
+    grant.startedAt=Date.now();
+    if(!safeSyncEligible(g)||!S.games.includes(g)||navigator.onLine===false)
+      throw Error("Phone game, team, or network changed during upload");
+  };
+  const requireData=q=>{if(q.error)throw q.error;return q.data};
+  let gameId=S.cloud.gameIds?.[g.id]||t.cloudId||null,rev=Number(t.lastRevision||0);
+  try{
+    checked();
+    if(!gameId){
+      const matches=requireData(await SB.from("games").select("id,opponent_name")
+        .eq("season_id",t.seasonId).eq("week_number",Number(copy.week))
+        .eq("game_type",copy.gameType||"regular").neq("status","archived").limit(100))||[];
+      if(matches.some(x=>String(x.opponent_name).trim().toLowerCase()===
+        String(copy.opponent).trim().toLowerCase()))
+        throw Error("Supabase already contains this opponent/week. Backup paused, no overwrite.");
+      const first={...buildCloudGamePayload(copy),status:"live"};
+      const saved=requireData(await SB.from("games").insert(first).select("id,revision").single());
+      gameId=saved.id;rev=Number(saved.revision||1);
+      t.cloudId=gameId;t.lastRevision=rev;grant.gameId=gameId;
+      S.cloud.gameIds[g.id]=gameId;S.cloud.deleteRevisions[`games:${gameId}`]=rev;
+      persist({skipCloud:true});
+    }else{
+      grant.gameId=gameId;
+      const cloud=requireData(await SB.from("games")
+        .select("id,season_id,opponent_name,week_number,game_type,status,revision")
+        .eq("id",gameId).single());
+      if(cloud?.season_id!==t.seasonId||cloud.opponent_name!==copy.opponent
+        ||Number(cloud.week_number)!==Number(copy.week)||
+        cloud.game_type!==(copy.gameType||"regular")||cloud.status==="archived")
+        throw Error("Cloud game identity differs. Local data unchanged.");
+      if(!rev||Number(cloud.revision)!==rev)
+        throw Error("Cloud game version changed unexpectedly. Automatic overwriting blocked.");
+    }
+    const cloudPlays=requireData(await SB.from("plays")
+      .select("id,sequence,event_data,revision").eq("game_id",gameId)
+      .is("deleted_at",null).order("sequence"))||[];
+    if(cloudPlays.length>(copy.plays||[]).length)
+      throw Error("Cloud play history is longer than phone history; no deletion inferred.");
+    for(let i=0;i<cloudPlays.length;i++){
+      if(Number(cloudPlays[i].sequence)!==i+1||
+        cloudPlays[i].event_data?.local_id!==copy.plays[i]?.id)
+        throw Error("Play order differs in Supabase; historical stats protected.");
+    }
+    for(let i=0;i<(copy.plays||[]).length;i++){
+      checked();
+      const p=copy.plays[i],remote=cloudPlays[i]||null;
+      let playId=S.cloud.playIds?.[p.id]||remote?.id||cloudUuid();
+      if(remote&&playId!==remote.id)throw Error("Play "+(i+1)+" cloud ID conflict.");
+      S.cloud.playIds[p.id]=playId;grant.playIds.add(playId);
+      persist({skipCloud:true});
+      const payload=buildCloudPlayPayload(copy,p,i,gameId),hash=simpleHash(payload);
+      let playRevision=Number(remote?.revision||0);
+      if(!remote){
+        if(i!==cloudPlays.length)throw Error("Cannot append after an unresolved play gap.");
+        const row={
+          id:playId,game_id:gameId,created_by:cloudUser.id,sequence:i+1,
+          quarter:payload.p_quarter,possession:payload.p_possession,down:payload.p_down,
+          distance:payload.p_distance,play_type:payload.p_play_type,subtype:payload.p_subtype,
+          yards:payload.p_yards,first_down:payload.p_first_down,turnover:payload.p_turnover,
+          team_points:payload.p_team_points,opponent_points:payload.p_opponent_points,
+          event_data:payload.p_event_data,state_before:payload.p_state_before,
+          state_after:payload.p_state_after,client_created_at:payload.p_client_created_at,
+          client_updated_at:payload.p_client_updated_at
+        };
+        const saved=requireData(await SB.from("plays").insert(row)
+          .select("id,sequence,revision").single());
+        if(saved.id!==playId||Number(saved.sequence)!==i+1)
+          throw Error("Unexpected cloud play sequence; further uploads stopped.");
+        playRevision=Number(saved.revision||1);
+        cloudPlays.push({id:playId,sequence:i+1,revision:playRevision,event_data:payload.p_event_data});
+        rev++;t.lastRevision=rev;S.cloud.deleteRevisions[`games:${gameId}`]=rev;
+      }else if(S.cloud.playHashes[p.id]!==hash){
+        if(safeCanonical(remote.event_data)!==safeCanonical(payload.p_event_data)){
+          const known=Number(S.cloud.deleteRevisions?.[`plays:${playId}`]||0);
+          if(!known||known!==playRevision)
+            throw Error("Unverified cloud changes to play "+(i+1)+"; overwrite blocked.");
+          const changes={
+            quarter:payload.p_quarter,possession:payload.p_possession,
+            down:payload.p_down,distance:payload.p_distance,play_type:payload.p_play_type,
+            subtype:payload.p_subtype,yards:payload.p_yards,first_down:payload.p_first_down,
+            turnover:payload.p_turnover,team_points:payload.p_team_points,
+            opponent_points:payload.p_opponent_points,event_data:payload.p_event_data,
+            state_before:payload.p_state_before,state_after:payload.p_state_after,
+            client_updated_at:payload.p_client_updated_at,revision:playRevision+1
+          };
+          const result=requireData(await SB.from("plays").update(changes)
+            .eq("id",playId).eq("revision",playRevision).select("id,revision"))||[];
+          if(result.length!==1)throw Error("Play changed during upload; data protected.");
+          playRevision=Number(result[0].revision);
+          rev++;t.lastRevision=rev;S.cloud.deleteRevisions[`games:${gameId}`]=rev;
+        }
+      }
+      S.cloud.playHashes[p.id]=hash;
+      S.cloud.deleteRevisions[`plays:${playId}`]=playRevision;
+      // Interrupted uploads may already have child credits; adopt rather than
+      // duplicate them, but never adopt a different player's records.
+      const needed=buildCloudCredits(p).filter(c=>!S.cloud.creditIds?.[creditKey(p.id,c)]);
+      if(needed.length){
+        const old=requireData(await SB.from("play_credits")
+          .select("id,player_id,credit_type,value,metadata").eq("play_id",playId))||[];
+        for(const c of needed){
+          const match=old.find(x=>x.player_id===(S.cloud.playerIds?.[c.playerLocalId]||c.playerLocalId)
+            &&x.credit_type===c.credit_type&&x.metadata?.local_play_id===p.id
+            &&x.metadata?.active!==false);
+          if(match){const key=creditKey(p.id,c);
+            S.cloud.creditIds[key]=match.id;
+            if(Number(match.value)===Number(c.value))S.cloud.creditHashes[key]=simpleHash(c);
+          }
+        }
+      }
+      for(const key of Object.keys(S.cloud.creditIds||{}))
+        if(key.startsWith(p.id+"::"))grant.creditIds.add(S.cloud.creditIds[key]);
+      await syncPlayCredits(p,playId);
+      if(p.type==="Penalty"&&!S.cloud.penaltyIds[p.id]){
+        const old=requireData(await SB.from("penalties").select("id,metadata")
+          .eq("play_id",playId))||[];
+        const match=old.find(x=>x.metadata?.local_play_id===p.id);
+        if(match)S.cloud.penaltyIds[p.id]=match.id;
+      }
+      if(S.cloud.penaltyIds[p.id])grant.penaltyIds.add(S.cloud.penaltyIds[p.id]);
+      await syncPenalty(copy,p,gameId,playId);
+      persist({skipCloud:true});
+    }
+    const cloudSnaps=requireData(await SB.from("snap_events")
+      .select("id,snap_number,quarter,snap_kind,active").eq("game_id",gameId)
+      .eq("active",true).order("snap_number"))||[];
+    if(cloudSnaps.length>(copy.snapRecords||[]).length)
+      throw Error("Cloud has extra snaps; automatic snap deletion blocked.");
+    for(let i=0;i<cloudSnaps.length;i++){
+      const row=cloudSnaps[i],r=copy.snapRecords[i];
+      if(Number(row.snap_number)!==i+1||Number(row.quarter||1)!==Number(r?.quarter||1)
+        ||String(row.snap_kind||"regular")!==String(r?.snapKind||"regular"))
+        throw Error("Snap history differs from Supabase; no changes made.");
+      const known=S.cloud.snapIds?.[r.id];
+      if(known&&known!==row.id)throw Error("Snap "+(i+1)+" identity conflict.");
+      const parts=requireData(await SB.from("snap_participants")
+        .select("player_id").eq("snap_event_id",row.id))||[];
+      const localIds=(r.playerIds||[]).map(id=>S.cloud.playerIds?.[id]||id).sort();
+      if(JSON.stringify(localIds)!==JSON.stringify(parts.map(x=>x.player_id).sort()))
+        throw Error("Snap "+(i+1)+" player assignments differ; cloud data preserved.");
+      S.cloud.snapIds[r.id]=row.id;
+      S.cloud.snapHashes[r.id]=simpleHash(buildCloudSnapPayload(copy,r,i,gameId));
+    }
+    for(let i=cloudSnaps.length;i<(copy.snapRecords||[]).length;i++){
+      checked();
+      const r=copy.snapRecords[i];
+      if(S.cloud.snapIds?.[r.id])throw Error("Previously uploaded snap missing from cloud");
+      await syncSnapRecord(copy,r,i,gameId);
+    }
+    checked();
+    const finalCheck=requireData(await SB.from("games")
+      .select("id,revision").eq("id",gameId).single());
+    if(Number(finalCheck.revision)!==rev)
+      throw Error("Cloud game changed during upload; final game state not overwritten.");
+    const state={...buildCloudGamePayload(copy)};
+    delete state.season_id;delete state.created_by;state.revision=rev+1;
+    const finished=requireData(await SB.from("games").update(state)
+      .eq("id",gameId).eq("revision",rev).select("revision"))||[];
+    if(finished.length!==1)throw Error("Game changed during publish; retry safely.");
+    rev=Number(finished[0].revision);
+    t.lastRevision=rev;t.cloudId=gameId;t.lastSnapshotHash=digest;t.lastError=null;
+    S.cloud.deleteRevisions[`games:${gameId}`]=rev;
+    S.cloud.gameHashes[g.id]=simpleHash(buildCloudGamePayload(copy));
+    S.cloud.lastSyncAt=new Date().toISOString();
+    persist({skipCloud:true});
+    return true;
+  }finally{
+    if(window.SidelineSafeWriteGrant===grant){
+      grant.active=false;window.SidelineSafeWriteGrant=null;
+    }
+  }
+}
+async function runSafeSyncQueue(){
+  if(safeSyncRunning||!SB||!cloudUser||!cloudLinked()||!isTeamStatkeeper()
+    ||navigator.onLine===false)return false;
+  safeSyncRunning=true;let allOkay=true;
+  try{
+    const pending=(S.games||[]).filter(g=>safeSyncEligible(g)
+      &&S.cloud.safeSyncGames[g.id].lastSnapshotHash!==safeSyncFingerprint(g));
+    for(const g of pending){
+      try{await safeSyncOwnedGame(g)}
+      catch(e){
+        allOkay=false;safeSyncFailureCount++;
+        S.cloud.safeSyncGames[g.id].lastError=String(e?.message||e).slice(0,170);
+        S.cloud.lastSyncError="Guarded sync: "+S.cloud.safeSyncGames[g.id].lastError;
+        console.warn("Guarded game upload stopped",g.opponent,e);
+        persist({skipCloud:true});
+      }
+    }
+    if(allOkay){safeSyncFailureCount=0;S.cloud.lastSyncError=null;persist({skipCloud:true})}
+    else if(safeSyncFailureCount<3)
+      setTimeout(()=>scheduleSafeSync(30000),5000);
+    return allOkay;
+  }finally{safeSyncRunning=false;updateCloudUI()}
+}
+
 function cloudGameNeedsSync(g){
   const cloudGameId=S.cloud.gameIds?.[g.id];if(!cloudGameId||S.cloud.gameHashes?.[g.id]!==simpleHash(buildCloudGamePayload(g)))return true;
   for(let i=0;i<(g.plays||[]).length;i++){
