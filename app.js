@@ -1180,9 +1180,12 @@ async function adoptRecoveredFilmReviewReadOnly(){
     const row=playRows[i],local=g.plays[i];
     S.cloud.playIds[local.id]=row.id;
     S.cloud.deleteRevisions[`plays:${row.id}`]=Number(row.revision||1);
-    const original={...local};delete original.cloudRevision;delete original.cloudEditedAt;
-    if(original.playCall?.demo)delete original.playCall;
-    if(canonical(original)===canonical(row.event_data?.raw)){
+    const original={...local},savedRaw={...(row.event_data?.raw||{})};
+    for(const data of [original,savedRaw]){
+      delete data.cloudRevision;delete data.cloudEditedAt;
+      if(data.playCall?.demo)delete data.playCall;
+    }
+    if(canonical(original)===canonical(savedRaw)){
       S.cloud.playHashes[local.id]=simpleHash(buildCloudPlayPayload(g,local,i,remote.id));
       local.cloudRevision=Number(row.revision||1);
     }
@@ -2525,9 +2528,12 @@ async function verifyGameStoredInSupabase(g){
     const remote=plays[i],local=localPlays[i];
     if(Number(remote.sequence)!==i+1||!(remote.id===local.id||remote.event_data?.local_id===local.id))
       throw Error("Play "+(i+1)+" identity differs. Nothing removed.");
-    const raw={...local};delete raw.cloudRevision;delete raw.cloudEditedAt;
-    if(raw.playCall?.demo)delete raw.playCall;
-    if(canonical(raw)!==canonical(remote.event_data?.raw))
+    const raw={...local},remoteRaw={...(remote.event_data?.raw||{})};
+    for(const data of [raw,remoteRaw]){
+      delete data.cloudRevision;delete data.cloudEditedAt;
+      if(data.playCall?.demo)delete data.playCall;
+    }
+    if(canonical(raw)!==canonical(remoteRaw))
       throw Error("Play "+(i+1)+" has different cloud data. Nothing removed.");
   }
   const [parts,credits]=await Promise.all([
