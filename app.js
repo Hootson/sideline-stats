@@ -538,7 +538,6 @@ function updateCloudUI(force){
   if(!cloudUser){text.textContent="Local mode";meta.textContent="Your existing data stays on this device until you sign in."; if(acct)acct.textContent="☁ Account";return}
   acct?.classList.add("connected"); if(acct)acct.textContent=teamExists()?`⚙ ${S.team.name}`:"⚙ Settings";
   if(cloudLinked()){
-    const pending=cloudPendingCount();
     if(CLOUD_WRITES_PAUSED&&isCloudStatkeeper()){
       const guardedPending=typeof safeSyncPending==="function"&&safeSyncPending();
       dot.classList.add(guardedPending?"warn":"on");
@@ -546,9 +545,10 @@ function updateCloudUI(force){
       const rb=$("#cloudRefreshBtn");if(rb)rb.textContent="Check New-Game Backup";
       const last=S.cloud?.lastSyncAt?" • Last verified backup "+new Date(S.cloud.lastSyncAt).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"}):"";
       const issue=S.cloud?.lastSyncError?" • "+S.cloud.lastSyncError:"";
-      meta.textContent=`${cloudUser.email||"Signed in"} • Newly created games back up in the background. ${pending} older local/cloud changes remain protected from automatic overwrites. Removing a finalized game from this phone requires a full Supabase check.${last}${issue}`;
+      meta.textContent=`${cloudUser.email||"Signed in"} • New games automatically back up. Historical changes remain quarantined until individually verified. Removing a finalized game from this phone requires a full Supabase match.${last}${issue}`;
       return;
     }
+    const pending=cloudPendingCount();
     if(pending>0){dot.classList.add("warn");text.textContent=`Cloud connected — ${pending} pending`;}
     else if(cloudRemoteUpdates){dot.classList.add("warn");text.textContent="Cloud has updates";}
     else{dot.classList.add("on");text.textContent=!isCloudStatkeeper()&&cloudRealtimeConnected?"Live updates on":"Cloud synced";}
