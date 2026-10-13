@@ -1598,14 +1598,14 @@ async function safeSyncOwnedGame(g){
         throw Error("Cloud game version changed unexpectedly. Automatic overwriting blocked.");
     }
     const cloudPlays=requireData(await SB.from("plays")
-      .select("id,sequence,event_data,revision").eq("game_id",gameId)
+      .select("id,sequence,revision").eq("game_id",gameId)
       .is("deleted_at",null).order("sequence"))||[];
     if(cloudPlays.length>(copy.plays||[]).length)
       throw Error("Cloud play history is longer than phone history; no deletion inferred.");
     for(let i=0;i<cloudPlays.length;i++){
       if(Number(cloudPlays[i].sequence)!==i+1||
-        cloudPlays[i].event_data?.local_id!==copy.plays[i]?.id)
-        throw Error("Play order differs in Supabase; historical stats protected.");
+        cloudPlays[i].id!==S.cloud.playIds?.[copy.plays[i]?.id])
+        throw Error("Play order or IDs differ in Supabase; historical stats protected.");
     }
     for(let i=0;i<(copy.plays||[]).length;i++){
       checked();
@@ -1636,7 +1636,9 @@ async function safeSyncOwnedGame(g){
         cloudPlays.push({id:playId,sequence:i+1,revision:playRevision,event_data:payload.p_event_data});
         rev++;t.lastRevision=rev;S.cloud.deleteRevisions[`games:${gameId}`]=rev;
       }else if(S.cloud.playHashes[p.id]!==hash){
-        if(safeCanonical(remote.event_data)!==safeCanonical(payload.p_event_data)){
+        const current=requireData(await SB.from("plays").select("event_data")
+          .eq("id",playId).single());
+        if(safeCanonical(current.event_data)!==safeCanonical(payload.p_event_data)){
           const known=Number(S.cloud.deleteRevisions?.[`plays:${playId}`]||0);
           if(!known||known!==playRevision)
             throw Error("Unverified cloud changes to play "+(i+1)+"; overwrite blocked.");
@@ -1699,13 +1701,16 @@ async function safeSyncOwnedGame(g){
         throw Error("Snap history differs from Supabase; no changes made.");
       const known=S.cloud.snapIds?.[r.id];
       if(known&&known!==row.id)throw Error("Snap "+(i+1)+" identity conflict.");
-      const parts=requireData(await SB.from("snap_participants")
-        .select("player_id").eq("snap_event_id",row.id))||[];
-      const localIds=(r.playerIds||[]).map(id=>S.cloud.playerIds?.[id]||id).sort();
-      if(JSON.stringify(localIds)!==JSON.stringify(parts.map(x=>x.player_id).sort()))
-        throw Error("Snap "+(i+1)+" player assignments differ; cloud data preserved.");
+      const fingerprint=simpleHash(buildCloudSnapPayload(copy,r,i,gameId));
+      if(known!==row.id||S.cloud.snapHashes[r.id]!==fingerprint){
+        const parts=requireData(await SB.from("snap_participants")
+          .select("player_id").eq("snap_event_id",row.id))||[];
+        const localIds=(r.playerIds||[]).map(id=>S.cloud.playerIds?.[id]||id).sort();
+        if(JSON.stringify(localIds)!==JSON.stringify(parts.map(x=>x.player_id).sort()))
+          throw Error("Snap "+(i+1)+" player assignments differ; cloud data preserved.");
+      }
       S.cloud.snapIds[r.id]=row.id;
-      S.cloud.snapHashes[r.id]=simpleHash(buildCloudSnapPayload(copy,r,i,gameId));
+      S.cloud.snapHashes[r.id]=fingerprint;
     }
     for(let i=cloudSnaps.length;i<(copy.snapRecords||[]).length;i++){
       checked();
