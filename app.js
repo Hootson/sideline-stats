@@ -2679,28 +2679,44 @@ function renderGameList(){
     <div class="game-card saved-game-card">
       <div class="game-info"><strong>${esc(S.team.name)} vs ${esc(g.opponent)} <span class="game-type-badge ${(g.gameType||"regular")==="playoff"?"playoff":"regular"}">${(g.gameType||"regular")==="playoff"?"PLAYOFF":"REGULAR"}</span></strong><span>${(g.gameType||"regular")==="playoff"?"Playoff":"Regular Season"} • Week ${g.week||String(g.date||"").replace(/\D/g,"")||"?"} • ${g.location} • ${displayedOurScore(g)}-${g.oppScore}</span></div>
       <div class="saved-game-actions">
-        <button class="btn ghost small open-game" data-id="${g.id}">${g.status==="complete"?"View":"Open"}</button>
-        <button class="btn ghost small edit-saved-game" data-id="${g.id}">Edit</button>
-        <button class="btn ghost small remove-device-game" data-id="${g.id}">Remove from phone</button>
+        <button type="button" class="btn ghost small open-game" data-id="${g.id}">${g.status==="complete"?"View":"Open"}</button>
+        <button type="button" class="btn ghost small edit-saved-game" data-id="${g.id}">Edit</button>
+        <button type="button" class="btn ghost small remove-device-game" data-id="${g.id}">Remove from phone</button>
       </div>
     </div>`).join("")+cloudOnly.map(([id,info])=>`
     <div class="game-card saved-game-card" data-cloud-only="${id}">
       <div class="game-info"><strong>${esc(S.team.name)} vs ${esc(info.opponent||"Game")}</strong><span>Week ${Number(info.week||1)} • ☁️ Supabase backup • Removed from phone</span></div>
-      <button class="btn ghost small restore-device-game" data-id="${id}">Restore to phone</button>
+      <button type="button" class="btn ghost small restore-device-game" data-id="${id}">Restore to phone</button>
     </div>`).join("");
-  $$(".restore-device-game").forEach(btn=>btn.addEventListener("click",async()=>{
-    btn.disabled=true;btn.textContent="Restoring…";
-    try{await importMissingCloudGamesReadOnly({restoreCloudId:btn.dataset.id})}
-    finally{btn.disabled=false;btn.textContent="Restore to phone"}
-  }));
-  $$(".open-game").forEach(b=>b.addEventListener("click",()=>{const g=gameById(b.dataset.id);if(!g)return;g.correctionsOpen=false;S.activeGameId=g.id;selectedStatsGameId=g.id;persist();renderGameArea()}));
-  $$(".edit-saved-game").forEach(b=>b.addEventListener("click",()=>{
-    const g=gameById(b.dataset.id);if(!g)return;
-    selectedStatsGameId=g.id;openEditGame(g);
-  }));
-  $$(".remove-device-game").forEach(b=>b.addEventListener("click",()=>{
-    const g=gameById(b.dataset.id);if(g)removeGameFromPhone(g);
-  }));
+  // One delegated handler survives every Saved Games re-render. Directly
+  // rebinding controls was prone to breaking ALL buttons when a selector failed.
+  if(list.dataset.actionsBound!=="1"){
+    list.dataset.actionsBound="1";
+    list.addEventListener("click",async event=>{
+      const btn=event.target.closest?.("button[data-id]");
+      if(!btn||!list.contains(btn))return;
+      const action=btn.classList;
+      if(action.contains("restore-device-game")){
+        if(btn.disabled)return;
+        btn.disabled=true;btn.textContent="Restoring…";
+        try{await importMissingCloudGamesReadOnly({restoreCloudId:btn.dataset.id})}
+        catch(error){console.warn("Game restore failed",error);toast("Game not restored: "+String(error?.message||error).slice(0,100))}
+        finally{btn.disabled=false;btn.textContent="Restore to phone"}
+        return;
+      }
+      const g=gameById(btn.dataset.id);
+      if(!g)return;
+      if(action.contains("open-game")){
+        g.correctionsOpen=false;
+        S.activeGameId=g.id;selectedStatsGameId=g.id;
+        persist({skipCloud:true});renderGameArea();
+      }else if(action.contains("edit-saved-game")){
+        selectedStatsGameId=g.id;openEditGame(g);
+      }else if(action.contains("remove-device-game")){
+        await removeGameFromPhone(g);
+      }
+    });
+  }
 }
 $("#newOpponentLogo").addEventListener("change",e=>{
   const file=e.target.files?.[0];if(!file)return;
