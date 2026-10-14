@@ -246,7 +246,11 @@ let returningTeamLoaderShownAt=0;
 function showReturningTeamLoader(){
   const loader=$("#returningTeamLoader"),title=$("#returningTeamLoaderTitle");if(!loader)return;
   if(title)title.textContent=teamExists()?`Welcome back—loading ${S.team.name}…`:"Welcome back—loading your team…";
-  returningTeamLoaderShownAt=Date.now();loader.classList.remove("hidden");
+  returningTeamLoaderShownAt=Date.now();
+  // Locally saved games and tabs are available immediately. Avoid blocking
+  // the screen while a returning user's cloud session is validated.
+  if(teamExists())return;
+  loader.classList.remove("hidden");
 }
 async function hideReturningTeamLoader(){
   const elapsed=Date.now()-returningTeamLoaderShownAt,remaining=Math.max(0,500-elapsed);if(remaining)await new Promise(resolve=>setTimeout(resolve,remaining));
@@ -2684,12 +2688,12 @@ function renderGameList(){
       <div class="game-info"><strong>${esc(S.team.name)} vs ${esc(info.opponent||"Game")}</strong><span>Week ${Number(info.week||1)} • ☁️ Supabase backup • Removed from phone</span></div>
       <button class="btn ghost small restore-device-game" data-id="${id}">Restore to phone</button>
     </div>`).join("");
-  $(".restore-device-game").forEach(btn=>btn.addEventListener("click",async()=>{
+  $$(".restore-device-game").forEach(btn=>btn.addEventListener("click",async()=>{
     btn.disabled=true;btn.textContent="Restoring…";
     try{await importMissingCloudGamesReadOnly({restoreCloudId:btn.dataset.id})}
     finally{btn.disabled=false;btn.textContent="Restore to phone"}
   }));
-  $(".open-game").forEach(b=>b.addEventListener("click",()=>{const g=gameById(b.dataset.id);if(!g)return;g.correctionsOpen=false;S.activeGameId=g.id;selectedStatsGameId=g.id;persist();renderGameArea()}));
+  $$(".open-game").forEach(b=>b.addEventListener("click",()=>{const g=gameById(b.dataset.id);if(!g)return;g.correctionsOpen=false;S.activeGameId=g.id;selectedStatsGameId=g.id;persist();renderGameArea()}));
   $$(".edit-saved-game").forEach(b=>b.addEventListener("click",()=>{
     const g=gameById(b.dataset.id);if(!g)return;
     selectedStatsGameId=g.id;openEditGame(g);
