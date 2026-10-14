@@ -8,21 +8,14 @@ self.addEventListener('install',event=>{
 
 self.addEventListener('activate',event=>{
   event.waitUntil((async()=>{
+    // Keep other editions' caches: the Gridiron SW shares a GitHub Pages origin.
     const keys=await caches.keys();
-    await Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)));
+    await Promise.all(keys.filter(k=>k.startsWith('bleacher-butt-gridiron-')&&k!==CACHE)
+      .map(k=>caches.delete(k)));
     await self.clients.claim();
-    const list=await self.clients.matchAll({type:'window',includeUncontrolled:true});
-    for(const client of list){
-      try{
-        const u=new URL(client.url);
-        if(u.origin!==self.location.origin)continue;
-        // Never reload a sign-in or password screen while the user is typing on iOS.
-        if(['/signin.html','/forgot-password.html','/reset-password.html','/parent-viewer.html','/snap-tracker.html'].some(path=>u.pathname.endsWith(path)))continue;
-        if(u.searchParams.get('ssRelease')===RELEASE)continue;
-        u.searchParams.set('ssRelease',RELEASE);
-        await client.navigate(u.toString());
-      }catch(_){}
-    }
+    // IMPORTANT: never navigate/reload an already-open iPhone Home Screen app.
+    // Its in-memory games and event handlers must not be interrupted by updates.
+    // The new version is picked up when the user next launches the app.
   })());
 });
 
