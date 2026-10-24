@@ -2074,12 +2074,14 @@ async function runSafeSyncQueue(){
       }
     }
     if(allOkay){safeSyncFailureCount=0;S.cloud.lastSyncError=null;persist({skipCloud:true})}
-    else if(safeSyncFailureCount<3)
-      setTimeout(()=>scheduleSafeSync(30000),5000);
     return allOkay;
   }finally{
     safeSyncRunning=false;updateCloudUI();
-    if(safeSyncFailureCount<3&&safeSyncPending())scheduleSafeSync(7500);
+    // Transient protected-upload errors should never permanently silence live
+    // backup. Back off after three failures to limit network traffic; do not
+    // continuously retry while the app is hidden or disconnected.
+    if(safeSyncPending()&&navigator.onLine!==false&&document.visibilityState!=="hidden")
+      scheduleSafeSync(safeSyncFailureCount>=3?60000:7500);
   }
 }
 
