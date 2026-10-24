@@ -100,7 +100,7 @@ function gamePlanChoices(g){
   return normalizeGamePlan(g).map(a=>{const p=concepts.get(String(a.playId));return p?{id:p.id,number:a.number,name:p.name,active:p.active!==false}:null}).filter(Boolean);
 }
 function priorGameWithPlan(g){
-  return [...(S.games||[])].filter(x=>x.id!==g?.id&&Array.isArray(x.gamePlan)&&x.gamePlan.length&&Number(x.week||0)<Number(g?.week||999)).sort((a,b)=>Number(b.week||0)-Number(a.week||0)||Number(b.createdAt||0)-Number(a.createdAt||0))[0]||null;
+  return visibleLocalGames().filter(x=>x.id!==g?.id&&Array.isArray(x.gamePlan)&&x.gamePlan.length&&Number(x.week||0)<Number(g?.week||999)).sort((a,b)=>Number(b.week||0)-Number(a.week||0)||Number(b.createdAt||0)-Number(a.createdAt||0))[0]||null;
 }
 
 function load(){
@@ -1446,7 +1446,7 @@ async function checkCloudForUpdates(){
   }catch(e){console.warn("Cloud update check failed",e)}finally{cloudRemoteCheckRunning=false}
 }
 function liveGameRevisionsChanged(rows){
-  const local=new Map((S.games||[]).map(g=>[S.cloud?.gameIds?.[g.id]||g.id,Number(g.cloudRevision||0)]));
+  const local=new Map(visibleLocalGames().map(g=>[S.cloud?.gameIds?.[g.id]||g.id,Number(g.cloudRevision||0)]));
   if((rows||[]).length!==local.size)return true;
   return (rows||[]).some(row=>!local.has(row.id)||Number(row.revision||0)!==local.get(row.id));
 }
@@ -2417,12 +2417,12 @@ function colorLuminance(hex){const rgb=colorRgb(hex);if(!rgb)return 0;return rgb
 function colorContrast(a,b){const x=colorLuminance(a),y=colorLuminance(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05)}
 function colors(){let p=S.team?.primary||"#177b46",s=S.team?.secondary||"#f0b33b",ink=colorLuminance(p)>.46?"#111111":"#ffffff",active=colorContrast(p,s)>=3?s:ink;document.documentElement.style.setProperty("--p",p);document.documentElement.style.setProperty("--s",s);document.documentElement.style.setProperty("--nav-text",ink);document.documentElement.style.setProperty("--nav-muted",ink==="#ffffff"?"#ffffffb8":"#111111a6");document.documentElement.style.setProperty("--nav-active",active);document.querySelector('meta[name="theme-color"]').setAttribute("content",p)}
 function teamExists(){return !!(S.team&&S.team.name)}
-function currentGame(){return S.games.find(g=>g.id===S.activeGameId)||null}
+function currentGame(){return visibleLocalGames().find(g=>g.id===S.activeGameId)||null}
 window.SidelineActiveGameId=()=>currentGame()?.id||null;
 function gameCorrectionsOpen(g=currentGame()){return !!(g?.status==="complete"&&g?.correctionsOpen)}
 function gameReadOnly(g=currentGame()){return !!(g?.status==="complete"&&!g?.correctionsOpen)}
 function isCloudViewer(){return !!(S.cloud?.teamId&&S.cloud?.seasonId&&cloudDeviceRole()==="viewer")}
-function gameById(id){return S.games.find(g=>g.id===id)||null}
+function gameById(id){return visibleLocalGames().find(g=>g.id===id)||null}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 function readImageFile(file,cb){
   if(!file)return;
@@ -2504,7 +2504,7 @@ function renderCoachGameSelect(){
   select.value=coachSelection;
 }
 function coachContext(){
-  return {games:S.games||[],roster:S.roster||[],playbook:teamPlaybook(),teamName:S.team?.name||"Team",selection:coachSelection,down:coachDown,metric:coachMetric,callSortBucket:coachCallSortBucket,playerMode:coachPlayerMode,debriefs:coachDebriefs,ownDebrief:coachOwnDebrief,debriefCycle:coachDebriefCycle,debriefAssignment:coachDebriefAssignment,generatedRead:coachGeneratedRead,pushAvailable:coachPushAvailable,userId:cloudUser?.id||null};
+  return {games:visibleLocalGames(),roster:S.roster||[],playbook:teamPlaybook(),teamName:S.team?.name||"Team",selection:coachSelection,down:coachDown,metric:coachMetric,callSortBucket:coachCallSortBucket,playerMode:coachPlayerMode,debriefs:coachDebriefs,ownDebrief:coachOwnDebrief,debriefCycle:coachDebriefCycle,debriefAssignment:coachDebriefAssignment,generatedRead:coachGeneratedRead,pushAvailable:coachPushAvailable,userId:cloudUser?.id||null};
 }
 function renderCoach(){
   const content=$("#coachAnalyticsContent");if(!content)return;
@@ -2794,7 +2794,7 @@ function renderGameArea(){
 }
 function renderNewGamePlanSources(){
   const select=$("#newGamePlanSource");if(!select)return;const prior=select.value;
-  const games=[...(S.games||[])].filter(g=>Array.isArray(g.gamePlan)&&g.gamePlan.length).sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0)||Number(b.week||0)-Number(a.week||0));
+  const games=visibleLocalGames().filter(g=>Array.isArray(g.gamePlan)&&g.gamePlan.length).sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0)||Number(b.week||0)-Number(a.week||0));
   select.innerHTML='<option value="defaults">Use current playbook defaults</option>'+`<option value="auto">${games.length?`Copy Week ${Number(games[0].week||1)} vs ${esc(games[0].opponent)}`:"Copy the most recent game plan"}</option>`+games.map(g=>`<option value="game:${g.id}">Copy Week ${Number(g.week||1)} vs ${esc(g.opponent)}</option>`).join("")+'<option value="blank">Start with a blank game plan</option>';
   select.value=[...select.options].some(o=>o.value===prior)?prior:"defaults";
 }
@@ -2802,7 +2802,7 @@ function planFromNewGameSource(){
   const source=$("#newGamePlanSource")?.value||"defaults";
   if(source==="blank")return [];
   if(source.startsWith("game:")){const prior=gameById(source.slice(5));if(prior)return cloneJson(normalizeGamePlan(prior))}
-  if(source==="auto"){const prior=[...(S.games||[])].filter(g=>Array.isArray(g.gamePlan)&&g.gamePlan.length).sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0)||Number(b.week||0)-Number(a.week||0))[0];if(prior)return cloneJson(normalizeGamePlan(prior))}
+  if(source==="auto"){const prior=visibleLocalGames().filter(g=>Array.isArray(g.gamePlan)&&g.gamePlan.length).sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0)||Number(b.week||0)-Number(a.week||0))[0];if(prior)return cloneJson(normalizeGamePlan(prior))}
   return cloneJson(defaultGamePlan());
 }
 function renderGamePlanManager(){
@@ -2959,9 +2959,10 @@ async function removeGameFromPhone(g){
 
 function renderGameList(){
   const list=$("#gameList");
-  const cloudOnly=Object.entries(S.cloud?.removedFromDevice||{}).filter(([,v])=>v?.seasonId===S.cloud.seasonId);
-  if(!S.games.length&&!cloudOnly.length){list.innerHTML='<span class="muted">No games yet.</span>';return}
-  list.innerHTML=[...S.games].sort((a,b)=>b.date.localeCompare(a.date)).map(g=>`
+  const cloudOnly=Object.entries(S.cloud?.removedFromDevice||{}).filter(([id,v])=>v?.seasonId===S.cloud.seasonId&&!S.cloud?.archivedGameIds?.[id]);
+  const localGames=visibleLocalGames();
+  if(!localGames.length&&!cloudOnly.length){list.innerHTML='<span class="muted">No games yet.</span>';return}
+  list.innerHTML=[...localGames].sort((a,b)=>b.date.localeCompare(a.date)).map(g=>`
     <div class="game-card saved-game-card">
       <div class="game-info"><strong>${esc(S.team.name)} vs ${esc(g.opponent)} <span class="game-type-badge ${(g.gameType||"regular")==="playoff"?"playoff":"regular"}">${(g.gameType||"regular")==="playoff"?"PLAYOFF":"REGULAR"}</span></strong><span>${(g.gameType||"regular")==="playoff"?"Playoff":"Regular Season"} • Week ${g.week||String(g.date||"").replace(/\D/g,"")||"?"} • ${g.location} • ${displayedOurScore(g)}-${g.oppScore}</span></div>
       <div class="saved-game-actions">
@@ -3024,7 +3025,7 @@ $("#newGameBtn").addEventListener("click",()=>{
   const opp=$("#newOpponent").value.trim();if(!opp)return toast("Enter an opponent");
   const openingKickoff=$("#newOpeningKickoff")?.value||"receive";
   const week=Number($("#newGameWeek").value||1),gameType=$("#newGameType").value||"regular";
-  const duplicate=(S.games||[]).find(existing=>existing.status!=="archived"&&Number(existing.week||0)===week&&(existing.gameType||"regular")===gameType&&String(existing.opponent||"").trim().toLowerCase()===opp.toLowerCase());
+  const duplicate=visibleLocalGames().find(existing=>Number(existing.week||0)===week&&(existing.gameType||"regular")===gameType&&String(existing.opponent||"").trim().toLowerCase()===opp.toLowerCase());
   if(duplicate){selectedStatsGameId=duplicate.id;if(confirm(`A Week ${week} game vs ${duplicate.opponent} already exists. Open that game instead?`)){S.activeGameId=duplicate.id;persist();renderGameArea()}return}
   const initialPossession=openingKickoff==="kick"?"opp":"ours";
   const g={id:uid(),opponent:opp,opponentLogoData:pendingNewOpponentLogo||null,week,date:`Week ${week}`,createdAt:Date.now(),location:$("#newLocation").value,gameType,status:"live",ourScore:0,scoreAdjustment:0,scoreModelVersion:2,oppScore:0,openingKickoff,initialPossession,initialDown:1,initialDistance:10,initialBallSpot:null,ballSpot:null,down:1,distance:10,possession:initialPossession,quarter:1,gamePlan:planFromNewGameSource(),plays:[],snapRecords:[]};
@@ -4289,7 +4290,7 @@ function agg(g){
   });return Object.values(m)
 }
 
-function sortedGames(){return [...(S.games||[])].sort((a,b)=>(Number(b.createdAt||0)-Number(a.createdAt||0))||(Number(b.week||0)-Number(a.week||0))||String(b.date||"").localeCompare(String(a.date||"")))}
+function sortedGames(){return visibleLocalGames().sort((a,b)=>(Number(b.createdAt||0)-Number(a.createdAt||0))||(Number(b.week||0)-Number(a.week||0))||String(b.date||"").localeCompare(String(a.date||"")))}
 function latestGame(){return sortedGames()[0]||null}
 function preferredViewerGame(){return sortedGames().find(g=>g.status==="live")||latestGame()}
 function selectedStatsGame(){
@@ -4346,7 +4347,7 @@ function renderGameHistoryPicker(){
 $("#statsGameSelect").addEventListener("change",()=>{selectedStatsGameId=$("#statsGameSelect").value;renderStats()});
 function statGame(){return currentGame()||latestGame()}
 function scopeGames(scope){
-  const games=[...(S.games||[])];
+  const games=visibleLocalGames();
   if(scope==="game"){const g=selectedStatsGame();return g?[g]:[]}
   if(scope==="regular")return games.filter(g=>(g.gameType||"regular")==="regular");
   if(scope==="playoff")return games.filter(g=>(g.gameType||"regular")==="playoff");
