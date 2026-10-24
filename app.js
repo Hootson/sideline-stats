@@ -1757,22 +1757,93 @@ async function safeSyncOwnedGame(g){
       if(!rev||Number(cloud.revision)!==rev)
         throw Error("Cloud game version changed unexpectedly. Automatic overwriting blocked.");
     }
-    const cloudPlays=requireData(await SB.from("plays")
-      .select("id,sequence,revision").eq("game_id",gameId)
-      .is("deleted_at",null).order("sequence"))||[];
-    if(cloudPlays.length>(copy.plays||[]).length)
-      throw Error("Cloud play history is longer than phone history; no deletion inferred.");
-    for(let i=0;i<cloudPlays.length;i++){
-      if(Number(cloudPlays[i].sequence)!==i+1||
-        cloudPlays[i].id!==S.cloud.playIds?.[copy.plays[i]?.id])
-        throw Error("Play order or IDs differ in Supabase; historical stats protected.");
+    // Stable cloud identities, not local list positions, determine which
+    // new-game plays still exist. Tombstones retain a full audit trail.
+    const allCloudPlays=requireData(await SB.from("plays")
+      .select("id,sequence,revision,deleted_at").eq("game_id",gameId)
+      .order("sequence"))||[];
+    const cloudPlays=allCloudPlays.filter(p=>!p.deleted_at);
+    let nextCloudSequence=Math.max(0,...allCloudPlays.map(p=>Number(p.sequence||0)))+1;
+    const activeLocal=new Set((copy.plays||[]).map(p=>p.id));
+    const cloudLocalIds=new Map();
+    for(const [localId,cloudId] of Object.entries(S.cloud.playIds||{})){
+      if(cloudLocalIds.has(cloudId)&&cloudLocalIds.get(cloudId)!==localId&&
+         allCloudPlays.some(p=>p.id===cloudId))
+        throw Error("Duplicate cloud play identity; backup paused.");
+      cloudLocalIds.set(cloudId,localId);
     }
+    for(const remote of cloudPlays.filter(p=>!activeLocal.has(cloudLocalIds.get(p.id)))){
+      checked();
+      const localId=cloudLocalIds.get(remote.id);
+      const marker=S.cloud.pendingPlayDeletes?.[localId];
+      const known=Number(S.cloud.deleteRevisions?.[`plays:${remote.id}`]||0);
+      const explicit=marker?.cloudId===remote.id&&marker?.localGameId===g.id&&
+        marker?.gameId===gameId&&marker?.seasonId===t.seasonId;
+      // V4.6.77 deleted locally before markers existed. Permit recovery only
+      // for verified new games with a previously acknowledged full snapshot,
+      // a known local-to-cloud ID and an unchanged cloud row revision.
+      const legacyVerified=!marker&&!!t.lastSnapshotHash&&!!localId&&
+        S.cloud.playHashes?.[localId]!==undefined;
+      if(!localId||!known||known!==Number(remote.revision)||
+         (!explicit&&!legacyVerified)||(explicit&&marker.knownRevision!==known))
+        throw Error("Unverified missing play in Supabase. Cloud play protected.");
+      const credits=requireData(await SB.from("play_credits")
+        .select("id,value,metadata").eq("play_id",remote.id))||[];
+      const penalties=requireData(await SB.from("penalties")
+        .select("id,accepted,metadata").eq("play_id",remote.id))||[];
+      for(const credit of credits){
+        if(!Object.entries(S.cloud.creditIds||{}).some(([key,id])=>
+          key.startsWith(localId+"::")&&id===credit.id))
+          throw Error("Unverified stat credit for deleted play. Cloud preserved.");
+      }
+      for(const penalty of penalties)if(S.cloud.penaltyIds?.[localId]!==penalty.id)
+        throw Error("Unverified penalty for deleted play. Cloud preserved.");
+      for(const credit of credits){
+        if(credit.metadata?.active===false&&Number(credit.value)===0)continue;
+        grant.creditIds.add(credit.id);
+        const saved=requireData(await SB.from("play_credits")
+          .update({value:0,metadata:{...credit.metadata,local_play_id:localId,active:false}})
+          .eq("id",credit.id).select("id"))||[];
+        if(saved.length!==1)throw Error("Stat credit changed; play deletion stopped.");
+      }
+      for(const penalty of penalties){
+        if(penalty.accepted===false&&penalty.metadata?.active===false)continue;
+        grant.penaltyIds.add(penalty.id);
+        const saved=requireData(await SB.from("penalties")
+          .update({accepted:false,metadata:{...penalty.metadata,local_play_id:localId,active:false}})
+          .eq("id",penalty.id).select("id"))||[];
+        if(saved.length!==1)throw Error("Penalty changed; play deletion stopped.");
+      }
+      grant.playDeleteIds.add(remote.id);
+      const deletedAt=marker?.removedAt||new Date().toISOString();
+      const rows=requireData(await SB.from("plays")
+        .update({deleted_at:deletedAt,revision:known+1})
+        .eq("id",remote.id).eq("game_id",gameId).eq("revision",known)
+        .is("deleted_at",null).select("id,revision"))||[];
+      if(rows.length!==1)throw Error("Cloud play changed during guarded deletion.");
+      remote.deleted_at=deletedAt;
+      S.cloud.deleteRevisions[`plays:${remote.id}`]=known+1;
+      delete S.cloud.playIds[localId];delete S.cloud.playHashes[localId];
+      if(S.cloud.pendingPlayDeletes)delete S.cloud.pendingPlayDeletes[localId];
+      delete S.cloud.penaltyIds?.[localId];delete S.cloud.penaltyHashes?.[localId];
+      for(const key of Object.keys(S.cloud.creditIds||{}))if(key.startsWith(localId+"::")){
+        delete S.cloud.creditIds[key];delete S.cloud.creditHashes[key];
+      }
+      persist({skipCloud:true});
+    }
+    const activeCloud=cloudPlays.filter(p=>!p.deleted_at);
+    const activeCloudById=new Map(activeCloud.map(p=>[p.id,p]));
+    const mappedActive=(copy.plays||[]).map(p=>S.cloud.playIds?.[p.id]||null).filter(Boolean);
+    if(activeCloud.length!==mappedActive.length||
+       activeCloud.some((p,i)=>p.id!==mappedActive[i]))
+      throw Error("Cloud play identities or order differ; no overwrite.");
     for(let i=0;i<(copy.plays||[]).length;i++){
       checked();
-      const p=copy.plays[i],remote=cloudPlays[i]||null;
-      let playId=S.cloud.playIds?.[p.id]||remote?.id||cloudUuid();
-      if(remote&&playId!==remote.id)throw Error("Play "+(i+1)+" cloud ID conflict.");
-      const newlyMapped=!S.cloud.playIds[p.id];
+      const p=copy.plays[i],mapped=S.cloud.playIds?.[p.id]||null;
+      const remote=mapped?activeCloudById.get(mapped)||null:null;
+      if(mapped&&!remote)throw Error("Previously uploaded play no longer matches cloud.");
+      const playId=mapped||cloudUuid();
+      const newlyMapped=!mapped;
       S.cloud.playIds[p.id]=playId;grant.playIds.add(playId);
       if(newlyMapped)persist({skipCloud:true});
       const payload=buildCloudPlayPayload(copy,p,i,gameId),hash=simpleHash(payload);
@@ -1787,9 +1858,9 @@ async function safeSyncOwnedGame(g){
       if(unchangedPlay&&unchangedCredits&&unchangedPenalty)continue;
       let playRevision=Number(remote?.revision||0);
       if(!remote){
-        if(i!==cloudPlays.length)throw Error("Cannot append after an unresolved play gap.");
+        if(i!==activeCloud.length)throw Error("Cannot append after an unresolved play gap.");
         const row={
-          id:playId,game_id:gameId,created_by:cloudUser.id,sequence:i+1,
+          id:playId,game_id:gameId,created_by:cloudUser.id,sequence:nextCloudSequence,
           quarter:payload.p_quarter,possession:payload.p_possession,down:payload.p_down,
           distance:payload.p_distance,play_type:payload.p_play_type,subtype:payload.p_subtype,
           yards:payload.p_yards,first_down:payload.p_first_down,turnover:payload.p_turnover,
@@ -1800,10 +1871,11 @@ async function safeSyncOwnedGame(g){
         };
         const saved=requireData(await SB.from("plays").insert(row)
           .select("id,sequence,revision").single());
-        if(saved.id!==playId||Number(saved.sequence)!==i+1)
+        if(saved.id!==playId||Number(saved.sequence)!==nextCloudSequence)
           throw Error("Unexpected cloud play sequence; further uploads stopped.");
         playRevision=Number(saved.revision||1);
-        cloudPlays.push({id:playId,sequence:i+1,revision:playRevision,event_data:payload.p_event_data});
+        activeCloud.push({id:playId,sequence:nextCloudSequence,revision:playRevision,event_data:payload.p_event_data});
+        nextCloudSequence++;
         rev++;t.lastRevision=rev;S.cloud.deleteRevisions[`games:${gameId}`]=rev;
       }else if(S.cloud.playHashes[p.id]!==hash){
         const current=requireData(await SB.from("plays").select("event_data")
