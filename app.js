@@ -117,10 +117,44 @@ function load(){
     }catch(_){return JSON.parse(JSON.stringify(empty))}
   }
 }
+
+let logoRecoveryRunning=false,logoRecoveryRequested=false;
+async function recoverSavedCloudLogos(){
+  if(logoRecoveryRunning){logoRecoveryRequested=true;return}
+  if(!cloudLinked()||!window.SidelineLogoRecovery)return;
+  const teamId=S.cloud.teamId,seasonId=S.cloud.seasonId;
+  logoRecoveryRunning=true;
+  try{
+    await window.SidelineLogoRecovery.restore({
+      client:SB,teamId,seasonId,getState:()=>S,online:navigator.onLine!==false,
+      shouldRestoreTeam:()=>{try{return sessionStorage.getItem("sidelineExplicitTeamLogoRemove")!=="1"}catch(_){return true}},
+      shouldRestoreOpponent:()=>{try{return sessionStorage.getItem("sidelineExplicitOpponentLogoRemove")!=="1"}catch(_){return true}},
+      onChange:()=>{
+        renderLogoPreview(S.team?.logoData||null);
+        const g=currentGame();
+        if(!g)return;
+        if(S.team?.logoData){
+          const el=$("#gameTeamLogo");
+          if(el)el.innerHTML='<img src="'+S.team.logoData+'" alt="'+esc(S.team.name)+' logo">';
+        }
+        if(g.opponentLogoData){
+          const el=$("#oppBadge");
+          if(el)el.innerHTML='<img src="'+g.opponentLogoData+'" alt="'+esc(g.opponent)+' logo">';
+        }
+      }
+    });
+  }catch(error){console.warn("Saved logo recovery skipped",error)}
+  finally{
+    logoRecoveryRunning=false;
+    if(logoRecoveryRequested){logoRecoveryRequested=false;setTimeout(recoverSavedCloudLogos,0)}
+  }
+}
+
 let persistCloudUiRefreshPending=false;
 function persist(opts={}){
   try{
-    const result=window.SidelineStorageSnapshot.save(localStorage,KEY,RECOVERY_KEY,S);
+    const lightState=window.SidelineLogoRecovery?.snapshotWithoutCachedImages?.(S,S.cloud?.teamId)||S;
+    const result=window.SidelineStorageSnapshot.save(localStorage,KEY,RECOVERY_KEY,lightState);
     if(result.usedCompactMain)console.warn("Device snapshot saved without cached images",result);
   }catch(e){console.error("Save failed",e);toast("Local save failed. Export a backup. Do not clear browser data.")}
   if(!opts.skipCloud&&typeof scheduleSafeSync==="function")scheduleSafeSync(5000);
@@ -461,6 +495,7 @@ async function restoreRememberedTeam(){
       }catch(e){console.warn("Startup cloud refresh check failed",e)}
     }
     updateCloudUI();
+    void recoverSavedCloudLogos();
     if(isCloudCoach())setTimeout(maybePromptCoachDebrief,250);
     return;
   }
@@ -945,7 +980,7 @@ async function loadTeamFromCloud(options={}){
       if(ticket&&ticket.cloudId===S.cloud.gameIds?.[game.id])
         ticket.lastSnapshotHash=safeSyncFingerprint(game);
     }
-    persist({skipCloud:true});syncChrome();populateSetup();initializeSnapSelections();renderRoster();renderGameArea();renderSnaps();renderStats();updateCloudUI();if(isCloudStatkeeper()&&Object.keys(S.cloud.deletedGames||{}).length)scheduleCloudSync(0);
+    persist({skipCloud:true});syncChrome();populateSetup();initializeSnapSelections();renderRoster();renderGameArea();renderSnaps();renderStats();updateCloudUI();void recoverSavedCloudLogos();if(isCloudStatkeeper()&&Object.keys(S.cloud.deletedGames||{}).length)scheduleCloudSync(0);
     go(refreshing?priorScreen:(options.destination||"roster"));
     if(isCloudCoach())setTimeout(maybePromptCoachDebrief,250);
     if(!autoRefresh)toast(refreshing?"Latest cloud changes loaded":"Cloud team loaded on this device");
@@ -2089,7 +2124,7 @@ async function syncCloudNow(options={}){
   if(retryAfterAuth)return syncCloudNow({...options,forceRestart:false,authRetryAttempt:true});
   return options.priorityGameId?priorityGameSynced:succeeded;
 }
-window.addEventListener("online",()=>{if(isCloudStatkeeper()){scheduleCloudSync(150);scheduleSafeSync(1800)}else setTimeout(checkLiveGameRevisions,100);setTimeout(checkCloudForUpdates,500)});
+window.addEventListener("online",()=>{void recoverSavedCloudLogos();if(isCloudStatkeeper()){scheduleCloudSync(150);scheduleSafeSync(1800)}else setTimeout(checkLiveGameRevisions,100);setTimeout(checkCloudForUpdates,500)});
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){if(isCloudStatkeeper()){scheduleCloudSync(100);scheduleSafeSync(1800)}else setTimeout(checkLiveGameRevisions,100);setTimeout(checkCloudForUpdates,500)}else if(isCloudStatkeeper()&&cloudPendingCount()>0)scheduleCloudSync(0)});
 setInterval(()=>{if(!cloudSyncTimer&&document.visibilityState==="visible"&&navigator.onLine!==false&&isCloudStatkeeper()&&cloudPendingCount()>0)scheduleCloudSync(0)},30000);
 
@@ -5313,6 +5348,7 @@ function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&l
 
 normalizePlaybook();normalizeRoster();normalizeGames();populateSetup();syncChrome();renderRoster();initializeSnapSelections();
 if(teamExists())go("roster");else go("setup");
+if(cloudLinked())setTimeout(recoverSavedCloudLogos,0);
 $("#continueAfterConfirmationBtn")?.addEventListener("click",()=>{const clean=new URL(location.href);clean.searchParams.delete("accountConfirmed");clean.hash="";location.replace(clean.href)});
 initCloud();
 })();
