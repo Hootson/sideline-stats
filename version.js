@@ -157,7 +157,28 @@ window.SIDELINE_STATS_VERSION="4.6.85";
         return true;
       }catch(_){return false}
     }
-    if(url.includes('/rest/v1/')&&['POST','PUT','PATCH','DELETE'].includes(method)&&!allowedSnapInviteRpc()&&!allowedGuardedWrite()){
+    // Single-use allowance for one newly-added roster member. This does NOT
+    // enable any legacy bulk synchronization, player updates, or removals.
+    function allowedRosterAddWrite(){
+      if(method!=='POST'||typeof init?.body!=='string')return false;
+      const grant=window.SidelineRosterAddGrant;
+      if(!grant?.active||Date.now()-grant.startedAt>15000)return false;
+      try{
+        const u=new URL(url,location.href);
+        if(u.origin!=='https://eyuvgzhkhcpwtcbmsvct.supabase.co'||
+           u.pathname!=='/rest/v1/players'||u.searchParams.size!==1||
+           u.searchParams.get('select')!=='id')return false;
+        const body=JSON.parse(init.body);
+        if(!body||Array.isArray(body)||
+           Object.keys(body).sort().join(',')!=='active,jersey_number,name,season_id'||
+           body.season_id!==grant.seasonId||
+           body.jersey_number!==grant.jersey||body.name!==grant.name||
+           body.active!==true)return false;
+        grant.active=false;
+        return true;
+      }catch(_){return false}
+    }
+    if(url.includes('/rest/v1/')&&['POST','PUT','PATCH','DELETE'].includes(method)&&!allowedSnapInviteRpc()&&!allowedRosterAddWrite()&&!allowedGuardedWrite()){
       console.warn('Cloud REST write blocked during safe rollback',method,url.split('?')[0]);
       return new Response(JSON.stringify({message:'Historical sync quarantined. Only guarded new-game uploads allowed.'}),{status:503,headers:{'Content-Type':'application/json'}});
     }
