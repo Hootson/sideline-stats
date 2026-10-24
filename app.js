@@ -168,7 +168,7 @@ function persist(opts={}){
     const result=window.SidelineStorageSnapshot.save(localStorage,KEY,RECOVERY_KEY,lightState);
     if(result.usedCompactMain)console.warn("Device snapshot saved without cached images",result);
   }catch(e){console.error("Save failed",e);toast("Local save failed. Export a backup. Do not clear browser data.")}
-  if(!opts.skipCloud&&typeof scheduleSafeSync==="function")scheduleSafeSync(5000);
+  if(!opts.skipCloud&&typeof scheduleSafeSync==="function"){scheduleSafeSync(5000);scheduleRosterAddSync(1800)}
   // Local-first: coalesce UI refreshes instead of scheduling one timer per saved play.
   if(typeof updateCloudUI==="function"&&!persistCloudUiRefreshPending){
     persistCloudUiRefreshPending=true;
@@ -382,7 +382,7 @@ async function initCloud(){
     }
     if(cloudUser){showReturningTeamLoader();try{rebaseCloudHashesV443();if(!await redeemPendingGameStatkeeperInvite()&&!await redeemPendingTeamInvite())await restoreRememberedTeam();await handleCheckoutReturn()}finally{await hideReturningTeamLoader()}}else{updateCloudUI();if(pendingGameStatkeeperInviteToken()){showReturningTeamLoader();try{const token=pendingGameStatkeeperInviteToken();const {data:quick,error:quickError}=await SB.functions.invoke("game-statkeeper-quick-session",{body:{token}});if(quickError||!quick?.access_token)throw quickError||new Error(quick?.error||"Could not start secure game session");const {data:setData,error:setError}=await SB.auth.setSession({access_token:quick.access_token,refresh_token:quick.refresh_token});if(setError)throw setError;cloudUser=setData?.user||setData?.session?.user||null;const {data:team,error:teamError}=await SB.from("teams").select("id,name,team_identifier,grade,primary_color,accent_color,logo_data,snap_minimum,playbook,intended_plan,timezone,created_at,updated_at").eq("id",quick.team_id).single();if(teamError)throw teamError;clearPendingGameStatkeeperInvite();await loadTeamFromCloud({team,auto:true,skipReplaceConfirm:true,destination:"game",substituteGameId:quick.game_id,roleOverride:"substitute_statkeeper",assignmentExpiresAt:quick.invite_expires_at});toast(`Ready to keep stats for ${team.name}`)}catch(e){console.error("Quick statkeeper session failed",e);toast(e?.message||"Could not open the game statkeeper link")}finally{await hideReturningTeamLoader()}}else if(pendingTeamInviteToken()){openAuth();$("#authMessage").textContent="Create an account or sign in to accept this team invitation."}else if(!returningFromLogin)setTimeout(offerNativeSignInWhenSignedOut,250)}
     setTimeout(checkArchivedCloudGamesReadOnly,650);
-    if(isCloudStatkeeper()){scheduleCloudSync(300);scheduleSafeSync(1700)}else setTimeout(checkCloudForUpdates,500);
+    if(isCloudStatkeeper()){scheduleCloudSync(300);scheduleSafeSync(1700);scheduleRosterAddSync(2200)}else setTimeout(checkCloudForUpdates,500);
     setTimeout(startCloudRealtime,800);
     setTimeout(importMissingCloudGamesReadOnly,1600);
     SB.auth.onAuthStateChange((_event,session)=>{
@@ -390,7 +390,7 @@ async function initCloud(){
       setTimeout(async()=>{
         if(cloudUser){rebaseCloudHashesV443();if(!await redeemPendingGameStatkeeperInvite()&&!await redeemPendingTeamInvite())await restoreRememberedTeam()}else updateCloudUI();
         setTimeout(checkArchivedCloudGamesReadOnly,650);
-        if(isCloudStatkeeper()){scheduleCloudSync(250);scheduleSafeSync(1700)}else setTimeout(checkCloudForUpdates,500);
+        if(isCloudStatkeeper()){scheduleCloudSync(250);scheduleSafeSync(1700);scheduleRosterAddSync(2200)}else setTimeout(checkCloudForUpdates,500);
         setTimeout(startCloudRealtime,800);
       },0);
     });
@@ -498,7 +498,7 @@ async function restoreRememberedTeam(){
     // A returning owner may have a viewer-only page cached from a failed
     // earlier role lookup. Restore the statkeeper tabs and roster immediately.
     if(priorRole==="viewer"&&verifiedRole==="statkeeper"&&teamExists())go("roster");
-    if(navigator.onLine!==false&&(!isCloudStatkeeper()||cloudPendingCount()===0)){
+    if(navigator.onLine!==false&&(!isCloudStatkeeper()||cloudPendingCount()===0)&&!hasPendingRosterAdditions()){
       try{
         const remoteFingerprint=await remoteCloudFingerprint();
         if(S.cloud.remoteFingerprint&&remoteFingerprint!==S.cloud.remoteFingerprint){
@@ -1702,6 +1702,106 @@ async function ensureCloudGame(g){
 async function publishCloudGame(cloudGameId){
   const {data,error}=await SB.rpc("publish_game_update",{p_game_id:cloudGameId});if(error)throw error;const revision=Number(data||0);if(revision)S.cloud.deleteRevisions[`games:${cloudGameId}`]=revision;
 }
+// V4.6.86 — Missing roster additions sync independently of game plays.
+// Every write requires a live, owner-created game and a single-use grant.
+// Existing roster rows, games, credits, and historical state are never modified.
+let rosterAddTimer=null,rosterAddRunning=false,rosterAddFailures=0;
+function hasPendingRosterAdditions(){
+  return (S.roster||[]).some(p=>p?.id&&!S.cloud?.playerIds?.[p.id]);
+}
+function eligibleRosterAdditionGame(){
+  return (S.games||[]).find(g=>g?.status==="live"&&safeSyncEligible(g)
+    &&(S.cloud?.gameIds?.[g.id]||S.cloud?.safeSyncGames?.[g.id]?.cloudId))||null;
+}
+function scheduleRosterAddSync(delay=1800){
+  if(!SB||!cloudUser||!cloudLinked()||!isTeamStatkeeper()
+     ||navigator.onLine===false||document.visibilityState==="hidden"
+     ||!hasPendingRosterAdditions()||!eligibleRosterAdditionGame())return;
+  if(rosterAddTimer)clearTimeout(rosterAddTimer);
+  rosterAddTimer=setTimeout(()=>{
+    rosterAddTimer=null;
+    void syncNewRosterAdditions();
+  },Math.max(1200,delay));
+}
+async function syncNewRosterAdditions(){
+  if(rosterAddRunning||safeSyncRunning||window.SidelineSafeWriteGrant){
+    scheduleRosterAddSync(4500);return false;
+  }
+  if(!SB||!cloudUser||!cloudLinked()||!isTeamStatkeeper()
+     ||navigator.onLine===false||document.visibilityState==="hidden"
+     ||!hasPendingRosterAdditions())return false;
+  const game=eligibleRosterAdditionGame();
+  if(!game)return false;
+  const seasonId=S.cloud.seasonId,teamId=S.cloud.teamId,userId=cloudUser.id;
+  const gameId=S.cloud.gameIds?.[game.id]||S.cloud.safeSyncGames?.[game.id]?.cloudId;
+  rosterAddRunning=true;
+  try{
+    const [ownerQ,gameQ,playersQ]=await Promise.all([
+      SB.from("teams").select("id,owner_user_id").eq("id",teamId).single(),
+      SB.from("games").select("id,season_id,status,created_by").eq("id",gameId).single(),
+      SB.from("players").select("id,name,jersey_number,active").eq("season_id",seasonId)
+    ]);
+    if(ownerQ.error||gameQ.error||playersQ.error)throw ownerQ.error||gameQ.error||playersQ.error;
+    if(ownerQ.data?.id!==teamId||ownerQ.data?.owner_user_id!==userId||
+       gameQ.data?.id!==gameId||gameQ.data?.season_id!==seasonId||
+       gameQ.data?.status!=="live"||gameQ.data?.created_by!==userId||
+       S.cloud.teamId!==teamId||S.cloud.seasonId!==seasonId||
+       !eligibleRosterAdditionGame()||cloudUser?.id!==userId)
+      throw Error("Roster backup needs a verified active owner game; phone roster preserved.");
+    const remote=playersQ.data||[];
+    for(const person of [...(S.roster||[])]){
+      if(!person?.id||S.cloud.playerIds?.[person.id])continue;
+      const name=String(person.name||"").trim();
+      const jersey=String(person.jersey??"").trim();
+      if(!name||!jersey||name.length>120||!/^\d{1,3}$/.test(jersey))
+        throw Error("New roster member has an invalid name or jersey; phone copy preserved.");
+      const duplicates=remote.filter(p=>String(p.jersey_number)===jersey);
+      if(duplicates.length){
+        const same=duplicates.length===1&&duplicates[0].active===true&&
+          String(duplicates[0].name).trim().toLowerCase()===name.toLowerCase();
+        if(!same)throw Error("Roster number #"+jersey+" already exists in cloud; phone copy preserved.");
+        S.cloud.playerIds[person.id]=duplicates[0].id;
+      }else{
+        if(window.SidelineSafeWriteGrant||window.SidelineRosterAddGrant||
+           safeSyncRunning||!eligibleRosterAdditionGame()||
+           !(S.roster||[]).some(x=>x.id===person.id&&
+             String(x.name||"").trim()===name&&String(x.jersey)===jersey))
+          throw Error("Roster changed while preparing upload; no changes made.");
+        const grant={active:true,startedAt:Date.now(),seasonId,jersey,name};
+        window.SidelineRosterAddGrant=grant;
+        try{
+          const {data,error}=await SB.from("players").insert({
+            season_id:seasonId,jersey_number:jersey,name,active:true
+          }).select("id").single();
+          if(error)throw error;
+          if(!data?.id)throw Error("Roster player upload returned no identity.");
+          S.cloud.playerIds[person.id]=data.id;
+          remote.push({id:data.id,jersey_number:jersey,name,active:true});
+        }finally{
+          grant.active=false;
+          if(window.SidelineRosterAddGrant===grant)window.SidelineRosterAddGrant=null;
+        }
+      }
+      S.cloud.playerHashes[person.id]=simpleHash({
+        season_id:seasonId,jersey_number:jersey,name,active:true
+      });
+      persist({skipCloud:true});
+    }
+    rosterAddFailures=0;
+    return true;
+  }catch(error){
+    rosterAddFailures++;
+    console.warn("New player upload stopped; local roster preserved",error);
+    return false;
+  }finally{
+    rosterAddRunning=false;
+    if(hasPendingRosterAdditions()&&S.cloud.seasonId===seasonId&&
+       navigator.onLine!==false&&document.visibilityState!=="hidden"){
+      const wait=rosterAddFailures>=3?60000:Math.min(30000,4500*rosterAddFailures+3000);
+      scheduleRosterAddSync(wait);
+    }
+  }
+}
 // V4.6.71: Only newly created, explicitly enrolled games may auto-upload.
 // Existing historic games and all cloud deletions remain strictly quarantined.
 let safeSyncTimer=null,safeSyncRunning=false,safeSyncFailureCount=0;
@@ -2375,8 +2475,8 @@ async function syncCloudNow(options={}){
   if(retryAfterAuth)return syncCloudNow({...options,forceRestart:false,authRetryAttempt:true});
   return options.priorityGameId?priorityGameSynced:succeeded;
 }
-window.addEventListener("online",()=>{void checkArchivedCloudGamesReadOnly();void recoverSavedCloudLogos();if(isCloudStatkeeper()){scheduleCloudSync(150);scheduleSafeSync(1800)}else setTimeout(checkLiveGameRevisions,100);setTimeout(checkCloudForUpdates,500)});
-document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){void checkArchivedCloudGamesReadOnly();if(isCloudStatkeeper()){scheduleCloudSync(100);scheduleSafeSync(1800)}else setTimeout(checkLiveGameRevisions,100);setTimeout(checkCloudForUpdates,500)}else if(isCloudStatkeeper()&&cloudPendingCount()>0)scheduleCloudSync(0)});
+window.addEventListener("online",()=>{scheduleRosterAddSync(2200);void checkArchivedCloudGamesReadOnly();void recoverSavedCloudLogos();if(isCloudStatkeeper()){scheduleCloudSync(150);scheduleSafeSync(1800)}else setTimeout(checkLiveGameRevisions,100);setTimeout(checkCloudForUpdates,500)});
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){scheduleRosterAddSync(2200);void checkArchivedCloudGamesReadOnly();if(isCloudStatkeeper()){scheduleCloudSync(100);scheduleSafeSync(1800)}else setTimeout(checkLiveGameRevisions,100);setTimeout(checkCloudForUpdates,500)}else if(isCloudStatkeeper()&&cloudPendingCount()>0)scheduleCloudSync(0)});
 setInterval(()=>{if(!cloudSyncTimer&&document.visibilityState==="visible"&&navigator.onLine!==false&&isCloudStatkeeper()&&cloudPendingCount()>0)scheduleCloudSync(0)},30000);
 
 $("#cloudAccountBtn")?.addEventListener("click",openAuth);
