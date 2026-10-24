@@ -22,6 +22,7 @@ if(!S.cloud.gameIds)S.cloud.gameIds={};
 if(!S.cloud.deletedGames)S.cloud.deletedGames={};
 if(!S.cloud.removedFromDevice)S.cloud.removedFromDevice={};
 if(!S.cloud.safeSyncGames)S.cloud.safeSyncGames={};
+if(!S.cloud.archivedGameIds)S.cloud.archivedGameIds={};
 if(!S.cloud.pendingPlayDeletes)S.cloud.pendingPlayDeletes={};
 if(!S.cloud.playIds)S.cloud.playIds={};
 if(!S.cloud.playHashes)S.cloud.playHashes={};
@@ -39,6 +40,15 @@ if(S.cloud.coachAccess===undefined)S.cloud.coachAccess=false;
 if(S.cloud.entitlementTier===undefined)S.cloud.entitlementTier=null;
 if(S.cloud.access===undefined)S.cloud.access=null;
 if(S.cloud.hashVersion===undefined)S.cloud.hashVersion=1;
+// An archived cloud game remains in device storage for recovery but is never
+// eligible for live game lists, season totals, coach analysis or exports.
+function isGameArchived(g){
+  if(!g)return false;
+  if(g.status==="archived")return true;
+  const id=S.cloud?.gameIds?.[g.id]||S.cloud?.safeSyncGames?.[g.id]?.cloudId||g.id;
+  return !!(id&&S.cloud?.seasonId&&S.cloud?.archivedGameIds?.[id]===S.cloud.seasonId);
+}
+function visibleLocalGames(){return (S.games||[]).filter(g=>!isGameArchived(g))}
 let statsScope="game";
 let selectedStatsGameId=null;
 let coachTab="overview",coachSelection=null,coachDown=1,coachMetric="success",coachCallSortBucket="overall",coachPlayerMode="offense",coachDebriefs=[],coachOwnDebrief=null,coachDebriefCycle=null,coachDebriefAssignment=null,coachGeneratedRead=null,coachPushAvailable=false;
@@ -371,6 +381,7 @@ async function initCloud(){
       else updateCloudUI();
     }
     if(cloudUser){showReturningTeamLoader();try{rebaseCloudHashesV443();if(!await redeemPendingGameStatkeeperInvite()&&!await redeemPendingTeamInvite())await restoreRememberedTeam();await handleCheckoutReturn()}finally{await hideReturningTeamLoader()}}else{updateCloudUI();if(pendingGameStatkeeperInviteToken()){showReturningTeamLoader();try{const token=pendingGameStatkeeperInviteToken();const {data:quick,error:quickError}=await SB.functions.invoke("game-statkeeper-quick-session",{body:{token}});if(quickError||!quick?.access_token)throw quickError||new Error(quick?.error||"Could not start secure game session");const {data:setData,error:setError}=await SB.auth.setSession({access_token:quick.access_token,refresh_token:quick.refresh_token});if(setError)throw setError;cloudUser=setData?.user||setData?.session?.user||null;const {data:team,error:teamError}=await SB.from("teams").select("id,name,team_identifier,grade,primary_color,accent_color,logo_data,snap_minimum,playbook,intended_plan,timezone,created_at,updated_at").eq("id",quick.team_id).single();if(teamError)throw teamError;clearPendingGameStatkeeperInvite();await loadTeamFromCloud({team,auto:true,skipReplaceConfirm:true,destination:"game",substituteGameId:quick.game_id,roleOverride:"substitute_statkeeper",assignmentExpiresAt:quick.invite_expires_at});toast(`Ready to keep stats for ${team.name}`)}catch(e){console.error("Quick statkeeper session failed",e);toast(e?.message||"Could not open the game statkeeper link")}finally{await hideReturningTeamLoader()}}else if(pendingTeamInviteToken()){openAuth();$("#authMessage").textContent="Create an account or sign in to accept this team invitation."}else if(!returningFromLogin)setTimeout(offerNativeSignInWhenSignedOut,250)}
+    setTimeout(checkArchivedCloudGamesReadOnly,650);
     if(isCloudStatkeeper()){scheduleCloudSync(300);scheduleSafeSync(1700)}else setTimeout(checkCloudForUpdates,500);
     setTimeout(startCloudRealtime,800);
     setTimeout(importMissingCloudGamesReadOnly,1600);
@@ -378,6 +389,7 @@ async function initCloud(){
       cloudUser=session?.user||null;
       setTimeout(async()=>{
         if(cloudUser){rebaseCloudHashesV443();if(!await redeemPendingGameStatkeeperInvite()&&!await redeemPendingTeamInvite())await restoreRememberedTeam()}else updateCloudUI();
+        setTimeout(checkArchivedCloudGamesReadOnly,650);
         if(isCloudStatkeeper()){scheduleCloudSync(250);scheduleSafeSync(1700)}else setTimeout(checkCloudForUpdates,500);
         setTimeout(startCloudRealtime,800);
       },0);
@@ -949,6 +961,7 @@ async function loadTeamFromCloud(options={}){
     if(!vcq.error)for(const row of vcq.data||[]){const value=row.resolved_value?.value??row.resolved_value?.text??row.resolved_value;if(typeof value==="string"&&row.heard_text)voiceCorrections[row.heard_text]=value}else console.warn("Voice corrections could not be loaded",vcq.error);
     S={team:{name:team.name,identifier:team.team_identifier||"",grade:team.grade||"5th Grade",season:season.name||String(season.season_year||"Season"),primary:team.primary_color||"#177b46",secondary:team.accent_color||"#f0b33b",logoData:team.logo_data||null,snapMinimum:Number(team.snap_minimum||10),playbook:Array.isArray(team.playbook)?team.playbook:[],coachDemoPlaybook,voiceCorrections,planIntent:team.intended_plan||"team_pro"},roster,games:localGames,activeGameId:options.substituteGameId||((refreshing&&priorActiveCloudId&&localGames.some(x=>x.id===priorActiveCloudId))?priorActiveCloudId:null),flow:{},editingPlayId:null,cloud};
     S.cloud.removedFromDevice=priorSeasonId===season.id?priorRemovedFromDevice:{};
+    S.cloud.archivedGameIds=priorSeasonId===season.id?{...(S.cloud.archivedGameIds||{})}:{};
     // Safely reconstruct eligible new-game sync tickets after IDs are replaced
     // by authoritative cloud IDs. Never transfer a ticket to a different game.
     S.cloud.safeSyncGames={};
@@ -1372,6 +1385,49 @@ async function importMissingCloudGamesReadOnly(options={}){
   }catch(e){console.warn("Safe missing-game import skipped",e)}
   finally{missingGameImportRunning=false}
 }
+let archiveCheckRunning=false,archiveCheckLastAt=0;
+// A compact read-only cloud status check, including for owner/statkeeper mode.
+// Never modifies a game's plays, snaps, score or server data.
+async function checkArchivedCloudGamesReadOnly(){
+  if(archiveCheckRunning||!SB||!cloudUser||!cloudLinked()||navigator.onLine===false)return false;
+  if(Date.now()-archiveCheckLastAt<60000)return false;
+  const seasonId=S.cloud.seasonId,teamId=S.cloud.teamId;
+  const candidates=visibleLocalGames().map(g=>({
+    g,cloudId:S.cloud?.gameIds?.[g.id]||S.cloud?.safeSyncGames?.[g.id]?.cloudId||null
+  })).filter(x=>!!x.cloudId);
+  if(!candidates.length)return false;
+  archiveCheckRunning=true;archiveCheckLastAt=Date.now();
+  try{
+    const {data,error}=await SB.from("games")
+      .select("id,season_id,opponent_name,week_number,game_type,status")
+      .eq("season_id",seasonId).in("id",[...new Set(candidates.map(x=>x.cloudId))]);
+    if(error)throw error;
+    if(S.cloud.seasonId!==seasonId||S.cloud.teamId!==teamId)return false;
+    const byId=new Map((data||[]).map(row=>[row.id,row]));
+    let changed=false;
+    for(const {g,cloudId} of candidates){
+      if(!S.games.includes(g))continue;
+      const row=byId.get(cloudId);
+      if(row?.status!=="archived"||row.season_id!==seasonId||
+         row.opponent_name!==g.opponent||
+         Number(row.week_number)!==Number(g.week)||
+         row.game_type!==(g.gameType||"regular"))continue;
+      S.cloud.archivedGameIds[cloudId]=seasonId;
+      if(S.activeGameId===g.id)S.activeGameId=null;
+      if(selectedStatsGameId===g.id)selectedStatsGameId=null;
+      if(editingGameId===g.id)editingGameId=null;
+      if(coachSelection==="game:"+g.id)coachSelection="season";
+      changed=true;
+    }
+    if(changed){
+      persist({skipCloud:true});
+      syncChrome();renderGameArea();renderStats();renderSnaps();
+      if($(".screen.active")?.dataset?.screen==="coach")renderCoach();
+    }
+    return changed;
+  }catch(e){console.warn("Read-only archived-game check skipped",e);return false}
+  finally{archiveCheckRunning=false}
+}
 async function checkCloudForUpdates(){
   if(isCloudStatkeeper()||cloudRemoteCheckRunning||cloudLiveCheckRunning||cloudAutoRefreshRunning||!SB||!cloudUser||!cloudLinked()||navigator.onLine===false)return;
   cloudRemoteCheckRunning=true;
@@ -1650,6 +1706,7 @@ async function publishCloudGame(cloudGameId){
 // Existing historic games and all cloud deletions remain strictly quarantined.
 let safeSyncTimer=null,safeSyncRunning=false,safeSyncFailureCount=0;
 function safeSyncEligible(g){
+  if(isGameArchived(g))return false;
   const t=g&&S.cloud?.safeSyncGames?.[g.id];
   return !!(t&&t.seasonId===S.cloud.seasonId&&t.createdAt===g.createdAt
     &&!S.cloud?.removedFromDevice?.[S.cloud.gameIds?.[g.id]]);
@@ -2119,6 +2176,7 @@ async function runSafeSyncQueue(){
 }
 
 function cloudGameNeedsSync(g){
+  if(isGameArchived(g))return false;
   const cloudGameId=S.cloud.gameIds?.[g.id];if(!cloudGameId||S.cloud.gameHashes?.[g.id]!==simpleHash(buildCloudGamePayload(g)))return true;
   for(let i=0;i<(g.plays||[]).length;i++){
     const p=g.plays[i],playId=S.cloud.playIds?.[p.id];if(!playId||S.cloud.playHashes?.[p.id]!==simpleHash(buildCloudPlayPayload(g,p,i,cloudGameId)))return true;
@@ -2317,8 +2375,8 @@ async function syncCloudNow(options={}){
   if(retryAfterAuth)return syncCloudNow({...options,forceRestart:false,authRetryAttempt:true});
   return options.priorityGameId?priorityGameSynced:succeeded;
 }
-window.addEventListener("online",()=>{void recoverSavedCloudLogos();if(isCloudStatkeeper()){scheduleCloudSync(150);scheduleSafeSync(1800)}else setTimeout(checkLiveGameRevisions,100);setTimeout(checkCloudForUpdates,500)});
-document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){if(isCloudStatkeeper()){scheduleCloudSync(100);scheduleSafeSync(1800)}else setTimeout(checkLiveGameRevisions,100);setTimeout(checkCloudForUpdates,500)}else if(isCloudStatkeeper()&&cloudPendingCount()>0)scheduleCloudSync(0)});
+window.addEventListener("online",()=>{void checkArchivedCloudGamesReadOnly();void recoverSavedCloudLogos();if(isCloudStatkeeper()){scheduleCloudSync(150);scheduleSafeSync(1800)}else setTimeout(checkLiveGameRevisions,100);setTimeout(checkCloudForUpdates,500)});
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){void checkArchivedCloudGamesReadOnly();if(isCloudStatkeeper()){scheduleCloudSync(100);scheduleSafeSync(1800)}else setTimeout(checkLiveGameRevisions,100);setTimeout(checkCloudForUpdates,500)}else if(isCloudStatkeeper()&&cloudPendingCount()>0)scheduleCloudSync(0)});
 setInterval(()=>{if(!cloudSyncTimer&&document.visibilityState==="visible"&&navigator.onLine!==false&&isCloudStatkeeper()&&cloudPendingCount()>0)scheduleCloudSync(0)},30000);
 
 $("#cloudAccountBtn")?.addEventListener("click",openAuth);
