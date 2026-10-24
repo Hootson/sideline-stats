@@ -1700,7 +1700,7 @@ async function safeSyncOwnedGame(g){
       throw Error("Phone game, team, or network changed during upload");
   };
   const requireData=q=>{if(q.error)throw q.error;return q.data};
-  let gameId=S.cloud.gameIds?.[g.id]||t.cloudId||null,rev=Number(t.lastRevision||0);
+  let gameId=S.cloud.gameIds?.[g.id]||t.cloudId||null,rev=Number(t.lastRevision||0),revisionRecoveryHeader=null;
   try{
     checked();
     // Add only validated missing roster members. Existing cloud roster rows
@@ -1748,20 +1748,60 @@ async function safeSyncOwnedGame(g){
     }else{
       grant.gameId=gameId;
       const cloud=requireData(await SB.from("games")
-        .select("id,season_id,opponent_name,week_number,game_type,status,revision")
+        .select("id,season_id,opponent_name,week_number,game_type,status,revision,created_by,updated_at,current_quarter,team_score,opponent_score,possession,current_down,current_distance,current_state")
         .eq("id",gameId).single());
       if(cloud?.season_id!==t.seasonId||cloud.opponent_name!==copy.opponent
         ||Number(cloud.week_number)!==Number(copy.week)||
         cloud.game_type!==(copy.gameType||"regular")||cloud.status==="archived")
         throw Error("Cloud game identity differs. Local data unchanged.");
-      if(!rev||Number(cloud.revision)!==rev)
-        throw Error("Cloud game version changed unexpectedly. Automatic overwriting blocked.");
+      if(!rev||Number(cloud.revision)!==rev){
+        // A prior guarded upload can insert a play (whose trigger bumps game
+        // revision) before it publishes a final snapshot.
+        // Recovery is deferred until exact play identity and state checks.
+        if(!t.lastSnapshotHash||Number(cloud.revision)<=rev||
+           Number(cloud.revision)-rev>20||cloud.status!=="live"||
+           cloud.created_by!==cloudUser.id)
+          throw Error("Cloud game version changed unexpectedly. Automatic overwriting blocked.");
+        revisionRecoveryHeader=cloud;
+      }
     }
     // Stable cloud identities, not local list positions, determine which
     // new-game plays still exist. Tombstones retain a full audit trail.
     const allCloudPlays=requireData(await SB.from("plays")
-      .select("id,sequence,revision,deleted_at").eq("game_id",gameId)
-      .order("sequence"))||[];
+      .select("id,sequence,revision,deleted_at,event_data,created_by,state_after,updated_at")
+      .eq("game_id",gameId).order("sequence"))||[];
+    if(revisionRecoveryHeader){
+      const remoteActive=allCloudPlays.filter(p=>!p.deleted_at);
+      const knownIds=new Map(Object.entries(S.cloud.playIds||{})
+        .map(([localId,id])=>[id,localId]));
+      // Never adopt another user's play, an unknown row, or a modified play.
+      // Tombstoned rows are intentionally retained for the audit trail.
+      if(!remoteActive.length||remoteActive.some(p=>{
+        const localId=knownIds.get(p.id);
+        return !localId||p.created_by!==cloudUser.id||
+          p.event_data?.local_id!==localId||
+          Number(S.cloud.deleteRevisions?.[`plays:${p.id}`]||0)!==Number(p.revision);
+      }))throw Error("Cloud revision differs and active plays are not all verified device uploads.");
+      const latest=remoteActive[remoteActive.length-1];
+      const h=revisionRecoveryHeader,s=latest.state_after||{};
+      const same=(a,b)=>Number(a)===Number(b);
+      // An independent scoreboard/game-state edit cannot be inferred as our
+      // own play upload. Keep quarantine whenever published state differs.
+      if(!same(h.team_score,s.team_score)||
+         !same(h.opponent_score,s.opponent_score)||
+         !same(h.current_quarter,s.quarter)||
+         !same(h.current_down,s.down)||
+         !same(h.current_distance,s.distance)||
+         String(h.possession||"")!==String(s.possession||"")||
+         !Number.isFinite(Date.parse(latest.updated_at||""))||
+         !Number.isFinite(Date.parse(h.updated_at||""))||
+         Math.abs(Date.parse(h.updated_at)-Date.parse(latest.updated_at))>30000)
+        throw Error("Cloud game state changed outside verified play backup. No overwrite.");
+      rev=Number(h.revision);
+      t.lastRevision=rev;
+      S.cloud.deleteRevisions[`games:${gameId}`]=rev;
+      persist({skipCloud:true});
+    }
     const cloudPlays=allCloudPlays.filter(p=>!p.deleted_at);
     let nextCloudSequence=Math.max(0,...allCloudPlays.map(p=>Number(p.sequence||0)))+1;
     const activeLocal=new Set((copy.plays||[]).map(p=>p.id));
