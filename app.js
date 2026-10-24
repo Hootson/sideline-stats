@@ -930,7 +930,7 @@ async function loadTeamFromCloud(options={}){
   if(!refreshing&&teamExists()&&!options.skipReplaceConfirm&&!confirm("Load a cloud team on this device? This will replace the current local team, roster and games. Cloud-linked team data remains stored in Supabase."))return;
   const btn=refreshing?$("#cloudRefreshBtn"):$("#cloudLoadTeamBtn");if(btn){btn.disabled=true;btn.textContent=refreshing?"Refreshing…":"Loading…"}
   const priorActiveCloudId=S.activeGameId?(S.cloud?.gameIds?.[S.activeGameId]||S.activeGameId):null;
-  const priorSeasonId=S.cloud?.seasonId||null,priorDeletedGames={...(S.cloud?.deletedGames||{})},priorDeleteRevisions={...(S.cloud?.deleteRevisions||{})},priorRemovedFromDevice={...(S.cloud?.removedFromDevice||{})},priorSafeSyncGames={...(S.cloud?.safeSyncGames||{})},priorCloudGameIds={...(S.cloud?.gameIds||{})};
+  const priorSeasonId=S.cloud?.seasonId||null,priorDeletedGames={...(S.cloud?.deletedGames||{})},priorDeleteRevisions={...(S.cloud?.deleteRevisions||{})},priorRemovedFromDevice={...(S.cloud?.removedFromDevice||{})},priorArchivedGameIds={...(S.cloud?.archivedGameIds||{})},priorSafeSyncGames={...(S.cloud?.safeSyncGames||{})},priorCloudGameIds={...(S.cloud?.gameIds||{})};
   try{
     let team=options.team||null;
     if(!team&&refreshing&&S.cloud?.teamId){const q=await SB.from("teams").select("id,name,team_identifier,grade,primary_color,accent_color,logo_data,snap_minimum,playbook,intended_plan,timezone,created_at,updated_at").eq("id",S.cloud.teamId).single();if(q.error)throw q.error;team=q.data}
@@ -961,7 +961,7 @@ async function loadTeamFromCloud(options={}){
     if(!vcq.error)for(const row of vcq.data||[]){const value=row.resolved_value?.value??row.resolved_value?.text??row.resolved_value;if(typeof value==="string"&&row.heard_text)voiceCorrections[row.heard_text]=value}else console.warn("Voice corrections could not be loaded",vcq.error);
     S={team:{name:team.name,identifier:team.team_identifier||"",grade:team.grade||"5th Grade",season:season.name||String(season.season_year||"Season"),primary:team.primary_color||"#177b46",secondary:team.accent_color||"#f0b33b",logoData:team.logo_data||null,snapMinimum:Number(team.snap_minimum||10),playbook:Array.isArray(team.playbook)?team.playbook:[],coachDemoPlaybook,voiceCorrections,planIntent:team.intended_plan||"team_pro"},roster,games:localGames,activeGameId:options.substituteGameId||((refreshing&&priorActiveCloudId&&localGames.some(x=>x.id===priorActiveCloudId))?priorActiveCloudId:null),flow:{},editingPlayId:null,cloud};
     S.cloud.removedFromDevice=priorSeasonId===season.id?priorRemovedFromDevice:{};
-    S.cloud.archivedGameIds=priorSeasonId===season.id?{...(S.cloud.archivedGameIds||{})}:{};
+    S.cloud.archivedGameIds=priorSeasonId===season.id?priorArchivedGameIds:{};
     // Safely reconstruct eligible new-game sync tickets after IDs are replaced
     // by authoritative cloud IDs. Never transfer a ticket to a different game.
     S.cloud.safeSyncGames={};
