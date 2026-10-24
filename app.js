@@ -1758,7 +1758,7 @@ async function safeSyncOwnedGame(g){
         // A prior guarded upload can insert a play (whose trigger bumps game
         // revision) before it publishes a final snapshot.
         // Recovery is deferred until exact play identity and state checks.
-        if(!t.lastSnapshotHash||Number(cloud.revision)<=rev||
+        if(Number(cloud.revision)<=rev||
            Number(cloud.revision)-rev>20||cloud.status!=="live"||
            cloud.created_by!==cloudUser.id)
           throw Error("Cloud game version changed unexpectedly. Automatic overwriting blocked.");
@@ -1774,6 +1774,7 @@ async function safeSyncOwnedGame(g){
       const remoteActive=allCloudPlays.filter(p=>!p.deleted_at);
       const knownIds=new Map(Object.entries(S.cloud.playIds||{})
         .map(([localId,id])=>[id,localId]));
+      // First-game interrupted uploads can be verified even before a completed snapshot.
       // Never adopt another user's play, an unknown row, or a modified play.
       // Tombstoned rows are intentionally retained for the audit trail.
       if(!remoteActive.length||remoteActive.some(p=>{
@@ -1916,7 +1917,7 @@ async function safeSyncOwnedGame(g){
         playRevision=Number(saved.revision||1);
         activeCloud.push({id:playId,sequence:nextCloudSequence,revision:playRevision,event_data:payload.p_event_data});
         nextCloudSequence++;
-        rev++;t.lastRevision=rev;S.cloud.deleteRevisions[`games:${gameId}`]=rev;
+        rev++; // Revisions are acknowledged only after final game publish.
       }else if(S.cloud.playHashes[p.id]!==hash){
         const current=requireData(await SB.from("plays").select("event_data")
           .eq("id",playId).single());
@@ -1937,7 +1938,7 @@ async function safeSyncOwnedGame(g){
             .eq("id",playId).eq("revision",playRevision).select("id,revision"))||[];
           if(result.length!==1)throw Error("Play changed during upload; data protected.");
           playRevision=Number(result[0].revision);
-          rev++;t.lastRevision=rev;S.cloud.deleteRevisions[`games:${gameId}`]=rev;
+          rev++; // Revisions are acknowledged only after final game publish.
         }
       }
       S.cloud.playHashes[p.id]=hash;
@@ -4045,7 +4046,7 @@ function recordNow(){
   g.possession=after.possession;g.down=after.down;g.distance=after.distance;g.ballSpot=after.ballSpot;
   g.ourScore=displayedOurScore(g);
   selectedStatsGameId=g.id;
-  persist();renderLiveGame();
+  persist();scheduleSafeSync(1200);renderLiveGame();
 
   if(p.type==="Pass"&&p.sub==="Intercepted")toast(`${g.opponent} ball — 1st down`);
   else if(p.extras?.includes("Fumble Lost"))toast(`${g.opponent} ball — 1st down`);
@@ -4055,7 +4056,7 @@ function recordNow(){
   resetFlow();
   if(scoredTD)showTryMenu();
 }
-$("#undo").addEventListener("click",()=>{const g=currentGame();if(!g||!g.plays.length)return toast("Nothing to undo");const removed=g.plays.pop();noteDeletedPlay(g,removed);rebuildGameState(g);g.ourScore=displayedOurScore(g);persist();renderLiveGame();toast("Last play removed")});
+$("#undo").addEventListener("click",()=>{const g=currentGame();if(!g||!g.plays.length)return toast("Nothing to undo");const removed=g.plays.pop();noteDeletedPlay(g,removed);rebuildGameState(g);g.ourScore=displayedOurScore(g);persist();scheduleSafeSync(1200);renderLiveGame();toast("Last play removed")});
 
 function player(id){return S.roster.find(p=>p.id===id)}
 function pname(id){let p=player(id);return p?`#${p.jersey} ${p.name}`:"#?"}
@@ -4085,7 +4086,7 @@ function renderRecent(){
   const g=currentGame();if(!g){$("#recent").innerHTML='<span class="muted">No game open.</span>';return}
   const arr=[...g.plays].reverse();
   $("#recent").innerHTML=arr.length?arr.map(p=>`<div class="play"><div class="playtop"><div><strong>${esc(ptext(p))}</strong><div class="muted">${new Date(p.ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</div></div><div class="playactions"><button class="edit-play" data-id="${p.id}">Edit</button><button class="del delete-play" data-id="${p.id}">Delete</button></div></div></div>`).join(""):'<span class="muted">No plays yet.</span>';
-  $$(".delete-play").forEach(b=>b.addEventListener("click",()=>{const removed=g.plays.find(p=>p.id===b.dataset.id);if(!removed)return;noteDeletedPlay(g,removed);g.plays=g.plays.filter(p=>p.id!==b.dataset.id);rebuildGameState(g);g.ourScore=displayedOurScore(g);persist();renderLiveGame();toast("Play deleted")}));
+  $$(".delete-play").forEach(b=>b.addEventListener("click",()=>{const removed=g.plays.find(p=>p.id===b.dataset.id);if(!removed)return;noteDeletedPlay(g,removed);g.plays=g.plays.filter(p=>p.id!==b.dataset.id);rebuildGameState(g);g.ourScore=displayedOurScore(g);persist();scheduleSafeSync(1200);renderLiveGame();toast("Play deleted")}));
   $$(".edit-play").forEach(b=>b.addEventListener("click",()=>openEditor(b.dataset.id)))
 }
 function playerOptions(selected){return S.roster.map(p=>`<option value="${p.id}" ${p.id===selected?"selected":""}>#${p.jersey} ${esc(p.name)}</option>`).join("")}
