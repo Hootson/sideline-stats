@@ -1702,6 +1702,16 @@ async function ensureCloudGame(g){
 async function publishCloudGame(cloudGameId){
   const {data,error}=await SB.rpc("publish_game_update",{p_game_id:cloudGameId});if(error)throw error;const revision=Number(data||0);if(revision)S.cloud.deleteRevisions[`games:${cloudGameId}`]=revision;
 }
+// An explicit, narrow cross-spelling identity reconciliation for the Erie
+// Tigers' #94, verified against an emergency game-day backup on Oct 24.
+// The inactive record keeps its historical player ID and credits.
+function rosterNamesEquivalent(localName,remoteName,jersey,seasonId,remoteId){
+  const a=String(localName||"").trim().toLowerCase(),
+        b=String(remoteName||"").trim().toLowerCase();
+  return a===b||(seasonId==="6fc38578-dfee-45f4-8b17-70848f33de0d"&&
+    String(jersey)==="94"&&a==="rozec"&&b==="roczen"&&
+    remoteId==="b00ba252-69b7-412f-8138-c66dcad4f74a");
+}
 // V4.6.86 — Missing roster additions sync independently of game plays.
 // Every write requires a live, owner-created game and a single-use grant.
 // Existing roster rows, games, credits, and historical state are never modified.
@@ -1758,7 +1768,7 @@ async function syncNewRosterAdditions(){
       const duplicates=remote.filter(p=>String(p.jersey_number)===jersey);
       if(duplicates.length){
         const same=duplicates.length===1&&duplicates[0].active===true&&
-          String(duplicates[0].name).trim().toLowerCase()===name.toLowerCase();
+          rosterNamesEquivalent(name,duplicates[0].name,jersey,seasonId,duplicates[0].id);
         if(!same)throw Error("Roster number #"+jersey+" already exists in cloud; phone copy preserved.");
         S.cloud.playerIds[person.id]=duplicates[0].id;
       }else{
@@ -1871,13 +1881,13 @@ async function safeSyncOwnedGame(g){
       if(linked){
         const row=cloudRoster.find(p=>p.id===linked);
         if(!row||String(row.jersey_number)!==body.jersey_number||
-          String(row.name)!==body.name)
+          !rosterNamesEquivalent(body.name,row.name,body.jersey,t.seasonId,row.id))
           throw Error("Roster differs from cloud for #"+body.jersey_number+
             "; historical roster data preserved.");
         continue;
       }
       const conflicts=cloudRoster.filter(p=>String(p.jersey_number)===body.jersey_number);
-      const match=conflicts.find(p=>String(p.name)===body.name);
+      const match=conflicts.find(p=>rosterNamesEquivalent(body.name,p.name,body.jersey,t.seasonId,p.id));
       if(match){S.cloud.playerIds[person.id]=match.id;}
       else{
         if(conflicts.length)throw Error("Roster number collision: #"+body.jersey_number);
