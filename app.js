@@ -4387,7 +4387,20 @@ async function inviteSnapTracker(){
       throw new Error("Cloud game identity differs. Snap Tracker sharing stopped to protect the game.");
     if(S.activeGameId!==g.id||S.cloud?.teamId==null)
       throw new Error("The active game changed. Open the game and retry Snap Tracker sharing.");
-    const {data,error}=await SB.rpc("create_snap_tracker_invite",{p_game_id:cloudGameId,p_expires_hours:48});
+    // One-use, narrowly scoped permission for this invitation RPC only.
+    // Supabase independently verifies signed-in team management and access.
+    const inviteGrant={active:true,startedAt:Date.now(),gameId:cloudGameId};
+    if(window.SidelineSnapInviteWriteGrant?.active)
+      throw new Error("Another Snap Tracker invitation is being created.");
+    window.SidelineSnapInviteWriteGrant=inviteGrant;
+    let inviteResult;
+    try{
+      inviteResult=await SB.rpc("create_snap_tracker_invite",{p_game_id:cloudGameId,p_expires_hours:48});
+    }finally{
+      inviteGrant.active=false;
+      if(window.SidelineSnapInviteWriteGrant===inviteGrant)window.SidelineSnapInviteWriteGrant=null;
+    }
+    const {data,error}=inviteResult;
     if(error)throw error;
     const row=Array.isArray(data)?data[0]:data;
     if(!row?.token)throw new Error("Invite link was not created");
