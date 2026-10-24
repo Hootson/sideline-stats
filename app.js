@@ -22,6 +22,7 @@ if(!S.cloud.gameIds)S.cloud.gameIds={};
 if(!S.cloud.deletedGames)S.cloud.deletedGames={};
 if(!S.cloud.removedFromDevice)S.cloud.removedFromDevice={};
 if(!S.cloud.safeSyncGames)S.cloud.safeSyncGames={};
+if(!S.cloud.pendingPlayDeletes)S.cloud.pendingPlayDeletes={};
 if(!S.cloud.playIds)S.cloud.playIds={};
 if(!S.cloud.playHashes)S.cloud.playHashes={};
 if(!S.cloud.gameHashes)S.cloud.gameHashes={};
@@ -1654,6 +1655,18 @@ function safeSyncEligible(g){
     &&!S.cloud?.removedFromDevice?.[S.cloud.gameIds?.[g.id]]);
 }
 function safeSyncFingerprint(g){const v={...g};delete v.cloudRevision;return simpleHash(v)}
+function noteDeletedPlay(g,p){
+  if(!safeSyncEligible(g)||!p?.id)return;
+  const id=S.cloud?.playIds?.[p.id];
+  if(!id)return; // Never-uploaded plays need no cloud deletion.
+  if(!S.cloud.pendingPlayDeletes)S.cloud.pendingPlayDeletes={};
+  S.cloud.pendingPlayDeletes[p.id]={
+    cloudId:id,gameId:S.cloud?.gameIds?.[g.id]||S.cloud?.safeSyncGames?.[g.id]?.cloudId||null,
+    localGameId:g.id,seasonId:S.cloud.seasonId,
+    knownRevision:Number(S.cloud.deleteRevisions?.[`plays:${id}`]||0),
+    removedAt:new Date().toISOString()
+  };
+}
 function safeSyncPending(){return (S.games||[]).some(g=>safeSyncEligible(g)
   &&S.cloud.safeSyncGames[g.id].lastSnapshotHash!==safeSyncFingerprint(g))}
 function scheduleSafeSync(delay=5000){
@@ -1677,7 +1690,7 @@ async function safeSyncOwnedGame(g){
     throw Error("Duplicate local snap IDs: cloud backup paused");
   const grant={active:true,startedAt:Date.now(),gameId:null,
     seasonId:t.seasonId,opponent:copy.opponent,week:Number(copy.week),
-    playIds:new Set(),creditIds:new Set(),penaltyIds:new Set(),snapIds:new Set(),
+    playIds:new Set(),playDeleteIds:new Set(),creditIds:new Set(),penaltyIds:new Set(),snapIds:new Set(),
     rosterRows:new Set()};
   if(window.SidelineSafeWriteGrant)throw Error("Another protected upload is active");
   window.SidelineSafeWriteGrant=grant;
@@ -3898,7 +3911,7 @@ function recordNow(){
   resetFlow();
   if(scoredTD)showTryMenu();
 }
-$("#undo").addEventListener("click",()=>{const g=currentGame();if(!g||!g.plays.length)return toast("Nothing to undo");g.plays.pop();rebuildGameState(g);g.ourScore=displayedOurScore(g);persist();renderLiveGame();toast("Last play removed")});
+$("#undo").addEventListener("click",()=>{const g=currentGame();if(!g||!g.plays.length)return toast("Nothing to undo");const removed=g.plays.pop();noteDeletedPlay(g,removed);rebuildGameState(g);g.ourScore=displayedOurScore(g);persist();renderLiveGame();toast("Last play removed")});
 
 function player(id){return S.roster.find(p=>p.id===id)}
 function pname(id){let p=player(id);return p?`#${p.jersey} ${p.name}`:"#?"}
@@ -3928,7 +3941,7 @@ function renderRecent(){
   const g=currentGame();if(!g){$("#recent").innerHTML='<span class="muted">No game open.</span>';return}
   const arr=[...g.plays].reverse();
   $("#recent").innerHTML=arr.length?arr.map(p=>`<div class="play"><div class="playtop"><div><strong>${esc(ptext(p))}</strong><div class="muted">${new Date(p.ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</div></div><div class="playactions"><button class="edit-play" data-id="${p.id}">Edit</button><button class="del delete-play" data-id="${p.id}">Delete</button></div></div></div>`).join(""):'<span class="muted">No plays yet.</span>';
-  $$(".delete-play").forEach(b=>b.addEventListener("click",()=>{g.plays=g.plays.filter(p=>p.id!==b.dataset.id);rebuildGameState(g);g.ourScore=displayedOurScore(g);persist();renderLiveGame();toast("Play deleted")}));
+  $$(".delete-play").forEach(b=>b.addEventListener("click",()=>{const removed=g.plays.find(p=>p.id===b.dataset.id);if(!removed)return;noteDeletedPlay(g,removed);g.plays=g.plays.filter(p=>p.id!==b.dataset.id);rebuildGameState(g);g.ourScore=displayedOurScore(g);persist();renderLiveGame();toast("Play deleted")}));
   $$(".edit-play").forEach(b=>b.addEventListener("click",()=>openEditor(b.dataset.id)))
 }
 function playerOptions(selected){return S.roster.map(p=>`<option value="${p.id}" ${p.id===selected?"selected":""}>#${p.jersey} ${esc(p.name)}</option>`).join("")}
