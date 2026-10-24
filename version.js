@@ -1,4 +1,4 @@
-window.SIDELINE_STATS_VERSION="4.6.77";
+window.SIDELINE_STATS_VERSION="4.6.81";
 
 // Cloud/logo/score safety repairs.
 (()=>{
@@ -101,7 +101,18 @@ window.SIDELINE_STATS_VERSION="4.6.77";
       if(table==='plays'){
         if(method==='POST')return rows.every(r=>r.game_id===grant.gameId&&grant.playIds.has(r.id)&&
           Number.isInteger(Number(r.sequence))&&Number(r.sequence)>0);
-        if(method==='PATCH')return !!eqId&&grant.playIds.has(eqId)&&body.deleted_at===undefined;
+        if(method==='PATCH'){
+          // A new-game tombstone may only target the explicitly verified play,
+          // game and revision. No generic deletions or historical writes.
+          if(body.deleted_at!==undefined)
+            return !!eqId&&grant.playDeleteIds?.has(eqId)&&param('game_id')===grant.gameId&&
+              Number.isInteger(Number(param('revision')))&&Number(param('revision'))>0&&
+              Object.keys(body).sort().join(',')==='deleted_at,revision'&&
+              typeof body.deleted_at==='string'&&!Number.isNaN(Date.parse(body.deleted_at))&&
+              Number(body.revision)===Number(param('revision'))+1&&
+              parsed.searchParams.get('deleted_at')==='is.null';
+          return !!eqId&&grant.playIds.has(eqId)&&body.deleted_at===undefined;
+        }
         return false;
       }
       if(table==='play_credits'){
