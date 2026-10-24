@@ -1,4 +1,4 @@
-window.SIDELINE_STATS_VERSION="4.6.76";
+window.SIDELINE_STATS_VERSION="4.6.77";
 
 // Cloud/logo/score safety repairs.
 (()=>{
@@ -126,7 +126,27 @@ window.SIDELINE_STATS_VERSION="4.6.76";
       }
       return false;
     }
-    if(url.includes('/rest/v1/')&&['POST','PUT','PATCH','DELETE'].includes(method)&&!allowedGuardedWrite()){
+    // Only the current, verified game may request a Snap Tracker invite.
+    // All other RPCs and legacy writes remain quarantined.
+    function allowedSnapInviteRpc(){
+      if(method!=='POST'||typeof init?.body!=='string')return false;
+      const grant=window.SidelineSnapInviteWriteGrant;
+      if(!grant||!grant.active||Date.now()-grant.startedAt>15000)return false;
+      try{
+        const target=new URL(url,location.href);
+        if(target.origin!=='https://eyuvgzhkhcpwtcbmsvct.supabase.co'||
+           target.pathname!=='/rest/v1/rpc/create_snap_tracker_invite'||
+           target.search)return false;
+        const body=JSON.parse(init.body);
+        if(!body||Array.isArray(body)||
+           Object.keys(body).sort().join(',')!=='p_expires_hours,p_game_id'||
+           body.p_game_id!==grant.gameId||body.p_expires_hours!==48)return false;
+        // Consume permission at first use so it cannot authorize a second call.
+        grant.active=false;
+        return true;
+      }catch(_){return false}
+    }
+    if(url.includes('/rest/v1/')&&['POST','PUT','PATCH','DELETE'].includes(method)&&!allowedSnapInviteRpc()&&!allowedGuardedWrite()){
       console.warn('Cloud REST write blocked during safe rollback',method,url.split('?')[0]);
       return new Response(JSON.stringify({message:'Historical sync quarantined. Only guarded new-game uploads allowed.'}),{status:503,headers:{'Content-Type':'application/json'}});
     }
