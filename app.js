@@ -2003,7 +2003,7 @@ async function safeSyncOwnedGame(g){
       .eq("id",gameId).eq("revision",rev).select("revision"))||[];
     if(finished.length!==1)throw Error("Game changed during publish; retry safely.");
     rev=Number(finished[0].revision);
-    t.lastRevision=rev;t.cloudId=gameId;t.lastSnapshotHash=safeSyncFingerprint(g);t.lastError=null;
+    t.lastRevision=rev;t.cloudId=gameId;t.lastSnapshotHash=safeSyncFingerprint(copy);t.lastError=null;
     S.cloud.deleteRevisions[`games:${gameId}`]=rev;
     S.cloud.gameHashes[g.id]=simpleHash(buildCloudGamePayload(copy));
     S.cloud.lastSyncAt=new Date().toISOString();
