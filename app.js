@@ -1774,15 +1774,44 @@ async function safeSyncOwnedGame(g){
       const remoteActive=allCloudPlays.filter(p=>!p.deleted_at);
       const knownIds=new Map(Object.entries(S.cloud.playIds||{})
         .map(([localId,id])=>[id,localId]));
-      // First-game interrupted uploads can be verified even before a completed snapshot.
-      // Never adopt another user's play, an unknown row, or a modified play.
-      // Tombstoned rows are intentionally retained for the audit trail.
-      if(!remoteActive.length||remoteActive.some(p=>{
-        const localId=knownIds.get(p.id);
-        return !localId||p.created_by!==cloudUser.id||
-          p.event_data?.local_id!==localId||
-          Number(S.cloud.deleteRevisions?.[`plays:${p.id}`]||0)!==Number(p.revision);
-      }))throw Error("Cloud revision differs and active plays are not all verified device uploads.");
+      const pending=S.cloud.pendingPlayDeletes||{};
+      const adopt=[];
+      const seen=new Set();
+      // A prior upload may have inserted a play but failed before its revision
+      // was persisted, or before its credits were uploaded. Only the ORIGINAL
+      // revision 1 of a known device play may be recovered without a checkpoint.
+      // Deleted-local plays need an explicit tombstone (or a previously
+      // acknowledged snapshot) as evidence of intent to remove them.
+      if(!remoteActive.length)throw Error("Cloud revision differs and no verifiable live plays remain.");
+      for(const p of remoteActive){
+        const localId=String(p.event_data?.local_id||"");
+        const mapped=!!localId&&S.cloud.playIds?.[localId]===p.id;
+        const tomb=pending[localId];
+        const marked=!!tomb&&tomb.cloudId===p.id&&tomb.localGameId===g.id&&
+          tomb.gameId===gameId&&tomb.seasonId===t.seasonId;
+        const remembered=knownIds.get(p.id)===localId;
+        const recorded=Number(S.cloud.deleteRevisions?.[`plays:${p.id}`]||0);
+        const validRevision=recorded===Number(p.revision)||
+          (recorded===0&&Number(p.revision)===1&&(mapped||marked));
+        const stillLocal=(copy.plays||[]).some(x=>x.id===localId);
+        const deletionIntent=marked||(!stillLocal&&!!t.lastSnapshotHash&&
+          !!S.cloud.playHashes?.[localId]&&mapped);
+        if(!localId||seen.has(localId)||p.created_by!==cloudUser.id||
+           !(mapped||marked||remembered)||!validRevision||
+           (!stillLocal&&!deletionIntent))
+          throw Error("Cloud revision differs and active plays are not all verified device uploads.");
+        seen.add(localId);
+        adopt.push({p,localId,marked,tomb,recorded});
+      }
+      // Apply recovered checkpoints only after ALL candidate plays pass.
+      for(const {p,localId,marked,tomb,recorded} of adopt){
+        if(marked&&!S.cloud.playIds?.[localId])S.cloud.playIds[localId]=p.id;
+        if(recorded===0){
+          S.cloud.deleteRevisions[`plays:${p.id}`]=1;
+          if(marked&&Number(tomb.knownRevision||0)===0)tomb.knownRevision=1;
+        }
+      }
+      persist({skipCloud:true});
       const latest=remoteActive[remoteActive.length-1];
       const h=revisionRecoveryHeader,s=latest.state_after||{};
       const same=(a,b)=>Number(a)===Number(b);
@@ -1833,8 +1862,12 @@ async function safeSyncOwnedGame(g){
       const penalties=requireData(await SB.from("penalties")
         .select("id,accepted,metadata").eq("play_id",remote.id))||[];
       for(const credit of credits){
-        if(!Object.entries(S.cloud.creditIds||{}).some(([key,id])=>
-          key.startsWith(localId+"::")&&id===credit.id))
+        const mapped=Object.entries(S.cloud.creditIds||{}).some(([key,id])=>
+          key.startsWith(localId+"::")&&id===credit.id);
+        // Interrupted credit uploads may not have persisted their ID map.
+        // The credit's database play_id is already verified above, and its
+        // original local_play_id must match before deactivation is permitted.
+        if(!mapped&&credit.metadata?.local_play_id!==localId)
           throw Error("Unverified stat credit for deleted play. Cloud preserved.");
       }
       for(const penalty of penalties)if(S.cloud.penaltyIds?.[localId]!==penalty.id)
