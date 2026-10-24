@@ -36,6 +36,15 @@
 <!-- This shared, token-scoped page must not load the main app's write-protection fetch wrapper. -->
 <script>window.SIDELINE_STATS_VERSION="4.6.78";</script>
 <script src="./snap-tracker.js?release=4.6.78-roster-load"></script>
-<script src="./pwa.js"></script>
+<!-- Standalone Snap Tracker only needs offline caching; don't load the main app's account/paywall scripts. -->
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('./service-worker.js?release=4.6.78-shared-snaps',{updateViaCache:'none'})
+      .then(reg=>reg.update())
+      .catch(error=>console.warn('Shared Snap Tracker offline setup unavailable',error));
+  });
+}
+</script>
 </body>
 </html>
