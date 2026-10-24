@@ -4365,9 +4365,28 @@ async function inviteSnapTracker(){
   if(role!=="statkeeper")return toast("Only the team statkeeper can create this invite");
   const btn=$("#inviteSnapTrackerBtn");if(btn){btn.disabled=true;btn.textContent="Creating Link…"}
   try{
-    await syncCloudNow();
-    const cloudGameId=S.cloud?.gameIds?.[g.id];
-    if(!cloudGameId)throw new Error("This game has not synced to the cloud yet");
+    // Invitations never invoke the quarantined legacy game uploader.
+    // Only the guarded new-game worker may create a missing cloud game.
+    let cloudGameId=S.cloud?.gameIds?.[g.id]||S.cloud?.safeSyncGames?.[g.id]?.cloudId||null;
+    if(!cloudGameId&&safeSyncEligible(g)){
+      scheduleSafeSync(1200);
+      for(let i=0;i<32&&!cloudGameId;i++){
+        await new Promise(resolve=>setTimeout(resolve,250));
+        cloudGameId=S.cloud?.gameIds?.[g.id]||S.cloud?.safeSyncGames?.[g.id]?.cloudId||null;
+      }
+    }
+    if(!cloudGameId)throw new Error("This game needs to finish its protected cloud upload before sharing the Snap Tracker link.");
+    // Confirm the mapping against the cloud game without replacing any phone data.
+    const {data:remote,error:identityError}=await SB.from("games")
+      .select("id,season_id,opponent_name,week_number,game_type,status")
+      .eq("id",cloudGameId).eq("season_id",S.cloud.seasonId).maybeSingle();
+    if(identityError)throw identityError;
+    if(!remote||remote.opponent_name!==g.opponent||
+       Number(remote.week_number)!==Number(g.week)||
+       remote.game_type!==(g.gameType||"regular")||remote.status==="archived")
+      throw new Error("Cloud game identity differs. Snap Tracker sharing stopped to protect the game.");
+    if(S.activeGameId!==g.id||S.cloud?.teamId==null)
+      throw new Error("The active game changed. Open the game and retry Snap Tracker sharing.");
     const {data,error}=await SB.rpc("create_snap_tracker_invite",{p_game_id:cloudGameId,p_expires_hours:48});
     if(error)throw error;
     const row=Array.isArray(data)?data[0]:data;
