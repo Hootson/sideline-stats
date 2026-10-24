@@ -1932,10 +1932,42 @@ async function safeSyncOwnedGame(g){
       persist({skipCloud:true});
     }
     const cloudSnaps=requireData(await SB.from("snap_events")
-      .select("id,snap_number,quarter,snap_kind,active").eq("game_id",gameId)
-      .eq("active",true).order("snap_number"))||[];
-    if(cloudSnaps.length>(copy.snapRecords||[]).length)
-      throw Error("Cloud has extra snaps; automatic snap deletion blocked.");
+      .select("id,snap_number,quarter,snap_kind,active,source_invite_id,client_created_at")
+      .eq("game_id",gameId).eq("active",true).order("snap_number"))||[];
+    if(cloudSnaps.length>(copy.snapRecords||[]).length){
+      // Shared Snap Tracker is authoritative for independently created snaps.
+      // Only import verified extras from this game's invitation. Never infer
+      // that absent remote snaps should be deleted or that local snaps match.
+      const start=(copy.snapRecords||[]).length;
+      const extra=cloudSnaps.slice(start);
+      if(extra.some((row,i)=>!row.source_invite_id||
+         Number(row.snap_number)!==start+i+1))
+        throw Error("Unexpected extra cloud snaps; no snap history overwritten.");
+      // Local game must still match the preflight copy before importing.
+      if((g.snapRecords||[]).length!==start)
+        throw Error("Phone snaps changed while checking shared tracker; retry.");
+      const localByCloudId=new Map((S.roster||[]).map(p=>
+        [S.cloud.playerIds?.[p.id]||p.id,p.id]));
+      const imports=[];
+      for(const row of extra){
+        checked();
+        const parts=requireData(await SB.from("snap_participants")
+          .select("player_id").eq("snap_event_id",row.id))||[];
+        const ids=parts.map(x=>localByCloudId.get(x.player_id));
+        if(ids.some(id=>!id)||new Set(ids).size!==ids.length)
+          throw Error("Shared Snap Tracker participants do not match phone roster.");
+        const ts=Date.parse(row.client_created_at||"");
+        if(!Number.isFinite(ts))throw Error("Shared snap time is invalid.");
+        imports.push({id:row.id,ts,quarter:Number(row.quarter||1),
+          snapKind:row.snap_kind||"regular",playerIds:ids});
+      }
+      checked();
+      if((g.snapRecords||[]).length!==start)
+        throw Error("Phone snaps changed before shared tracker import.");
+      g.snapRecords.push(...imports);
+      copy.snapRecords.push(...imports.map(x=>({...x,playerIds:[...x.playerIds]})));
+      persist({skipCloud:true});
+    }
     for(let i=0;i<cloudSnaps.length;i++){
       const row=cloudSnaps[i],r=copy.snapRecords[i];
       if(Number(row.snap_number)!==i+1||Number(row.quarter||1)!==Number(r?.quarter||1)
@@ -1971,7 +2003,7 @@ async function safeSyncOwnedGame(g){
       .eq("id",gameId).eq("revision",rev).select("revision"))||[];
     if(finished.length!==1)throw Error("Game changed during publish; retry safely.");
     rev=Number(finished[0].revision);
-    t.lastRevision=rev;t.cloudId=gameId;t.lastSnapshotHash=digest;t.lastError=null;
+    t.lastRevision=rev;t.cloudId=gameId;t.lastSnapshotHash=safeSyncFingerprint(g);t.lastError=null;
     S.cloud.deleteRevisions[`games:${gameId}`]=rev;
     S.cloud.gameHashes[g.id]=simpleHash(buildCloudGamePayload(copy));
     S.cloud.lastSyncAt=new Date().toISOString();
