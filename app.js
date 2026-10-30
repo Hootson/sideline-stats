@@ -172,12 +172,24 @@ async function recoverSavedCloudLogos(){
 let persistCloudUiRefreshPending=false;
 function persist(opts={}){
   let saved=false;
+  // Every post-recovery mutation gets a larger sequence than the last durable
+  // checkpoint. Startup can therefore choose the newest verified snapshot.
+  if(window.SidelineDurableRecovery?.isActive())S.localPersistVersion=Number(S.localPersistVersion||0)+1;
   try{
     const lightState=window.SidelineLogoRecovery?.snapshotWithoutCachedImages?.(S,S.cloud?.teamId)||S;
-    const result=window.SidelineStorageSnapshot.save(localStorage,KEY,RECOVERY_KEY,lightState);
-    saved=!!(result.mainSaved||result.recoverySaved);
-    if(!saved)throw Error("No device snapshot was committed");
-    if(result.usedCompactMain)console.warn("Device snapshot saved without cached images",result);
+    if(window.SidelineDurableRecovery?.isActive()&&S.durableRecoveryGameId){
+      // The IndexedDB copy is authoritative in this device's quota recovery
+      // mode. Never delete the last localStorage primary to make room.
+      const queued=window.SidelineDurableRecovery.saveLater(lightState,S.durableRecoveryGameId);
+      queued.catch(e=>{console.error("Durable local save failed",e);
+        toast("Device recovery backup could not save. Keep the exported JSON backup.");});
+      saved=true;
+    }else{
+      const result=window.SidelineStorageSnapshot.save(localStorage,KEY,RECOVERY_KEY,lightState);
+      saved=!!(result.mainSaved||result.recoverySaved);
+      if(!saved)throw Error("No device snapshot was committed");
+      if(result.usedCompactMain)console.warn("Device snapshot saved without cached images",result);
+    }
   }catch(e){console.error("Save failed",e);toast("Local save failed. Export a backup. Do not clear browser data.")}
   if(saved&&!opts.skipCloud&&typeof scheduleSafeSync==="function"){scheduleSafeSync(5000);scheduleRosterAddSync(1800)}
   // Local-first: coalesce UI refreshes instead of scheduling one timer per saved play.
@@ -972,6 +984,8 @@ async function loadTeamFromCloud(options={}){
     let voiceCorrections=S.cloud?.teamId===team.id&&S.team?.voiceCorrections?{...S.team.voiceCorrections}:{};
     const vcq=await SB.from("team_voice_corrections").select("heard_text,resolved_value").eq("team_id",team.id);
     if(!vcq.error)for(const row of vcq.data||[]){const value=row.resolved_value?.value??row.resolved_value?.text??row.resolved_value;if(typeof value==="string"&&row.heard_text)voiceCorrections[row.heard_text]=value}else console.warn("Voice corrections could not be loaded",vcq.error);
+    if(priorSeasonId!==season.id&&window.SidelineDurableRecovery?.isActive())
+      await window.SidelineDurableRecovery.deactivate();
     S={team:{name:team.name,identifier:team.team_identifier||"",grade:team.grade||"5th Grade",season:season.name||String(season.season_year||"Season"),primary:team.primary_color||"#177b46",secondary:team.accent_color||"#f0b33b",logoData:team.logo_data||null,snapMinimum:Number(team.snap_minimum||10),playbook:Array.isArray(team.playbook)?team.playbook:[],coachDemoPlaybook,voiceCorrections,planIntent:team.intended_plan||"team_pro"},roster,games:localGames,activeGameId:options.substituteGameId||((refreshing&&priorActiveCloudId&&localGames.some(x=>x.id===priorActiveCloudId))?priorActiveCloudId:null),flow:{},editingPlayId:null,cloud};
     S.cloud.removedFromDevice=priorSeasonId===season.id?priorRemovedFromDevice:{};
     S.cloud.archivedGameIds=priorSeasonId===season.id?priorArchivedGameIds:{};
@@ -2728,12 +2742,16 @@ $("#coachAnalyticsContent")?.addEventListener("change",e=>{
   if(e.target.id==="coachMetricSelect"){coachMetric=e.target.value;renderCoach()}
 });
 $("#editTeamBtn").addEventListener("click",()=>{populateSetup();go("setup")});
-$("#resetAllBtn").addEventListener("click",()=>{
+$("#resetAllBtn").addEventListener("click",async()=>{
   const first=confirm("Reset ALL Sideline Stats data on this device? This permanently deletes the team, roster, games and stats.");
   if(!first)return;
   const second=confirm("Are you sure? This removes the local copy from this device. Cloud-linked team data remains stored in Supabase.");
   if(!second)return toast("Reset cancelled");
   try{
+    // Explicit reset must retire the old IndexedDB snapshot first, or the next
+    // startup could resurrect the deleted local team.
+    if(window.SidelineDurableRecovery?.isActive())
+      await window.SidelineDurableRecovery.deactivate();
     localStorage.removeItem(KEY);
     localStorage.removeItem(RECOVERY_KEY);
     MIGRATION_KEYS.forEach(k=>localStorage.removeItem(k));
@@ -5762,25 +5780,16 @@ function installVerifiedCloudRecovery(){
       downloadJson({format:"sideline-local-emergency-backup",backupVersion:1,
         exportedAt:new Date().toISOString(),data:snapshot},name);
     },
-    save:(next,recoveredId)=>{
-      // Write the next complete state before changing any in-memory state.
-      // If Safari's main slot is full, storage-snapshot may verify a complete
-      // recovery slot instead; load() already supports that fallback.
-      const snapshot=window.SidelineLogoRecovery?.snapshotWithoutCachedImages?.(next,next.cloud?.teamId)||next;
-      const result=window.SidelineStorageSnapshot.save(localStorage,KEY,RECOVERY_KEY,snapshot);
-      if(!(result.mainSaved||result.recoverySaved))return false;
-      const savedMain=localStorage.getItem(KEY);
-      const saved=window.SidelineStorageSnapshot.parse(savedMain||localStorage.getItem(RECOVERY_KEY));
-      const restored=next.games.find(g=>g.id===recoveredId);
-      const verify=restored&&saved?.games?.find(g=>g.id===restored.id);
-      if(!verify||saved?.team?.name!==next.team?.name||
-        saved.games.length!==next.games.length||
-        verify.plays.length!==restored.plays.length||
-        verify.snapRecords.length!==restored.snapRecords.length||
-        verify.plays.some((p,i)=>p.id!==restored.plays[i].id)||
-        verify.snapRecords.some((s,i)=>s.id!==restored.snapRecords[i].id)||
-        saved.cloud?.safeSyncGames?.[restored.id]?.lastSnapshotHash!==next.cloud.safeSyncGames[restored.id].lastSnapshotHash)
-        return false;
+    save:async(next,recoveredId)=>{
+      // Safari cannot atomically replace two full 9+ MB JSON snapshots. Stage
+      // both old copies plus the NEW state in IndexedDB, read them back, and
+      // only then reclaim the redundant old recovery slot if needed.
+      if(!window.SidelineDurableRecovery)throw Error("Durable local recovery module missing.");
+      next.localPersistVersion=Math.max(Number(S.localPersistVersion||0)+1,Date.now());
+      next.durableRecoveryGameId=recoveredId;
+      const result=await window.SidelineDurableRecovery.commitLocal(
+        next,recoveredId,window.SidelineStorageSnapshot);
+      if(!result.saved)return false;
       S=next;
       renderGameArea();renderSnaps();renderStats();syncChrome();updateCloudUI();
       return true;
@@ -5791,7 +5800,36 @@ function installVerifiedCloudRecovery(){
 normalizePlaybook();normalizeRoster();normalizeGames();populateSetup();syncChrome();renderRoster();initializeSnapSelections();
 installVerifiedCloudRecovery();
 if(teamExists())go("roster");else go("setup");
-if(cloudLinked())setTimeout(recoverSavedCloudLogos,0);
 $("#continueAfterConfirmationBtn")?.addEventListener("click",()=>{const clean=new URL(location.href);clean.searchParams.delete("accountConfirmed");clean.hash="";location.replace(clean.href)});
-initCloud();
+// Do not start cloud synchronization or accept navigation until the durable
+// on-device state has been checked. This prevents the older localStorage
+// snapshot from overwriting recovered play history on the next app launch.
+async function hydrateDurableRecoveryBeforeCloud(){
+  const body=document.body,oldPointer=body.style.pointerEvents;
+  body.style.pointerEvents="none";
+  try{
+    const result=await window.SidelineDurableRecovery?.activeSnapshot();
+    const stored=result?.state,localVersion=Number(S.localPersistVersion||0),
+      remoteVersion=Number(stored?.localPersistVersion||0);
+    if(stored&&remoteVersion>=localVersion&&
+      stored.cloud?.teamId===S.cloud?.teamId&&
+      stored.cloud?.seasonId===S.cloud?.seasonId&&
+      stored.team?.name===S.team?.name&&
+      Array.isArray(stored.games)&&Array.isArray(stored.roster)){
+      S=Object.assign({},empty,stored);
+      normalizePlaybook();normalizeRoster();normalizeGames();
+      populateSetup();syncChrome();renderRoster();initializeSnapSelections();
+      go(teamExists()?"roster":"setup");
+      toast("Verified game recovered from durable device storage");
+    }
+  }catch(e){
+    console.error("Durable recovery could not load; existing phone snapshot preserved",e);
+    toast("Recovery storage needs attention. Do not clear Safari data.");
+  }finally{
+    body.style.pointerEvents=oldPointer;
+    if(cloudLinked())setTimeout(recoverSavedCloudLogos,0);
+    initCloud();
+  }
+}
+void hydrateDurableRecoveryBeforeCloud();
 })();
