@@ -20,7 +20,7 @@
     }
     function error(message) { throw Error(message); }
     button.addEventListener("click", async () => {
-      if(root.SidelineRecoveryInProgress || root.SidelineSafeWriteGrant) {
+      if(root.SidelineRecoveryInProgress || root.SidelineSafeWriteGrant || !api.canRun()) {
         alert("Another game operation is running. Retry when it finishes."); return;
       }
       const state=api.getState(),client=api.getClient(),user=api.getUser();
@@ -144,7 +144,7 @@
           }
           snapsNew.push(record);
         }
-        if(api.getState()!==state || api.getState().cloud?.teamId!==teamId ||
+        if(!api.canRun() || api.getState()!==state || api.getState().cloud?.teamId!==teamId ||
           api.getState().cloud?.seasonId!==seasonId || api.fingerprint(g)!==sourceHash)
           error("Phone game changed during verification. Retry.");
         const final=await client.from("games").select("revision,status")
@@ -217,6 +217,8 @@
         next.cloud.lastSyncAt=new Date().toISOString();
         next.cloud.lastSyncError=null;
         next.cloud.remoteFingerprint=null;
+        if(!api.canRun() || api.getState()!==before || api.fingerprint(g)!==sourceHash)
+          error("The phone changed while preparing recovery. Nothing was replaced.");
         if(!api.save(next))error("Device storage could not verify the recovered snapshot. Backup kept.");
         alert("Recovered "+plays.length+" plays and "+snapsNew.length+" snaps on this phone.\n"+
           "No Supabase records were changed. Confirm the game and stats before finalizing.");
