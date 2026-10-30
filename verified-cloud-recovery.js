@@ -219,7 +219,7 @@
         next.cloud.remoteFingerprint=null;
         if(!api.canRun() || api.getState()!==before || api.fingerprint(g)!==sourceHash)
           error("The phone changed while preparing recovery. Nothing was replaced.");
-        if(!api.save(next))error("Device storage could not verify the recovered snapshot. Backup kept.");
+        if(!api.save(next,g.id))error("Device storage could not verify the recovered snapshot. Backup kept.");
         alert("Recovered "+plays.length+" plays and "+snapsNew.length+" snaps on this phone.\n"+
           "No Supabase records were changed. Confirm the game and stats before finalizing.");
       } catch(e) {
