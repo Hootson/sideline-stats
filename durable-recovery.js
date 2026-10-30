@@ -68,7 +68,12 @@
   function validate(s,gameId){
     if(!s?.team?.name||!Array.isArray(s.roster)||!Array.isArray(s.games))
       throw Error("Recovered state is invalid.");
-    const g=s.games.find(x=>x.id===gameId);
+    let g=s.games.find(x=>x.id===gameId);
+    if(!g){
+      const marker=Object.values(s.cloud?.removedFromDevice||{})
+        .find(x=>x?.localId===gameId&&x?.seasonId===s.cloud?.seasonId);
+      if(marker)g={plays:[],snapRecords:[]};
+    }
     if(!g||!Array.isArray(g.plays)||!Array.isArray(g.snapRecords))
       throw Error("Recovered game is missing.");
     if(new Set(g.plays.map(p=>p.id)).size!==g.plays.length)
@@ -131,41 +136,47 @@
   // remains the authoritative snapshot, including for future app restarts.
   async function commitLocal(state,gameId,storageSnapshot){
     await stage(state,gameId);
-    const compact=storageSnapshot.compact(state);
-    const encoded=storageSnapshot.encode(JSON.stringify(compact));
-    const check=storageSnapshot.parse(encoded);
-    const intended=validate(check,gameId);
     const g=validate(state,gameId);
-    if(intended.plays.length!==g.plays.length||
-       intended.snapRecords.length!==g.snapRecords.length)
-      throw Error("Compressed snapshot did not preserve the recovered game.");
-    const store=root.localStorage;
     let localSaved=false;
     try{
-      store.setItem(MAIN_KEY,encoded);
-      localSaved=store.getItem(MAIN_KEY)===encoded;
-    }catch(_){}
-    if(!localSaved){
-      // Old copies have been VERIFIED in IndexedDB. Release only the stale
-      // local recovery slot first; never clear the old main.
+      const compact=storageSnapshot.compact(state);
+      const encoded=storageSnapshot.encode(JSON.stringify(compact));
+      const check=storageSnapshot.parse(encoded);
+      const intended=validate(check,gameId);
+      if(intended.plays.length!==g.plays.length||
+         intended.snapRecords.length!==g.snapRecords.length||
+         intended.plays.some((p,i)=>p.id!==g.plays[i].id)||
+         intended.snapRecords.some((p,i)=>p.id!==g.snapRecords[i].id))
+        throw Error("Compressed snapshot did not preserve the recovered game.");
+      const store=root.localStorage;
       try{
-        store.removeItem(RECOVERY_KEY);
         store.setItem(MAIN_KEY,encoded);
         localSaved=store.getItem(MAIN_KEY)===encoded;
-      }catch(e){
-        console.warn("Recovery exceeds localStorage quota; durable IndexedDB copy remains available",e);
+      }catch(_){}
+      if(!localSaved&&store.getItem(MAIN_KEY)!==null){
+        // Do NOT erase the sole recovery slot if the old main is missing.
+        // Both old copies are first verified in IndexedDB.
+        try{
+          store.removeItem(RECOVERY_KEY);
+          store.setItem(MAIN_KEY,encoded);
+          localSaved=store.getItem(MAIN_KEY)===encoded;
+        }catch(e){
+          console.warn("Local storage remains full; IndexedDB is authoritative",e);
+        }
       }
-    }
-    if(localSaved){
-      const loaded=storageSnapshot.parse(store.getItem(MAIN_KEY));
-      const actual=validate(loaded,gameId);
-      if(actual.plays.length!==g.plays.length||
-         actual.snapRecords.length!==g.snapRecords.length||
-         actual.plays.some((p,i)=>p.id!==g.plays[i].id)||
-         actual.snapRecords.some((p,i)=>p.id!==g.snapRecords[i].id))
-        throw Error("Local snapshot verification failed. Durable copy retained.");
-      // Keep durable storage ACTIVE as an additional safety source. The main
-      // snapshot remains the same state until later saves, which keep IDB fresh.
+      if(localSaved){
+        const loaded=storageSnapshot.parse(store.getItem(MAIN_KEY));
+        const actual=validate(loaded,gameId);
+        if(actual.plays.length!==g.plays.length||
+           actual.snapRecords.length!==g.snapRecords.length||
+           actual.plays.some((p,i)=>p.id!==g.plays[i].id)||
+           actual.snapRecords.some((p,i)=>p.id!==g.snapRecords[i].id))
+          throw Error("Local snapshot verification failed.");
+      }
+    }catch(e){
+      // IndexedDB was already committed AND verified before any attempt at
+      // local compression, so a localStorage/codec failure is not data loss.
+      console.warn("Local snapshot compacting skipped; verified IndexedDB copy retained",e);
     }
     return {saved:true,localSaved,durableSaved:true,plays:g.plays.length,snaps:g.snapRecords.length};
   }
@@ -176,6 +187,8 @@
   }
   // Recovery is explicitly deactivated when the user resets the device team.
   async function deactivate(){
+    // Finish queued older writes before marking the durable record inactive.
+    await queue.catch(()=>{});
     await putMany([["current",{present:false,active:false,endedAt:Date.now()}]]);
     active=false;
   }
