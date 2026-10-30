@@ -70,10 +70,42 @@
       try{storage.setItem(key,encode(full));usedCompressedMain=true;mainSaved=true}
       catch(compressedFullError){
         const small=JSON.stringify(compact(state));
-        try{storage.setItem(key,encode(small));usedCompactMain=true;usedCompressedMain=true;mainSaved=true}
+        // Always keep a new fully verified data copy before reclaiming the
+        // previous large primary snapshot. Images can be restored separately;
+        // plays, rosters, snaps and sync identities must remain intact.
+        const compactEncoded=encode(small);
+        try{storage.setItem(key,compactEncoded);usedCompactMain=true;usedCompressedMain=true;mainSaved=true}
         catch(compactError){
-          const err=new Error("Browser storage quota prevented saving game data. Previous saved snapshot preserved.");
-          err.cause=compactError;throw err;
+          try{
+            // When two old snapshots fill Safari's localStorage quota, the
+            // recovery slot can often be replaced even though the main slot
+            // cannot grow. The latest *entire compact state* is committed to
+            // recovery BEFORE any prior primary snapshot is removed.
+            storage.setItem(recoveryKey,compactEncoded);
+            if(storage.getItem(recoveryKey)!==compactEncoded||
+               decode(storage.getItem(recoveryKey))!==small)
+              throw Error("Recovery snapshot verification failed");
+            recoverySaved=true;
+            lastRecoveryAt=Date.now();
+            // Only after the new recovery is verified do we reclaim the
+            // oversized primary. If this fails, retain the new recovery and
+            // surface an error instead of claiming the save was successful.
+            storage.removeItem(key);
+            if(storage.getItem(key)!==null)
+              throw Error("Old primary snapshot could not be released");
+            try{
+              storage.setItem(key,compactEncoded);
+              mainSaved=true;usedCompactMain=true;usedCompressedMain=true;
+            }catch(_){
+              // The verified recovery is the only snapshot. load() reads it
+              // before attempting obsolete migration keys.
+            }
+            return {usedCompactMain,usedCompressedMain,recoverySaved,mainSaved,
+              recoveryPrimary:!mainSaved,fullBytes:full.length*2};
+          }catch(recoveryError){
+            const err=new Error("Browser quota prevented saving. The previous primary snapshot was not intentionally cleared unless a new verified recovery was committed.");
+            err.cause=recoveryError;throw err;
+          }
         }
       }
     }
