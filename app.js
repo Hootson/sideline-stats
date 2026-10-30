@@ -107,17 +107,25 @@ function load(){
   // Safe rollback: new compressed snapshots must remain readable.
   const parse=(raw)=>window.SidelineStorageSnapshot.parse(raw);
   try{
-    let raw=localStorage.getItem(KEY);
-    if(!raw){
-      for(const k of MIGRATION_KEYS){raw=localStorage.getItem(k);if(raw)break}
-      if(raw)localStorage.setItem(KEY,raw);
-    }
+    // Recovery is a first-class verified snapshot. In a quota recovery the
+    // previous oversized main can be removed only AFTER a fresh recovery was
+    // committed; do not resurrect stale legacy migration keys first.
+    const raw=localStorage.getItem(KEY);
     const main=raw?parse(raw):null;
     if(main?.team?.name)return Object.assign({},empty,main);
     const recovery=localStorage.getItem(RECOVERY_KEY);
     if(recovery){
       const restored=parse(recovery);
       if(restored?.team?.name)return Object.assign({},empty,restored);
+    }
+    // Last resort for installations migrating from very old local keys.
+    if(!raw&&!recovery){
+      for(const k of MIGRATION_KEYS){
+        const legacyRaw=localStorage.getItem(k);
+        if(!legacyRaw)continue;
+        const legacy=parse(legacyRaw);
+        if(legacy?.team?.name)return Object.assign({},empty,legacy);
+      }
     }
     return main?Object.assign({},empty,main):JSON.parse(JSON.stringify(empty));
   }catch(e){
