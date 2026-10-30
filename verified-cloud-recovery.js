@@ -1,4 +1,4 @@
-/* V4.6.88 - on-demand, read-only recovery of a newer cloud game.
+/* V4.6.89 - on-demand, read-only recovery of a newer cloud game.
  * All cloud calls are SELECTs. No automatic cloud import, deletion, or overwrite. */
 (function(root) {
   "use strict";
@@ -219,7 +219,7 @@
         next.cloud.remoteFingerprint=null;
         if(!api.canRun() || api.getState()!==before || api.fingerprint(g)!==sourceHash)
           error("The phone changed while preparing recovery. Nothing was replaced.");
-        if(!api.save(next,g.id))error("Device storage could not verify the recovered snapshot. Backup kept.");
+        if(!await api.save(next,g.id))error("Device storage could not verify the recovered snapshot. Backup kept.");
         alert("Recovered "+plays.length+" plays and "+snapsNew.length+" snaps on this phone.\n"+
           "No Supabase records were changed. Confirm the game and stats before finalizing.");
       } catch(e) {
