@@ -5762,7 +5762,7 @@ function installVerifiedCloudRecovery(){
       downloadJson({format:"sideline-local-emergency-backup",backupVersion:1,
         exportedAt:new Date().toISOString(),data:snapshot},name);
     },
-    save:(next)=>{
+    save:(next,recoveredId)=>{
       // Write the next complete state before changing any in-memory state.
       // If Safari's main slot is full, storage-snapshot may verify a complete
       // recovery slot instead; load() already supports that fallback.
@@ -5771,7 +5771,7 @@ function installVerifiedCloudRecovery(){
       if(!(result.mainSaved||result.recoverySaved))return false;
       const savedMain=localStorage.getItem(KEY);
       const saved=window.SidelineStorageSnapshot.parse(savedMain||localStorage.getItem(RECOVERY_KEY));
-      const restored=next.games.find(g=>next.cloud?.safeSyncGames?.[g.id]?.lastSnapshotHash===safeSyncFingerprint(g));
+      const restored=next.games.find(g=>g.id===recoveredId);
       const verify=restored&&saved?.games?.find(g=>g.id===restored.id);
       if(!verify||saved?.team?.name!==next.team?.name||
         saved.games.length!==next.games.length||
