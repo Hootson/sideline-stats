@@ -171,17 +171,21 @@ async function recoverSavedCloudLogos(){
 
 let persistCloudUiRefreshPending=false;
 function persist(opts={}){
+  let saved=false;
   try{
     const lightState=window.SidelineLogoRecovery?.snapshotWithoutCachedImages?.(S,S.cloud?.teamId)||S;
     const result=window.SidelineStorageSnapshot.save(localStorage,KEY,RECOVERY_KEY,lightState);
+    saved=!!(result.mainSaved||result.recoverySaved);
+    if(!saved)throw Error("No device snapshot was committed");
     if(result.usedCompactMain)console.warn("Device snapshot saved without cached images",result);
   }catch(e){console.error("Save failed",e);toast("Local save failed. Export a backup. Do not clear browser data.")}
-  if(!opts.skipCloud&&typeof scheduleSafeSync==="function"){scheduleSafeSync(5000);scheduleRosterAddSync(1800)}
+  if(saved&&!opts.skipCloud&&typeof scheduleSafeSync==="function"){scheduleSafeSync(5000);scheduleRosterAddSync(1800)}
   // Local-first: coalesce UI refreshes instead of scheduling one timer per saved play.
   if(typeof updateCloudUI==="function"&&!persistCloudUiRefreshPending){
     persistCloudUiRefreshPending=true;
     setTimeout(()=>{persistCloudUiRefreshPending=false;try{updateCloudUI()}catch(e){console.warn(e)}},300);
   }
+  return saved;
 }
 
 function lastTeamStorageKey(){return cloudUser?.id?`${LAST_TEAM_KEY_PREFIX}${cloudUser.id}`:null}
@@ -594,6 +598,7 @@ function updateCloudUI(force){
   dot.className="cloud-dot"; acct?.classList.remove("connected");
   $("#cloudSignInBtn")?.classList.toggle("hidden",!!cloudUser); $("#cloudSignOutBtn")?.classList.toggle("hidden",!cloudUser);
   $("#cloudConnectTeamBtn")?.classList.toggle("hidden",!cloudUser||!teamExists()||cloudLinked()); $("#cloudLoadTeamBtn")?.classList.toggle("hidden",!cloudUser||cloudLinked()); $("#cloudRefreshBtn")?.classList.toggle("hidden",!cloudUser||!cloudLinked());
+  $("#cloudRecoverNewerGameBtn")?.classList.toggle("hidden",!cloudUser||!cloudLinked()||!isTeamStatkeeper()||!safeSyncPending());
   if(force==="unavailable"){dot.classList.add("warn");text.textContent="Local mode";meta.textContent="Cloud library unavailable. Game tracking still works offline.";return}
   if(!cloudUser){text.textContent="Local mode";meta.textContent="Your existing data stays on this device until you sign in."; if(acct)acct.textContent="☁ Account";return}
   acct?.classList.add("connected"); if(acct)acct.textContent=teamExists()?`⚙ ${S.team.name}`:"⚙ Settings";
@@ -601,7 +606,7 @@ function updateCloudUI(force){
     if(CLOUD_WRITES_PAUSED&&isCloudStatkeeper()){
       const guardedPending=typeof safeSyncPending==="function"&&safeSyncPending();
       dot.classList.add(guardedPending?"warn":"on");
-      text.textContent=guardedPending?"New-game backup pending":"New-game sync active • History protected";
+      text.textContent=guardedPending&&/version changed|revision differs|unexpected|collision|quota/i.test(String(S.cloud?.lastSyncError||""))?"New-game backup blocked — review recovery":guardedPending?"New-game backup pending":"New-game sync active • History protected";
       const rb=$("#cloudRefreshBtn");if(rb)rb.textContent="Check New-Game Backup";
       const last=S.cloud?.lastSyncAt?" • Last verified backup "+new Date(S.cloud.lastSyncAt).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"}):"";
       const issue=S.cloud?.lastSyncError?" • "+S.cloud.lastSyncError:"";
@@ -1722,6 +1727,7 @@ function eligibleRosterAdditionGame(){
     &&(S.cloud?.gameIds?.[g.id]||S.cloud?.safeSyncGames?.[g.id]?.cloudId))||null;
 }
 function scheduleRosterAddSync(delay=1800){
+  if(window.SidelineRecoveryInProgress)return;
   if(!SB||!cloudUser||!cloudLinked()||!isTeamStatkeeper()
      ||navigator.onLine===false||document.visibilityState==="hidden"
      ||!hasPendingRosterAdditions()||!eligibleRosterAdditionGame())return;
@@ -1732,7 +1738,7 @@ function scheduleRosterAddSync(delay=1800){
   },Math.max(1200,delay));
 }
 async function syncNewRosterAdditions(){
-  if(rosterAddRunning||safeSyncRunning||window.SidelineSafeWriteGrant){
+  if(window.SidelineRecoveryInProgress||rosterAddRunning||safeSyncRunning||window.SidelineSafeWriteGrant){
     scheduleRosterAddSync(4500);return false;
   }
   if(!SB||!cloudUser||!cloudLinked()||!isTeamStatkeeper()
@@ -1835,6 +1841,7 @@ function noteDeletedPlay(g,p){
 function safeSyncPending(){return (S.games||[]).some(g=>safeSyncEligible(g)
   &&S.cloud.safeSyncGames[g.id].lastSnapshotHash!==safeSyncFingerprint(g))}
 function scheduleSafeSync(delay=5000){
+  if(window.SidelineRecoveryInProgress)return;
   if(!SB||!cloudUser||!cloudLinked()||!isTeamStatkeeper()||navigator.onLine===false)return;
   if(!safeSyncPending())return;
   if(safeSyncTimer)clearTimeout(safeSyncTimer);
@@ -2255,7 +2262,7 @@ async function safeSyncOwnedGame(g){
   }
 }
 async function runSafeSyncQueue(){
-  if(safeSyncRunning||!SB||!cloudUser||!cloudLinked()||!isTeamStatkeeper()
+  if(window.SidelineRecoveryInProgress||safeSyncRunning||!SB||!cloudUser||!cloudLinked()||!isTeamStatkeeper()
     ||navigator.onLine===false)return false;
   safeSyncRunning=true;let allOkay=true;
   try{
@@ -5738,7 +5745,51 @@ $("#voiceConfirmBtn")?.addEventListener("click",()=>{
 
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]))}
 
+
+function installVerifiedCloudRecovery(){
+  if(!window.SidelineVerifiedCloudRecovery)return;
+  window.SidelineVerifiedCloudRecovery.install({
+    getState:()=>S,getClient:()=>SB,getUser:()=>cloudUser,
+    isOwner:isTeamStatkeeper,isConnected:cloudLinked,
+    canRun:()=>!safeSyncRunning&&!rosterAddRunning&&!window.SidelineSafeWriteGrant&&!window.SidelineRosterAddGrant,
+    eligible:safeSyncEligible,fingerprint:safeSyncFingerprint,
+    credits:buildCloudCredits,creditKey,autoPoints,
+    selectAllByIds:CloudPagination.selectAllByIds,
+    hash:simpleHash,playPayload:buildCloudPlayPayload,snapPayload:buildCloudSnapPayload,
+    gamePayload:buildCloudGamePayload,penaltyPayload:buildCloudPenaltyPayload,
+    validSpot:Field.validSpot,
+    backup:(snapshot,name)=>{
+      downloadJson({format:"sideline-local-emergency-backup",backupVersion:1,
+        exportedAt:new Date().toISOString(),data:snapshot},name);
+    },
+    save:(next)=>{
+      // Write the next complete state before changing any in-memory state.
+      // If Safari's main slot is full, storage-snapshot may verify a complete
+      // recovery slot instead; load() already supports that fallback.
+      const snapshot=window.SidelineLogoRecovery?.snapshotWithoutCachedImages?.(next,next.cloud?.teamId)||next;
+      const result=window.SidelineStorageSnapshot.save(localStorage,KEY,RECOVERY_KEY,snapshot);
+      if(!(result.mainSaved||result.recoverySaved))return false;
+      const savedMain=localStorage.getItem(KEY);
+      const saved=window.SidelineStorageSnapshot.parse(savedMain||localStorage.getItem(RECOVERY_KEY));
+      const restored=next.games.find(g=>next.cloud?.safeSyncGames?.[g.id]?.lastSnapshotHash===safeSyncFingerprint(g));
+      const verify=restored&&saved?.games?.find(g=>g.id===restored.id);
+      if(!verify||saved?.team?.name!==next.team?.name||
+        saved.games.length!==next.games.length||
+        verify.plays.length!==restored.plays.length||
+        verify.snapRecords.length!==restored.snapRecords.length||
+        verify.plays.some((p,i)=>p.id!==restored.plays[i].id)||
+        verify.snapRecords.some((s,i)=>s.id!==restored.snapRecords[i].id)||
+        saved.cloud?.safeSyncGames?.[restored.id]?.lastSnapshotHash!==next.cloud.safeSyncGames[restored.id].lastSnapshotHash)
+        return false;
+      S=next;
+      renderGameArea();renderSnaps();renderStats();syncChrome();updateCloudUI();
+      return true;
+    },
+    refresh:updateCloudUI
+  });
+}
 normalizePlaybook();normalizeRoster();normalizeGames();populateSetup();syncChrome();renderRoster();initializeSnapSelections();
+installVerifiedCloudRecovery();
 if(teamExists())go("roster");else go("setup");
 if(cloudLinked())setTimeout(recoverSavedCloudLogos,0);
 $("#continueAfterConfirmationBtn")?.addEventListener("click",()=>{const clean=new URL(location.href);clean.searchParams.delete("accountConfirmed");clean.hash="";location.replace(clean.href)});
