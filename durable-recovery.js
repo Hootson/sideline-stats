@@ -1,6 +1,6 @@
-/* Local-only durable backup for quota-constrained iOS Gridiron recovery.
- * IndexedDB is used only after explicit verified game recovery.
- * Preserves the old primary + recovery before any localStorage reclamation. */
+/* Quota-safe, local-only recovery for iOS Gridiron.
+ * Store ONE compact, compressed, verified snapshot in IndexedDB.
+ * Existing localStorage primary and backup are NEVER removed or overwritten. */
 (function(root,factory){
   const api=factory(root);
   root.SidelineDurableRecovery=api;
@@ -77,97 +77,83 @@
       throw Error("Duplicate recovered snap IDs.");
     return g;
   }
-  // Atomic transaction stores the OLD primary, OLD safety copy and new data
-  // together. We never delete anything from localStorage until readback verifies.
+
+  function prepared(state,gameId){
+    const g=validate(state,gameId),snapshot=root.SidelineStorageSnapshot;
+    if(!snapshot?.encode||!snapshot?.parse||!snapshot?.compact)
+      throw Error("Verified snapshot codec unavailable.");
+    // Old 9.4 MB JSON + two old snapshots would overflow iOS IndexedDB.
+    // Strip recoverable image strings and compress once, BEFORE opening a write
+    // transaction. The previous phone copies stay untouched in localStorage.
+    const compact=snapshot.compact(state),raw=JSON.stringify(compact);
+    const encoded=snapshot.encode(raw);
+    if(snapshot.decode(encoded)!==raw)
+      throw Error("Compressed recovery verification failed.");
+    const checked=validate(snapshot.parse(encoded),gameId);
+    if(checked.plays.length!==g.plays.length||
+       checked.snapRecords.length!==g.snapRecords.length||
+       checked.plays.some((p,i)=>String(p.id)!==String(g.plays[i].id))||
+       checked.snapRecords.some((s,i)=>String(s.id)!==String(g.snapRecords[i].id)))
+      throw Error("Compressed game identities or counts differ.");
+    return {record:{...entry(encoded),active:true,gameId,
+      teamId:state.cloud?.teamId||null,seasonId:state.cloud?.seasonId||null,
+      localPersistVersion:Number(state.localPersistVersion||0),
+      plays:g.plays.length,snaps:g.snapRecords.length,writtenAt:Date.now(),
+      format:"compressed-v2"},
+      compactSize:encoded.length,uncompressedSize:raw.length};
+  }
+  function readRecord(record){
+    const encoded=verify(record);
+    if(!encoded)return null;
+    const snapshot=root.SidelineStorageSnapshot;
+    if(!snapshot?.parse)throw Error("Recovery snapshot decoder unavailable.");
+    return snapshot.parse(encoded);
+  }
   async function stage(state,gameId){
-    const g=validate(state,gameId);
-    const raw=JSON.stringify(state),written=Date.now();
-    const oldPrimary=entry(root.localStorage.getItem(MAIN_KEY));
-    const oldRecovery=entry(root.localStorage.getItem(RECOVERY_KEY));
-    const recovered=entry(raw);
-    await putMany([
-      ["previous-primary",oldPrimary],
-      ["previous-recovery",oldRecovery],
-      ["current",{...recovered,active:true,gameId,teamId:state.cloud?.teamId||null,
-        seasonId:state.cloud?.seasonId||null,plays:g.plays.length,snaps:g.snapRecords.length,
-        writtenAt:written}]
-    ]);
-    const [checkCurrent,checkPrimary,checkRecovery]=await Promise.all([
-      get("current"),get("previous-primary"),get("previous-recovery")]);
-    if(verify(checkCurrent)!==raw||
-       verify(checkPrimary)!==(oldPrimary.present?oldPrimary.raw:null)||
-       verify(checkRecovery)!==(oldRecovery.present?oldRecovery.raw:null))
-      throw Error("Durable backup verification failed. Nothing on this phone was cleared.");
+    const data=prepared(state,gameId);
+    // ONE small record, no copy of the old localStorage data into IndexedDB:
+    // those existing snapshots remain unchanged as a rollback path.
+    await putMany([["current",data.record]]);
+    const readback=await get("current");
+    if(!readback?.active||verify(readback)!==data.record.raw)
+      throw Error("Durable compressed snapshot did not verify.");
+    const checked=validate(readRecord(readback),gameId);
+    if(checked.plays.length!==data.record.plays||
+       checked.snapRecords.length!==data.record.snaps)
+      throw Error("Recovered play and snap totals changed in storage.");
     active=true;
-    return {writtenAt:written,plays:g.plays.length,snaps:g.snapRecords.length};
+    return {saved:true,durableSaved:true,localSaved:false,
+      writtenAt:readback.writtenAt,plays:data.record.plays,
+      snaps:data.record.snaps,storedChars:data.compactSize};
   }
   function enqueueState(state,gameId){
-    const g=validate(state,gameId);
-    const raw=JSON.stringify(state),data={...entry(raw),active:true,gameId,
-      teamId:state.cloud?.teamId||null,seasonId:state.cloud?.seasonId||null,
-      plays:g.plays.length,snaps:g.snapRecords.length,writtenAt:Date.now()};
-    const write=()=>putMany([["current",data]]);
+    const data=prepared(state,gameId);
+    // Serialize async writes so a slower earlier snapshot cannot replace
+    // the latest statkeeper edit. Keep previous durable data on any abort.
+    const write=()=>putMany([["current",data.record]]);
     queue=queue.catch(()=>{}).then(write);
     return queue.then(async()=>{
       const saved=await get("current");
-      if(verify(saved)!==raw)
+      if(verify(saved)!==data.record.raw)
         throw Error("Updated durable recovery did not verify.");
       active=true;return true;
     });
   }
   async function activeSnapshot(){
+    await queue.catch(()=>{});
     const current=await get("current");
     if(!current?.active||!current?.present)return null;
-    const raw=verify(current);
-    const parsed=JSON.parse(raw);
+    const parsed=readRecord(current);
     const g=validate(parsed,current.gameId);
     if(g.plays.length!==current.plays||g.snapRecords.length!==current.snaps)
       throw Error("Durable game counts differ.");
     active=true;
     return {state:parsed,gameId:current.gameId,writtenAt:current.writtenAt};
   }
-  // The old main is still authoritative until a successfully verified new
-  // primary is committed. If localStorage cannot fit it, the IndexedDB copy
-  // remains the authoritative snapshot, including for future app restarts.
-  async function commitLocal(state,gameId,storageSnapshot){
-    await stage(state,gameId);
-    const compact=storageSnapshot.compact(state);
-    const encoded=storageSnapshot.encode(JSON.stringify(compact));
-    const check=storageSnapshot.parse(encoded);
-    const intended=validate(check,gameId);
-    const g=validate(state,gameId);
-    if(intended.plays.length!==g.plays.length||
-       intended.snapRecords.length!==g.snapRecords.length)
-      throw Error("Compressed snapshot did not preserve the recovered game.");
-    const store=root.localStorage;
-    let localSaved=false;
-    try{
-      store.setItem(MAIN_KEY,encoded);
-      localSaved=store.getItem(MAIN_KEY)===encoded;
-    }catch(_){}
-    if(!localSaved){
-      // Old copies have been VERIFIED in IndexedDB. Release only the stale
-      // local recovery slot first; never clear the old main.
-      try{
-        store.removeItem(RECOVERY_KEY);
-        store.setItem(MAIN_KEY,encoded);
-        localSaved=store.getItem(MAIN_KEY)===encoded;
-      }catch(e){
-        console.warn("Recovery exceeds localStorage quota; durable IndexedDB copy remains available",e);
-      }
-    }
-    if(localSaved){
-      const loaded=storageSnapshot.parse(store.getItem(MAIN_KEY));
-      const actual=validate(loaded,gameId);
-      if(actual.plays.length!==g.plays.length||
-         actual.snapRecords.length!==g.snapRecords.length||
-         actual.plays.some((p,i)=>p.id!==g.plays[i].id)||
-         actual.snapRecords.some((p,i)=>p.id!==g.snapRecords[i].id))
-        throw Error("Local snapshot verification failed. Durable copy retained.");
-      // Keep durable storage ACTIVE as an additional safety source. The main
-      // snapshot remains the same state until later saves, which keep IDB fresh.
-    }
-    return {saved:true,localSaved,durableSaved:true,plays:g.plays.length,snaps:g.snapRecords.length};
+  async function commitLocal(state,gameId){
+    // Do not touch either localStorage slot: both saved external JSON files
+    // and the prior phone snapshot remain available if this write fails.
+    return stage(state,gameId);
   }
   function isActive(){return active}
   function saveLater(state,gameId){
@@ -176,6 +162,7 @@
   }
   // Recovery is explicitly deactivated when the user resets the device team.
   async function deactivate(){
+    await queue.catch(()=>{});
     await putMany([["current",{present:false,active:false,endedAt:Date.now()}]]);
     active=false;
   }
