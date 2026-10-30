@@ -87,9 +87,10 @@
     // transaction. The previous phone copies stay untouched in localStorage.
     const compact=snapshot.compact(state),raw=JSON.stringify(compact);
     const encoded=snapshot.encode(raw);
-    if(snapshot.decode(encoded)!==raw)
+    const decoded=snapshot.decode(encoded);
+    if(decoded!==raw)
       throw Error("Compressed recovery verification failed.");
-    const checked=validate(snapshot.parse(encoded),gameId);
+    const checked=validate(JSON.parse(decoded),gameId);
     if(checked.plays.length!==g.plays.length||
        checked.snapRecords.length!==g.snapRecords.length||
        checked.plays.some((p,i)=>String(p.id)!==String(g.plays[i].id))||
