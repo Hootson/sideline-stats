@@ -1,8 +1,54 @@
 # Bleacher Butt Stats / Sideline Stats — Project State
 
-Last updated: October 2, 2026
+Last updated: October 30, 2026
 
 This file is the durable project-state ledger. Read it before substantial development, deployment, recovery, or architecture work. Update it after meaningful production deployments, known-good baseline changes, major feature completions, architecture changes, database migrations/functions that materially affect the app, or important unresolved issues.
+
+## October 30, 2026 — Current Gridiron Production Status (v4.6.90)
+
+**Current production:** Gridiron Edition **v4.6.90** on GitHub Pages, deployed from the `gh-pages` branch. The October 2 known-good branch and `/recovery-test/` remain **preserved historical rollback resources**, not the active release. The app remains separately usable from the wider Bleacher Butt Stats website and Hardcourt work.
+
+### Verified on device and in Supabase
+
+- **Dakota Ridge playoff game recovered successfully.** The first 52 plays in the older phone backup matched the cloud play sequence. The user saved two independent emergency JSON backups, then recovered **120 plays**, **91 snaps**, and a **30–0 Erie victory** to the iPhone.
+- **Persistence verified after app restart.** The app displayed “Verified game recovered from durable device storage”; the user confirmed the game score, snap participation and individual player stats remained correct.
+- **Finalization verified independently in Supabase.** Dakota Ridge Eagles game `760b4831-72a0-4d49-97ca-f8047b3572ab` is **final**, game revision **129**, Erie **30–0**, with **120 undeleted plays** and **91 active snap events**.
+- The app displayed a green backup indicator with no pending revision error after recovery; **this does not prove the next newly created game will sync properly**.
+
+### Recent production releases and root cause
+
+- **v4.6.88:** Introduced a manual, read-only **Recover Newer Cloud Game** verification flow. It checks team/owner identity, existing local-play prefix, remote play identities, stat credits, snap participation, and cloud revision before asking the user to approve a phone-side recovery.
+- **v4.6.89:** Attempted an IndexedDB durability fallback, but a large multi-snapshot transaction still failed on iOS due to storage limits.
+- **v4.6.90 (confirmed on iPhone):** Saves **one compressed, verified game snapshot** in IndexedDB, without discarding the existing `localStorage` data. On restart, durable state is hydrated before cloud initialization. This resolved the recovery failure on the user's device.
+- A newer Supabase game revision was correctly blocking automatic overwriting by an older phone snapshot. Safeguards must stay enabled rather than bypassing version checks.
+
+### Production safety rules
+
+1. Keep `CLOUD_WRITES_PAUSED=true` for the quarantined **legacy broad/historical writer**. Guarded, enrolled **new-game** synchronization follows `safeSyncOwnedGame` and `runSafeSyncQueue`.
+2. Preserve the finalized Dakota Ridge game, all historical team/game/stat data, the two user-saved JSON backups, the October 2 known-good Git branch and `/recovery-test/`. **Never delete, overwrite or archive production data as a debugging shortcut.**
+3. Preserve runtime asset ordering: `storage-snapshot.js` → `durable-recovery.js` → `verified-cloud-recovery.js` → `app.js`.
+4. Do not ask the user to clear iOS Safari/Home Screen app data, reinstall, or discard existing recovery copies when troubleshooting local storage.
+5. Verify **device state**, **cloud records**, and **parent/helper views** independently. A green indicator is only partial evidence.
+6. Keep staging/rollback safeguards and inspect the active `gh-pages` code; the repository's `main` README predates these releases.
+
+### Next milestone: verify the newly created playoff game (PENDING)
+
+The user has been told they **may create** the next playoff game. **Creation of that new game and its end-to-end backup have not yet been confirmed.** On the next session:
+
+1. Confirm opponent, playoff week, game type, current Erie Tigers roster, and selected game plan.
+2. Create/open the new game; restart the iPhone app to verify local persistence without affecting the finalized Dakota Ridge game.
+3. Read Supabase to verify a **single newly created row** under the correct team/season and matching cloud ID, with no unintended duplicates.
+4. With explicit approval before creating test entries in a real game, check play/credit and snap/participant uploads, the parent viewer and invited Snap Tracker. Do not silently add or delete production plays.
+5. Regression-test roster additions in shared links, play deletion propagation, opponent/team logos, phone-only game removal, offline-to-online syncing, performance and Supabase egress.
+6. Do not finalize the next game until it has actually ended and the user requests finalization.
+
+### Hardcourt / broader product
+
+Hardcourt Edition is a **separate development workstream**. Its game entry, playing-time, scoring, stats, and analytics screens need their own regression checks. The next major requested design effort is deeper **offense/defense, player, lineup and situational analytics**. Gridiron recovery code was not tested in Hardcourt. Keep unified Bleacher Butt Stats account/team/sharing architecture work separated from the production Gridiron baseline until deliberately validated.
+
+### Documentation note
+
+**`PROJECT_STATE.md` is the original durable project-state ledger.** The additional `status.md` created October 29 is a supplemental status snapshot; keep this original file as the authoritative source for engineering handoffs and update it after meaningful new-game tests or future production releases.
 
 ## Production Guardrails
 
@@ -16,9 +62,9 @@ This file is the durable project-state ledger. Read it before substantial develo
 8. When production behavior is uncertain, inspect Git/Supabase state rather than guessing from version numbers or conversation memory.
 9. The known-good Gridiron production baseline is the highest-priority production asset currently. Broader Bleacher Butt Stats work must not destabilize it.
 
-## Current Production — Gridiron
+## Historical Verified Baseline — Gridiron (October 2, 2026)
 
-Status: KNOWN GOOD / PRODUCTION
+Status: PRESERVED KNOWN-GOOD ROLLBACK REFERENCE (original October 2 record; not the latest release)
 
 Production URL: https://hootson.github.io/sideline-stats/
 
@@ -28,7 +74,7 @@ Known-good branch: `gridiron-known-good-2026-10-02`
 
 Known-good production promotion commit: `d814a072b5cad11ee047e9b8632a9a0cdd4f1536`
 
-The October 2, 2026 recovery build is the current authoritative standalone Gridiron baseline. The `/recovery-test/` copy must be preserved as a known-good recovery build unless a newer baseline is explicitly established.
+The October 2, 2026 recovery build is a preserved known-good standalone Gridiron rollback baseline. The `/recovery-test/` copy must be preserved as a known-good recovery build unless a newer baseline is explicitly established.
 
 ### Verified/restored functionality in this baseline
 
