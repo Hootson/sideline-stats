@@ -1,8 +1,34 @@
 # Bleacher Butt Stats / Sideline Stats — Project State
 
-Last updated: November 10, 2026
+Last updated: November 11, 2026
 
 This file is the durable project-state ledger. Read it before substantial development, deployment, recovery, or architecture work. Update it after meaningful production deployments, known-good baseline changes, major feature completions, architecture changes, database migrations/functions that materially affect the app, or important unresolved issues.
+
+## November 11, 2026 — Hardcourt Admin Visual Parity (Thursday preview)
+
+**Decision:** Gridiron Edition is **read-only reference material**. Do **not** modify, merge or redeploy it. Gridiron and Hardcourt remain separate Home Screen applications, with sport-specific statkeeping. Hardcourt should match Gridiron's **administrative look and feel** (team, roster, game setup, account/settings, sharing) without altering the basketball court or stat-entry engine. Unification of the two products is a future project.
+
+**Delivered in Hardcourt preview only** at `https://hootson.github.io/sideline-stats/hardcourt/preview.html`:
+
+- Gridiron-style branded admin masthead using Hardcourt artwork, white rounded cards, green/gold highlights, and matching five-tab bottom navigation (Roster, Game, Playing Time, Stats, Analytics).
+- Persistent Erie Elite team header with logo, grade/division, and account/cloud status.
+- Roster management with jersey/name Add Player entry, validation, roster totals, edit controls, and existing Supabase roster save.
+- Separate Games admin screen with opponent, **date, home/away/neutral location**, game type, basketball period/foul/timeout/bonus options, starting five, saved cloud games, and pregame statkeeper invitation.
+- Prepared game writes the game date and location to existing basketball `games` fields; does not change any Supabase table schema.
+- Account/settings/roster/sharing dialogs use the light, organized Gridiron-style card treatment; basketball shot entry, the court, active-game scoreboard, and the basketball-specific game engine remain independent.
+- Preview device-local keys stay isolated from the installed Hardcourt app; Supabase login and Erie Elite team remain shared under the owner's existing account.
+
+**Code:** Design developed on `feature/hardcourt-erie-elite-thursday-20261110` and selectively copied into `hardcourt/preview.html`, `hardcourt/preview.css`, `hardcourt/app-preview.js` on the deployment branch `gh-pages`. **The original** `hardcourt/index.html`, `hardcourt/app.js`, `hardcourt/service-worker.js`, **and all Gridiron files were not changed.**
+
+**Verification:** Production GitHub file hashes checked unchanged; updated preview assets available in GitHub; preview JavaScript syntax parses; required admin element IDs are unique and present, and preview cache/account isolation is intact. The live basketball game markup is unchanged apart from the separately developed existing roster-edit action. **No iPhone UI acceptance test or two-device statkeeper/score sync has yet been completed.** The public GitHub Pages URL could not be fetched from the current test environment; link availability on the user's iPhone is still to be checked.
+
+**Next Thursday acceptance sequence:**
+1. Open the updated Hardcourt preview on iPhone; check branded header, green/gold navigation, team identity and account recognition.
+2. Enter the real **Erie Elite 5th Grade Gold** roster, verify cloud save, then close/reopen and confirm persistence.
+3. Enter Friday opponent/game date, basketball rules and starting five; save and prepare the cloud game.
+4. Create the email-locked game-statkeeper invitation; redeem on a second device with the invited account; verify team/roster, game settings, and usable clock, substitutions, shot selection and event upload.
+5. Verify saved stats on both devices and in Supabase; do not contaminate the live game with unexplained test entries.
+6. Promote admin UI to the ordinary Hardcourt icon only after this passes. **Never touch Gridiron to accomplish this.**
 
 ## November 10, 2026 — Hardcourt Thursday Readiness Build
 
