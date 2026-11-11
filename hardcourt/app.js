@@ -383,12 +383,25 @@ function initials(s){return String(s||"?").split(/\s+/).map(x=>x[0]).join("").sl
 function imgOrInitial(src,label){return src?'<img src="'+src+'" alt="">':initials(label)}
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function fileData(file,cb){if(!file)return;const img=new Image(),url=URL.createObjectURL(file);img.onload=()=>{const max=640,scale=Math.min(1,max/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=Math.round(img.width*scale);c.height=Math.round(img.height*scale);c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);cb(c.toDataURL("image/jpeg",.82))};img.onerror=()=>URL.revokeObjectURL(url);img.src=url}
+function hardcourtOnColor(hex){
+  const raw=String(hex||"").replace("#","");
+  if(!/^[0-9a-f]{6}$/i.test(raw))return "#ffffff";
+  const c=[0,2,4].map(i=>parseInt(raw.slice(i,i+2),16)/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4);
+  return (.2126*c[0]+.7152*c[1]+.0722*c[2])>.179?"#102019":"#ffffff";
+}
 function applyProfileToSetup(){
   state.team??="Your Basketball Team";
   state.grade??="5th Grade";
   if(state.team==="Erie Elite"&&!state.division)state.division="Gold";
   state.division??="";
   state.primary??="#111111";state.accent??="#39a852";
+  const adminRoot=$("setup");
+  if(adminRoot){
+    adminRoot.style.setProperty("--hc-brand",state.primary);
+    adminRoot.style.setProperty("--hc-gold",state.accent);
+    adminRoot.style.setProperty("--hc-on-brand",hardcourtOnColor(state.primary));
+    adminRoot.style.setProperty("--hc-on-gold",hardcourtOnColor(state.accent));
+  }
   $("setupTeamLabel").textContent=state.team;
   $("setupTeamMeta").textContent=[state.grade,state.division].filter(Boolean).join(" · ");
   const holder=$("hcAdminTeamLogo");
@@ -632,12 +645,26 @@ function openTeamEditor(){
     '<div class="team-editor"><label>Team name<input id="editTeamName"></label>'+
     '<label>Grade<select id="editGrade"><option>5th Grade</option><option>6th Grade</option><option>7th Grade</option><option>8th Grade</option></select></label>'+
     '<label>Division<input id="editDivision"></label>'+
-    '<div class="team-color-row"><label>Primary<input id="editPrimary" type="color"></label><label>Accent<input id="editAccent" type="color"></label></div>'+
+    '<div class="team-color-row"><label>Primary color<input id="editPrimary" type="color"></label><label>Accent color<input id="editAccent" type="color"></label></div>'+
+    '<p class="hc-team-color-help">Primary colors the dashboard and navigation. Accent highlights selected tabs and key actions. Pick your Erie Elite colors below.</p>'+
+    '<div id="hcTeamColorPreview" class="hc-team-color-preview"><span>TEAM COLORS</span><b>Selected tab</b></div>'+
     '<label>Team logo<input id="editTeamLogo" type="file" accept="image/*"></label>'+
     '<button id="saveTeamProfile" class="primary">Save Team</button><p id="teamSaveError" class="error"></p></div>');
   $("editTeamName").value=state.team||"";$("editGrade").value=state.grade||"5th Grade";
   $("editDivision").value=state.division||"";$("editPrimary").value=state.primary||"#111111";
   $("editAccent").value=state.accent||"#39a852";
+  const updateTeamColorPreview=()=>{
+    const preview=$("hcTeamColorPreview");if(!preview)return;
+    const primary=$("editPrimary").value,accent=$("editAccent").value;
+    preview.style.setProperty("--preview-primary",primary);
+    preview.style.setProperty("--preview-accent",accent);
+    preview.style.setProperty("--preview-on-primary",hardcourtOnColor(primary));
+    preview.style.setProperty("--preview-on-accent",hardcourtOnColor(accent));
+  };
+  $("editPrimary").addEventListener("input",updateTeamColorPreview);
+  $("editAccent").addEventListener("input",updateTeamColorPreview);
+  updateTeamColorPreview();
+  const editingFromDashboard=!$("setup").classList.contains("hidden");
   let nextLogo=state.teamLogo||"";
   $("editTeamLogo").onchange=()=>fileData($("editTeamLogo").files[0],d=>nextLogo=d);
   $("saveTeamProfile").onclick=async()=>{
@@ -650,7 +677,9 @@ function openTeamEditor(){
     if(error){$("teamSaveError").textContent=error.message;return}
     state.team=name;state.grade=info.p_grade;state.division=$("editDivision").value.trim();
     state.primary=info.p_primary;state.accent=info.p_accent;state.teamLogo=nextLogo;
-    closeModal();applyProfileToSetup();if(state.gameStartedAt)startUI();else{$("shell").classList.add("hidden");$("setup").classList.remove("hidden");}
+    closeModal();applyProfileToSetup();
+    // Editing team colors on the roster/setup dashboard must not unexpectedly open a game.
+    if(!editingFromDashboard&&state.gameStartedAt)startUI();
     updateCloudStatus();save(true);
   };
 }
