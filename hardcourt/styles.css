@@ -444,3 +444,9 @@ body.hc-admin-dialog #modal .team-editor input[type=color]{display:block;width:1
 body.hc-admin-dialog #modal .hc-team-color-help{font-size:12px;color:#596a60;line-height:1.45;margin:6px 0 10px}
 body.hc-admin-dialog #modal .hc-team-color-preview{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0 15px;padding:12px 14px;background:var(--preview-primary,#111111);color:var(--preview-on-primary,#fff);border-radius:12px;font-size:13px;font-weight:900}
 body.hc-admin-dialog #modal .hc-team-color-preview b{display:block;flex:0 0 auto;max-width:48%;padding:8px 11px;background:var(--preview-accent,#39a852);color:var(--preview-on-accent,#071109);border-radius:9px;font-size:12px;text-align:center}
+
+/* Optional personal-foul attribution does not block opponent FT recording. */
+#modal .hc-optional-foul{margin-top:10px;padding:8px 10px;border:1px solid #3a4a50;border-radius:8px;color:#dce7e8;font-size:12px}
+#modal .hc-optional-foul summary{cursor:pointer;font-size:12px;font-weight:750}
+#modal .hc-optional-foul label{display:block;margin-top:8px;font-size:12px}
+#modal .hc-optional-foul select{display:block;width:100%;min-height:37px;margin-top:5px;padding:5px 9px;border:1px solid #45555d;border-radius:7px;background:#111b20;color:#fff;font-size:14px}
