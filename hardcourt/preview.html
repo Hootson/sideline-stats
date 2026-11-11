@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#080a0b"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Hardcourt"><link rel="manifest" href="./preview-manifest.webmanifest?v=20261110"><title>Bleacher Butt Stats — Hardcourt Thursday Preview</title><link rel="stylesheet" href="./preview.css?v=20261110-preview-1"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#080a0b"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="HC Test"><link rel="manifest" href="./preview-manifest.webmanifest?v=20261111-admin"><title>Bleacher Butt Stats — Hardcourt Admin Test</title><link rel="stylesheet" href="./preview.css?v=20261111-admin-1"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style id="ui53-court-art">
 /* UI43 — device-specific finished court artwork + dynamic offense overlay */
 body.game-active #gameView{inset:80px 0 0 0!important;background:#020405!important}
@@ -1085,7 +1085,97 @@ body:not(.game-active) .team-menu-trigger{display:none!important}
 .analytics-empty{grid-column:1/-1;display:grid;place-items:center;gap:5px;min-height:150px;padding:24px;text-align:center;background:#0c110f;border:1px dashed #3a4841;border-radius:14px;color:#c5cec9}.analytics-empty>span{font-size:35px;color:var(--accent)}.analytics-empty small{color:#909b95}
 @media(max-width:699px){.analytics-detail-shell{margin-left:0;margin-right:0;padding:11px;border-radius:14px}.analytics-detail-heading h3{font-size:20px}.analytics-detail-heading>span{display:none}.analytics-detail-tabs{gap:4px}.analytics-detail-tabs button{font-size:11px;padding:6px 3px}.analytics-hero,.analytics-section-intro{padding:13px;gap:10px}.analytics-hero>span,.analytics-section-intro>span{flex-basis:42px;height:42px;font-size:22px}.analytics-hero b,.analytics-section-intro b{font-size:17px}.analytics-hero p,.analytics-section-intro p{font-size:12px}.analytics-ring{flex-basis:58px!important;width:58px;height:58px!important}.analytics-kpis{grid-template-columns:repeat(2,1fr)}.lineup-card-grid,.impact-grid{grid-template-columns:1fr}.lineup-five span{width:38px;height:38px}}
 </style></head><body><div id="app">
-<section id="viewerView" class="viewer-view hidden"></section><section id="setup" class="setup"><div class="setup-brand"><img src="../brand-header.png" alt="Bleacher Butt Stats"><b>HARDCOURT EDITION</b></div><div class="setup-grid"><div id="cloudBar" class="cloud-bar"><span id="cloudStatus">Local mode</span><button id="accountBtn" type="button">Account</button><button id="shareTeamBtn" type="button">Share Team</button><button id="helperBtn" type="button">Helper</button></div><div class="setup-team-summary"><b id="setupTeamLabel">Erie Elite</b><small id="setupTeamMeta">5th Grade</small><button id="setupEditTeam" type="button">Edit Team</button><button id="setupEditRoster" type="button">Edit Roster</button></div><label>Opponent<input id="oppName" placeholder="Friday’s opponent" required></label><label>Game type<select id="gameType"><option value="regular">Regular Season</option><option value="playoffs">Playoffs</option></select></label><label>Opponent logo<input id="oppLogo" type="file" accept="image/*"></label><label>Periods<select id="periodMode"><option value="4">4 Quarters</option><option value="2">2 Halves</option></select></label><label>Minutes / period<input id="periodMinutes" type="number" value="8" min="1" max="30"></label><label>Starting offense<select id="startDirection"><option value="right">Attack right →</option><option value="left">← Attack left</option></select></label><label>Player foul limit<input id="foulLimit" type="number" value="5" min="1" max="10"></label><label>Bonus rule<select id="bonusRule"><option value="none">No automatic bonus</option><option value="oneone">1-and-1 at 7 / double at 10</option><option value="twoshots">2 shots at 5 per quarter</option></select></label><label>Timeout allocation<select id="timeoutMode"><option value="game">Per Game</option><option value="half">Per Half</option></select></label><label>Timeouts per allocation<input id="timeoutCount" type="number" value="3" min="0" max="10"></label><label>Overtime minutes<input id="otMinutes" type="number" value="3" min="1" max="10"></label></div><h2>Starting Five</h2><p>Select exactly five starters from your season roster.</p><div id="setupRoster" class="setup-roster"></div><div id="setupReview" class="setup-review"></div><button id="prepareHelperGame" class="primary" type="button">Save Game & Invite Statkeeper</button><button id="startGame" class="choice" type="button">Open Game for Statkeeping</button><button id="gameHistoryBtn" class="setup-secondary" type="button">Game History</button><p id="setupError" class="error"></p></section>
+<section id="viewerView" class="viewer-view hidden"></section><section id="setup" class="setup hc-admin-root">
+  <header class="hc-admin-header">
+    <img src="./hardcourt-header-arena-ui71.jpg" alt="Bleacher Butt Stats — Hardcourt Edition">
+    <button id="accountBtn" type="button" class="hc-header-btn hc-header-account">☁ Account</button>
+    <button id="setupEditTeam" type="button" class="hc-header-btn hc-header-team">Edit Team</button>
+  </header>
+  <main class="hc-admin-main">
+    <section id="hcAdminRosterPage" class="hc-admin-page" data-hc-page="roster">
+      <article class="hc-admin-card hc-team-hero">
+        <div class="hc-team-kicker">HARDCOURT EDITION · SEASON ROSTER</div>
+        <div class="hc-team-identity"><span id="hcAdminTeamLogo" class="hc-admin-team-logo" aria-label="Team logo">EE</span>
+          <div><h1 id="setupTeamLabel">Erie Elite</h1><p id="setupTeamMeta">5th Grade · Gold</p></div></div>
+        <div id="cloudBar" class="hc-cloud-row">
+          <div class="hc-cloud-line"><span class="hc-sync-dot" id="hcSyncDot"></span><span id="cloudStatus">Connecting your account…</span></div>
+          <div class="hc-cloud-buttons">
+            <button id="shareTeamBtn" type="button" class="hc-btn hc-btn-ghost">Invite Parents</button>
+            <button id="helperBtn" type="button" class="hc-btn hc-btn-ghost">Invite Statkeeper</button>
+          </div>
+        </div>
+      </article>
+      <article class="hc-admin-card">
+        <div class="hc-card-heading"><h2>Roster <span id="hcRosterCount" class="hc-badge">0 / 30</span></h2><button id="setupEditRoster" type="button" class="hc-btn hc-btn-small hc-btn-ghost">Edit Roster</button></div>
+        <p class="hc-muted">Add each Erie Elite player once. The roster is saved with your basketball team and shared with your game statkeeper.</p>
+        <div class="hc-roster-inputs">
+          <label>Jersey #<input id="hcRosterAddJersey" type="text" inputmode="numeric" maxlength="3" placeholder="#" autocomplete="off"></label>
+          <label>Player name<input id="hcRosterAddName" type="text" placeholder="First and last name" autocomplete="off" maxlength="80"></label>
+        </div>
+        <button id="hcAdminAddPlayer" type="button" class="hc-btn hc-btn-primary">Add Player</button>
+        <div id="hcRosterAddStatus" class="hc-inline-note" role="status" aria-live="polite"></div>
+        <div id="hcAdminRosterList" class="hc-roster-list"></div>
+      </article>
+      <button id="hcRosterContinue" type="button" class="hc-btn hc-btn-primary hc-next">Continue to Games</button>
+    </section>
+    <section id="hcAdminGamesPage" class="hc-admin-page hidden" data-hc-page="games">
+      <article class="hc-admin-card hc-games-hero">
+        <h2>Games</h2>
+        <p>Prepare a basketball game, invite a substitute statkeeper, or open an existing game—just like Gridiron.</p>
+      </article>
+      <article class="hc-admin-card hc-game-setup">
+        <h2>Game Setup</h2>
+        <label>Opponent<input id="oppName" placeholder="Friday’s opponent" required></label>
+        <div class="hc-two">
+          <label>Game date<input id="hcGameDate" type="date"></label>
+          <label>Location<select id="hcGameLocation"><option value="home">Home</option><option value="away">Away</option><option value="neutral">Neutral</option></select></label>
+        </div>
+        <label>Game type<select id="gameType"><option value="regular">Regular Season</option><option value="playoffs">Playoffs</option></select></label>
+        <label>Opponent logo <span class="hc-muted">(optional)</span><input id="oppLogo" type="file" accept="image/*"></label>
+        <div class="hc-two">
+          <label>Periods<select id="periodMode"><option value="4">4 Quarters</option><option value="2">2 Halves</option></select></label>
+          <label>Minutes per period<input id="periodMinutes" type="number" value="8" min="1" max="30"></label>
+        </div>
+        <label>Starting offense<select id="startDirection"><option value="right">Attack right →</option><option value="left">← Attack left</option></select></label>
+        <div class="hc-two">
+          <label>Player foul limit<input id="foulLimit" type="number" value="5" min="1" max="10"></label>
+          <label>Bonus rule<select id="bonusRule"><option value="none">No automatic bonus</option><option value="oneone">1-and-1 at 7 / double at 10</option><option value="twoshots">2 shots at 5 per quarter</option></select></label>
+        </div>
+        <div class="hc-two">
+          <label>Timeout allocation<select id="timeoutMode"><option value="game">Per Game</option><option value="half">Per Half</option></select></label>
+          <label>Timeouts per allocation<input id="timeoutCount" type="number" value="3" min="0" max="10"></label>
+        </div>
+        <label>Overtime minutes<input id="otMinutes" type="number" value="3" min="1" max="10"></label>
+        <h3>Starting Five</h3>
+        <p class="hc-muted">Select exactly five players from the season roster.</p>
+        <div id="setupRoster" class="setup-roster hc-starters"></div>
+        <div id="setupReview" class="hc-inline-note"></div>
+        <button id="prepareHelperGame" class="hc-btn hc-btn-primary" type="button">Save Game & Invite Statkeeper</button>
+        <button id="startGame" class="hc-btn hc-btn-ghost" type="button">Open Game for Statkeeping</button>
+        <p id="setupError" class="hc-error" role="alert"></p>
+      </article>
+      <article class="hc-admin-card">
+        <div class="hc-card-heading"><h2>Saved games</h2><button id="hcRefreshCloudGames" type="button" class="hc-btn hc-btn-small hc-btn-ghost">Refresh</button></div>
+        <div id="hcSavedGames" class="hc-saved-games"><p class="hc-muted">Sign in to load your team’s games.</p></div>
+        <button id="gameHistoryBtn" class="hc-btn hc-btn-ghost" type="button">Prior Games & Stats</button>
+      </article>
+    </section>
+    <section id="hcAdminInfoPage" class="hc-admin-page hidden" data-hc-page="info">
+      <article class="hc-admin-card">
+        <h2 id="hcInfoHeading">Stats</h2>
+        <p id="hcInfoMessage" class="hc-muted">Open a basketball game to see team stats.</p>
+        <button id="hcInfoGoGame" type="button" class="hc-btn hc-btn-primary">Go to Games</button>
+      </article>
+    </section>
+  </main>
+  <nav id="hcAdminNav" class="hc-admin-nav" aria-label="Hardcourt Edition navigation">
+    <button type="button" class="active" data-hc-admin="roster">👥<span>Roster</span></button>
+    <button type="button" data-hc-admin="games">🏀<span>Game</span></button>
+    <button type="button" data-hc-admin="time">✅<span>Playing Time</span></button>
+    <button type="button" data-hc-admin="stats">📊<span>Stats</span></button>
+    <button type="button" data-hc-admin="analytics">📈<span>Analytics</span></button>
+  </nav>
+</section>
 <section id="shell" class="hidden"><div id="liveCloudBar" class="cloud-bar game-cloud hidden"><span id="liveCloudStatus">Local mode</span><button id="liveShareTeamBtn" type="button">Share</button><button id="liveHelperBtn" type="button">Helper</button></div><button id="teamMenuBtn" class="team-menu-trigger" type="button">☰ Team &amp; Sharing</button><header class="scoreboard"><div class="score-team"><span id="homeLogo" class="score-logo"></span><span class="score-name"><strong id="homeLabel"></strong><small id="homeMeta"></small></span><b id="homeScore">0</b></div><div class="clockbox"><span id="periodLabel">Q1</span><span id="gameMeta" class="game-meta"></span><b id="clock">8:00</b><div class="clock-controls"><button id="startClock">Start</button><button id="stopClock">Stop</button></div></div><div class="score-team away"><b id="awayScore">0</b><span class="score-name away-name"><strong id="awayLabel"></strong><small id="awayMeta"></small></span><span id="awayLogo" class="score-logo"></span></div></header>
 <section id="gameView" class="view"><main id="court" class="court">
 <div class="half left"></div><div class="half right offense"></div>
@@ -1140,4 +1230,4 @@ body:not(.game-active) .team-menu-trigger{display:none!important}
 <section id="playerView" class="view hidden content"><div class="product-header"></div><button id="backStats" class="back-btn">← Back to Stats</button><div id="playerDetail"></div><div id="playerCourt" class="analytics-court player-court"></div></section>
 <section id="analyticsView" class="view hidden content"><div class="product-header"></div><h2>Analytics</h2><article class="shooting-card"><div class="shooting-head"><h3>Shooting</h3><div class="shot-filters"><label>Player<select id="shotPlayerFilter"></select></label><label>Time<select id="shotTimeFilter"><option value="game">Full Game</option><option value="first">1st Half</option><option value="second">2nd Half</option></select></label><label>Period<select id="shotPeriodFilter"><option value="all">All</option></select></label><label>Shot<select id="shotTypeFilter"><option value="all">All Shots</option><option value="2">2PT</option><option value="3">3PT</option></select></label></div></div><div id="chartMode" class="seg chart-mode"><button data-chart="shots" class="active">Shots</button><button data-chart="heat">Heat Map</button><button data-chart="both">Both</button></div><p id="shootingSummary"></p><div id="analyticsCourt" class="analytics-court"></div><div class="heat-legend"><span>Cold</span><i></i><span>Hot</span><span class="dot-legend">● Make &nbsp; ● Miss</span></div><h3>By Zone</h3><div id="zoneTable" class="zone-table"></div></article><section class="analytics-detail-shell"><div class="analytics-detail-heading"><div><small>TEAM INSIGHTS</small><h3>Beyond the Shot Chart</h3></div><span>Visual analysis</span></div><div id="analyticsDetailTabs" class="analytics-detail-tabs"><button type="button" class="active" data-analytics-detail="fast">⚡ Fast Break</button><button type="button" data-analytics-detail="lineups">⑤ Lineups</button><button type="button" data-analytics-detail="impact">↕ Player Impact</button></div><div id="analyticsDetailContent"></div></section></section>
 <nav><button data-tab="roster"><span class="nav-icon">👥</span><span>Roster</span></button><button class="active" data-tab="game"><span class="nav-icon">🏀</span><span>Game</span></button><button data-tab="time"><span class="nav-icon">✅</span><span>Playing Time</span></button><button data-tab="stats"><span class="nav-icon">📊</span><span>Stats</span></button><button data-tab="analytics"><span class="nav-icon">📈</span><span>Analytics</span></button></nav></section>
-<div id="modal" class="modal hidden"><div class="modal-card"><h2 id="modalTitle"></h2><div id="modalBody"></div><button id="modalClose">Cancel</button></div></div></div><script type="module" src="./app-preview.js?v=20261110-preview-1"></script></body></html>
+<div id="modal" class="modal hidden"><div class="modal-card"><h2 id="modalTitle"></h2><div id="modalBody"></div><button id="modalClose">Cancel</button></div></div></div><script type="module" src="./app-preview.js?v=20261111-admin-1"></script></body></html>
