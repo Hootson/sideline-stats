@@ -70,8 +70,8 @@ function openSettings(){
   const signed=!!cloudUser,email=cloudUser?.email||"";
   openModal("Settings",'<div class="hc-settings">'+
     '<div class="hc-settings-team"><span class="score-logo">'+imgOrInitial(state.teamLogo,state.team)+'</span><div><h3>'+esc(state.team||"Team")+'</h3><small>'+esc([state.grade,state.division].filter(Boolean).join(" · "))+'</small><p>'+(signed?esc(email):"Not signed in")+'</p></div></div>'+
+    '<div class="hc-settings-card"><b>GAME SHARING</b><p>Invite someone to record this game whenever you need them—no decision required at game setup.</p><button id="settingsHelper">🏀 Invite Statkeeper to This Game</button><button id="settingsParent">Invite Parents / Viewers</button><button id="settingsCoach">Invite Coach</button></div>'+
     '<div class="hc-settings-card"><b>TEAM & ACCOUNT</b><button id="settingsEditTeam">Edit '+esc(state.team||"Team")+'</button><button id="settingsRoster">Edit Season Roster</button><button id="settingsAccount">'+(signed?"Account / Sign Out":"Sign In / Create Account")+'</button></div>'+
-    '<div class="hc-settings-card"><b>SHARING & ACCESS</b><p>Use the same account-and-invite pattern across Bleacher Butt Stats.</p><button id="settingsParent">Invite Parents / Viewers</button><button id="settingsCoach">Invite Coach</button><button id="settingsHelper">Invite Game Statkeeper</button></div>'+
     '<div class="hc-settings-card"><b>GAME</b><button id="settingsGame">Game Setup</button><button id="settingsNewGame">New Game</button><button id="settingsHistory">Prior Games</button><button id="settingsCloudGames">Cloud Games</button></div>'+
   '</div>');
   $("settingsEditTeam").onclick=()=>{closeModal();openTeamEditor()};
@@ -105,7 +105,7 @@ async function inviteHelper(){
   if(!cloudUser)return openAccount();
   if(state.helperMode){openModal("Game access","Only the team owner can invite another statkeeper.");return}
   if(!state.cloudGameId){
-    openModal("Prepare Game First","<p>Save Friday’s game from the Game Setup screen before creating a substitute-statkeeper link.</p>");
+    openModal("Create a Game First","<p>Go to Game Setup and tap <b>Create & Open Game</b>. You can invite a statkeeper from the game’s <b>Team & Sharing</b> menu afterward.</p>");
     return;
   }
   openModal("Invite Game Statkeeper",
@@ -291,7 +291,7 @@ async function ensureCloudGame(){
   }
   if(state.helperMode)return false;
   if(!await ensureCloudContext())return false;
-  if(!state.opp||state.opp==="Opponent"){lastCloudSyncError="Enter the opponent before preparing the game.";return false;}
+  if(!state.opp||state.opp==="Opponent"){lastCloudSyncError="Enter the opponent before creating the game.";return false;}
   const {data,error}=await SB.rpc("create_hardcourt_game",{
     p_season_id:state.cloudSeasonId,p_opponent:state.opp,p_game_type:state.gameType||"regular"
   });
@@ -562,29 +562,31 @@ async function requireCloudReady(){
   }
   return true;
 }
-async function prepareGameForHelper(){
-  if(!readGameSetup()||!await requireCloudReady())return;
-  const button=$("prepareHelperGame");if(button)button.disabled=true;
-  try{
-    if(!await ensureCloudGame())throw Error(lastCloudSyncError||"Could not create Friday’s game.");
-    if(!await savePreparedGameConfiguration())throw Error(lastCloudSyncError||"Game rules and starters could not be saved.");
-    save(true);
-    void renderAdminSavedGames();
-    openModal("Game Ready for Friday",
-      "<p><b>"+esc(state.team)+"</b> vs <b>"+esc(state.opp)+"</b> is linked to your account.</p>"+
-      "<p>You can invite your substitute now. The game can be opened on their own device without using your password.</p>"+
-      '<button id="invitePreparedHelper" class="primary">Invite Substitute Statkeeper</button>');
-    $("invitePreparedHelper").onclick=()=>inviteHelper();
-  }catch(e){$("setupError").textContent=e?.message||"Could not prepare game.";}
-  finally{if(button)button.disabled=false;}
-}
-$("prepareHelperGame")?.addEventListener("click",prepareGameForHelper);
+// One creation path: create and open a game first, then invite a statkeeper
+// at any time from the in-game Team & Sharing menu.
 $("startGame").onclick=async()=>{
-  if(!readGameSetup()||!await requireCloudReady())return;
-  if(!await ensureCloudGame()){$("setupError").textContent=lastCloudSyncError||"Could not connect the game to cloud backup.";return}
-  if(!await savePreparedGameConfiguration()){$("setupError").textContent="Could not save the game rules and starting five. Retry.";return}
-  state.gameStartedAt=state.gameStartedAt||Date.now();
-  startUI();save(true);
+  const button=$("startGame");
+  if(button.disabled||!readGameSetup())return;
+  button.disabled=true;
+  button.textContent="Creating game…";
+  try{
+    if(!await requireCloudReady())return;
+    if(!await ensureCloudGame()){
+      $("setupError").textContent=lastCloudSyncError||"Could not create the game in your account.";
+      return;
+    }
+    if(!await savePreparedGameConfiguration()){
+      $("setupError").textContent=lastCloudSyncError||"Could not save game rules and starting five. Retry opening this same game.";
+      return;
+    }
+    state.gameStartedAt=state.gameStartedAt||Date.now();
+    startUI();save(true);
+  }catch(e){
+    $("setupError").textContent=e?.message||"Could not open game. Your roster and saved games have not been deleted.";
+  }finally{
+    button.disabled=false;
+    button.textContent="Create & Open Game";
+  }
 };
 function productHeaders(){document.querySelectorAll(".product-header").forEach(h=>{h.innerHTML='<img class="hardcourt-arena-header" src="./hardcourt-header-arena-ui71.jpg?v=ui71" alt="Bleacher Butt Stats Hardcourt Edition">';h.removeAttribute("role");h.removeAttribute("aria-label")})}
 function openRosterEditor(){
