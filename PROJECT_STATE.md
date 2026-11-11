@@ -1,8 +1,45 @@
 # Bleacher Butt Stats / Sideline Stats — Project State
 
-Last updated: October 30, 2026
+Last updated: November 10, 2026
 
 This file is the durable project-state ledger. Read it before substantial development, deployment, recovery, or architecture work. Update it after meaningful production deployments, known-good baseline changes, major feature completions, architecture changes, database migrations/functions that materially affect the app, or important unresolved issues.
+
+## November 10, 2026 — Hardcourt Thursday Readiness Build
+
+**Urgent operational deadline:** Thursday, November 12, 2026, for a Friday basketball game. The user will not attend and needs a substitute statkeeper with their own secure, game-specific invitation.
+
+**Season transition:** The Erie Tigers football team lost to Broomfield in the semifinals. Focus has shifted to the **Erie Elite — 5th Grade Gold** basketball team.
+
+### Backend: VERIFIED
+
+- Existing empty basketball team **My Team**, owned by the same Supabase account as Erie Tigers, was safely renamed **Erie Elite**. Current team ID: `2cc10bfd-026f-4e7c-b948-3d98f9918319`. Grade is `5th Grade`; the app's division is `Gold`.
+- Its preexisting basketball season was preserved; no football team or game records were changed.
+- The owner's Erie Elite entitlement now matches their founder access (`team_pro`, `complimentary=true`, `founder_comp`).
+- **Roster remains empty.** No team players or Friday game have been created because the actual roster and opponent were not supplied.
+- Existing Supabase RPCs and RLS support basketball team/roster management, game creation, email-locked one-game statkeeper invites, game-specific event writes, and reading assigned roster.
+
+### Hardcourt development build: IMPLEMENTED / STATIC-TESTED, NOT DEVICE-VERIFIED
+
+- Source branch: `feature/hardcourt-erie-elite-thursday-20261110` off production `gh-pages`.
+- Published **separate preview**: `https://hootson.github.io/sideline-stats/hardcourt/preview.html`.
+- Preview files on `gh-pages`: `hardcourt/preview.html`, `hardcourt/app-preview.js`, `hardcourt/preview.css`, `hardcourt/preview-manifest.webmanifest`.
+- Preview has its **own iPhone Home Screen app manifest** and isolated local game/roster cache; it shares the existing Bleacher Butt Stats login and the actual Erie Elite Supabase backend.
+- Preview changes: automatic signed-in basketball team recognition, no fabricated roster, owner roster editor with cloud save, game preparation before tipoff, saved basketball game settings/starting five in Supabase, email-locked substitute invitation, assigned cloud game loading, helper clock/sub/timeout controls, cloud game history, serialized event uploads, timestamp normalization, and pending-event retry.
+- Static checks passed for module parsing, required page elements and file references, separate preview storage, and preservation of the original Hardcourt production `index.html`, `app.js` and service worker.
+- **Do not say this is production-ready yet.** Browser/device interaction, email-locked invite redemption, stat write/read on two physical devices, and offline behavior are **NOT VERIFIED**. The independent preview exists for those tests.
+
+### Immediate acceptance tests before Friday
+
+1. Owner opens the preview on iPhone; signs in once if needed; verifies auto-loaded **Erie Elite / 5th Grade Gold** rather than football or a demo roster.
+2. Enter and save every actual Erie Elite player's jersey and name; reopen and independently check the cloud roster.
+3. Enter the actual Friday opponent and league periods, select five starters, choose **Save Game & Invite Statkeeper**.
+4. Verify a single new **basketball** game row under Erie Elite in Supabase with correct game rules and starting five.
+5. Create an email-locked invite and open it on **the substitute's separate device**, signed into the invited email; confirm the correct Erie Elite team and game/roster, clock, substitutions and shot entry.
+6. Record a clearly identified test event with approval, verify cloud event/credits and score on both devices, and safely correct/remove the test event with user approval before the real game.
+7. Confirm return/opening the same game and reliable offline/online retry. Only then intentionally promote the changes to installed Hardcourt production.
+8. Preserve `PROJECT_STATE.md` as the sole authoritative ledger; do not create additional `status.md` files. Keep Gridiron v4.6.90 and its preserved rollback baseline untouched.
+
+**Current handoff:** Preview GitHub resources exist and source-level static tests passed, but the user has not yet opened the preview, loaded a real roster, or validated the two-device statkeeper flow. Do not invent completion.
 
 ## October 30, 2026 — Current Gridiron Production Status (v4.6.90)
 
