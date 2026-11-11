@@ -250,3 +250,15 @@ body.game-active.offense-left nav{left:auto!important;right:18px!important}
 body.game-active .center-round{height:43%!important;width:auto!important;aspect-ratio:1/1!important;border:4px solid #fff!important}
 body.game-active .court-brand-lockup.real-logo{height:43%!important;width:auto!important;aspect-ratio:1/1!important;border:4px solid #fff!important;box-shadow:0 7px 22px #000b!important}
 body.game-active .round-circle .dash-semi{border-style:dashed!important}
+
+/* Thursday Hardcourt readiness: roster editing and pregame preparation */
+.hc-roster-row{display:grid;grid-template-columns:minmax(68px,100px) minmax(130px,1fr) 44px;gap:9px;margin:11px 0;align-items:end}
+.hc-roster-row label{display:grid;gap:5px;font-size:13px;color:#d4dce0}
+.hc-roster-row input{width:100%;min-width:0;min-height:44px;background:#212a2d;border:1px solid #637279;color:#fff;border-radius:10px;padding:8px}
+.hc-roster-row button{min-height:44px;border-radius:9px;background:#483036;color:white;border:1px solid #9f5966}
+#prepareHelperGame,#startGame,#setupEditRoster,#rosterEditBtn{min-height:44px;margin:8px 6px 8px 0}
+#prepareHelperGame{background:#1f7b4a;color:#fff;border:1px solid #61bc7b;border-radius:10px;padding:12px 16px;font-weight:700}
+#rosterEditBtn{margin-bottom:14px}
+#hardcourtCloudGames button{display:block;width:100%;text-align:left;margin:8px 0;padding:12px}
+#cloudStatus,#liveCloudStatus{overflow-wrap:anywhere}
+@media(max-width:430px){.hc-roster-row{grid-template-columns:70px minmax(115px,1fr) 40px;gap:6px}}
