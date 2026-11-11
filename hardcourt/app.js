@@ -1,32 +1,90 @@
 import{isThreePoint,rimZone,createEvent,derive}from"./engine.js";
 const $=id=>document.getElementById(id),defaults=Array.from({length:10},(_,i)=>({id:"p"+i,num:[2,5,11,14,22,3,7,10,20,24][i],name:["Mason Reed","Liam Carter","Noah Brooks","Ethan Hayes","Caleb Turner","Owen Parker","Jack Bennett","Luke Foster","Henry Collins","Wyatt Cooper"][i],headshot:""}));
 let stored;try{stored=JSON.parse(localStorage.getItem("hardcourt-alpha")||"null")}catch{stored=null}
-let roster=(stored?.roster||defaults).map((p,i)=>({...defaults[i],...p}));if(roster.length===10&&roster.every((p,i)=>!p.cloudId&&(["Abe","Max","Cole","Sam","Jack","Ben","Luke","Noah","Eli","Ryan"].includes(p.name)||p.name==="Player "+(i+1))))roster=defaults.map(p=>({...p}));let state=stored||{events:[],active:roster.slice(0,5).map(x=>x.id),period:1,clockMs:480000,running:false,fast:false,offenseRight:true,minutes:{},lastTick:null,statsScope:"game",chartMode:"shots"};state.teamId??=globalThis.crypto?.randomUUID?.()||"team-"+Date.now();state.gameId??=globalThis.crypto?.randomUUID?.()||"game-"+Date.now();state.clientId??=localStorage.getItem("hardcourt-client-id")||globalThis.crypto?.randomUUID?.()||"local";state.timeScope??="game";state.analyticsDetailTab??="fast";localStorage.setItem("hardcourt-client-id",state.clientId);let timer;const SUPABASE_URL="https://eyuvgzhkhcpwtcbmsvct.supabase.co",SUPABASE_PUBLISHABLE_KEY="sb_publishable_uMOkwO4jyHen4pz4zCkIuQ_Ss-wUf2l" ,HARDCOURT_AUTH_STORAGE_KEY="sb-eyuvgzhkhcpwtcbmsvct-hardcourt-auth-token";const hardcourtAuthOptions={auth:{storageKey:HARDCOURT_AUTH_STORAGE_KEY,persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}};let SB=null,cloudUser=null,cloudChannel=null;
+let roster=(stored?.roster||[]).map((p,i)=>({...defaults[i],...p}));let state=stored||{events:[],active:roster.slice(0,5).map(x=>x.id),period:1,clockMs:480000,running:false,fast:false,offenseRight:true,minutes:{},lastTick:null,statsScope:"game",chartMode:"shots"};state.teamId??=globalThis.crypto?.randomUUID?.()||"team-"+Date.now();state.gameId??=globalThis.crypto?.randomUUID?.()||"game-"+Date.now();state.clientId??=localStorage.getItem("hardcourt-client-id")||globalThis.crypto?.randomUUID?.()||"local";state.timeScope??="game";state.analyticsDetailTab??="fast";localStorage.setItem("hardcourt-client-id",state.clientId);let timer;const SUPABASE_URL="https://eyuvgzhkhcpwtcbmsvct.supabase.co",SUPABASE_PUBLISHABLE_KEY="sb_publishable_uMOkwO4jyHen4pz4zCkIuQ_Ss-wUf2l" ,HARDCOURT_AUTH_STORAGE_KEY="sb-eyuvgzhkhcpwtcbmsvct-auth-token";const hardcourtAuthOptions={auth:{storageKey:HARDCOURT_AUTH_STORAGE_KEY,persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}};let SB=null,cloudUser=null,cloudChannel=null;
 function refreshCloudPlayerMap(){state.cloudPlayerMap=Object.fromEntries(roster.filter(p=>p.cloudId).map(p=>[p.id,p.cloudId]))}
+let cloudLoading=false,cloudSyncRunning=false,cloudSyncRequested=false,lastCloudSyncError="";
+function cloudStoreKey(){return cloudUser?.id?"hardcourt-owner-team-"+cloudUser.id:null;}
+
 function elapsedGameMs(){const regulation=Math.min(state.period-1,state.periods||4)*(state.periodMinutes||8)*60000,ot=Math.max(0,state.period-(state.periods||4)-1)*(state.otMinutes||3)*60000,currentLen=state.period>(state.periods||4)?(state.otMinutes||3)*60000:(state.periodMinutes||8)*60000;return Math.max(0,regulation+ot+(currentLen-state.clockMs))}
 function archiveGame(){if(!state.gameId||!state.gameStartedAt)return;const games=JSON.parse(localStorage.getItem("hardcourt-games")||"[]"),snap={gameId:state.gameId,teamId:state.teamId,opponent:state.opp||"Opponent",createdAt:state.gameStartedAt||Date.now(),playoffs:state.gameType==="playoffs",events:state.events,minutes:state.minutes||{},elapsedMs:elapsedGameMs()};const i=games.findIndex(g=>g.gameId===snap.gameId);if(i>=0)games[i]=snap;else games.push(snap);localStorage.setItem("hardcourt-games",JSON.stringify(games))}
-let lastSave=0;async function syncRosterCloud(){if(!cloudUser||!await ensureCloudContext())return;const {data,error}=await SB.rpc("sync_hardcourt_roster",{p_season_id:state.cloudSeasonId,p_players:roster.map(p=>({cloudId:p.cloudId||null,jersey:String(p.num||""),name:p.name||"Player"}))});if(error){console.warn("Hardcourt roster sync",error.message);return}for(const row of data||[]){const p=roster.find(x=>String(x.num)===String(row.jersey)&&String(x.name).toLowerCase()===String(row.name).toLowerCase());if(p)p.cloudId=row.id}refreshCloudPlayerMap();save()}
+let lastSave=0;
+async function syncRosterCloud(){
+  if(state.helperMode)return false;
+  if(!cloudUser||!await ensureCloudContext())return false;
+  const response=await SB.rpc("sync_hardcourt_roster",{
+    p_season_id:state.cloudSeasonId,
+    p_players:roster.map(p=>({cloudId:p.cloudId||null,jersey:String(p.num??""),name:p.name||"Player"}))
+  });
+  if(response.error){lastCloudSyncError=response.error.message;console.warn("Hardcourt roster sync",response.error.message);updateCloudStatus();return false;}
+  for(const row of response.data||[]){
+    const p=roster.find(x=>String(x.num)===String(row.jersey)&&String(x.name).toLowerCase()===String(row.name).toLowerCase());
+    if(p)p.cloudId=row.id;
+  }
+  refreshCloudPlayerMap();lastCloudSyncError="";save(true);
+  return true;
+}
 function viewerScore(events){let us=0,them=0;for(const e of events||[]){if(e.type==="shot"&&e.payload?.made)us+=e.payload.three?3:2;else if(e.type==="free_throw"&&e.payload?.made)us++;else if(e.type==="opp_score")them+=+e.payload?.points||0;else if(e.type==="opp_free_throw"&&e.payload?.made)them++}return{us,them}}
 async function renderViewer(token){$("setup").classList.add("hidden");$("shell").classList.add("hidden");$("viewerView").classList.remove("hidden");const {data,error}=await SB.rpc("get_public_team_viewer",{p_token:token});if(error){$("viewerView").innerHTML='<div class="viewer-card"><h2>Viewer link unavailable</h2><p>'+error.message+'</p></div>';return}const games=(data.games||[]).filter(g=>g.sport==="basketball"),live=games.find(g=>g.status==="live")||games.at(-1),events=(data.events||[]).filter(e=>!live||e.game_id===live.id),score=viewerScore(events);$("viewerView").innerHTML='<div class="viewer-brand"><img src="../brand-header.png" alt="Bleacher Butt Stats"><b>HARDCOURT EDITION</b></div><div class="viewer-score"><div><small>'+data.team.name+'</small><strong>'+score.us+'</strong></div><span>LIVE STATS</span><div><small>'+(live?.opponent_name||"Opponent")+'</small><strong>'+score.them+'</strong></div></div><div class="viewer-card"><h3>Team Stats</h3><div id="viewerStats"></div></div><div class="viewer-card"><h3>Games</h3>'+(games.map(g=>'<p>'+new Date(g.started_at||g.created_at).toLocaleDateString()+' · '+g.opponent_name+'</p>').join("")||"<p>No games yet.</p>")+'</div>';const rows=(data.players||[]).map(p=>{const pe=events.filter(e=>String(e.payload?.cloudPlayerId)===String(p.id)),s=viewerScore(pe);return'<div class="viewer-stat-row"><b>#'+(p.jersey||"")+' '+p.name+'</b><span>'+s.us+' PTS</span></div>'}).join("");$("viewerStats").innerHTML=rows||"<p>Stats will appear when the game starts.</p>";setTimeout(()=>renderViewer(token),5000)}
 async function initViewerMode(){const token=new URL(location.href).searchParams.get("viewer");if(!token)return false;if(!window.supabase?.createClient)return false;SB=SB||window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,hardcourtAuthOptions);await renderViewer(token);return true}
-function updateCloudStatus(){const s=cloudUser?(state.cloudGameId?(state.helperMode?"Helper · Live sync":"Live cloud sync"):"Signed in"):"Local mode";if($("cloudStatus"))$("cloudStatus").textContent=s;if($("liveCloudStatus"))$("liveCloudStatus").textContent=s;if($("accountBtn"))$("accountBtn").textContent="⚙ "+(state.team||"Team")}
-function openAccount(){if(!SB)return openModal("Account","<p>Cloud services are unavailable.</p>");if(cloudUser){openModal("Account",'<p>Signed in as <b>'+(cloudUser.email||"your account")+'</b>.</p><button id="signOutHardcourt" class="choice">Sign Out</button>');$("signOutHardcourt").onclick=async()=>{await SB.auth.signOut({scope:"local"});closeModal()};return}openModal("Account",'<div class="team-editor"><label>Email<input id="hcEmail" type="email" autocomplete="email"></label><label>Password<input id="hcPassword" type="password" autocomplete="current-password"></label><button id="hcSignIn" class="primary">Sign In</button><button id="hcSignUp" class="choice">Create Account</button><p id="hcAuthMsg" class="error"></p></div>');$("hcSignIn").onclick=async()=>{const {error}=await SB.auth.signInWithPassword({email:$("hcEmail").value.trim(),password:$("hcPassword").value});$("hcAuthMsg").textContent=error?.message||"";if(!error)closeModal()};$("hcSignUp").onclick=async()=>{const {error}=await SB.auth.signUp({email:$("hcEmail").value.trim(),password:$("hcPassword").value});$("hcAuthMsg").textContent=error?.message||"Check your email to confirm your account."}}
+function updateCloudStatus(){
+  const s=lastCloudSyncError?"Backup needs attention: "+lastCloudSyncError:cloudUser?
+    (state.cloudGameId?(state.helperMode?"Statkeeper · cloud connected":"Game backed up · cloud connected"):"Signed in · "+(state.team||"Basketball Team")):
+    "Sign in to save your basketball team";
+  if($("cloudStatus"))$("cloudStatus").textContent=s;
+  if($("liveCloudStatus"))$("liveCloudStatus").textContent=s;
+  if($("accountBtn")){
+    $("accountBtn").textContent="☁ Account";
+    $("accountBtn").classList.toggle("connected",!!cloudUser&&!lastCloudSyncError);
+  }
+  if($("hcSyncDot"))$("hcSyncDot").className="hc-sync-dot"+(lastCloudSyncError?" warning":cloudUser?" online":"");
+}
+function openAccount(){
+  if(!SB)return openModal("Account","<p>Account services are unavailable; reconnect to the internet.</p>");
+  if(cloudUser){
+    openModal("Hardcourt Account",'<p>Signed in as <b>'+esc(cloudUser.email||"your account")+'</b>.</p>'+
+      '<p>Basketball team: <b>'+esc(state.team||"Not assigned")+'</b></p>'+
+      '<button id="refreshHardcourtTeam" class="primary">Reload My Basketball Team</button>'+
+      '<button id="signOutHardcourt" class="choice">Sign Out</button>');
+    $("refreshHardcourtTeam").onclick=async()=>{state.cloudOwnerUserId=null;closeModal();await bootstrapHardcourt(true);};
+    $("signOutHardcourt").onclick=async()=>{await SB.auth.signOut({scope:"local"});closeModal();};
+    return;
+  }
+  openModal("Sign in to Bleacher Butt Stats",
+    '<p>Use the <b>same email and password</b> as Gridiron. Game substitutes use their own email.</p>'+
+    '<div class="team-editor"><label>Email<input id="hcEmail" type="email" autocomplete="email"></label>'+
+    '<label>Password<input id="hcPassword" type="password" autocomplete="current-password"></label>'+
+    '<button id="hcSignIn" class="primary">Sign In</button>'+
+    '<button id="hcSignUp" class="choice">Create Account</button><p id="hcAuthMsg" class="error"></p></div>');
+  $("hcSignIn").onclick=async()=>{
+    const {error}=await SB.auth.signInWithPassword({email:$("hcEmail").value.trim(),password:$("hcPassword").value});
+    $("hcAuthMsg").textContent=error?.message||"";
+    if(!error)closeModal();
+  };
+  $("hcSignUp").onclick=async()=>{
+    const {error}=await SB.auth.signUp({email:$("hcEmail").value.trim(),password:$("hcPassword").value});
+    $("hcAuthMsg").textContent=error?.message||"Check your email to confirm your account.";
+  };
+}
 function openSettings(){
   const signed=!!cloudUser,email=cloudUser?.email||"";
   openModal("Settings",'<div class="hc-settings">'+
     '<div class="hc-settings-team"><span class="score-logo">'+imgOrInitial(state.teamLogo,state.team)+'</span><div><h3>'+esc(state.team||"Team")+'</h3><small>'+esc([state.grade,state.division].filter(Boolean).join(" · "))+'</small><p>'+(signed?esc(email):"Not signed in")+'</p></div></div>'+
-    '<div class="hc-settings-card"><b>TEAM & ACCOUNT</b><button id="settingsEditTeam">Edit '+esc(state.team||"Team")+'</button><button id="settingsAccount">'+(signed?"Account / Sign Out":"Sign In / Create Account")+'</button></div>'+
+    '<div class="hc-settings-card"><b>TEAM & ACCOUNT</b><button id="settingsEditTeam">Edit '+esc(state.team||"Team")+'</button><button id="settingsRoster">Edit Season Roster</button><button id="settingsAccount">'+(signed?"Account / Sign Out":"Sign In / Create Account")+'</button></div>'+
     '<div class="hc-settings-card"><b>SHARING & ACCESS</b><p>Use the same account-and-invite pattern across Bleacher Butt Stats.</p><button id="settingsParent">Invite Parents / Viewers</button><button id="settingsCoach">Invite Coach</button><button id="settingsHelper">Invite Game Statkeeper</button></div>'+
-    '<div class="hc-settings-card"><b>GAME</b><button id="settingsGame">Game Setup</button><button id="settingsNewGame">New Game</button><button id="settingsHistory">Prior Games</button></div>'+
+    '<div class="hc-settings-card"><b>GAME</b><button id="settingsGame">Game Setup</button><button id="settingsNewGame">New Game</button><button id="settingsHistory">Prior Games</button><button id="settingsCloudGames">Cloud Games</button></div>'+
   '</div>');
   $("settingsEditTeam").onclick=()=>{closeModal();openTeamEditor()};
+  $("settingsRoster").onclick=()=>{closeModal();openRosterEditor()};
   $("settingsAccount").onclick=()=>{closeModal();openAccount()};
   $("settingsParent").onclick=()=>{closeModal();shareTeam()};
   $("settingsCoach").onclick=()=>{closeModal();inviteCoach()};
   $("settingsHelper").onclick=()=>{closeModal();inviteHelper()};
-  $("settingsGame").onclick=()=>{closeModal();openGameSettings()};
+  $("settingsGame").onclick=()=>{closeModal();if(state.gameStartedAt)openGameSettings();else showAdminPage("games")};
   $("settingsNewGame").onclick=()=>{closeModal();newGame()};
   $("settingsHistory").onclick=()=>{closeModal();gameHistory()};
+  $("settingsCloudGames").onclick=()=>{closeModal();openCloudGames()};
+  if(state.helperMode)for(const id of ["settingsEditTeam","settingsRoster","settingsParent","settingsCoach","settingsHelper","settingsNewGame"]){const el=$(id);if(el){el.disabled=true;el.title="Only the team owner can use this setting";}}
 }
 async function inviteCoach(){
   if(!cloudUser)return openAccount();
@@ -43,27 +101,559 @@ async function inviteCoach(){
   }
 }
 async function shareTeam(){if(!cloudUser)return openAccount();if(!await ensureCloudContext())return;const {data,error}=await SB.rpc("create_team_invite",{p_team_id:state.cloudTeamId,p_role:"viewer",p_expires_days:3650});if(error)return openModal("Share Team","<p>"+error.message+"</p>");const url=location.origin+location.pathname+"?viewer="+encodeURIComponent(data);openModal("Parent / Viewer Link",'<p>This permanent team link can be saved once and reused for every game.</p><input id="viewerLink" readonly value="'+url+'"><button id="copyViewerLink" class="primary">Copy Link</button>');$("copyViewerLink").onclick=async()=>{await navigator.clipboard?.writeText(url);$("copyViewerLink").textContent="Copied"}}
-async function inviteHelper(){if(!cloudUser)return openAccount();if(!await ensureCloudGame())return;openModal("Game Helper",'<p>Invite one substitute statkeeper for this game.</p><label>Email<input id="helperEmail" type="email"></label><button id="createHelperLink" class="primary">Create Helper Link</button><div id="helperResult"></div>');$("createHelperLink").onclick=async()=>{const {data,error}=await SB.rpc("create_game_statkeeper_invite",{p_game_id:state.cloudGameId,p_email:$("helperEmail").value.trim(),p_expires_days:7});if(error){$("helperResult").textContent=error.message;return}const row=Array.isArray(data)?data[0]:data,url=location.origin+location.pathname+"?gameStatkeeperInvite="+encodeURIComponent(row.token);$("helperResult").innerHTML='<input id="helperLink" readonly value="'+url+'"><button id="copyHelperLink" class="choice">Copy Link</button>';$("copyHelperLink").onclick=()=>navigator.clipboard?.writeText(url)}}
-async function redeemInviteFromUrl(){if(!SB||!cloudUser)return;const u=new URL(location.href),teamToken=u.searchParams.get("coachInvite")||u.searchParams.get("teamInvite");if(teamToken){const {data,error}=await SB.rpc("redeem_team_invite",{p_token:teamToken});if(error){console.warn(error.message);return}const row=Array.isArray(data)?data[0]:data;state.cloudTeamId=row.team_id||state.cloudTeamId;u.searchParams.delete("coachInvite");u.searchParams.delete("teamInvite");history.replaceState({},"",u);const {data:ctx}=await SB.rpc("get_hardcourt_cloud_context");const contexts=Array.isArray(ctx)?ctx:[];const match=contexts.find(x=>x.teamId===state.cloudTeamId)||contexts[0];if(match){state.cloudTeamId=match.teamId;state.cloudSeasonId=match.seasonId;state.team=match.teamName||state.team;await restoreCloudRoster();save(true)}updateCloudStatus();return}const token=u.searchParams.get("gameStatkeeperInvite");if(!token)return;const {data,error}=await SB.rpc("redeem_game_statkeeper_invite",{p_token:token});if(error){console.warn(error.message);return}const row=Array.isArray(data)?data[0]:data;state.cloudTeamId=row.team_id;state.cloudSeasonId=row.season_id;state.cloudGameId=row.game_id;state.cloudGameOwner=false;state.helperMode=true;state.team=row.team_name;state.opp=row.opponent_name;await restoreCloudRoster();u.searchParams.delete("gameStatkeeperInvite");history.replaceState({},"",u);startCloudRealtime();save(true)}
-async function restoreCloudRoster(){if(!SB||!state.cloudSeasonId)return;const {data,error}=await SB.from("players").select("id,jersey_number,name").eq("season_id",state.cloudSeasonId).eq("active",true).order("jersey_number");if(error||!data?.length)return;const existingByCloud=new Map(roster.filter(p=>p.cloudId).map(p=>[p.cloudId,p]));roster=data.map((r,i)=>{const old=existingByCloud.get(r.id)||roster.find(p=>String(p.num)===String(r.jersey_number)&&String(p.name).toLowerCase()===String(r.name).toLowerCase());return{id:old?.id||"p"+i,num:r.jersey_number,name:r.name,headshot:old?.headshot||"",cloudId:r.id}});refreshCloudPlayerMap();state.active=state.active.filter(id=>roster.some(p=>p.id===id));if(state.active.length!==5)state.active=roster.slice(0,5).map(p=>p.id);setupRoster();applyProfileToSetup();save()}
-async function ensureCloudContext(){if(!SB||!cloudUser)return false;if(state.cloudTeamId&&state.cloudSeasonId)return true;const {data,error}=await SB.rpc("get_hardcourt_cloud_context");if(error){console.warn("Hardcourt cloud context",error.message);return false}let ctx=Array.isArray(data)?data[0]:null;if(!ctx){const made=await SB.rpc("create_hardcourt_team",{p_name:state.team||"My Team",p_grade:state.grade||"5th Grade",p_primary:state.primary||"#111111",p_accent:state.accent||"#39a852"});if(made.error){console.warn("Hardcourt team create",made.error.message);return false}const row=Array.isArray(made.data)?made.data[0]:made.data;state.cloudTeamId=row.team_id;state.cloudSeasonId=row.season_id}else{state.cloudTeamId=ctx.teamId;state.cloudSeasonId=ctx.seasonId;if(ctx.players?.length){const byKey=new Map(ctx.players.map(p=>[String(p.jersey)+"|"+String(p.name).toLowerCase(),p.id]));roster.forEach(p=>{p.cloudId=byKey.get(String(p.num)+"|"+String(p.name).toLowerCase())||p.cloudId})}refreshCloudPlayerMap()}return true}
-async function ensureCloudGame(){if(state.cloudGameId)return true;if(!await ensureCloudContext())return false;const {data,error}=await SB.rpc("create_hardcourt_game",{p_season_id:state.cloudSeasonId,p_opponent:state.opp||"Opponent",p_game_type:state.gameType||"regular"});if(error){console.warn("Hardcourt game create",error.message);return false}state.cloudGameId=data;state.cloudGameOwner=true;startCloudRealtime();updateCloudStatus();return true}
-function mergeRemoteEvents(rows){let changed=false;for(const r of rows||[]){const existing=state.events.find(e=>e.id===r.id);if(r.deleted_at){if(existing){state.events=state.events.filter(e=>e.id!==r.id);changed=true}continue}if(existing){const payload={...(r.payload||{})};if(payload.cloudPlayerId)payload.playerId=roster.find(p=>p.cloudId===payload.cloudPlayerId)?.id||payload.playerId;if(payload.cloudLineup?.length)payload.lineup=payload.cloudLineup.map(cid=>roster.find(p=>p.cloudId===cid)?.id).filter(Boolean);existing.payload=payload;existing.period=r.period;existing.clockMs=r.clock_ms;existing.syncState="synced";changed=true;continue;}const payload={...(r.payload||{})};if(payload.cloudPlayerId&&!payload.playerId)payload.playerId=roster.find(p=>p.cloudId===payload.cloudPlayerId)?.id||payload.playerId;if(payload.cloudLineup?.length)payload.lineup=payload.cloudLineup.map(cid=>roster.find(p=>p.cloudId===cid)?.id).filter(Boolean);if(r.event_type==="lineup"&&payload.lineup?.length===5)state.active=[...payload.lineup];if(r.event_type==="overtime_start"){state.period=r.period;state.clockMs=r.clock_ms;state.running=false}if(r.event_type==="clock_start"){state.period=r.period;state.clockMs=r.clock_ms;state.running=false}if(r.event_type==="clock_stop"){state.period=r.period;state.clockMs=r.clock_ms;state.running=false}state.events.push({id:r.id,type:r.event_type,period:r.period,clockMs:r.clock_ms,payload,createdAt:r.client_created_at,syncState:"synced"});changed=true}if(changed){save(true);render()}}
-async function pullCloudEvents(){if(!SB||!state.cloudGameId)return;const {data,error}=await SB.from("hardcourt_events").select("*").eq("game_id",state.cloudGameId).is("deleted_at",null).order("client_created_at");if(!error)mergeRemoteEvents(data)}
+async function inviteHelper(){
+  if(!cloudUser)return openAccount();
+  if(state.helperMode){openModal("Game access","Only the team owner can invite another statkeeper.");return}
+  if(!state.cloudGameId){
+    openModal("Prepare Game First","<p>Save Friday’s game from the Game Setup screen before creating a substitute-statkeeper link.</p>");
+    return;
+  }
+  openModal("Invite Game Statkeeper",
+    '<p>Send an email-locked link for <b>'+esc(state.team)+'</b> vs <b>'+esc(state.opp||"Opponent")+'</b>. The recipient signs in with their own email and can record this game, not manage your team.</p>'+
+    '<label>Substitute’s email<input id="helperEmail" type="email" autocomplete="email" placeholder="statkeeper@example.com"></label>'+
+    '<button id="createHelperLink" class="primary">Generate Secure Invitation</button><div id="helperResult"></div>');
+  $("createHelperLink").onclick=async()=>{
+    const email=$("helperEmail").value.trim().toLowerCase();
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){$("helperResult").textContent="Enter the substitute’s actual email address.";return}
+    $("createHelperLink").disabled=true;
+    const {data,error}=await SB.rpc("create_game_statkeeper_invite",{
+      p_game_id:state.cloudGameId,p_email:email,p_expires_days:3
+    });
+    $("createHelperLink").disabled=false;
+    if(error){$("helperResult").textContent=error.message;return}
+    const row=Array.isArray(data)?data[0]:data;
+    if(!row?.token){$("helperResult").textContent="Invitation could not be generated. Please retry.";return}
+    const url=location.origin+location.pathname+"?gameStatkeeperInvite="+encodeURIComponent(row.token);
+    $("helperResult").innerHTML='<p>Send this link to <b>'+esc(email)+'</b>. It is single-recipient and expires after three days.</p>'+
+      '<input id="helperLink" readonly><button id="copyHelperLink" class="choice">Copy Invitation Link</button>';
+    $("helperLink").value=url;
+    $("copyHelperLink").onclick=async()=>{
+      try{if(navigator.clipboard?.writeText)await navigator.clipboard.writeText(url);
+        else{$("helperLink").select();document.execCommand("copy");}
+        $("copyHelperLink").textContent="Copied";
+      }catch(_){$("helperLink").select();$("copyHelperLink").textContent="Select and copy the link above";}
+    };
+  };
+}
+async function redeemInviteFromUrl(){
+  if(!SB||!cloudUser)return false;
+  const u=new URL(location.href);
+  const teamToken=u.searchParams.get("coachInvite")||u.searchParams.get("teamInvite");
+  if(teamToken){
+    const {data,error}=await SB.rpc("redeem_team_invite",{p_token:teamToken});
+    if(error){openModal("Invitation Issue","<p>"+esc(error.message)+"</p>");return true}
+    const row=Array.isArray(data)?data[0]:data;
+    u.searchParams.delete("coachInvite");u.searchParams.delete("teamInvite");
+    history.replaceState({},"",u);
+    state.cloudTeamId=row.team_id||null;state.cloudSeasonId=null;
+    await ensureCloudContext();save(true);return true;
+  }
+  const token=u.searchParams.get("gameStatkeeperInvite");
+  if(!token)return false;
+  const {data,error}=await SB.rpc("redeem_game_statkeeper_invite",{p_token:token});
+  if(error){openModal("Statkeeper Invitation Issue",'<p>'+esc(error.message)+'</p><p>Check that you signed in using the email address the invitation was sent to.</p>');return true;}
+  const row=Array.isArray(data)?data[0]:data;
+  if(!row?.game_id){openModal("Invitation Issue","The invitation did not include a game.");return true;}
+  archiveGame(); // Leave any previous local game in its existing backup.
+  state.helperMode=true;state.cloudOwnerUserId=null;state.cloudTeamId=row.team_id;state.cloudSeasonId=row.season_id;
+  state.cloudGameId=row.game_id;state.gameId=row.game_id;state.team=row.team_name;state.opp=row.opponent_name;
+  state.events=[];state.minutes={};state.active=[];
+  const opened=await openCloudGame(row.game_id,true);
+  if(!opened)return true;
+  u.searchParams.delete("gameStatkeeperInvite");history.replaceState({},"",u);
+  return true;
+}
+async function openCloudGame(gameId,helper=false){
+  if(!SB||!cloudUser||!gameId)return false;
+  cloudLoading=true;
+  try{
+    const {data:g,error}=await SB.from("games")
+      .select("id,season_id,opponent_name,game_type,status,started_at,created_at,game_date,location_type,current_quarter,current_state")
+      .eq("id",gameId).eq("sport","basketball").single();
+    if(error||!g)throw error||Error("Game not found");
+    if(!helper&&state.gameId!==gameId)archiveGame();
+    state.cloudGameId=g.id;state.gameId=g.id;state.cloudSeasonId=g.season_id;
+    state.helperMode=!!helper;state.cloudGameOwner=!helper;
+    state.opp=g.opponent_name;state.gameType=g.game_type==="playoff"?"playoffs":"regular";
+    state.gameDate=g.game_date||null;state.gameLocation=g.location_type||"home";
+    state.gameStartedAt=Date.parse(g.started_at||g.created_at||"")||Date.now();
+    state.period=Math.max(1,Number(g.current_quarter||1));
+    const config=g.current_state?.hardcourt||{};
+    if(config.periods===2||config.periods===4)state.periods=config.periods;
+    if(Number(config.periodMinutes)>0)state.periodMinutes=config.periodMinutes;
+    if(Number(config.foulLimit)>0)state.foulLimit=config.foulLimit;
+    if(config.bonusRule)state.bonusRule=config.bonusRule;
+    if(config.timeoutMode)state.timeoutMode=config.timeoutMode;
+    if(Number.isFinite(Number(config.timeoutCount)))state.timeoutCount=config.timeoutCount;
+    if(Number(config.otMinutes)>0)state.otMinutes=config.otMinutes;
+    if(typeof config.offenseRight==="boolean")state.offenseRight=config.offenseRight;
+    state.clockMs=(state.periodMinutes||8)*60000;
+    state.timeoutsUs=state.timeoutCount??3;state.timeoutsOpp=state.timeoutCount??3;
+    state.events=[];state.minutes={};state.active=[];
+    await restoreCloudRoster();
+    const starters=g.current_state?.hardcourt?.starters;
+    if(Array.isArray(starters)&&starters.length===5){
+      const translated=starters.map(cid=>roster.find(p=>p.cloudId===cid)?.id);
+      if(translated.every(Boolean)&&new Set(translated).size===5)state.active=translated;
+    }
+    if(roster.length<5)throw Error("The assigned game does not have five roster players yet. Ask the team owner to save the roster.");
+    if(!await pullCloudEvents())throw Error("Could not read all cloud game events. Retry before statkeeping.");
+    startCloudRealtime();
+    startUI();render();save(true);updateCloudStatus();
+    return true;
+  }catch(e){
+    console.warn("Hardcourt game load",e);
+    openModal("Could Not Open Game","<p>"+esc(e?.message||e)+"</p>");
+    return false;
+  }finally{cloudLoading=false;}
+}
+async function openCloudGames(){
+  if(!cloudUser)return openAccount();
+  if(!state.helperMode&&!await ensureCloudContext())return;
+  const {data,error}=await SB.rpc("get_hardcourt_games",{p_team_id:state.cloudTeamId});
+  if(error){openModal("Saved Games","<p>"+esc(error.message)+"</p>");return}
+  const list=Array.isArray(data)?data:[];
+  openModal("Saved Basketball Games",'<div id="hardcourtCloudGames" class="history-list"></div>');
+  const host=$("hardcourtCloudGames");
+  if(!list.length){host.textContent="No cloud games yet. Prepare your first game from the setup screen.";return}
+  for(const g of list){
+    const b=document.createElement("button");b.className="choice";
+    b.textContent=(g.opponent_name||"Opponent")+" · "+(g.status||"live")+" · "+(g.event_count||0)+" events";
+    b.onclick=async()=>{closeModal();await openCloudGame(g.game_id,state.helperMode)};
+    host.appendChild(b);
+  }
+}
+async function restoreCloudRoster(){
+  if(!SB||!state.cloudSeasonId)return false;
+  const {data,error}=await SB.from("players").select("id,jersey_number,name").eq("season_id",state.cloudSeasonId).eq("active",true).order("jersey_number");
+  if(error){console.warn("Could not load roster",error.message);return false;}
+  const oldByCloud=new Map(roster.filter(p=>p.cloudId).map(p=>[p.cloudId,p]));
+  const incoming=data||[];
+  if(incoming.length)roster=incoming.map((r,i)=>{
+    const old=oldByCloud.get(r.id)||roster.find(p=>String(p.num)===String(r.jersey_number)&&String(p.name).toLowerCase()===String(r.name).toLowerCase());
+    return {id:old?.id||r.id,num:r.jersey_number,name:r.name,headshot:old?.headshot||"",cloudId:r.id};
+  });
+  else if(!state.hasUnsyncedRoster)roster=[]; // Never fabricate sample players or upload a demo roster.
+  refreshCloudPlayerMap();
+  if(!Array.isArray(state.active))state.active=[];
+  state.active=state.active.filter(id=>roster.some(p=>p.id===id));
+  if(state.active.length!==5)state.active=roster.slice(0,5).map(p=>p.id);
+  setupRoster();applyProfileToSetup();render();save(true);return true;
+}
+async function ensureCloudContext(){
+  if(!SB||!cloudUser)return false;
+  if(state.helperMode)return !!(state.cloudTeamId&&state.cloudSeasonId);
+  if(state.cloudTeamId&&state.cloudSeasonId&&state.cloudOwnerUserId===cloudUser.id)return true;
+  const {data,error}=await SB.rpc("get_hardcourt_cloud_context");
+  if(error){lastCloudSyncError=error.message;console.warn("Hardcourt team lookup",error.message);return false;}
+  const contexts=Array.isArray(data)?data:[];
+  if(!contexts.length)return false;
+  const preferred=localStorage.getItem(cloudStoreKey()||"");
+  const ctx=contexts.find(x=>x.teamId===preferred)||contexts.find(x=>x.teamId===state.cloudTeamId)||contexts[0];
+  if(contexts.length>1&&!preferred&&!contexts.some(x=>x.teamId===state.cloudTeamId)){
+    openModal("Select Basketball Team",'<p>Choose the team to open:</p><div id="hardcourtTeamChoices" class="choices"></div>');
+    const host=$("hardcourtTeamChoices");
+    for(const option of contexts){
+      const b=document.createElement("button");b.className="choice";b.textContent=option.teamName||"Basketball Team";
+      b.onclick=async()=>{closeModal();await applyCloudContext(option)};
+      host.appendChild(b);
+    }
+    return false;
+  }
+  return applyCloudContext(ctx);
+}
+async function applyCloudContext(ctx){
+  if(!ctx||!cloudUser)return false;
+  const priorTeam=state.cloudTeamId;
+  state.cloudTeamId=ctx.teamId;state.cloudSeasonId=ctx.seasonId;state.cloudOwnerUserId=cloudUser.id;
+  if(priorTeam&&priorTeam!==ctx.teamId){
+    archiveGame();state.cloudGameId=null;state.gameId=crypto.randomUUID();state.gameStartedAt=null;state.events=[];state.minutes={};
+  }
+  state.team=ctx.teamName||state.team||"Basketball Team";state.grade=ctx.grade||"5th Grade";
+  state.primary=ctx.primary||state.primary||"#111111";state.accent=ctx.accent||state.accent||"#39a852";
+  state.teamLogo=ctx.logo||state.teamLogo||"";
+  if(cloudStoreKey())localStorage.setItem(cloudStoreKey(),ctx.teamId);
+  const loaded=await restoreCloudRoster();
+  applyProfileToSetup();setupRoster();updateCloudStatus();save(true);
+  return loaded;
+}
+async function ensureCloudGame(){
+  if(state.cloudGameId){
+    if(!state.helperMode&&!state.events?.length){
+      const {data,error}=await SB.from("games").select("opponent_name,sport,status").eq("id",state.cloudGameId).single();
+      if(error||data?.sport!=="basketball"||data?.opponent_name!==state.opp){
+        lastCloudSyncError="The saved game's opponent does not match. Select New Game to prepare a different opponent.";
+        return false;
+      }
+      if(data?.status==="final"||data?.status==="archived"){lastCloudSyncError="This game is already finalized.";return false;}
+    }
+    return true;
+  }
+  if(state.helperMode)return false;
+  if(!await ensureCloudContext())return false;
+  if(!state.opp||state.opp==="Opponent"){lastCloudSyncError="Enter the opponent before preparing the game.";return false;}
+  const {data,error}=await SB.rpc("create_hardcourt_game",{
+    p_season_id:state.cloudSeasonId,p_opponent:state.opp,p_game_type:state.gameType||"regular"
+  });
+  if(error){lastCloudSyncError=error.message;console.warn("Hardcourt game create",error.message);updateCloudStatus();return false}
+  state.cloudGameId=data;state.cloudGameOwner=true;state.gameId=String(data);
+  startCloudRealtime();updateCloudStatus();save(true);return true;
+}
+async function savePreparedGameConfiguration(){
+  if(!SB||!cloudUser||state.helperMode||!state.cloudGameId)return false;
+  const {data:prior,error:readErr}=await SB.from("games").select("id,current_state,opponent_name,status")
+    .eq("id",state.cloudGameId).single();
+  if(readErr||!prior||prior.opponent_name!==state.opp||prior.status!=="live")return false;
+  const starterCloudIds=state.active.map(id=>state.cloudPlayerMap?.[id]).filter(Boolean);
+  if(starterCloudIds.length!==5)return false;
+  const config={
+    periods:state.periods,periodMinutes:state.periodMinutes,
+    foulLimit:state.foulLimit,bonusRule:state.bonusRule,
+    timeoutMode:state.timeoutMode,timeoutCount:state.timeoutCount,
+    otMinutes:state.otMinutes,offenseRight:state.offenseRight,
+    starters:starterCloudIds
+  };
+  const next={...(prior.current_state||{}),hardcourt:config};
+  const {data,error}=await SB.from("games").update({current_state:next,game_date:state.gameDate||null,location_type:state.gameLocation||"home"}).eq("id",state.cloudGameId)
+    .eq("status","live").select("id");
+  if(error||!data?.length){lastCloudSyncError=error?.message||"Game preparation could not be confirmed.";return false;}
+  return true;
+}
+function mergeRemoteEvents(rows){let changed=false;for(const r of rows||[]){const existing=state.events.find(e=>e.id===r.id);if(r.deleted_at){if(existing){state.events=state.events.filter(e=>e.id!==r.id);changed=true}continue}if(existing){const payload={...(r.payload||{})};if(payload.cloudPlayerId)payload.playerId=roster.find(p=>p.cloudId===payload.cloudPlayerId)?.id||payload.playerId;if(payload.cloudLineup?.length)payload.lineup=payload.cloudLineup.map(cid=>roster.find(p=>p.cloudId===cid)?.id).filter(Boolean);existing.payload=payload;existing.period=r.period;existing.clockMs=r.clock_ms;existing.syncState="synced";changed=true;continue;}const payload={...(r.payload||{})};if(payload.cloudPlayerId)payload.playerId=roster.find(p=>p.cloudId===payload.cloudPlayerId)?.id||payload.playerId;if(payload.cloudLineup?.length)payload.lineup=payload.cloudLineup.map(cid=>roster.find(p=>p.cloudId===cid)?.id).filter(Boolean);if(r.event_type==="lineup"&&payload.lineup?.length===5)state.active=[...payload.lineup];if(r.event_type==="overtime_start"){state.period=r.period;state.clockMs=r.clock_ms;state.running=false}if(r.event_type==="clock_start"){state.period=r.period;state.clockMs=r.clock_ms;state.running=false}if(r.event_type==="clock_stop"){state.period=r.period;state.clockMs=r.clock_ms;state.running=false}state.events.push({id:r.id,type:r.event_type,period:r.period,clockMs:r.clock_ms,payload,createdAt:r.client_created_at,syncState:"synced"});changed=true}if(changed){save(true);render()}}
+async function pullCloudEvents(){
+  if(!SB||!state.cloudGameId)return false;
+  const {data,error}=await SB.from("hardcourt_events").select("*")
+    .eq("game_id",state.cloudGameId).is("deleted_at",null).order("client_created_at");
+  if(error){lastCloudSyncError=error.message;console.warn("Hardcourt cloud read",error.message);return false}
+  mergeRemoteEvents(data);return true;
+}
 function startCloudRealtime(){if(!SB||!state.cloudGameId)return;if(cloudChannel)SB.removeChannel(cloudChannel);cloudChannel=SB.channel("hardcourt-"+state.cloudGameId).on("postgres_changes",{event:"*",schema:"public",table:"hardcourt_events",filter:"game_id=eq."+state.cloudGameId},p=>mergeRemoteEvents([p.new||p.old])).subscribe();pullCloudEvents()}
-async function syncCloudEvents(){if(!SB||!cloudUser)return;if(!state.cloudGameId&&state.gameStartedAt)await ensureCloudGame();if(!state.cloudGameId)return;for(const e of state.events.filter(x=>x.syncState!=="synced")){const {error}=await SB.rpc("sync_hardcourt_event",{p_id:e.id,p_game_id:state.cloudGameId,p_event_type:e.type,p_period:e.period,p_clock_ms:e.clockMs,p_payload:e.payload||{},p_client_id:state.clientId,p_client_created_at:e.createdAt});if(!error)e.syncState="synced";else console.warn("Hardcourt event sync",error.message)}}
-function save(force=false){const now=Date.now();if(!force&&state.running&&now-lastSave<2000)return;lastSave=now;archiveGame();try{localStorage.setItem("hardcourt-alpha",JSON.stringify({...state,running:false,lastTick:null,roster}))}catch(e){console.warn("Hardcourt local save limit reached",e)}if(force||!state.running)syncCloudEvents()}
+async function syncCloudEvents(){
+  if(!SB||!cloudUser||cloudLoading)return false;
+  if(cloudSyncRunning){cloudSyncRequested=true;return false}
+  if(!state.events?.some(e=>e.syncState!=="synced"))return true;
+  cloudSyncRunning=true;let allOkay=true;
+  try{
+    // Never create a cloud game implicitly from stale browser/demo events.
+    // Only an explicit Game Setup action may create the team's next game.
+    if(!state.cloudGameId)return false;
+    for(const e of state.events.filter(x=>x.syncState!=="synced")){
+      // Keep all player and lineup identities stable across the owner and helper
+      // devices. Sync the roster first; never publish unknown local player IDs.
+      const payload={...(e.payload||{})};
+      if(payload.playerId){
+        const cloudId=state.cloudPlayerMap?.[payload.playerId]||payload.cloudPlayerId;
+        if(!cloudId){lastCloudSyncError="Player roster not synced to the cloud";allOkay=false;break}
+        payload.cloudPlayerId=cloudId;
+      }
+      if(Array.isArray(payload.lineup)){
+        const ids=payload.lineup.map(id=>state.cloudPlayerMap?.[id]).filter(Boolean);
+        if(ids.length!==payload.lineup.length){lastCloudSyncError="One or more lineup players are not synced";allOkay=false;break}
+        payload.cloudLineup=ids;
+      }
+      const {error}=await SB.rpc("sync_hardcourt_event",{
+        p_id:e.id,p_game_id:state.cloudGameId,p_event_type:e.type,
+        p_period:e.period,p_clock_ms:e.clockMs,p_payload:payload,
+        p_client_id:state.clientId,p_client_created_at:new Date(typeof e.createdAt==="string"?e.createdAt:Number(e.createdAt||Date.now())).toISOString()
+      });
+      if(error){
+        lastCloudSyncError=error.message;console.warn("Hardcourt event sync",error.message);
+        allOkay=false;break;
+      }
+      e.syncState="synced";
+    }
+    if(allOkay)lastCloudSyncError="";
+    try{localStorage.setItem("hardcourt-alpha",JSON.stringify({...state,running:false,lastTick:null,roster}))}catch(_){}
+    return allOkay;
+  }finally{
+    cloudSyncRunning=false;updateCloudStatus();
+    if(cloudSyncRequested){cloudSyncRequested=false;
+      if(state.events.some(e=>e.syncState!=="synced"))setTimeout(()=>syncCloudEvents(),1200);}
+  }
+}
+function save(force=false){
+  const now=Date.now();
+  if(!force&&state.running&&now-lastSave<1200)return;
+  lastSave=now;archiveGame();
+  try{localStorage.setItem("hardcourt-alpha",JSON.stringify({...state,running:false,lastTick:null,roster}))}
+  catch(e){console.warn("Hardcourt local save limit reached",e);lastCloudSyncError="Device storage is full; free space without clearing Hardcourt data."}
+  if(!cloudLoading&&state.events?.some(e=>e.syncState!=="synced"))void syncCloudEvents();
+}
 function initials(s){return String(s||"?").split(/\s+/).map(x=>x[0]).join("").slice(0,2).toUpperCase()}
 function imgOrInitial(src,label){return src?'<img src="'+src+'" alt="">':initials(label)}
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function fileData(file,cb){if(!file)return;const img=new Image(),url=URL.createObjectURL(file);img.onload=()=>{const max=640,scale=Math.min(1,max/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=Math.round(img.width*scale);c.height=Math.round(img.height*scale);c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);cb(c.toDataURL("image/jpeg",.82))};img.onerror=()=>URL.revokeObjectURL(url);img.src=url}
-function applyProfileToSetup(){state.team??="Erie Elite";state.grade??="5th Grade";state.division??="";state.primary??="#111111";state.accent??="#39a852";$("setupTeamLabel").textContent=state.team;$("setupTeamMeta").textContent=[state.grade,state.division].filter(Boolean).join(" · ")}
-function setupRoster(){if(!roster.length)roster=defaults.map(p=>({...p}));if(state.active.length!==5)state.active=roster.slice(0,5).map(p=>p.id);$("setupRoster").innerHTML=roster.map(p=>'<label class="starter-choice"><input type="checkbox" data-start="'+p.id+'" '+(state.active.includes(p.id)?"checked":"")+'><span><b>#'+p.num+'</b> '+p.name+'</span></label>').join("")}
-applyProfileToSetup();setupRoster();$("setupEditTeam").onclick=openTeamEditor;
+function applyProfileToSetup(){
+  state.team??="Your Basketball Team";
+  state.grade??="5th Grade";
+  if(state.team==="Erie Elite"&&!state.division)state.division="Gold";
+  state.division??="";
+  state.primary??="#111111";state.accent??="#39a852";
+  $("setupTeamLabel").textContent=state.team;
+  $("setupTeamMeta").textContent=[state.grade,state.division].filter(Boolean).join(" · ");
+  const holder=$("hcAdminTeamLogo");
+  if(holder){
+    holder.textContent="";
+    if(state.teamLogo){const photo=new Image();photo.alt="Team logo";photo.src=state.teamLogo;holder.appendChild(photo);}
+    else holder.textContent=initials(state.team);
+  }
+  $("oppName").value=state.opp||"";
+  $("gameType").value=state.gameType||"regular";
+  if($("hcGameDate"))$("hcGameDate").value=state.gameDate||"";
+  if($("hcGameLocation"))$("hcGameLocation").value=state.gameLocation||"home";
+}
+function setupRoster(){
+  if(!Array.isArray(state.active))state.active=[];
+  state.active=state.active.filter(id=>roster.some(p=>p.id===id));
+  if(state.active.length!==5)state.active=roster.slice(0,5).map(p=>p.id);
+  $("setupRoster").innerHTML=roster.length?roster.map(p=>
+    '<label class="starter-choice"><input type="checkbox" data-start="'+esc(p.id)+'" '+(state.active.includes(p.id)?"checked":"")+'><span><b>#'+esc(p.num)+'</b> '+esc(p.name)+'</span></label>').join("")
+    :'<p>No players yet. Add your Erie Elite roster before preparing Friday’s game.</p>';
+  const review=$("setupReview");
+  if(review)review.textContent=roster.length+" players on the season roster. Select five starters.";
+  renderAdminRoster();
+}
+
+// Gridiron-style administrative navigation; the basketball game screen stays independent.
+function showAdminPage(page="roster"){
+  if($("setup")?.classList.contains("hidden"))return;
+  const isInfo=!["roster","games"].includes(page);
+  const target=isInfo?"hcAdminInfoPage":page==="games"?"hcAdminGamesPage":"hcAdminRosterPage";
+  for(const id of ["hcAdminRosterPage","hcAdminGamesPage","hcAdminInfoPage"]){
+    $(id)?.classList.toggle("hidden",id!==target);
+  }
+  for(const b of document.querySelectorAll("#hcAdminNav [data-hc-admin]"))
+    b.classList.toggle("active",b.dataset.hcAdmin===page);
+  if(isInfo){
+    const name={time:"Playing Time",stats:"Stats",analytics:"Analytics"}[page]||"Stats";
+    if($("hcInfoHeading"))$("hcInfoHeading").textContent=name;
+    if($("hcInfoMessage"))$("hcInfoMessage").textContent=
+      "Open a basketball game to view "+name.toLowerCase()+". Your saved roster remains available for every game.";
+  }
+  if(page==="games")void renderAdminSavedGames();
+  window.scrollTo?.({top:0,behavior:"auto"});
+}
+function renderAdminRoster(){
+  if(!$("hcAdminRosterList"))return;
+  if($("hcRosterCount"))$("hcRosterCount").textContent=roster.length+" / 30";
+  const target=$("hcAdminRosterList");
+  target.innerHTML=roster.length?roster
+    .slice().sort((a,b)=>Number(a.num||0)-Number(b.num||0))
+    .map(p=>'<div class="hc-player-row"><strong class="hc-player-jersey">#'+esc(p.num)+'</strong>'+
+      '<span class="hc-player-name">'+esc(p.name)+'</span>'+
+      '<button type="button" class="hc-player-edit" data-edit-hc-player="'+esc(p.id)+'">Edit</button></div>').join("")
+    :'<p class="hc-muted">No players yet. Add the boys to your season roster to get started.</p>';
+  target.querySelectorAll("[data-edit-hc-player]").forEach(b=>b.onclick=openRosterEditor);
+}
+async function addAdminPlayer(){
+  const status=$("hcRosterAddStatus");
+  if(!cloudUser){openAccount();return}
+  if(state.helperMode){status.textContent="Only the team owner can edit the season roster.";return}
+  if(state.events?.length&&state.gameStartedAt){
+    status.textContent="Finish recording the current game before changing roster identities.";return;
+  }
+  const number=$("hcRosterAddJersey").value.trim(),name=$("hcRosterAddName").value.trim();
+  if(!/^\d{1,3}$/.test(number)||!name){status.textContent="Enter a numeric jersey number and the player’s name.";return}
+  if(roster.some(p=>Number(p.num)===Number(number))){
+    status.textContent="Jersey #"+number+" is already on the roster.";return;
+  }
+  if(roster.length>=30){status.textContent="The roster limit is 30 players.";return;}
+  const btn=$("hcAdminAddPlayer");btn.disabled=true;
+  roster.push({id:crypto.randomUUID(),num:String(Number(number)),name,cloudId:null,headshot:""});
+  state.hasUnsyncedRoster=true;setupRoster();save(true);
+  if(await syncRosterCloud()){
+    state.hasUnsyncedRoster=false;save(true);
+    $("hcRosterAddJersey").value="";$("hcRosterAddName").value="";
+    status.textContent="Saved #"+number+" "+name+" to your basketball roster.";
+  }else{
+    status.textContent="Player saved on this phone, but cloud backup failed. Retry while online before inviting your substitute.";
+  }
+  btn.disabled=false;setupRoster();
+}
+async function renderAdminSavedGames(){
+  const host=$("hcSavedGames");if(!host)return;
+  if(!cloudUser){host.innerHTML='<p class="hc-muted">Sign in to load saved team games.</p>';return;}
+  if(!state.cloudTeamId){host.innerHTML='<p class="hc-muted">Your basketball team is still loading.</p>';return;}
+  host.innerHTML='<p class="hc-muted">Loading cloud games…</p>';
+  const {data,error}=await SB.rpc("get_hardcourt_games",{p_team_id:state.cloudTeamId});
+  if(error){host.innerHTML='<p class="hc-error">Could not load saved games: '+esc(error.message)+'</p>';return;}
+  const games=Array.isArray(data)?data:[];
+  if(!games.length){host.innerHTML='<p class="hc-muted">No games saved yet. Set up Friday’s game above.</p>';return;}
+  host.innerHTML=games.map(g=>{
+    const final=["final","archived","complete","completed"].includes(String(g.status||"").toLowerCase());
+    return '<div class="hc-saved-row"><div class="hc-saved-row-copy"><strong>'+esc(g.opponent_name||"Opponent")+'</strong>'+
+      '<small>'+esc(g.status||"Saved")+' · '+Number(g.event_count||0)+' events</small></div>'+
+      '<button type="button" class="hc-btn hc-btn-small hc-btn-ghost" data-open-hc-cloud="'+esc(g.game_id)+'" '+
+      (final?'disabled title="Finalized games are protected"':'')+'>'+
+      (final?"Final":"Open")+'</button></div>';
+  }).join("");
+  host.querySelectorAll("[data-open-hc-cloud]").forEach(b=>b.onclick=async()=>{
+    b.disabled=true;const opened=await openCloudGame(b.dataset.openHcCloud,false);
+    if(!opened)b.disabled=false;
+  });
+}
+function selectAdminNav(page){
+  if(["time","stats","analytics"].includes(page)&&state.gameStartedAt&&roster.length>=5){
+    startUI();
+    const destination={time:"timeView",stats:"statsView",analytics:"analyticsView"}[page];
+    showView(destination,page);
+    return;
+  }
+  showAdminPage(page);
+}
+$("hcAdminNav")?.addEventListener("click",e=>{
+  const b=e.target.closest("[data-hc-admin]");if(!b)return;
+  selectAdminNav(b.dataset.hcAdmin);
+});
+$("hcRosterContinue")?.addEventListener("click",()=>showAdminPage("games"));
+$("hcInfoGoGame")?.addEventListener("click",()=>showAdminPage("games"));
+$("hcAdminAddPlayer")?.addEventListener("click",addAdminPlayer);
+$("hcRefreshCloudGames")?.addEventListener("click",renderAdminSavedGames);
+
+applyProfileToSetup();setupRoster();$("setupEditTeam").onclick=openTeamEditor;$("setupEditRoster")?.addEventListener("click",openRosterEditor);$("rosterEditBtn")?.addEventListener("click",openRosterEditor);
 ["teamLogo","oppLogo"].forEach(id=>{const el=$(id);if(el)el.onchange=()=>fileData(el.files[0],d=>{state[id]=d;save()})});
-$("startGame").onclick=()=>{let a=[...document.querySelectorAll("[data-start]:checked")].map(x=>x.dataset.start);if(a.length!==5){a=roster.slice(0,5).map(p=>p.id);state.active=[...a];setupRoster()}$("setupError").textContent="";Object.assign(state,{active:a,clockMs:+$("periodMinutes").value*60000,periodMinutes:+$("periodMinutes").value,periods:+$("periodMode").value,opp:$("oppName").value,gameType:$("gameType").value,offenseRight:$("startDirection").value==="right",foulLimit:+$("foulLimit").value,bonusRule:$("bonusRule").value,timeoutMode:$("timeoutMode").value,timeoutCount:+$("timeoutCount").value,otMinutes:+$("otMinutes").value,timeoutsUs:+$("timeoutCount").value,timeoutsOpp:+$("timeoutCount").value,gameStartedAt:state.gameStartedAt||Date.now()});startUI();save();syncRosterCloud()};
+function readGameSetup(){
+  const picked=[...document.querySelectorAll("[data-start]:checked")].map(x=>x.dataset.start);
+  if(roster.length<5){$("setupError").textContent="Add at least five real players to the Erie Elite roster.";return false;}
+  if(picked.length!==5){$("setupError").textContent="Select exactly five starters.";return false;}
+  const opponent=$("oppName").value.trim();
+  if(!opponent){$("setupError").textContent="Enter Friday’s opponent before preparing the game.";return false;}
+  $("setupError").textContent="";
+  Object.assign(state,{
+    active:picked,
+    clockMs:Number($("periodMinutes").value||8)*60000,
+    periodMinutes:Number($("periodMinutes").value||8),
+    periods:Number($("periodMode").value||4),
+    opp:opponent,gameType:$("gameType").value,
+    gameDate:$("hcGameDate")?.value||null,
+    gameLocation:$("hcGameLocation")?.value||"home",
+    offenseRight:$("startDirection").value==="right",
+    foulLimit:Number($("foulLimit").value||5),
+    bonusRule:$("bonusRule").value,
+    timeoutMode:$("timeoutMode").value,
+    timeoutCount:Number($("timeoutCount").value||3),
+    otMinutes:Number($("otMinutes").value||3),
+    timeoutsUs:Number($("timeoutCount").value||3),
+    timeoutsOpp:Number($("timeoutCount").value||3)
+  });
+  return true;
+}
+async function requireCloudReady(){
+  if(!cloudUser){openAccount();return false;}
+  if(state.helperMode)return true;
+  if(!await ensureCloudContext()){
+    $("setupError").textContent="Could not load your basketball team. Check Account and try again.";return false;
+  }
+  if(!await syncRosterCloud()){
+    $("setupError").textContent="Roster could not be backed up to your account. Retry before using a substitute.";return false;
+  }
+  return true;
+}
+async function prepareGameForHelper(){
+  if(!readGameSetup()||!await requireCloudReady())return;
+  const button=$("prepareHelperGame");if(button)button.disabled=true;
+  try{
+    if(!await ensureCloudGame())throw Error(lastCloudSyncError||"Could not create Friday’s game.");
+    if(!await savePreparedGameConfiguration())throw Error(lastCloudSyncError||"Game rules and starters could not be saved.");
+    save(true);
+    void renderAdminSavedGames();
+    openModal("Game Ready for Friday",
+      "<p><b>"+esc(state.team)+"</b> vs <b>"+esc(state.opp)+"</b> is linked to your account.</p>"+
+      "<p>You can invite your substitute now. The game can be opened on their own device without using your password.</p>"+
+      '<button id="invitePreparedHelper" class="primary">Invite Substitute Statkeeper</button>');
+    $("invitePreparedHelper").onclick=()=>inviteHelper();
+  }catch(e){$("setupError").textContent=e?.message||"Could not prepare game.";}
+  finally{if(button)button.disabled=false;}
+}
+$("prepareHelperGame")?.addEventListener("click",prepareGameForHelper);
+$("startGame").onclick=async()=>{
+  if(!readGameSetup()||!await requireCloudReady())return;
+  if(!await ensureCloudGame()){$("setupError").textContent=lastCloudSyncError||"Could not connect the game to cloud backup.";return}
+  if(!await savePreparedGameConfiguration()){$("setupError").textContent="Could not save the game rules and starting five. Retry.";return}
+  state.gameStartedAt=state.gameStartedAt||Date.now();
+  startUI();save(true);
+};
 function productHeaders(){document.querySelectorAll(".product-header").forEach(h=>{h.innerHTML='<img class="hardcourt-arena-header" src="./hardcourt-header-arena-ui71.jpg?v=ui71" alt="Bleacher Butt Stats Hardcourt Edition">';h.removeAttribute("role");h.removeAttribute("aria-label")})}
-function openTeamEditor(){openModal("Edit Team",'<div class="team-editor"><label>Team name<input id="editTeamName"></label><label>Grade<select id="editGrade"><option>5th Grade</option><option>6th Grade</option><option>7th Grade</option><option>8th Grade</option></select></label><label>Division<input id="editDivision"></label><div class="team-color-row"><label>Primary<input id="editPrimary" type="color"></label><label>Accent<input id="editAccent" type="color"></label></div><label>Team logo<input id="editTeamLogo" type="file" accept="image/*"></label><button id="saveTeamProfile" class="primary">Save Team</button></div>');$("editTeamName").value=state.team||"";$("editGrade").value=state.grade||"5th Grade";$("editDivision").value=state.division||"";$("editPrimary").value=state.primary||"#111111";$("editAccent").value=state.accent||"#39a852";let nextLogo=state.teamLogo||"";$("editTeamLogo").onchange=()=>fileData($("editTeamLogo").files[0],d=>nextLogo=d);$("saveTeamProfile").onclick=()=>{state.team=$("editTeamName").value.trim()||state.team;state.grade=$("editGrade").value;state.division=$("editDivision").value.trim();state.primary=$("editPrimary").value;state.accent=$("editAccent").value;state.teamLogo=nextLogo;closeModal();applyProfileToSetup();startUI();save(true);syncRosterCloud()}}
+function openRosterEditor(){
+  if(!cloudUser)return openAccount();
+  if(state.helperMode){openModal("Roster","Only the team owner can edit the roster.");return;}
+  if(state.events?.length&&state.gameStartedAt){
+    openModal("Roster Locked","<p>Finish the current game before changing roster identities. Existing player statistics are protected.</p>");
+    return;
+  }
+  let draft=roster.map(p=>({...p}));
+  const redraw=()=>{
+    $("modalBody").innerHTML=
+      '<p>Enter each Erie Elite player’s jersey number and name. Saving keeps this roster with your basketball account.</p>'+
+      '<div id="hcRosterRows"></div><button id="addHcPlayer" class="choice">+ Add Player</button>'+
+      '<button id="saveHcRoster" class="primary">Save Erie Elite Roster</button><p id="hcRosterError" class="error"></p>';
+    const host=$("hcRosterRows");
+    draft.forEach((p,i)=>{
+      const row=document.createElement("div");row.className="hc-roster-row";
+      row.innerHTML='<label>Jersey<input inputmode="numeric" maxlength="3" data-jersey="'+i+'"></label>'+
+        '<label>Player Name<input maxlength="80" data-player-name="'+i+'"></label>'+
+        '<button type="button" data-remove-player="'+i+'" aria-label="Remove roster player">×</button>';
+      row.querySelector("[data-jersey]").value=p.num??"";
+      row.querySelector("[data-player-name]").value=p.name||"";
+      row.querySelector("[data-remove-player]").onclick=()=>{
+        if(!confirm("Remove this player from the season roster?"))return;
+        readEdits();draft.splice(i,1);redraw();
+      };
+      host.appendChild(row);
+    });
+    function readEdits(){draft=draft.map((p,i)=>({...p,num:host.querySelector('[data-jersey="'+i+'"]')?.value.trim(),name:host.querySelector('[data-player-name="'+i+'"]')?.value.trim()}))}
+    $("addHcPlayer").onclick=()=>{readEdits();if(draft.length>=30){$("hcRosterError").textContent="Maximum 30 players.";return}draft.push({id:crypto.randomUUID(),num:"",name:"",cloudId:null,headshot:""});redraw()};
+    $("saveHcRoster").onclick=async()=>{
+      readEdits();
+      if(draft.some(p=>!/^\d{1,3}$/.test(String(p.num))||!p.name)){
+        $("hcRosterError").textContent="Every player needs a name and a numeric jersey number.";return;
+      }
+      if(new Set(draft.map(p=>String(Number(p.num)))).size!==draft.length){
+        $("hcRosterError").textContent="Jersey numbers must be unique.";return;
+      }
+      const button=$("saveHcRoster");button.disabled=true;button.textContent="Saving roster…";
+      roster=draft.map(p=>({...p,num:String(Number(p.num))}));
+      state.hasUnsyncedRoster=true;
+      setupRoster();refreshCloudPlayerMap();save(true);
+      if(await syncRosterCloud()){
+        state.hasUnsyncedRoster=false;save(true);closeModal();setupRoster();render();
+      }else{
+        button.disabled=false;button.textContent="Retry Roster Save";
+        $("hcRosterError").textContent="Saved on this device, but not in Supabase. Retry while online before inviting a substitute.";
+      }
+    };
+  };
+  openModal("Edit Season Roster","");redraw();
+}
+function openTeamEditor(){
+  if(!cloudUser)return openAccount();
+  if(state.helperMode)return openModal("Team Settings","Only the team owner can change the team.");
+  openModal("Edit Basketball Team",
+    '<div class="team-editor"><label>Team name<input id="editTeamName"></label>'+
+    '<label>Grade<select id="editGrade"><option>5th Grade</option><option>6th Grade</option><option>7th Grade</option><option>8th Grade</option></select></label>'+
+    '<label>Division<input id="editDivision"></label>'+
+    '<div class="team-color-row"><label>Primary<input id="editPrimary" type="color"></label><label>Accent<input id="editAccent" type="color"></label></div>'+
+    '<label>Team logo<input id="editTeamLogo" type="file" accept="image/*"></label>'+
+    '<button id="saveTeamProfile" class="primary">Save Team</button><p id="teamSaveError" class="error"></p></div>');
+  $("editTeamName").value=state.team||"";$("editGrade").value=state.grade||"5th Grade";
+  $("editDivision").value=state.division||"";$("editPrimary").value=state.primary||"#111111";
+  $("editAccent").value=state.accent||"#39a852";
+  let nextLogo=state.teamLogo||"";
+  $("editTeamLogo").onchange=()=>fileData($("editTeamLogo").files[0],d=>nextLogo=d);
+  $("saveTeamProfile").onclick=async()=>{
+    if(!await ensureCloudContext()){$("teamSaveError").textContent="Could not load your basketball team.";return}
+    const name=$("editTeamName").value.trim();
+    if(!name){$("teamSaveError").textContent="Team name is required.";return}
+    const info={p_team_id:state.cloudTeamId,p_name:name,p_grade:$("editGrade").value,
+      p_primary:$("editPrimary").value,p_accent:$("editAccent").value,p_logo_data:nextLogo};
+    const {error}=await SB.rpc("update_hardcourt_team_profile",info);
+    if(error){$("teamSaveError").textContent=error.message;return}
+    state.team=name;state.grade=info.p_grade;state.division=$("editDivision").value.trim();
+    state.primary=info.p_primary;state.accent=info.p_accent;state.teamLogo=nextLogo;
+    closeModal();applyProfileToSetup();if(state.gameStartedAt)startUI();else{$("shell").classList.add("hidden");$("setup").classList.remove("hidden");}
+    updateCloudStatus();save(true);
+  };
+}
 function parseClockInput(v){
   const m=String(v||"").trim().match(/^(\d{1,2}):(\d{2})$/);
   if(!m)return null;
@@ -119,7 +709,14 @@ function openGameSettings(){
     closeModal();startUI();applyDirection();render();save(true);
   };
 }
-function applyHelperMode(){if(!state.helperMode)return;["startClock","stopClock","nextPeriod","timeoutBtn","flipDirection","subBtn","newGameBtn","liveHelperBtn"].forEach(id=>{const el=$(id);if(el){el.disabled=true;el.classList.add("helper-disabled")}});if($("liveShareTeamBtn"))$("liveShareTeamBtn").classList.add("hidden")}
+function applyHelperMode(){
+  if(!state.helperMode)return;
+  // A substitute MUST control the game clock, substitutions, fouls and timeout
+  // tracking. Disable only team/owner administration and new-game creation.
+  for(const id of ["newGameBtn","liveHelperBtn","liveShareTeamBtn"]){
+    const el=$(id);if(el){el.disabled=true;el.classList.add("helper-disabled");}
+  }
+}
 function colorIsLight(hex){
   const raw=String(hex||"").replace("#","");
   if(!/^[0-9a-f]{6}$/i.test(raw))return false;
@@ -127,7 +724,7 @@ function colorIsLight(hex){
   const lum=(0.2126*r+0.7152*g+0.0722*b)/255;
   return lum>.64;
 }
-function startUI(){$("setup").classList.add("hidden");$("shell").classList.remove("hidden");document.body.classList.add("game-active");document.documentElement.style.setProperty("--primary",state.primary||"#111");document.documentElement.style.setProperty("--accent",state.accent||"#39a852");document.body.classList.toggle("accent-light",colorIsLight(state.accent||"#39a852"));$("homeLabel").textContent=state.team||"Our Team";if($("homeMeta"))$("homeMeta").textContent=[state.grade,state.division].filter(Boolean).join(" · ");$("awayLabel").textContent=state.opp||"Opponent";if($("awayMeta"))$("awayMeta").textContent=[state.grade,state.division].filter(Boolean).join(" · ")||"Opponent";$("homeLogo").innerHTML=imgOrInitial(state.teamLogo,state.team);$("awayLogo").innerHTML=imgOrInitial(state.oppLogo,state.opp);$("ourGroupLabel").textContent="OTHER STATS";if($("opponentGroupLabel"))$("opponentGroupLabel").textContent=(state.opp||"OPPONENT").toUpperCase()+" STATS";productHeaders();populateShotFilters();applyDirection();applyHelperMode();render()}if(state.team)startUI();
+function startUI(){if(roster.length<5){$("setupError").textContent="Add five roster players before opening a game.";return}$("setup").classList.add("hidden");$("shell").classList.remove("hidden");document.body.classList.add("game-active");document.documentElement.style.setProperty("--primary",state.primary||"#111");document.documentElement.style.setProperty("--accent",state.accent||"#39a852");document.body.classList.toggle("accent-light",colorIsLight(state.accent||"#39a852"));$("homeLabel").textContent=state.team||"Our Team";if($("homeMeta"))$("homeMeta").textContent=[state.grade,state.division].filter(Boolean).join(" · ");$("awayLabel").textContent=state.opp||"Opponent";if($("awayMeta"))$("awayMeta").textContent=[state.grade,state.division].filter(Boolean).join(" · ")||"Opponent";$("homeLogo").innerHTML=imgOrInitial(state.teamLogo,state.team);$("awayLogo").innerHTML=imgOrInitial(state.oppLogo,state.opp);$("ourGroupLabel").textContent="OTHER STATS";if($("opponentGroupLabel"))$("opponentGroupLabel").textContent=(state.opp||"OPPONENT").toUpperCase()+" STATS";productHeaders();populateShotFilters();applyDirection();applyHelperMode();render()}if(state.gameStartedAt&&roster.length>=5)startUI();
 function fmt(ms){let s=Math.max(0,Math.ceil(ms/1000));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")}
 function accrue(){if(!state.running||!state.lastTick)return;const now=Date.now(),d=Math.min(now-state.lastTick,state.clockMs);state.lastTick=now;state.clockMs=Math.max(0,state.clockMs-d);state.active.forEach(id=>state.minutes[id]=(state.minutes[id]||0)+d);if(state.clockMs<=0){state.running=false;state.lastTick=null;clearInterval(timer)}}
 function startClock(){if(!state.running&&state.clockMs>0){state.running=true;state.lastTick=Date.now();state.events.push(createEvent("clock_start",{lineup:[...state.active]},state));timer=setInterval(()=>{accrue();render()},250);render()}}function stopClock(){if(state.running){accrue();state.running=false;state.lastTick=null;state.events.push(createEvent("clock_stop",{lineup:[...state.active]},state));clearInterval(timer);save();render()}}$("startClock").onclick=startClock;$("stopClock").onclick=stopClock;
@@ -155,7 +752,26 @@ function shotPopup(x,y,left,top){
  draw();
 }
 function modal(title,choices,cb){openModal(title,'<div class="choices">'+choices.map(x=>'<button class="choice" data-choice="'+x.value+'">'+x.label+"</button>").join("")+"</div>");document.querySelectorAll("[data-choice]").forEach(b=>b.onclick=()=>{closeModal();cb(b.dataset.choice)})}
-function openModal(t,b){$("modalTitle").textContent=t;$("modalBody").innerHTML=b;$("modal").classList.remove("hidden")}function closeModal(){$("modal").classList.add("hidden")}$("modalClose").onclick=closeModal;
+const hardcourtAdminModalTitles=new Set([
+  "Settings","Hardcourt Account","Sign in to Bleacher Butt Stats","Account",
+  "Edit Basketball Team","Edit Season Roster","Invite Game Statkeeper",
+  "Invite Coach","Parent / Viewer Link","Share Team","Game Helper",
+  "Game Setup","Game Ready for Friday","Prepare Game First",
+  "Select Basketball Team","Create Your Basketball Team",
+  "Saved Basketball Games","Game History","Saved Games",
+  "Invitation Issue","Statkeeper Invitation Issue",
+  "Could Not Open Game","Roster Locked","Roster",
+  "Game Access","Team Settings"
+]);
+function openModal(t,b){
+  $("modalTitle").textContent=t;$("modalBody").innerHTML=b;
+  document.body.classList.toggle("hc-admin-dialog",hardcourtAdminModalTitles.has(t));
+  $("modal").classList.remove("hidden");
+}
+function closeModal(){
+  $("modal").classList.add("hidden");document.body.classList.remove("hc-admin-dialog");
+}
+$("modalClose").onclick=closeModal;
 function choosePlayer(title,type){modal(title,state.active.map(id=>{const p=roster.find(x=>x.id===id);return{label:"#"+p.num+" "+p.name,value:id}}),id=>{state.events.push(createEvent(type,{playerId:id,lineup:[...state.active]},state));render()})}
 $("turnoverBtn").onclick=()=>choosePlayer("Turnover","turnover");$("stealBtn").onclick=()=>choosePlayer("Steal","steal");$("reboundBtn").onclick=()=>choosePlayer("Rebound","rebound");$("blockBtn").onclick=()=>choosePlayer("Block","block");$("foulBtn").onclick=foulFlow;
 function foulFlow(){modal("Foul by",[{label:state.team,value:"us"},{label:state.opp,value:"opp"}],side=>{if(side==="us")modal("Who committed the foul?",state.active.map(id=>{const p=roster.find(x=>x.id===id);return{label:"#"+p.num+" "+p.name,value:id}}),id=>{state.events.push(createEvent("foul",{playerId:id,team:"us",lineup:[...state.active]},state));foulSituation("opp")});else{state.events.push(createEvent("foul",{team:"opp",lineup:[...state.active]},state));foulSituation("us")}})}
@@ -225,11 +841,91 @@ function courtLines(){return '<div class="court-lines ui51-hidden-lines"><i clas
 function renderShotAnalytics(){if(!$("analyticsCourt"))return;const shots=filteredShots(),made=shots.filter(e=>e.payload.made),threes=shots.filter(e=>e.payload.three),tm=threes.filter(e=>e.payload.made),twos=shots.filter(e=>!e.payload.three),twoM=twos.filter(e=>e.payload.made);$("shootingSummary").textContent="FG "+made.length+"/"+shots.length+" · "+(shots.length?Math.round(made.length/shots.length*100):0)+"% | 3PT "+tm.length+"/"+threes.length+" · "+(threes.length?Math.round(tm.length/threes.length*100):0)+"% | 2PT "+twoM.length+"/"+twos.length+" · "+(twos.length?Math.round(twoM.length/twos.length*100):0)+"%";const zones={};shots.forEach(e=>{const z=shotZone(e);zones[z]??={a:0,m:0,pts:0};zones[z].a++;if(e.payload.made){zones[z].m++;zones[z].pts+=e.payload.three?3:2}});let heat="";if(state.chartMode!=="shots")heat=Object.entries(zones).map(([z,v])=>{const rs=zoneRects[z];if(!rs)return"";const r=rs[(shots.find(e=>shotZone(e)===z)?.payload.x||0)>.5?1:0];const pct=v.m/v.a,confidence=Math.min(1,v.a/4),score=.5+(pct-.5)*confidence,cls=score<.28?"cold3":score<.4?"cold2":score<.48?"cold1":score<.55?"neutral":score<.67?"hot1":score<.78?"hot2":"hot3";return'<i class="heat-zone '+cls+'" style="left:'+r[0]*100+'%;top:'+r[1]*100+'%;width:'+r[2]*100+'%;height:'+r[3]*100+'%"></i>'}).join("");const dots=state.chartMode==="heat"?"":shots.map(e=>'<i class="shot-dot '+(e.payload.made?"make":"miss")+'" style="left:'+e.payload.x*100+'%;top:'+e.payload.y*100+'%"></i>').join("");$("analyticsCourt").innerHTML=heat+courtLines()+dots;$("zoneTable").innerHTML=Object.entries(zones).sort((a,b)=>b[1].a-a[1].a).map(([z,v])=>'<div class="zone-cell"><b>'+z+"</b><span>"+v.m+"/"+v.a+" · "+Math.round(v.m/v.a*100)+'%</span><small>'+(v.pts/v.a).toFixed(2)+" pts/shot · "+Math.round(v.a/shots.length*100)+"% of shots</small></div>").join("")||'<div class="zone-cell">No shots for these filters yet.</div>'}
 $("chartMode").onclick=e=>{const b=e.target.closest("[data-chart]");if(!b)return;state.chartMode=b.dataset.chart;document.querySelectorAll("#chartMode button").forEach(x=>x.classList.toggle("active",x===b));renderShotAnalytics();save()};
 $("analyticsDetailTabs").onclick=e=>{const b=e.target.closest("[data-analytics-detail]");if(!b)return;state.analyticsDetailTab=b.dataset.analyticsDetail;renderLineupAnalytics();save()};
-function newGame(){stopClock();archiveGame();if(cloudChannel&&SB){SB.removeChannel(cloudChannel);cloudChannel=null}state.cloudGameId=null;state.cloudGameOwner=false;state.helperMode=false;state.historyPreview=null;state.gameId=globalThis.crypto?.randomUUID?.()||"game-"+Date.now();state.gameStartedAt=null;state.events=[];state.minutes={};state.period=1;state.clockMs=(state.periodMinutes||8)*60000;state.timeoutsUs=state.timeoutCount??3;state.timeoutsOpp=state.timeoutCount??3;state.fast=false;state.pendingChain=null;$("shell").classList.add("hidden");$("setup").classList.remove("hidden");$("oppName").value="";setupRoster();applyProfileToSetup();save(true)}
+function newGame(){
+  if(state.helperMode){openModal("Game Access","Only the team owner can create another game.");return}
+  if(state.events?.length&&state.gameStartedAt&&!confirm("Start a new game? Your current game will remain saved, but make sure all stats have synced first."))return;
+  stopClock();archiveGame();
+  if(cloudChannel&&SB){SB.removeChannel(cloudChannel);cloudChannel=null}
+  state.cloudGameId=null;state.cloudGameOwner=false;state.helperMode=false;state.historyPreview=null;
+  state.gameId=crypto.randomUUID();state.gameStartedAt=null;state.opp="";state.gameDate=null;state.gameLocation="home";state.events=[];state.minutes={};
+  state.period=1;state.clockMs=(state.periodMinutes||8)*60000;
+  state.timeoutsUs=state.timeoutCount??3;state.timeoutsOpp=state.timeoutCount??3;
+  state.fast=false;state.pendingChain=null;
+  $("shell").classList.add("hidden");$("setup").classList.remove("hidden");document.body.classList.remove("game-active");$("oppName").value="";
+  setupRoster();applyProfileToSetup();showAdminPage("games");save(true);
+}
 function gameHistory(){const games=JSON.parse(localStorage.getItem("hardcourt-games")||"[]").filter(g=>g.teamId===state.teamId).sort((a,b)=>b.createdAt-a.createdAt),rows=games.map(g=>'<div class="history-row"><span><b>'+g.opponent+'</b><small>'+new Date(g.createdAt).toLocaleDateString()+' · '+(g.playoffs?"Playoffs":"Regular Season")+'</small></span><button data-load-game="'+g.gameId+'">View</button></div>').join("");openModal("Game History",'<div class="history-list">'+(rows||"<p>No saved games yet.</p>")+"</div>");document.querySelectorAll("[data-load-game]").forEach(b=>b.onclick=()=>{const g=games.find(x=>x.gameId===b.dataset.loadGame);if(!g)return;state.statsScope="game";state.historyPreview={events:g.events||[],minutes:g.minutes||{},opponent:g.opponent};closeModal();showView("statsView","stats");render()})}
 $("gameClockBtn").onclick=()=>state.running?stopClock():startClock();$("gameHistoryBtn").onclick=gameHistory;
 window.addEventListener("pagehide",()=>{accrue();save()});document.addEventListener("visibilitychange",()=>{if(document.hidden&&state.running){stopClock()}});applyDirection();render();
-refreshCloudPlayerMap();async function initCloud(){if(await initViewerMode())return;if(!window.supabase?.createClient)return;SB=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,hardcourtAuthOptions);const {data}=await SB.auth.getSession();cloudUser=data?.session?.user||null;updateCloudStatus();SB.auth.onAuthStateChange((_e,s)=>{cloudUser=s?.user||null;updateCloudStatus();if(cloudUser){redeemInviteFromUrl();syncCloudEvents()}});if(cloudUser){await redeemInviteFromUrl();if(state.cloudGameId)startCloudRealtime();syncCloudEvents()}}initCloud();
+refreshCloudPlayerMap();
+let hardcourtBootPromise=null,lastHardcourtBootUser=null;
+async function bootstrapHardcourt(force=false){
+  if(!cloudUser||!SB)return false;
+  const u=new URL(location.href);
+  const hasInvite=u.searchParams.has("gameStatkeeperInvite")||u.searchParams.has("coachInvite")||u.searchParams.has("teamInvite");
+  if(hardcourtBootPromise)return hardcourtBootPromise;
+  if(!force&&lastHardcourtBootUser===cloudUser.id&&!hasInvite)return true;
+  hardcourtBootPromise=(async()=>{
+    cloudLoading=true;
+    const handled=await redeemInviteFromUrl();
+    if(handled){
+      lastHardcourtBootUser=cloudUser.id;
+      updateCloudStatus();return true;
+    }
+    if(state.helperMode&&state.cloudGameId){
+      const opened=await openCloudGame(state.cloudGameId,true);
+      if(opened)lastHardcourtBootUser=cloudUser.id;
+      return opened;
+    }
+    // Always authenticate team ownership against Supabase; do not trust an
+    // old local team ID from another signed-in session.
+    state.cloudOwnerUserId=null;
+    const loaded=await ensureCloudContext();
+    if(!loaded){
+      const {data}=await SB.rpc("get_hardcourt_cloud_context");
+      if(Array.isArray(data)&&data.length===0){
+        openModal("Create Your Basketball Team",
+          '<p>No basketball team exists in this account yet.</p>'+
+          '<label>Team name<input id="newHcTeamName" value="Erie Elite"></label>'+
+          '<button id="createMyHcTeam" class="primary">Create Basketball Team</button>'+
+          '<p id="createMyHcError" class="error"></p>');
+        $("createMyHcTeam").onclick=async()=>{
+          const name=$("newHcTeamName").value.trim();
+          if(!name){$("createMyHcError").textContent="Enter a team name.";return}
+          const {error}=await SB.rpc("create_hardcourt_team",{p_name:name,p_grade:"5th Grade",p_primary:"#111111",p_accent:"#39a852"});
+          if(error){$("createMyHcError").textContent=error.message;return}
+          closeModal();lastHardcourtBootUser=null;await bootstrapHardcourt(true);
+        };
+      }
+      return false;
+    }
+    lastHardcourtBootUser=cloudUser.id;
+    if(state.cloudGameId&&state.cloudOwnerUserId===cloudUser.id){
+      startCloudRealtime();await pullCloudEvents();
+    }
+    applyProfileToSetup();setupRoster();updateCloudStatus();
+    return true;
+  })().catch(e=>{console.warn("Hardcourt account load",e);lastCloudSyncError=e.message;updateCloudStatus();return false})
+    .finally(()=>{cloudLoading=false;hardcourtBootPromise=null;});
+  return hardcourtBootPromise;
+}
+async function initCloud(){
+  if(await initViewerMode())return;
+  if(!window.supabase?.createClient)return;
+  SB=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,hardcourtAuthOptions);
+  SB.auth.onAuthStateChange((event,session)=>{
+    const prev=cloudUser?.id||null;cloudUser=session?.user||null;updateCloudStatus();
+    if(!cloudUser){lastHardcourtBootUser=null;return}
+    if(event==="SIGNED_IN"||event==="INITIAL_SESSION"||prev!==cloudUser.id)
+      setTimeout(()=>void bootstrapHardcourt(),0);
+  });
+  const {data}=await SB.auth.getSession();cloudUser=data?.session?.user||null;
+  updateCloudStatus();
+  if(cloudUser){await bootstrapHardcourt();void syncCloudEvents();}
+  else if(new URL(location.href).searchParams.has("gameStatkeeperInvite"))openAccount();
+}
+initCloud();
+window.addEventListener("online",()=>{if(cloudUser){void syncCloudEvents();if(state.cloudGameId)void pullCloudEvents();}});
 if("serviceWorker" in navigator)window.addEventListener("load",async()=>{try{const r=await navigator.serviceWorker.register("./service-worker.js?v=ui68",{updateViaCache:"none"});await r.update();if(r.waiting)r.waiting.postMessage("SKIP_WAITING");r.addEventListener("updatefound",()=>{const w=r.installing;if(w)w.addEventListener("statechange",()=>{if(w.state==="installed"&&navigator.serviceWorker.controller)w.postMessage("SKIP_WAITING")})});navigator.serviceWorker.addEventListener("controllerchange",()=>{if(!sessionStorage.getItem("ui68-reloaded")){sessionStorage.setItem("ui68-reloaded","1");location.reload()}})}catch(e){}});
 
 $("accountBtn").onclick=openSettings;$("shareTeamBtn").onclick=shareTeam;$("liveShareTeamBtn").onclick=shareTeam;$("helperBtn").onclick=inviteHelper;$("liveHelperBtn").onclick=inviteHelper;$("teamMenuBtn").onclick=openSettings;updateCloudStatus();
