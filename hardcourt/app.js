@@ -80,7 +80,7 @@ function openSettings(){
   $("settingsParent").onclick=()=>{closeModal();shareTeam()};
   $("settingsCoach").onclick=()=>{closeModal();inviteCoach()};
   $("settingsHelper").onclick=()=>{closeModal();inviteHelper()};
-  $("settingsGame").onclick=()=>{closeModal();openGameSettings()};
+  $("settingsGame").onclick=()=>{closeModal();if(state.gameStartedAt)openGameSettings();else showAdminPage("games")};
   $("settingsNewGame").onclick=()=>{closeModal();newGame()};
   $("settingsHistory").onclick=()=>{closeModal();gameHistory()};
   $("settingsCloudGames").onclick=()=>{closeModal();openCloudGames()};
@@ -168,13 +168,14 @@ async function openCloudGame(gameId,helper=false){
   cloudLoading=true;
   try{
     const {data:g,error}=await SB.from("games")
-      .select("id,season_id,opponent_name,game_type,status,started_at,created_at,current_quarter,current_state")
+      .select("id,season_id,opponent_name,game_type,status,started_at,created_at,game_date,location_type,current_quarter,current_state")
       .eq("id",gameId).eq("sport","basketball").single();
     if(error||!g)throw error||Error("Game not found");
     if(!helper&&state.gameId!==gameId)archiveGame();
     state.cloudGameId=g.id;state.gameId=g.id;state.cloudSeasonId=g.season_id;
     state.helperMode=!!helper;state.cloudGameOwner=!helper;
     state.opp=g.opponent_name;state.gameType=g.game_type==="playoff"?"playoffs":"regular";
+    state.gameDate=g.game_date||null;state.gameLocation=g.location_type||"home";
     state.gameStartedAt=Date.parse(g.started_at||g.created_at||"")||Date.now();
     state.period=Math.max(1,Number(g.current_quarter||1));
     const config=g.current_state?.hardcourt||{};
@@ -313,7 +314,7 @@ async function savePreparedGameConfiguration(){
     starters:starterCloudIds
   };
   const next={...(prior.current_state||{}),hardcourt:config};
-  const {data,error}=await SB.from("games").update({current_state:next}).eq("id",state.cloudGameId)
+  const {data,error}=await SB.from("games").update({current_state:next,game_date:state.gameDate||null,location_type:state.gameLocation||"home"}).eq("id",state.cloudGameId)
     .eq("status","live").select("id");
   if(error||!data?.length){lastCloudSyncError=error?.message||"Game preparation could not be confirmed.";return false;}
   return true;
@@ -424,7 +425,7 @@ function showAdminPage(page="roster"){
       "Open a basketball game to view "+name.toLowerCase()+". Your saved roster remains available for every game.";
   }
   if(page==="games")void renderAdminSavedGames();
-  window.scrollTo?.({top:0,behavior:"instant"});
+  window.scrollTo?.({top:0,behavior:"auto"});
 }
 function renderAdminRoster(){
   if(!$("hcAdminRosterList"))return;
@@ -518,6 +519,8 @@ function readGameSetup(){
     periodMinutes:Number($("periodMinutes").value||8),
     periods:Number($("periodMode").value||4),
     opp:opponent,gameType:$("gameType").value,
+    gameDate:$("hcGameDate")?.value||null,
+    gameLocation:$("hcGameLocation")?.value||"home",
     offenseRight:$("startDirection").value==="right",
     foulLimit:Number($("foulLimit").value||5),
     bonusRule:$("bonusRule").value,
@@ -547,6 +550,7 @@ async function prepareGameForHelper(){
     if(!await ensureCloudGame())throw Error(lastCloudSyncError||"Could not create Friday’s game.");
     if(!await savePreparedGameConfiguration())throw Error(lastCloudSyncError||"Game rules and starters could not be saved.");
     save(true);
+    void renderAdminSavedGames();
     openModal("Game Ready for Friday",
       "<p><b>"+esc(state.team)+"</b> vs <b>"+esc(state.opp)+"</b> is linked to your account.</p>"+
       "<p>You can invite your substitute now. The game can be opened on their own device without using your password.</p>"+
@@ -814,15 +818,16 @@ $("chartMode").onclick=e=>{const b=e.target.closest("[data-chart]");if(!b)return
 $("analyticsDetailTabs").onclick=e=>{const b=e.target.closest("[data-analytics-detail]");if(!b)return;state.analyticsDetailTab=b.dataset.analyticsDetail;renderLineupAnalytics();save()};
 function newGame(){
   if(state.helperMode){openModal("Game Access","Only the team owner can create another game.");return}
+  if(state.events?.length&&state.gameStartedAt&&!confirm("Start a new game? Your current game will remain saved, but make sure all stats have synced first."))return;
   stopClock();archiveGame();
   if(cloudChannel&&SB){SB.removeChannel(cloudChannel);cloudChannel=null}
   state.cloudGameId=null;state.cloudGameOwner=false;state.helperMode=false;state.historyPreview=null;
-  state.gameId=crypto.randomUUID();state.gameStartedAt=null;state.opp="";state.events=[];state.minutes={};
+  state.gameId=crypto.randomUUID();state.gameStartedAt=null;state.opp="";state.gameDate=null;state.gameLocation="home";state.events=[];state.minutes={};
   state.period=1;state.clockMs=(state.periodMinutes||8)*60000;
   state.timeoutsUs=state.timeoutCount??3;state.timeoutsOpp=state.timeoutCount??3;
   state.fast=false;state.pendingChain=null;
-  $("shell").classList.add("hidden");$("setup").classList.remove("hidden");$("oppName").value="";
-  setupRoster();applyProfileToSetup();save(true);
+  $("shell").classList.add("hidden");$("setup").classList.remove("hidden");document.body.classList.remove("game-active");$("oppName").value="";
+  setupRoster();applyProfileToSetup();showAdminPage("games");save(true);
 }
 function gameHistory(){const games=JSON.parse(localStorage.getItem("hardcourt-games")||"[]").filter(g=>g.teamId===state.teamId).sort((a,b)=>b.createdAt-a.createdAt),rows=games.map(g=>'<div class="history-row"><span><b>'+g.opponent+'</b><small>'+new Date(g.createdAt).toLocaleDateString()+' · '+(g.playoffs?"Playoffs":"Regular Season")+'</small></span><button data-load-game="'+g.gameId+'">View</button></div>').join("");openModal("Game History",'<div class="history-list">'+(rows||"<p>No saved games yet.</p>")+"</div>");document.querySelectorAll("[data-load-game]").forEach(b=>b.onclick=()=>{const g=games.find(x=>x.gameId===b.dataset.loadGame);if(!g)return;state.statsScope="game";state.historyPreview={events:g.events||[],minutes:g.minutes||{},opponent:g.opponent};closeModal();showView("statsView","stats");render()})}
 $("gameClockBtn").onclick=()=>state.running?stopClock():startClock();$("gameHistoryBtn").onclick=gameHistory;
