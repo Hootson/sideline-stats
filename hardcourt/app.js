@@ -854,22 +854,56 @@ $("turnoverBtn").onclick=()=>choosePlayer("Turnover","turnover");$("stealBtn").o
 // Ask which side will take the free throws, not which side committed the
 // foul. The old "Foul by" chooser reversed the expected scoring side and
 // accidentally requested an Erie Elite shooter for an opponent free throw.
+// The first choice is the team receiving free throws, not the team
+// committing the foul. Opponent free throws never require a home shooter.
 function foulFlow(){
   modal("Free throws for",[
     {label:state.team+" · Our free throws",value:"us"},
     {label:state.opp+" · Opponent free throws",value:"opp"}
   ],shootingSide=>{
     const foulingSide=shootingSide==="us"?"opp":"us";
-    // Record the team foul first so the bonus rules use the new foul count.
-    // Opposing shooters are not tracked by name; do not force a home-team
-    // player selection just to record opponent free throws.
-    state.events.push(createEvent("foul",{team:foulingSide,lineup:[...state.active]},state));
-    foulSituation(shootingSide);
+    const foulEvent=createEvent("foul",{team:foulingSide,lineup:[...state.active]},state);
+    state.events.push(foulEvent);
+    foulSituation(shootingSide,foulEvent);
   });
 }
 function teamFoulCount(side){const currentHalf=state.periods===2?state.period:Math.ceil(state.period/2);return state.events.filter(e=>e.type==="foul"&&(side==="us"?e.payload.team==="us":e.payload.team==="opp")&&(state.bonusRule==="oneone"?(state.periods===2?e.period:Math.ceil(e.period/2))===currentHalf:state.bonusRule==="twoshots"?e.period===state.period:true)).length}
 function bonusFor(side){const n=teamFoulCount(side);if(state.bonusRule==="oneone")return n>=10?{n:2,one:false,label:"Double bonus"}:n>=7?{n:2,one:true,label:"Bonus · 1-and-1"}:null;if(state.bonusRule==="twoshots")return n>=5?{n:2,one:false,label:"Bonus · 2 shots"}:null;return null}
-function foulSituation(side){const offender=side==="us"?"opp":"us",auto=bonusFor(offender);modal("Foul situation · "+(side==="us"?state.team:state.opp)+" shooting",[{label:auto?"Non-shooting · "+auto.label:"Non-shooting · no free throws",value:auto?"auto":"none"},{label:"Shooting foul · 2 shots",value:"2"},{label:"Shooting foul · 3 shots",value:"3"},{label:"And-one · 1 shot",value:"1"},{label:"Bonus · 1-and-1",value:"11"},{label:"Double bonus · 2 shots",value:"2b"},{label:"Technical · 2 shots",value:"2t"}],kind=>{if(kind==="none"){render();return}const n=kind==="auto"?auto.n:kind==="3"?3:kind==="1"?1:2;if(side==="us")modal("Free-throw shooter",state.active.map(id=>{const p=roster.find(x=>x.id===id);return{label:"#"+p.num+" "+p.name,value:id}}),id=>freeThrowBoard("us",id,n,kind==="11"||(kind==="auto"&&auto?.one)));else freeThrowBoard("opp",null,n,kind==="11"||(kind==="auto"&&auto?.one))})}
+function foulSituation(side,foulEvent){
+  const offender=side==="us"?"opp":"us",auto=bonusFor(offender);
+  modal("Foul situation · "+(side==="us"?state.team:state.opp)+" shooting",[
+    {label:auto?"Non-shooting · "+auto.label:"Non-shooting · no free throws",value:auto?"auto":"none"},
+    {label:"Shooting foul · 2 shots",value:"2"},
+    {label:"Shooting foul · 3 shots",value:"3"},
+    {label:"And-one · 1 shot",value:"1"},
+    {label:"Bonus · 1-and-1",value:"11"},
+    {label:"Double bonus · 2 shots",value:"2b"},
+    {label:"Technical · 2 shots",value:"2t"}
+  ],kind=>{
+    // Optional personal-foul tracking lives inside the situation screen,
+    // never in a blocking "Who is shooting?" step for the opponent.
+    const fouler=side==="opp"?$("hcPersonalFoulPlayer")?.value:null;
+    if(fouler&&state.active.includes(fouler)&&foulEvent)foulEvent.payload.playerId=fouler;
+    if(kind==="none"){render();return;}
+    const n=kind==="auto"?auto.n:kind==="3"?3:kind==="1"?1:2;
+    const oneAndOne=kind==="11"||(kind==="auto"&&auto?.one);
+    if(side==="us")modal("Free-throw shooter",state.active.map(id=>{
+      const p=roster.find(x=>x.id===id);
+      return{label:"#"+p.num+" "+p.name,value:id};
+    }),id=>freeThrowBoard("us",id,n,oneAndOne));
+    else freeThrowBoard("opp",null,n,oneAndOne);
+  });
+  if(side==="opp"&&foulEvent){
+    const optional=document.createElement("details");
+    optional.className="hc-optional-foul";
+    optional.innerHTML='<summary>Optional: assign personal foul to our player</summary>'+
+      '<label>Foul committed by<select id="hcPersonalFoulPlayer"><option value="">Team foul only</option>'+
+      state.active.map(id=>{const p=roster.find(x=>x.id===id);
+        return p?'<option value="'+esc(id)+'">#'+esc(p.num)+' '+esc(p.name)+'</option>':"";
+      }).join("")+'</select></label>';
+    $("modalBody").append(optional);
+  }
+}
 function freeThrowBoard(side,playerId,total,oneAndOne=false){const chain=chainId(),who=side==="us"?roster.find(p=>p.id===playerId)?.name:state.opp,results=Array(total).fill(null);openModal(who+" · Free Throws","");const draw=()=>{const secondLocked=oneAndOne&&results[0]!=="make";$("modalBody").innerHTML='<div class="ft-board">'+results.map((v,i)=>'<div class="ft-row"><b>FT '+(i+1)+'</b><button class="ft-choice make '+(v==="make"?"selected":"")+'" data-ft="'+i+'" data-v="make" '+(i===1&&secondLocked?"disabled":"")+'>MAKE</button><button class="ft-choice miss '+(v==="miss"?"selected":"")+'" data-ft="'+i+'" data-v="miss" '+(i===1&&secondLocked?"disabled":"")+'>MISS</button></div>').join("")+'<button id="recordFT" class="primary ft-submit" '+((oneAndOne&&results[0]==="miss")||results.every(Boolean)?"":"disabled")+'>GOOD TO GO</button></div>';document.querySelectorAll("[data-ft]").forEach(b=>b.onclick=()=>{results[+b.dataset.ft]=b.dataset.v;if(oneAndOne&&+b.dataset.ft===0&&b.dataset.v==="miss")results[1]=null;draw()});$("recordFT").onclick=()=>{closeModal();const actual=oneAndOne&&results[0]==="miss"?results.slice(0,1):results;actual.forEach(v=>{const made=v==="make";if(side==="us")state.events.push(createEvent("free_throw",{playerId,made,lineup:[...state.active],chainId:chain},state));else state.events.push(createEvent("opp_free_throw",{made,lineup:[...state.active],chainId:chain},state))});render();if(actual.at(-1)==="miss"){state.pendingChain=chain;promptMissRebound(side==="opp"?"oppMiss":"ourMiss")}}};draw()}
 function promptAssist(shooter){const opts=state.active.filter(x=>x!==shooter).map(id=>({label:roster.find(p=>p.id===id).name,value:id}));opts.push({label:"None",value:"none"});modal("Assist?",opts,id=>{if(id!=="none")state.events.push(createEvent("assist",{playerId:id,chainId:state.pendingChain||null},state));state.pendingChain=null;render()})}
 function promptMissRebound(context="ourMiss"){const ours=context!=="oppMiss",opts=state.active.map(id=>({label:roster.find(p=>p.id===id).name,value:id}));opts.push({label:"Opponent",value:"opp"},{label:"Team / Dead Ball",value:"team"},{label:"None",value:"none"});modal("Rebound?",opts,id=>{const kind=ours?"offensive":"defensive";if(id==="opp")state.events.push(createEvent("opp_rebound",{team:"opponent",kind:ours?"defensive":"offensive",lineup:[...state.active],chainId:state.pendingChain||null},state));else if(id==="team")state.events.push(createEvent("team_rebound",{team:"us",kind,chainId:state.pendingChain||null},state));else if(id!=="none")state.events.push(createEvent("rebound",{playerId:id,kind,lineup:[...state.active],chainId:state.pendingChain||null},state));state.pendingChain=null;render()})}
