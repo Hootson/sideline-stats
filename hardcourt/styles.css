@@ -371,10 +371,10 @@ body:not(.game-active){background:#f4f6f5;color:#122018;overflow-x:hidden;overfl
 #setup.hc-admin-root .hc-saved-row-copy strong{display:block;font-size:14px;overflow-wrap:anywhere}
 #setup.hc-admin-root .hc-saved-row-copy small{display:block;margin-top:5px;color:#68736b;font-size:11px}
 #setup.hc-admin-root .hc-admin-nav{
-  position:fixed;left:50%;bottom:0;transform:translateX(-50%);z-index:70;
-  width:min(540px,100%);display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
+  position:fixed;left:0;right:0;bottom:0;transform:none;margin-left:auto;margin-right:auto;z-index:70;
+  width:100%;max-width:540px;min-width:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
   background:#177b46;border-top:3px solid #f0b33b;
-  padding:8px 6px calc(8px + env(safe-area-inset-bottom));box-shadow:0 -4px 18px #0003;
+  padding:8px calc(6px + env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) calc(6px + env(safe-area-inset-left,0px));box-shadow:0 -4px 18px #0003;
 }
 #setup.hc-admin-root .hc-admin-nav button{border:0;background:transparent;color:#ffffffbd;border-radius:9px;min-width:0;font-size:21px;padding:6px 2px;line-height:1.1}
 #setup.hc-admin-root .hc-admin-nav button span{display:block;font-size:10px;margin-top:4px;line-height:1.1}
