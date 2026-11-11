@@ -342,7 +342,7 @@ async function syncCloudEvents(){
       const {error}=await SB.rpc("sync_hardcourt_event",{
         p_id:e.id,p_game_id:state.cloudGameId,p_event_type:e.type,
         p_period:e.period,p_clock_ms:e.clockMs,p_payload:payload,
-        p_client_id:state.clientId,p_client_created_at:e.createdAt
+        p_client_id:state.clientId,p_client_created_at:new Date(typeof e.createdAt==="string"?e.createdAt:Number(e.createdAt||Date.now())).toISOString()
       });
       if(error){
         lastCloudSyncError=error.message;console.warn("Hardcourt event sync",error.message);
@@ -371,7 +371,14 @@ function initials(s){return String(s||"?").split(/\s+/).map(x=>x[0]).join("").sl
 function imgOrInitial(src,label){return src?'<img src="'+src+'" alt="">':initials(label)}
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function fileData(file,cb){if(!file)return;const img=new Image(),url=URL.createObjectURL(file);img.onload=()=>{const max=640,scale=Math.min(1,max/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=Math.round(img.width*scale);c.height=Math.round(img.height*scale);c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);cb(c.toDataURL("image/jpeg",.82))};img.onerror=()=>URL.revokeObjectURL(url);img.src=url}
-function applyProfileToSetup(){state.team??="Erie Elite";state.grade??="5th Grade";state.division??="Gold";state.primary??="#111111";state.accent??="#39a852";$("setupTeamLabel").textContent=state.team;$("setupTeamMeta").textContent=[state.grade,state.division].filter(Boolean).join(" · ")}
+function applyProfileToSetup(){
+  state.team??="Erie Elite";state.grade??="5th Grade";state.division??="Gold";
+  state.primary??="#111111";state.accent??="#39a852";
+  $("setupTeamLabel").textContent=state.team;
+  $("setupTeamMeta").textContent=[state.grade,state.division].filter(Boolean).join(" · ");
+  $("oppName").value=state.opp||"";
+  $("gameType").value=state.gameType||"regular";
+}
 function setupRoster(){
   if(!Array.isArray(state.active))state.active=[];
   state.active=state.active.filter(id=>roster.some(p=>p.id===id));
@@ -696,7 +703,7 @@ function newGame(){
   stopClock();archiveGame();
   if(cloudChannel&&SB){SB.removeChannel(cloudChannel);cloudChannel=null}
   state.cloudGameId=null;state.cloudGameOwner=false;state.helperMode=false;state.historyPreview=null;
-  state.gameId=crypto.randomUUID();state.gameStartedAt=null;state.events=[];state.minutes={};
+  state.gameId=crypto.randomUUID();state.gameStartedAt=null;state.opp="";state.events=[];state.minutes={};
   state.period=1;state.clockMs=(state.periodMinutes||8)*60000;
   state.timeoutsUs=state.timeoutCount??3;state.timeoutsOpp=state.timeoutCount??3;
   state.fast=false;state.pendingChain=null;
@@ -770,10 +777,11 @@ async function initCloud(){
   });
   const {data}=await SB.auth.getSession();cloudUser=data?.session?.user||null;
   updateCloudStatus();
-  if(cloudUser)await bootstrapHardcourt();
+  if(cloudUser){await bootstrapHardcourt();void syncCloudEvents();}
   else if(new URL(location.href).searchParams.has("gameStatkeeperInvite"))openAccount();
 }
 initCloud();
+window.addEventListener("online",()=>{if(cloudUser){void syncCloudEvents();if(state.cloudGameId)void pullCloudEvents();}});
 if("serviceWorker" in navigator)window.addEventListener("load",async()=>{try{const r=await navigator.serviceWorker.register("./service-worker.js?v=ui68",{updateViaCache:"none"});await r.update();if(r.waiting)r.waiting.postMessage("SKIP_WAITING");r.addEventListener("updatefound",()=>{const w=r.installing;if(w)w.addEventListener("statechange",()=>{if(w.state==="installed"&&navigator.serviceWorker.controller)w.postMessage("SKIP_WAITING")})});navigator.serviceWorker.addEventListener("controllerchange",()=>{if(!sessionStorage.getItem("ui68-reloaded")){sessionStorage.setItem("ui68-reloaded","1");location.reload()}})}catch(e){}});
 
 $("accountBtn").onclick=openSettings;$("shareTeamBtn").onclick=shareTeam;$("liveShareTeamBtn").onclick=shareTeam;$("helperBtn").onclick=inviteHelper;$("liveHelperBtn").onclick=inviteHelper;$("teamMenuBtn").onclick=openSettings;updateCloudStatus();
