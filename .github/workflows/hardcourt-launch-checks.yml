@@ -1,0 +1,59 @@
+name: Hardcourt Launch Checks
+on:
+  pull_request:
+    paths:
+      - 'hardcourt/**'
+      - 'account/**'
+      - 'supabase/migrations/**'
+      - 'supabase/functions/create-stripe-checkout/**'
+      - 'supabase/functions/checkout-status/**'
+      - '.github/workflows/hardcourt-launch-checks.yml'
+  push:
+    branches:
+      - hardcourt-current-integration
+    paths:
+      - 'hardcourt/**'
+      - 'account/**'
+      - 'supabase/migrations/**'
+      - 'supabase/functions/create-stripe-checkout/**'
+      - 'supabase/functions/checkout-status/**'
+      - '.github/workflows/hardcourt-launch-checks.yml'
+jobs:
+  hardcourt-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hardcourt
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run Hardcourt regression tests
+        run: npm test
+      - name: Syntax-check launch modules
+        run: |
+          node --check app.js
+          node --check legacy-app.js
+          node --check commerce.js
+          node --check sharing.js
+          node --check game-cloud.js
+          node --check game-manager.js
+          node --check account-flow.js
+          node --check account-gate.js
+          node --check account-integration.js
+          node --check cloud-account.js
+          node --check onboarding.js
+          node --check service-worker.js
+      - name: Verify required launch assets exist
+        run: |
+          test -f manifest.webmanifest
+          test -f service-worker.js
+          test -f court-iphone.png
+          test -f court-ipad.png
+          test -f court-analytics.png
+          test -f ../supabase/functions/create-stripe-checkout/index.ts
+          test -f ../supabase/functions/checkout-status/index.ts
+          test -f ../supabase/migrations/20260930235500_hardcourt_commercial_bridge.sql
+          test -f ../supabase/migrations/20261001000500_hardcourt_game_persistence.sql
+          test -f ../supabase/migrations/20261001011000_hardcourt_sharing_and_coaches.sql
