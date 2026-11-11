@@ -28,16 +28,43 @@ function viewerScore(events){let us=0,them=0;for(const e of events||[]){if(e.typ
 async function renderViewer(token){$("setup").classList.add("hidden");$("shell").classList.add("hidden");$("viewerView").classList.remove("hidden");const {data,error}=await SB.rpc("get_public_team_viewer",{p_token:token});if(error){$("viewerView").innerHTML='<div class="viewer-card"><h2>Viewer link unavailable</h2><p>'+error.message+'</p></div>';return}const games=(data.games||[]).filter(g=>g.sport==="basketball"),live=games.find(g=>g.status==="live")||games.at(-1),events=(data.events||[]).filter(e=>!live||e.game_id===live.id),score=viewerScore(events);$("viewerView").innerHTML='<div class="viewer-brand"><img src="../brand-header.png" alt="Bleacher Butt Stats"><b>HARDCOURT EDITION</b></div><div class="viewer-score"><div><small>'+data.team.name+'</small><strong>'+score.us+'</strong></div><span>LIVE STATS</span><div><small>'+(live?.opponent_name||"Opponent")+'</small><strong>'+score.them+'</strong></div></div><div class="viewer-card"><h3>Team Stats</h3><div id="viewerStats"></div></div><div class="viewer-card"><h3>Games</h3>'+(games.map(g=>'<p>'+new Date(g.started_at||g.created_at).toLocaleDateString()+' · '+g.opponent_name+'</p>').join("")||"<p>No games yet.</p>")+'</div>';const rows=(data.players||[]).map(p=>{const pe=events.filter(e=>String(e.payload?.cloudPlayerId)===String(p.id)),s=viewerScore(pe);return'<div class="viewer-stat-row"><b>#'+(p.jersey||"")+' '+p.name+'</b><span>'+s.us+' PTS</span></div>'}).join("");$("viewerStats").innerHTML=rows||"<p>Stats will appear when the game starts.</p>";setTimeout(()=>renderViewer(token),5000)}
 async function initViewerMode(){const token=new URL(location.href).searchParams.get("viewer");if(!token)return false;if(!window.supabase?.createClient)return false;SB=SB||window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,hardcourtAuthOptions);await renderViewer(token);return true}
 function updateCloudStatus(){const s=cloudUser?(state.cloudGameId?(state.helperMode?"Game statkeeper · cloud connected":"Game linked · cloud connected"):"Signed in · "+(state.team||"Team")):"Sign in to save your team";if($("cloudStatus"))$("cloudStatus").textContent=s;if($("liveCloudStatus"))$("liveCloudStatus").textContent=s;if($("accountBtn"))$("accountBtn").textContent="⚙ "+(state.team||"Team")}
-function openAccount(){if(!SB)return openModal("Account","<p>Cloud services are unavailable.</p>");if(cloudUser){openModal("Account",'<p>Signed in as <b>'+(cloudUser.email||"your account")+'</b>.</p><button id="signOutHardcourt" class="choice">Sign Out</button>');$("signOutHardcourt").onclick=async()=>{await SB.auth.signOut({scope:"local"});closeModal()};return}openModal("Account",'<div class="team-editor"><label>Email<input id="hcEmail" type="email" autocomplete="email"></label><label>Password<input id="hcPassword" type="password" autocomplete="current-password"></label><button id="hcSignIn" class="primary">Sign In</button><button id="hcSignUp" class="choice">Create Account</button><p id="hcAuthMsg" class="error"></p></div>');$("hcSignIn").onclick=async()=>{const {error}=await SB.auth.signInWithPassword({email:$("hcEmail").value.trim(),password:$("hcPassword").value});$("hcAuthMsg").textContent=error?.message||"";if(!error)closeModal()};$("hcSignUp").onclick=async()=>{const {error}=await SB.auth.signUp({email:$("hcEmail").value.trim(),password:$("hcPassword").value});$("hcAuthMsg").textContent=error?.message||"Check your email to confirm your account."}}
+function openAccount(){
+  if(!SB)return openModal("Account","<p>Account services are unavailable; reconnect to the internet.</p>");
+  if(cloudUser){
+    openModal("Hardcourt Account",'<p>Signed in as <b>'+esc(cloudUser.email||"your account")+'</b>.</p>'+
+      '<p>Basketball team: <b>'+esc(state.team||"Not assigned")+'</b></p>'+
+      '<button id="refreshHardcourtTeam" class="primary">Reload My Basketball Team</button>'+
+      '<button id="signOutHardcourt" class="choice">Sign Out</button>');
+    $("refreshHardcourtTeam").onclick=async()=>{state.cloudOwnerUserId=null;closeModal();await bootstrapHardcourt(true);};
+    $("signOutHardcourt").onclick=async()=>{await SB.auth.signOut({scope:"local"});closeModal();};
+    return;
+  }
+  openModal("Sign in to Bleacher Butt Stats",
+    '<p>Use the <b>same email and password</b> as Gridiron. Game substitutes use their own email.</p>'+
+    '<div class="team-editor"><label>Email<input id="hcEmail" type="email" autocomplete="email"></label>'+
+    '<label>Password<input id="hcPassword" type="password" autocomplete="current-password"></label>'+
+    '<button id="hcSignIn" class="primary">Sign In</button>'+
+    '<button id="hcSignUp" class="choice">Create Account</button><p id="hcAuthMsg" class="error"></p></div>');
+  $("hcSignIn").onclick=async()=>{
+    const {error}=await SB.auth.signInWithPassword({email:$("hcEmail").value.trim(),password:$("hcPassword").value});
+    $("hcAuthMsg").textContent=error?.message||"";
+    if(!error)closeModal();
+  };
+  $("hcSignUp").onclick=async()=>{
+    const {error}=await SB.auth.signUp({email:$("hcEmail").value.trim(),password:$("hcPassword").value});
+    $("hcAuthMsg").textContent=error?.message||"Check your email to confirm your account.";
+  };
+}
 function openSettings(){
   const signed=!!cloudUser,email=cloudUser?.email||"";
   openModal("Settings",'<div class="hc-settings">'+
     '<div class="hc-settings-team"><span class="score-logo">'+imgOrInitial(state.teamLogo,state.team)+'</span><div><h3>'+esc(state.team||"Team")+'</h3><small>'+esc([state.grade,state.division].filter(Boolean).join(" · "))+'</small><p>'+(signed?esc(email):"Not signed in")+'</p></div></div>'+
-    '<div class="hc-settings-card"><b>TEAM & ACCOUNT</b><button id="settingsEditTeam">Edit '+esc(state.team||"Team")+'</button><button id="settingsAccount">'+(signed?"Account / Sign Out":"Sign In / Create Account")+'</button></div>'+
+    '<div class="hc-settings-card"><b>TEAM & ACCOUNT</b><button id="settingsEditTeam">Edit '+esc(state.team||"Team")+'</button><button id="settingsRoster">Edit Season Roster</button><button id="settingsAccount">'+(signed?"Account / Sign Out":"Sign In / Create Account")+'</button></div>'+
     '<div class="hc-settings-card"><b>SHARING & ACCESS</b><p>Use the same account-and-invite pattern across Bleacher Butt Stats.</p><button id="settingsParent">Invite Parents / Viewers</button><button id="settingsCoach">Invite Coach</button><button id="settingsHelper">Invite Game Statkeeper</button></div>'+
-    '<div class="hc-settings-card"><b>GAME</b><button id="settingsGame">Game Setup</button><button id="settingsNewGame">New Game</button><button id="settingsHistory">Prior Games</button></div>'+
+    '<div class="hc-settings-card"><b>GAME</b><button id="settingsGame">Game Setup</button><button id="settingsNewGame">New Game</button><button id="settingsHistory">Prior Games</button><button id="settingsCloudGames">Cloud Games</button></div>'+
   '</div>');
   $("settingsEditTeam").onclick=()=>{closeModal();openTeamEditor()};
+  $("settingsRoster").onclick=()=>{closeModal();openRosterEditor()};
   $("settingsAccount").onclick=()=>{closeModal();openAccount()};
   $("settingsParent").onclick=()=>{closeModal();shareTeam()};
   $("settingsCoach").onclick=()=>{closeModal();inviteCoach()};
@@ -45,6 +72,8 @@ function openSettings(){
   $("settingsGame").onclick=()=>{closeModal();openGameSettings()};
   $("settingsNewGame").onclick=()=>{closeModal();newGame()};
   $("settingsHistory").onclick=()=>{closeModal();gameHistory()};
+  $("settingsCloudGames").onclick=()=>{closeModal();openCloudGames()};
+  if(state.helperMode)for(const id of ["settingsEditTeam","settingsRoster","settingsParent","settingsCoach","settingsHelper","settingsNewGame"]){const el=$(id);if(el){el.disabled=true;el.title="Only the team owner can use this setting";}}
 }
 async function inviteCoach(){
   if(!cloudUser)return openAccount();
@@ -363,7 +392,35 @@ function openRosterEditor(){
   };
   openModal("Edit Season Roster","");redraw();
 }
-function openTeamEditor(){openModal("Edit Team",'<div class="team-editor"><label>Team name<input id="editTeamName"></label><label>Grade<select id="editGrade"><option>5th Grade</option><option>6th Grade</option><option>7th Grade</option><option>8th Grade</option></select></label><label>Division<input id="editDivision"></label><div class="team-color-row"><label>Primary<input id="editPrimary" type="color"></label><label>Accent<input id="editAccent" type="color"></label></div><label>Team logo<input id="editTeamLogo" type="file" accept="image/*"></label><button id="saveTeamProfile" class="primary">Save Team</button></div>');$("editTeamName").value=state.team||"";$("editGrade").value=state.grade||"5th Grade";$("editDivision").value=state.division||"";$("editPrimary").value=state.primary||"#111111";$("editAccent").value=state.accent||"#39a852";let nextLogo=state.teamLogo||"";$("editTeamLogo").onchange=()=>fileData($("editTeamLogo").files[0],d=>nextLogo=d);$("saveTeamProfile").onclick=()=>{state.team=$("editTeamName").value.trim()||state.team;state.grade=$("editGrade").value;state.division=$("editDivision").value.trim();state.primary=$("editPrimary").value;state.accent=$("editAccent").value;state.teamLogo=nextLogo;closeModal();applyProfileToSetup();startUI();save(true);syncRosterCloud()}}
+function openTeamEditor(){
+  if(!cloudUser)return openAccount();
+  if(state.helperMode)return openModal("Team Settings","Only the team owner can change the team.");
+  openModal("Edit Basketball Team",
+    '<div class="team-editor"><label>Team name<input id="editTeamName"></label>'+
+    '<label>Grade<select id="editGrade"><option>5th Grade</option><option>6th Grade</option><option>7th Grade</option><option>8th Grade</option></select></label>'+
+    '<label>Division<input id="editDivision"></label>'+
+    '<div class="team-color-row"><label>Primary<input id="editPrimary" type="color"></label><label>Accent<input id="editAccent" type="color"></label></div>'+
+    '<label>Team logo<input id="editTeamLogo" type="file" accept="image/*"></label>'+
+    '<button id="saveTeamProfile" class="primary">Save Team</button><p id="teamSaveError" class="error"></p></div>');
+  $("editTeamName").value=state.team||"";$("editGrade").value=state.grade||"5th Grade";
+  $("editDivision").value=state.division||"";$("editPrimary").value=state.primary||"#111111";
+  $("editAccent").value=state.accent||"#39a852";
+  let nextLogo=state.teamLogo||"";
+  $("editTeamLogo").onchange=()=>fileData($("editTeamLogo").files[0],d=>nextLogo=d);
+  $("saveTeamProfile").onclick=async()=>{
+    if(!await ensureCloudContext()){$("teamSaveError").textContent="Could not load your basketball team.";return}
+    const name=$("editTeamName").value.trim();
+    if(!name){$("teamSaveError").textContent="Team name is required.";return}
+    const info={p_team_id:state.cloudTeamId,p_name:name,p_grade:$("editGrade").value,
+      p_primary:$("editPrimary").value,p_accent:$("editAccent").value,p_logo_data:nextLogo};
+    const {error}=await SB.rpc("update_hardcourt_team_profile",info);
+    if(error){$("teamSaveError").textContent=error.message;return}
+    state.team=name;state.grade=info.p_grade;state.division=$("editDivision").value.trim();
+    state.primary=info.p_primary;state.accent=info.p_accent;state.teamLogo=nextLogo;
+    closeModal();applyProfileToSetup();if(state.gameStartedAt)startUI();else{$("shell").classList.add("hidden");$("setup").classList.remove("hidden");}
+    updateCloudStatus();save(true);
+  };
+}
 function parseClockInput(v){
   const m=String(v||"").trim().match(/^(\d{1,2}):(\d{2})$/);
   if(!m)return null;
@@ -532,7 +589,18 @@ function courtLines(){return '<div class="court-lines ui51-hidden-lines"><i clas
 function renderShotAnalytics(){if(!$("analyticsCourt"))return;const shots=filteredShots(),made=shots.filter(e=>e.payload.made),threes=shots.filter(e=>e.payload.three),tm=threes.filter(e=>e.payload.made),twos=shots.filter(e=>!e.payload.three),twoM=twos.filter(e=>e.payload.made);$("shootingSummary").textContent="FG "+made.length+"/"+shots.length+" · "+(shots.length?Math.round(made.length/shots.length*100):0)+"% | 3PT "+tm.length+"/"+threes.length+" · "+(threes.length?Math.round(tm.length/threes.length*100):0)+"% | 2PT "+twoM.length+"/"+twos.length+" · "+(twos.length?Math.round(twoM.length/twos.length*100):0)+"%";const zones={};shots.forEach(e=>{const z=shotZone(e);zones[z]??={a:0,m:0,pts:0};zones[z].a++;if(e.payload.made){zones[z].m++;zones[z].pts+=e.payload.three?3:2}});let heat="";if(state.chartMode!=="shots")heat=Object.entries(zones).map(([z,v])=>{const rs=zoneRects[z];if(!rs)return"";const r=rs[(shots.find(e=>shotZone(e)===z)?.payload.x||0)>.5?1:0];const pct=v.m/v.a,confidence=Math.min(1,v.a/4),score=.5+(pct-.5)*confidence,cls=score<.28?"cold3":score<.4?"cold2":score<.48?"cold1":score<.55?"neutral":score<.67?"hot1":score<.78?"hot2":"hot3";return'<i class="heat-zone '+cls+'" style="left:'+r[0]*100+'%;top:'+r[1]*100+'%;width:'+r[2]*100+'%;height:'+r[3]*100+'%"></i>'}).join("");const dots=state.chartMode==="heat"?"":shots.map(e=>'<i class="shot-dot '+(e.payload.made?"make":"miss")+'" style="left:'+e.payload.x*100+'%;top:'+e.payload.y*100+'%"></i>').join("");$("analyticsCourt").innerHTML=heat+courtLines()+dots;$("zoneTable").innerHTML=Object.entries(zones).sort((a,b)=>b[1].a-a[1].a).map(([z,v])=>'<div class="zone-cell"><b>'+z+"</b><span>"+v.m+"/"+v.a+" · "+Math.round(v.m/v.a*100)+'%</span><small>'+(v.pts/v.a).toFixed(2)+" pts/shot · "+Math.round(v.a/shots.length*100)+"% of shots</small></div>").join("")||'<div class="zone-cell">No shots for these filters yet.</div>'}
 $("chartMode").onclick=e=>{const b=e.target.closest("[data-chart]");if(!b)return;state.chartMode=b.dataset.chart;document.querySelectorAll("#chartMode button").forEach(x=>x.classList.toggle("active",x===b));renderShotAnalytics();save()};
 $("analyticsDetailTabs").onclick=e=>{const b=e.target.closest("[data-analytics-detail]");if(!b)return;state.analyticsDetailTab=b.dataset.analyticsDetail;renderLineupAnalytics();save()};
-function newGame(){stopClock();archiveGame();if(cloudChannel&&SB){SB.removeChannel(cloudChannel);cloudChannel=null}state.cloudGameId=null;state.cloudGameOwner=false;state.helperMode=false;state.historyPreview=null;state.gameId=globalThis.crypto?.randomUUID?.()||"game-"+Date.now();state.gameStartedAt=null;state.events=[];state.minutes={};state.period=1;state.clockMs=(state.periodMinutes||8)*60000;state.timeoutsUs=state.timeoutCount??3;state.timeoutsOpp=state.timeoutCount??3;state.fast=false;state.pendingChain=null;$("shell").classList.add("hidden");$("setup").classList.remove("hidden");$("oppName").value="";setupRoster();applyProfileToSetup();save(true)}
+function newGame(){
+  if(state.helperMode){openModal("Game Access","Only the team owner can create another game.");return}
+  stopClock();archiveGame();
+  if(cloudChannel&&SB){SB.removeChannel(cloudChannel);cloudChannel=null}
+  state.cloudGameId=null;state.cloudGameOwner=false;state.helperMode=false;state.historyPreview=null;
+  state.gameId=crypto.randomUUID();state.gameStartedAt=null;state.events=[];state.minutes={};
+  state.period=1;state.clockMs=(state.periodMinutes||8)*60000;
+  state.timeoutsUs=state.timeoutCount??3;state.timeoutsOpp=state.timeoutCount??3;
+  state.fast=false;state.pendingChain=null;
+  $("shell").classList.add("hidden");$("setup").classList.remove("hidden");$("oppName").value="";
+  setupRoster();applyProfileToSetup();save(true);
+}
 function gameHistory(){const games=JSON.parse(localStorage.getItem("hardcourt-games")||"[]").filter(g=>g.teamId===state.teamId).sort((a,b)=>b.createdAt-a.createdAt),rows=games.map(g=>'<div class="history-row"><span><b>'+g.opponent+'</b><small>'+new Date(g.createdAt).toLocaleDateString()+' · '+(g.playoffs?"Playoffs":"Regular Season")+'</small></span><button data-load-game="'+g.gameId+'">View</button></div>').join("");openModal("Game History",'<div class="history-list">'+(rows||"<p>No saved games yet.</p>")+"</div>");document.querySelectorAll("[data-load-game]").forEach(b=>b.onclick=()=>{const g=games.find(x=>x.gameId===b.dataset.loadGame);if(!g)return;state.statsScope="game";state.historyPreview={events:g.events||[],minutes:g.minutes||{},opponent:g.opponent};closeModal();showView("statsView","stats");render()})}
 $("gameClockBtn").onclick=()=>state.running?stopClock():startClock();$("gameHistoryBtn").onclick=gameHistory;
 window.addEventListener("pagehide",()=>{accrue();save()});document.addEventListener("visibilitychange",()=>{if(document.hidden&&state.running){stopClock()}});applyDirection();render();
