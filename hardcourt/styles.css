@@ -269,7 +269,7 @@ body.game-active .round-circle .dash-semi{border-style:dashed!important}
    All game clock, court, shooting, substitution and analytics styles remain independent. */
 body:not(.game-active){background:#f4f6f5;color:#122018;overflow-x:hidden;overflow-y:auto}
 #setup.hc-admin-root{
-  --hc-brand:#177b46;--hc-gold:#f0b33b;--hc-line:#dbe3de;
+  --hc-brand:#111111;--hc-gold:#39a852;--hc-on-brand:#fff;--hc-on-gold:#071109;--hc-line:#dbe3de;
   display:block;min-height:100dvh;width:100%;max-width:540px;padding:0;margin:0 auto;
   background:#f4f6f5;color:#122018;overflow:visible;
 }
@@ -279,7 +279,7 @@ body:not(.game-active){background:#f4f6f5;color:#122018;overflow-x:hidden;overfl
 }
 #setup.hc-admin-root .hc-admin-header img{width:100%;height:100%;object-fit:contain;display:block}
 #setup.hc-admin-root .hc-header-btn{
-  position:absolute;z-index:2;top:7.5%;min-height:27px;padding:7px 11px;
+  position:absolute;z-index:2;top:max(40px,calc(env(safe-area-inset-top,0px) + 6px));min-height:29px;padding:7px 11px;
   border:1.5px solid #ffffffb8;border-radius:999px;background:#06080bdc;color:#fff;
   font-size:10px;line-height:1;font-weight:900;box-shadow:0 2px 9px #0008;
 }
@@ -298,11 +298,11 @@ body:not(.game-active){background:#f4f6f5;color:#122018;overflow-x:hidden;overfl
 #setup.hc-admin-root .hc-admin-card h2{margin:0 0 11px;font-size:21px;font-weight:900}
 #setup.hc-admin-root .hc-admin-card h3{margin:17px 0 8px;font-size:17px;font-weight:900}
 #setup.hc-admin-root .hc-team-hero{
-  background:linear-gradient(135deg,#177b46 0%,#0b2317 100%);border-color:#155a32;color:#fff;
+  background:linear-gradient(135deg,var(--hc-brand) 0%,color-mix(in srgb,var(--hc-brand) 65%,black) 100%);border-color:var(--hc-brand);color:var(--hc-on-brand);
 }
-#setup.hc-admin-root .hc-team-hero h1{color:#fff}
-#setup.hc-admin-root .hc-team-hero p{margin:0 0 12px;color:#e0f5e5;font-size:14px}
-#setup.hc-admin-root .hc-team-kicker{letter-spacing:.12em;font-size:10px;font-weight:950;color:#c3e5c9}
+#setup.hc-admin-root .hc-team-hero h1{color:var(--hc-on-brand)}
+#setup.hc-admin-root .hc-team-hero p{margin:0 0 12px;color:var(--hc-on-brand);opacity:.88;font-size:14px}
+#setup.hc-admin-root .hc-team-kicker{letter-spacing:.12em;font-size:10px;font-weight:950;color:var(--hc-on-brand);opacity:.78}
 #setup.hc-admin-root .hc-cloud-row{background:#ffffffed;border:1px solid #cbded0;border-radius:12px;margin-top:14px;padding:12px;color:#122018}
 #setup.hc-admin-root .hc-cloud-line{display:flex;gap:8px;align-items:center;font-size:12px;font-weight:900;overflow-wrap:anywhere}
 #setup.hc-admin-root .hc-sync-dot{width:10px;height:10px;display:inline-block;flex:0 0 auto;border-radius:50%;background:#aab5ad}
@@ -312,7 +312,7 @@ body:not(.game-active){background:#f4f6f5;color:#122018;overflow-x:hidden;overfl
 #setup.hc-admin-root .hc-cloud-buttons .hc-btn{flex:1;min-width:120px}
 #setup.hc-admin-root .hc-card-heading{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:11px}
 #setup.hc-admin-root .hc-card-heading h2{margin:0}
-#setup.hc-admin-root .hc-badge{display:inline-block;border-radius:999px;background:#eef5f0;color:#177b46;padding:5px 8px;font-size:12px;font-weight:900;vertical-align:middle}
+#setup.hc-admin-root .hc-badge{display:inline-block;border-radius:999px;background:color-mix(in srgb,var(--hc-brand) 12%,white);color:color-mix(in srgb,var(--hc-brand) 70%,black);padding:5px 8px;font-size:12px;font-weight:900;vertical-align:middle}
 #setup.hc-admin-root .hc-muted{color:#68736b;font-size:13px;line-height:1.45}
 #setup.hc-admin-root .hc-admin-card p.hc-muted{margin:6px 0 14px}
 #setup.hc-admin-root label{display:block;margin:12px 0 7px;color:#182b20;font-size:13px;font-weight:800;line-height:1.35}
@@ -322,7 +322,7 @@ body:not(.game-active){background:#f4f6f5;color:#122018;overflow-x:hidden;overfl
   background:#fff;color:#122018;font-size:16px;
 }
 #setup.hc-admin-root input:focus-visible,#setup.hc-admin-root select:focus-visible{
-  border-color:#177b46;outline:2px solid #177b4666;outline-offset:1px;
+  border-color:var(--hc-brand);outline:2px solid color-mix(in srgb,var(--hc-brand) 40%,transparent);outline-offset:1px;
 }
 #setup.hc-admin-root .hc-two,#setup.hc-admin-root .hc-roster-inputs{
   display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:end;
@@ -332,10 +332,10 @@ body:not(.game-active){background:#f4f6f5;color:#122018;overflow-x:hidden;overfl
   min-height:44px;padding:10px 13px;border-radius:12px;cursor:pointer;
   font-size:14px;font-weight:900;text-align:center;
 }
-#setup.hc-admin-root .hc-btn-primary{border:0;background:#177b46;color:white}
-#setup.hc-admin-root .hc-btn-ghost{background:white;color:#177b46;border:1px solid #dbe3de}
+#setup.hc-admin-root .hc-btn-primary{border:0;background:var(--hc-brand);color:var(--hc-on-brand)}
+#setup.hc-admin-root .hc-btn-ghost{background:white;color:color-mix(in srgb,var(--hc-brand) 72%,black);border:1px solid #dbe3de}
 #setup.hc-admin-root .hc-btn-small{width:auto;min-height:35px;padding:7px 10px;font-size:12px}
-#setup.hc-admin-root .hc-next{width:100%;background:#f0b33b;color:#122018}
+#setup.hc-admin-root .hc-next{width:100%;background:var(--hc-gold);color:var(--hc-on-gold)}
 #setup.hc-admin-root #hcAdminAddPlayer,#setup.hc-admin-root #prepareHelperGame,
 #setup.hc-admin-root #startGame,#setup.hc-admin-root #gameHistoryBtn{width:100%;margin:10px 0 0}
 #setup.hc-admin-root .hc-inline-note{
@@ -350,20 +350,20 @@ body:not(.game-active){background:#f4f6f5;color:#122018;overflow-x:hidden;overfl
   border-bottom:1px solid #dbe3de;
 }
 #setup.hc-admin-root .hc-player-row:last-child{border-bottom:0}
-#setup.hc-admin-root .hc-player-jersey{min-width:50px;font-size:22px;font-weight:950;color:#177b46}
+#setup.hc-admin-root .hc-player-jersey{min-width:50px;font-size:22px;font-weight:950;color:color-mix(in srgb,var(--hc-brand) 72%,black)}
 #setup.hc-admin-root .hc-player-name{font-size:15px;font-weight:800;color:#122018;flex:1}
-#setup.hc-admin-root .hc-player-edit{color:#177b46;border:1px solid #dbe3de;background:#fff;border-radius:9px;padding:7px 9px;font-size:12px;font-weight:900}
-#setup.hc-admin-root .hc-games-hero{background:linear-gradient(135deg,#177b46,#102019);border-color:#155a32;color:#fff}
-#setup.hc-admin-root .hc-games-hero h2{color:white}
-#setup.hc-admin-root .hc-games-hero p{font-size:13px;color:#d9e9de;margin:0}
+#setup.hc-admin-root .hc-player-edit{color:color-mix(in srgb,var(--hc-brand) 72%,black);border:1px solid #dbe3de;background:#fff;border-radius:9px;padding:7px 9px;font-size:12px;font-weight:900}
+#setup.hc-admin-root .hc-games-hero{background:linear-gradient(135deg,var(--hc-brand),color-mix(in srgb,var(--hc-brand) 65%,black));border-color:var(--hc-brand);color:var(--hc-on-brand)}
+#setup.hc-admin-root .hc-games-hero h2{color:var(--hc-on-brand)}
+#setup.hc-admin-root .hc-games-hero p{font-size:13px;color:var(--hc-on-brand);opacity:.9;margin:0}
 #setup.hc-admin-root .hc-starters .starter-choice{
   display:flex!important;align-items:center;min-height:49px;padding:11px 12px;
   border:1px solid #dbe3de;border-radius:12px;background:#f9fbfa;color:#122018;
   font-size:15px;font-weight:750;line-height:1.3;
 }
-#setup.hc-admin-root .hc-starters .starter-choice:has(input:checked){border-color:#177b46;background:#eef8f1}
+#setup.hc-admin-root .hc-starters .starter-choice:has(input:checked){border-color:var(--hc-brand);background:color-mix(in srgb,var(--hc-brand) 10%,white)}
 #setup.hc-admin-root .hc-starters .starter-choice input[type=checkbox]{
-  margin:0;width:22px;height:22px;min-height:22px;accent-color:#177b46;flex:0 0 auto;
+  margin:0;width:22px;height:22px;min-height:22px;accent-color:var(--hc-brand);flex:0 0 auto;
 }
 #setup.hc-admin-root .hc-saved-row{display:flex;align-items:center;gap:9px;padding:10px 0;border-bottom:1px solid #dbe3de}
 #setup.hc-admin-root .hc-saved-row:last-child{border-bottom:0}
@@ -373,13 +373,13 @@ body:not(.game-active){background:#f4f6f5;color:#122018;overflow-x:hidden;overfl
 #setup.hc-admin-root .hc-admin-nav{
   position:fixed;left:0;right:0;bottom:0;transform:none;margin-left:auto;margin-right:auto;z-index:70;
   width:100%;max-width:540px;min-width:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
-  background:#177b46;border-top:3px solid #f0b33b;
+  background:var(--hc-brand);border-top:3px solid var(--hc-gold);
   padding:8px calc(6px + env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) calc(6px + env(safe-area-inset-left,0px));box-shadow:0 -4px 18px #0003;
 }
-#setup.hc-admin-root .hc-admin-nav button{border:0;background:transparent;color:#ffffffbd;border-radius:9px;min-width:0;font-size:21px;padding:6px 2px;line-height:1.1}
+#setup.hc-admin-root .hc-admin-nav button{border:0;background:transparent;color:var(--hc-on-brand);opacity:.82;border-radius:9px;min-width:0;font-size:21px;padding:6px 2px;line-height:1.1}
 #setup.hc-admin-root .hc-admin-nav button span{display:block;font-size:10px;margin-top:4px;line-height:1.1}
 #setup.hc-admin-root .hc-admin-nav button.active{
-  border:0;box-shadow:inset 0 0 0 3px #f0b33b;background:#ffffff0d;color:#f0b33b;font-weight:900;
+  border:0;box-shadow:inset 0 0 0 2px #ffffff88;background:var(--hc-gold);color:var(--hc-on-gold);opacity:1;font-weight:900;
 }
 #setup.hc-admin-root .hc-admin-nav button:focus-visible{outline:2px solid white;outline-offset:2px}
 body.hc-admin-dialog #modal{z-index:150;background:#000a;align-items:start;overflow:auto;padding:16px}
@@ -438,3 +438,9 @@ body.hc-admin-dialog #modal .hc-settings-card p{font-size:12px;margin:7px 0}
   color:white;font-size:24px;font-weight:950;overflow:hidden;
 }
 #setup.hc-admin-root .hc-admin-team-logo img{width:100%;height:100%;object-fit:contain}
+
+/* Hardcourt team-color controls: prominent and easy to verify on iPhone. */
+body.hc-admin-dialog #modal .team-editor input[type=color]{display:block;width:100%;height:54px;min-height:54px;padding:4px;background:#fff;border:1px solid #dbe3de;border-radius:11px;cursor:pointer}
+body.hc-admin-dialog #modal .hc-team-color-help{font-size:12px;color:#596a60;line-height:1.45;margin:6px 0 10px}
+body.hc-admin-dialog #modal .hc-team-color-preview{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0 15px;padding:12px 14px;background:var(--preview-primary,#111111);color:var(--preview-on-primary,#fff);border-radius:12px;font-size:13px;font-weight:900}
+body.hc-admin-dialog #modal .hc-team-color-preview b{display:block;flex:0 0 auto;max-width:48%;padding:8px 11px;background:var(--preview-accent,#39a852);color:var(--preview-on-accent,#071109);border-radius:9px;font-size:12px;text-align:center}
