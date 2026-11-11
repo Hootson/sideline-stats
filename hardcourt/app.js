@@ -255,8 +255,114 @@ function setupRoster(){
 }
 applyProfileToSetup();setupRoster();$("setupEditTeam").onclick=openTeamEditor;
 ["teamLogo","oppLogo"].forEach(id=>{const el=$(id);if(el)el.onchange=()=>fileData(el.files[0],d=>{state[id]=d;save()})});
-$("startGame").onclick=()=>{let a=[...document.querySelectorAll("[data-start]:checked")].map(x=>x.dataset.start);if(a.length!==5){a=roster.slice(0,5).map(p=>p.id);state.active=[...a];setupRoster()}$("setupError").textContent="";Object.assign(state,{active:a,clockMs:+$("periodMinutes").value*60000,periodMinutes:+$("periodMinutes").value,periods:+$("periodMode").value,opp:$("oppName").value,gameType:$("gameType").value,offenseRight:$("startDirection").value==="right",foulLimit:+$("foulLimit").value,bonusRule:$("bonusRule").value,timeoutMode:$("timeoutMode").value,timeoutCount:+$("timeoutCount").value,otMinutes:+$("otMinutes").value,timeoutsUs:+$("timeoutCount").value,timeoutsOpp:+$("timeoutCount").value,gameStartedAt:state.gameStartedAt||Date.now()});startUI();save();syncRosterCloud()};
+function readGameSetup(){
+  const picked=[...document.querySelectorAll("[data-start]:checked")].map(x=>x.dataset.start);
+  if(roster.length<5){$("setupError").textContent="Add at least five real players to the Erie Elite roster.";return false;}
+  if(picked.length!==5){$("setupError").textContent="Select exactly five starters.";return false;}
+  const opponent=$("oppName").value.trim();
+  if(!opponent){$("setupError").textContent="Enter Friday’s opponent before preparing the game.";return false;}
+  $("setupError").textContent="";
+  Object.assign(state,{
+    active:picked,
+    clockMs:Number($("periodMinutes").value||8)*60000,
+    periodMinutes:Number($("periodMinutes").value||8),
+    periods:Number($("periodMode").value||4),
+    opp:opponent,gameType:$("gameType").value,
+    offenseRight:$("startDirection").value==="right",
+    foulLimit:Number($("foulLimit").value||5),
+    bonusRule:$("bonusRule").value,
+    timeoutMode:$("timeoutMode").value,
+    timeoutCount:Number($("timeoutCount").value||3),
+    otMinutes:Number($("otMinutes").value||3),
+    timeoutsUs:Number($("timeoutCount").value||3),
+    timeoutsOpp:Number($("timeoutCount").value||3)
+  });
+  return true;
+}
+async function requireCloudReady(){
+  if(!cloudUser){openAccount();return false;}
+  if(state.helperMode)return true;
+  if(!await ensureCloudContext()){
+    $("setupError").textContent="Could not load your basketball team. Check Account and try again.";return false;
+  }
+  if(!await syncRosterCloud()){
+    $("setupError").textContent="Roster could not be backed up to your account. Retry before using a substitute.";return false;
+  }
+  return true;
+}
+async function prepareGameForHelper(){
+  if(!readGameSetup()||!await requireCloudReady())return;
+  const button=$("prepareHelperGame");if(button)button.disabled=true;
+  try{
+    if(!await ensureCloudGame())throw Error(lastCloudSyncError||"Could not create Friday’s game.");
+    save(true);
+    openModal("Game Ready for Friday",
+      "<p><b>"+esc(state.team)+"</b> vs <b>"+esc(state.opp)+"</b> is linked to your account.</p>"+
+      "<p>You can invite your substitute now. The game can be opened on their own device without using your password.</p>"+
+      '<button id="invitePreparedHelper" class="primary">Invite Substitute Statkeeper</button>');
+    $("invitePreparedHelper").onclick=()=>inviteHelper();
+  }catch(e){$("setupError").textContent=e?.message||"Could not prepare game.";}
+  finally{if(button)button.disabled=false;}
+}
+$("prepareHelperGame")?.addEventListener("click",prepareGameForHelper);
+$("startGame").onclick=async()=>{
+  if(!readGameSetup()||!await requireCloudReady())return;
+  if(!await ensureCloudGame()){$("setupError").textContent=lastCloudSyncError||"Could not connect the game to cloud backup.";return}
+  state.gameStartedAt=state.gameStartedAt||Date.now();
+  startUI();save(true);
+};
 function productHeaders(){document.querySelectorAll(".product-header").forEach(h=>{h.innerHTML='<img class="hardcourt-arena-header" src="./hardcourt-header-arena-ui71.jpg?v=ui71" alt="Bleacher Butt Stats Hardcourt Edition">';h.removeAttribute("role");h.removeAttribute("aria-label")})}
+function openRosterEditor(){
+  if(!cloudUser)return openAccount();
+  if(state.helperMode){openModal("Roster","Only the team owner can edit the roster.");return;}
+  if(state.events?.length&&state.gameStartedAt){
+    openModal("Roster Locked","<p>Finish the current game before changing roster identities. Existing player statistics are protected.</p>");
+    return;
+  }
+  let draft=roster.map(p=>({...p}));
+  const redraw=()=>{
+    $("modalBody").innerHTML=
+      '<p>Enter each Erie Elite player’s jersey number and name. Saving keeps this roster with your basketball account.</p>'+
+      '<div id="hcRosterRows"></div><button id="addHcPlayer" class="choice">+ Add Player</button>'+
+      '<button id="saveHcRoster" class="primary">Save Erie Elite Roster</button><p id="hcRosterError" class="error"></p>';
+    const host=$("hcRosterRows");
+    draft.forEach((p,i)=>{
+      const row=document.createElement("div");row.className="hc-roster-row";
+      row.innerHTML='<label>Jersey<input inputmode="numeric" maxlength="3" data-jersey="'+i+'"></label>'+
+        '<label>Player Name<input maxlength="80" data-player-name="'+i+'"></label>'+
+        '<button type="button" data-remove-player="'+i+'" aria-label="Remove roster player">×</button>';
+      row.querySelector("[data-jersey]").value=p.num??"";
+      row.querySelector("[data-player-name]").value=p.name||"";
+      row.querySelector("[data-remove-player]").onclick=()=>{
+        if(!confirm("Remove this player from the season roster?"))return;
+        readEdits();draft.splice(i,1);redraw();
+      };
+      host.appendChild(row);
+    });
+    function readEdits(){draft=draft.map((p,i)=>({...p,num:host.querySelector('[data-jersey="'+i+'"]')?.value.trim(),name:host.querySelector('[data-player-name="'+i+'"]')?.value.trim()}))}
+    $("addHcPlayer").onclick=()=>{readEdits();if(draft.length>=30){$("hcRosterError").textContent="Maximum 30 players.";return}draft.push({id:crypto.randomUUID(),num:"",name:"",cloudId:null,headshot:""});redraw()};
+    $("saveHcRoster").onclick=async()=>{
+      readEdits();
+      if(draft.some(p=>!/^\d{1,3}$/.test(String(p.num))||!p.name)){
+        $("hcRosterError").textContent="Every player needs a name and a numeric jersey number.";return;
+      }
+      if(new Set(draft.map(p=>String(Number(p.num)))).size!==draft.length){
+        $("hcRosterError").textContent="Jersey numbers must be unique.";return;
+      }
+      const button=$("saveHcRoster");button.disabled=true;button.textContent="Saving roster…";
+      roster=draft.map(p=>({...p,num:String(Number(p.num))}));
+      state.hasUnsyncedRoster=true;
+      setupRoster();refreshCloudPlayerMap();save(true);
+      if(await syncRosterCloud()){
+        state.hasUnsyncedRoster=false;save(true);closeModal();setupRoster();render();
+      }else{
+        button.disabled=false;button.textContent="Retry Roster Save";
+        $("hcRosterError").textContent="Saved on this device, but not in Supabase. Retry while online before inviting a substitute.";
+      }
+    };
+  };
+  openModal("Edit Season Roster","");redraw();
+}
 function openTeamEditor(){openModal("Edit Team",'<div class="team-editor"><label>Team name<input id="editTeamName"></label><label>Grade<select id="editGrade"><option>5th Grade</option><option>6th Grade</option><option>7th Grade</option><option>8th Grade</option></select></label><label>Division<input id="editDivision"></label><div class="team-color-row"><label>Primary<input id="editPrimary" type="color"></label><label>Accent<input id="editAccent" type="color"></label></div><label>Team logo<input id="editTeamLogo" type="file" accept="image/*"></label><button id="saveTeamProfile" class="primary">Save Team</button></div>');$("editTeamName").value=state.team||"";$("editGrade").value=state.grade||"5th Grade";$("editDivision").value=state.division||"";$("editPrimary").value=state.primary||"#111111";$("editAccent").value=state.accent||"#39a852";let nextLogo=state.teamLogo||"";$("editTeamLogo").onchange=()=>fileData($("editTeamLogo").files[0],d=>nextLogo=d);$("saveTeamProfile").onclick=()=>{state.team=$("editTeamName").value.trim()||state.team;state.grade=$("editGrade").value;state.division=$("editDivision").value.trim();state.primary=$("editPrimary").value;state.accent=$("editAccent").value;state.teamLogo=nextLogo;closeModal();applyProfileToSetup();startUI();save(true);syncRosterCloud()}}
 function parseClockInput(v){
   const m=String(v||"").trim().match(/^(\d{1,2}):(\d{2})$/);
