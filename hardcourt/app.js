@@ -7,7 +7,7 @@ let cloudLoading=false,cloudSyncRunning=false,cloudSyncRequested=false,lastCloud
 function cloudStoreKey(){return cloudUser?.id?"hardcourt-owner-team-"+cloudUser.id:null;}
 
 function elapsedGameMs(){const regulation=Math.min(state.period-1,state.periods||4)*(state.periodMinutes||8)*60000,ot=Math.max(0,state.period-(state.periods||4)-1)*(state.otMinutes||3)*60000,currentLen=state.period>(state.periods||4)?(state.otMinutes||3)*60000:(state.periodMinutes||8)*60000;return Math.max(0,regulation+ot+(currentLen-state.clockMs))}
-function archiveGame(){if(!state.gameId||!state.gameStartedAt)return;const games=JSON.parse(localStorage.getItem("hardcourt-games")||"[]"),snap={gameId:state.gameId,teamId:state.teamId,opponent:state.opp||"Opponent",createdAt:state.gameStartedAt||Date.now(),playoffs:state.gameType==="playoffs",events:state.events,minutes:state.minutes||{},elapsedMs:elapsedGameMs()};const i=games.findIndex(g=>g.gameId===snap.gameId);if(i>=0)games[i]=snap;else games.push(snap);localStorage.setItem("hardcourt-games",JSON.stringify(games))}
+function archiveGame(){if(!state.gameId||!state.gameStartedAt)return;const games=JSON.parse(localStorage.getItem("hardcourt-games")||"[]"),snap={gameId:state.gameId,teamId:state.teamId,opponent:state.opp||"Opponent",createdAt:state.gameStartedAt||Date.now(),gameType:state.gameType||"regular",playoffs:state.gameType==="playoffs",events:state.events,minutes:state.minutes||{},elapsedMs:elapsedGameMs()};const i=games.findIndex(g=>g.gameId===snap.gameId);if(i>=0)games[i]=snap;else games.push(snap);localStorage.setItem("hardcourt-games",JSON.stringify(games))}
 let lastSave=0;
 async function syncRosterCloud(){
   if(state.helperMode)return false;
@@ -174,7 +174,7 @@ async function openCloudGame(gameId,helper=false){
     if(!helper&&state.gameId!==gameId)archiveGame();
     state.cloudGameId=g.id;state.gameId=g.id;state.cloudSeasonId=g.season_id;
     state.helperMode=!!helper;state.cloudGameOwner=!helper;
-    state.opp=g.opponent_name;state.gameType=g.game_type==="playoff"?"playoffs":"regular";
+    state.opp=g.opponent_name;state.gameType=g.game_type==="playoff"?"playoffs":g.game_type==="preseason"?"preseason":"regular";
     state.gameDate=g.game_date||null;state.gameLocation=g.location_type||"home";
     state.gameStartedAt=Date.parse(g.started_at||g.created_at||"")||Date.now();
     state.period=Math.max(1,Number(g.current_quarter||1));
@@ -666,7 +666,7 @@ function openGameSettings(){
   const prefix=state.periods===2?"H":"Q";
   openModal("Game Setup",'<div class="team-editor game-settings-editor">'+
     '<label>Opponent<input id="editGameOpponent"></label>'+
-    '<label>Game type<select id="editGameTypeLive"><option value="regular">Regular Season</option><option value="playoffs">Playoffs</option></select></label>'+
+    '<label>Game type<select id="editGameTypeLive"><option value="preseason">Preseason</option><option value="regular">Regular Season</option><option value="playoffs">Playoffs</option></select></label>'+
     '<label>Opponent logo<input id="editGameOppLogo" type="file" accept="image/*"></label>'+
     '<div class="team-color-row"><label>Periods<select id="editGamePeriods"><option value="4">4 Quarters</option><option value="2">2 Halves</option></select></label><label>Minutes / period<input id="editGamePeriodMinutes" type="number" min="1" max="30"></label></div>'+
     '<div class="team-color-row"><label>Current period<input id="editCurrentPeriod" type="number" min="1" max="20"></label><label>Current clock (M:SS)<input id="editCurrentClock" inputmode="numeric"></label></div>'+
@@ -816,15 +816,18 @@ function eventLabel(e){const p=e.payload?.playerId&&roster.find(x=>x.id===e.payl
 function editScoringEvent(id){const e=state.events.find(x=>x.id===id);if(!e)return;if(e.type==="shot"||e.type==="free_throw"||e.type==="opp_free_throw"){e.payload={...e.payload,made:!e.payload.made};if(e.syncState==="synced"&&SB)SB.rpc("update_hardcourt_event_payload",{p_id:e.id,p_payload:e.payload});closeModal();render();save(true);return}if(e.type==="opp_score"){e.payload={...e.payload,points:e.payload.points===3?2:3};if(e.syncState==="synced"&&SB)SB.rpc("update_hardcourt_event_payload",{p_id:e.id,p_payload:e.payload});closeModal();render();save(true)}}
 function openRecentEditor(){const recent=state.events.slice(-12).reverse();const rows=recent.map(e=>"<div class=\"edit-row\"><span><b>"+eventLabel(e)+"</b><small>"+((state.periods===2?"H":"Q")+e.period)+" · "+fmt(e.clockMs)+"</small></span><button data-delete-event=\""+e.id+"\">Remove</button></div>").join("");openModal("Recent Plays / Corrections","<div class=\"edit-list\">"+(rows||"<p>No recorded events yet.</p>")+"</div><button id=\"scoreCorrection\" class=\"choice\">Score Correction</button>");document.querySelectorAll(".edit-row").forEach((row,i)=>{const e=recent[i];if(["shot","free_throw","opp_free_throw","opp_score"].includes(e?.type)){const b=document.createElement("button");b.textContent="Edit";b.className="quick-edit";b.onclick=()=>editScoringEvent(e.id);row.appendChild(b)}});document.querySelectorAll("[data-delete-event]").forEach(b=>b.onclick=()=>{const target=state.events.find(e=>e.id===b.dataset.deleteEvent),chain=target?.payload?.chainId;const removed=state.events.filter(e=>chain?e.payload?.chainId===chain:e.id===b.dataset.deleteEvent);state.events=state.events.filter(e=>!removed.includes(e));cloudDeleteEvents(removed);closeModal();render();save(true)});$("scoreCorrection").onclick=scoreCorrection}
 function scoreCorrection(){const d=derive(state.events,roster);openModal("Score Correction","<div class=\"score-correction\"><label>"+state.team+" official score<input id=\"correctUs\" type=\"number\" min=\"0\" value=\""+d.us+"\"></label><label>"+state.opp+" official score<input id=\"correctThem\" type=\"number\" min=\"0\" value=\""+d.them+"\"></label><button id=\"applyScoreCorrection\" class=\"primary\">Apply Correction</button></div>");$("applyScoreCorrection").onclick=()=>{const now=derive(state.events,roster),us=+$("correctUs").value,them=+$("correctThem").value;if(us!==now.us)state.events.push(createEvent("score_correction",{team:"us",delta:us-now.us},state));if(them!==now.them)state.events.push(createEvent("score_correction",{team:"opp",delta:them-now.them},state));closeModal();render()}}
-function scopeLabel(){return({game:"Game",regular:"Regular Season",playoffs:"Playoffs",season:"Season Total"})[state.statsScope||"game"]}
-function liveGameSnapshot(){return{gameId:state.gameId,teamId:state.teamId,opponent:state.opp||"Opponent",createdAt:state.gameStartedAt||Date.now(),playoffs:state.gameType==="playoffs",events:state.events||[],minutes:state.minutes||{},elapsedMs:elapsedGameMs(),live:true}}
+function scopeLabel(){return({game:"Game",preseason:"Preseason",regular:"Regular Season",playoffs:"Playoffs",season:"Season Total"})[state.statsScope||"game"]}
+function liveGameSnapshot(){return{gameId:state.gameId,teamId:state.teamId,opponent:state.opp||"Opponent",createdAt:state.gameStartedAt||Date.now(),gameType:state.gameType||"regular",playoffs:state.gameType==="playoffs",events:state.events||[],minutes:state.minutes||{},elapsedMs:elapsedGameMs(),live:true}}
 function scopeGames(scope=state.statsScope||"game"){
   if(scope==="game")return[liveGameSnapshot()];
   let games=JSON.parse(localStorage.getItem("hardcourt-games")||"[]").filter(g=>g.teamId===state.teamId&&g.gameId!==state.gameId);
   if(state.gameStartedAt)games.push(liveGameSnapshot());
-  if(scope==="playoffs")return games.filter(g=>g.playoffs);
-  if(scope==="regular")return games.filter(g=>!g.playoffs);
-  return games;
+  const type=g=>g.gameType||(g.playoffs?"playoffs":"regular");
+  if(scope==="preseason")return games.filter(g=>type(g)==="preseason");
+  if(scope==="playoffs")return games.filter(g=>type(g)==="playoffs");
+  if(scope==="regular")return games.filter(g=>type(g)==="regular");
+  // Preseason is tracked separately and must not inflate competitive season totals.
+  return games.filter(g=>type(g)!=="preseason");
 }
 function scopeEvents(){return state.historyPreview?.events||scopeGames().flatMap(g=>g.events||[])}
 function scopeMinutes(scope=state.statsScope||"game"){if(state.historyPreview?.minutes&&scope==="game")return state.historyPreview.minutes;return scopeGames(scope).reduce((out,g)=>{for(const [id,ms] of Object.entries(g.minutes||{}))out[id]=(out[id]||0)+ms;return out},{})}
@@ -856,7 +859,7 @@ function newGame(){
   $("shell").classList.add("hidden");$("setup").classList.remove("hidden");document.body.classList.remove("game-active");$("oppName").value="";
   setupRoster();applyProfileToSetup();showAdminPage("games");save(true);
 }
-function gameHistory(){const games=JSON.parse(localStorage.getItem("hardcourt-games")||"[]").filter(g=>g.teamId===state.teamId).sort((a,b)=>b.createdAt-a.createdAt),rows=games.map(g=>'<div class="history-row"><span><b>'+g.opponent+'</b><small>'+new Date(g.createdAt).toLocaleDateString()+' · '+(g.playoffs?"Playoffs":"Regular Season")+'</small></span><button data-load-game="'+g.gameId+'">View</button></div>').join("");openModal("Game History",'<div class="history-list">'+(rows||"<p>No saved games yet.</p>")+"</div>");document.querySelectorAll("[data-load-game]").forEach(b=>b.onclick=()=>{const g=games.find(x=>x.gameId===b.dataset.loadGame);if(!g)return;state.statsScope="game";state.historyPreview={events:g.events||[],minutes:g.minutes||{},opponent:g.opponent};closeModal();showView("statsView","stats");render()})}
+function gameHistory(){const games=JSON.parse(localStorage.getItem("hardcourt-games")||"[]").filter(g=>g.teamId===state.teamId).sort((a,b)=>b.createdAt-a.createdAt),rows=games.map(g=>'<div class="history-row"><span><b>'+g.opponent+'</b><small>'+new Date(g.createdAt).toLocaleDateString()+' · '+((g.gameType|| (g.playoffs?"playoffs":"regular"))==="preseason"?"Preseason":g.playoffs?"Playoffs":"Regular Season")+'</small></span><button data-load-game="'+g.gameId+'">View</button></div>').join("");openModal("Game History",'<div class="history-list">'+(rows||"<p>No saved games yet.</p>")+"</div>");document.querySelectorAll("[data-load-game]").forEach(b=>b.onclick=()=>{const g=games.find(x=>x.gameId===b.dataset.loadGame);if(!g)return;state.statsScope="game";state.historyPreview={events:g.events||[],minutes:g.minutes||{},opponent:g.opponent};closeModal();showView("statsView","stats");render()})}
 $("gameClockBtn").onclick=()=>state.running?stopClock():startClock();$("gameHistoryBtn").onclick=gameHistory;
 window.addEventListener("pagehide",()=>{accrue();save()});document.addEventListener("visibilitychange",()=>{if(document.hidden&&state.running){stopClock()}});applyDirection();render();
 refreshCloudPlayerMap();
