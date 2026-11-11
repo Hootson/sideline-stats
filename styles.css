@@ -32,7 +32,9 @@ input,select{width:100%;font-size:16px;padding:12px;border:1px solid var(--line)
 .playtop{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.playactions{display:flex;gap:6px;flex-shrink:0}
 .playactions button{border:1px solid var(--line);background:white;border-radius:8px;padding:6px 8px;font-size:11px;font-weight:800;cursor:pointer}
 .playactions .del{color:var(--danger)}
-nav{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:min(540px,100%);display:grid;grid-template-columns:repeat(4,1fr);background:var(--p);border-top:3px solid var(--s);padding:8px 8px calc(8px + env(safe-area-inset-bottom));z-index:30;box-shadow:0 -4px 18px #0003}
+/* Anchor both bottom navs to the viewport edges, not a translated midpoint: mobile Safari can lay out fixed translated elements off-screen when a descendant widens the page. */
+nav{position:fixed;left:0;right:0;bottom:0;transform:none;margin-left:auto;margin-right:auto;width:100%;max-width:540px;min-width:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:var(--p);border-top:3px solid var(--s);padding:8px calc(8px + env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) calc(8px + env(safe-area-inset-left,0px));z-index:30;box-shadow:0 -4px 18px #0003}
+nav button{min-width:0;max-width:100%;overflow-wrap:anywhere;text-align:center}
 nav button{border:0;background:transparent;color:var(--nav-muted);font-size:12px;padding:7px;cursor:pointer;border-radius:9px}
 nav button.active{color:var(--nav-active);font-weight:900;box-shadow:inset 0 0 0 3px var(--nav-active);background:#ffffff0d}
 nav.hidden{display:none}
@@ -685,8 +687,8 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;b
 .game-plan-list{margin-top:10px}.game-plan-item{display:grid;grid-template-columns:50px minmax(0,1fr) auto;gap:7px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}.game-plan-item:last-child{border-bottom:0}.game-plan-item strong{color:var(--p);font-size:16px}.game-plan-item span{min-width:0;overflow-wrap:anywhere;font-size:12px;font-weight:800}.game-plan-item-actions{display:flex;gap:4px}.game-plan-item-actions button{border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--p);font-weight:900;font-size:10px;padding:6px}
 
 /* V4.5.15 Coach Pro */
-nav.five-items,#bottomNav:has(#statkeeperAnalyticsNav:not(.hidden)){grid-template-columns:repeat(5,1fr)}
-.coach-nav{grid-template-columns:repeat(2,1fr)}
+nav.five-items,#bottomNav:has(#statkeeperAnalyticsNav:not(.hidden)){grid-template-columns:repeat(5,minmax(0,1fr))}
+.coach-nav{grid-template-columns:repeat(2,minmax(0,1fr))}
 .invite-divider{height:1px;background:var(--line);margin:16px 0}
 .coach-screen{padding:14px 12px 108px;background:#eef1ef}
 .coach-shell{max-width:1120px;margin:0 auto}
