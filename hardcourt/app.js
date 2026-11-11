@@ -27,7 +27,18 @@ async function syncRosterCloud(){
 function viewerScore(events){let us=0,them=0;for(const e of events||[]){if(e.type==="shot"&&e.payload?.made)us+=e.payload.three?3:2;else if(e.type==="free_throw"&&e.payload?.made)us++;else if(e.type==="opp_score")them+=+e.payload?.points||0;else if(e.type==="opp_free_throw"&&e.payload?.made)them++}return{us,them}}
 async function renderViewer(token){$("setup").classList.add("hidden");$("shell").classList.add("hidden");$("viewerView").classList.remove("hidden");const {data,error}=await SB.rpc("get_public_team_viewer",{p_token:token});if(error){$("viewerView").innerHTML='<div class="viewer-card"><h2>Viewer link unavailable</h2><p>'+error.message+'</p></div>';return}const games=(data.games||[]).filter(g=>g.sport==="basketball"),live=games.find(g=>g.status==="live")||games.at(-1),events=(data.events||[]).filter(e=>!live||e.game_id===live.id),score=viewerScore(events);$("viewerView").innerHTML='<div class="viewer-brand"><img src="../brand-header.png" alt="Bleacher Butt Stats"><b>HARDCOURT EDITION</b></div><div class="viewer-score"><div><small>'+data.team.name+'</small><strong>'+score.us+'</strong></div><span>LIVE STATS</span><div><small>'+(live?.opponent_name||"Opponent")+'</small><strong>'+score.them+'</strong></div></div><div class="viewer-card"><h3>Team Stats</h3><div id="viewerStats"></div></div><div class="viewer-card"><h3>Games</h3>'+(games.map(g=>'<p>'+new Date(g.started_at||g.created_at).toLocaleDateString()+' · '+g.opponent_name+'</p>').join("")||"<p>No games yet.</p>")+'</div>';const rows=(data.players||[]).map(p=>{const pe=events.filter(e=>String(e.payload?.cloudPlayerId)===String(p.id)),s=viewerScore(pe);return'<div class="viewer-stat-row"><b>#'+(p.jersey||"")+' '+p.name+'</b><span>'+s.us+' PTS</span></div>'}).join("");$("viewerStats").innerHTML=rows||"<p>Stats will appear when the game starts.</p>";setTimeout(()=>renderViewer(token),5000)}
 async function initViewerMode(){const token=new URL(location.href).searchParams.get("viewer");if(!token)return false;if(!window.supabase?.createClient)return false;SB=SB||window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,hardcourtAuthOptions);await renderViewer(token);return true}
-function updateCloudStatus(){const s=lastCloudSyncError?"Backup needs attention: "+lastCloudSyncError:cloudUser?(state.cloudGameId?(state.helperMode?"Game statkeeper · cloud connected":"Game linked · cloud connected"):"Signed in · "+(state.team||"Team")):"Sign in to save your team";if($("cloudStatus"))$("cloudStatus").textContent=s;if($("liveCloudStatus"))$("liveCloudStatus").textContent=s;if($("accountBtn"))$("accountBtn").textContent="⚙ "+(state.team||"Team")}
+function updateCloudStatus(){
+  const s=lastCloudSyncError?"Backup needs attention: "+lastCloudSyncError:cloudUser?
+    (state.cloudGameId?(state.helperMode?"Statkeeper · cloud connected":"Game backed up · cloud connected"):"Signed in · "+(state.team||"Basketball Team")):
+    "Sign in to save your basketball team";
+  if($("cloudStatus"))$("cloudStatus").textContent=s;
+  if($("liveCloudStatus"))$("liveCloudStatus").textContent=s;
+  if($("accountBtn")){
+    $("accountBtn").textContent="☁ Account";
+    $("accountBtn").classList.toggle("connected",!!cloudUser&&!lastCloudSyncError);
+  }
+  if($("hcSyncDot"))$("hcSyncDot").className="hc-sync-dot"+(lastCloudSyncError?" warning":cloudUser?" online":"");
+}
 function openAccount(){
   if(!SB)return openModal("Account","<p>Account services are unavailable; reconnect to the internet.</p>");
   if(cloudUser){
@@ -372,12 +383,17 @@ function imgOrInitial(src,label){return src?'<img src="'+src+'" alt="">':initial
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function fileData(file,cb){if(!file)return;const img=new Image(),url=URL.createObjectURL(file);img.onload=()=>{const max=640,scale=Math.min(1,max/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=Math.round(img.width*scale);c.height=Math.round(img.height*scale);c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);cb(c.toDataURL("image/jpeg",.82))};img.onerror=()=>URL.revokeObjectURL(url);img.src=url}
 function applyProfileToSetup(){
-  state.team??="Erie Elite";state.grade??="5th Grade";state.division??="Gold";
+  state.team??="Your Basketball Team";
+  state.grade??="5th Grade";
+  if(state.team==="Erie Elite"&&!state.division)state.division="Gold";
+  state.division??="";
   state.primary??="#111111";state.accent??="#39a852";
   $("setupTeamLabel").textContent=state.team;
   $("setupTeamMeta").textContent=[state.grade,state.division].filter(Boolean).join(" · ");
   $("oppName").value=state.opp||"";
   $("gameType").value=state.gameType||"regular";
+  if($("hcGameDate"))$("hcGameDate").value=state.gameDate||"";
+  if($("hcGameLocation"))$("hcGameLocation").value=state.gameLocation||"home";
 }
 function setupRoster(){
   if(!Array.isArray(state.active))state.active=[];
@@ -388,7 +404,105 @@ function setupRoster(){
     :'<p>No players yet. Add your Erie Elite roster before preparing Friday’s game.</p>';
   const review=$("setupReview");
   if(review)review.textContent=roster.length+" players on the season roster. Select five starters.";
+  renderAdminRoster();
 }
+
+// Gridiron-style administrative navigation; the basketball game screen stays independent.
+function showAdminPage(page="roster"){
+  if($("setup")?.classList.contains("hidden"))return;
+  const isInfo=!["roster","games"].includes(page);
+  const target=isInfo?"hcAdminInfoPage":page==="games"?"hcAdminGamesPage":"hcAdminRosterPage";
+  for(const id of ["hcAdminRosterPage","hcAdminGamesPage","hcAdminInfoPage"]){
+    $(id)?.classList.toggle("hidden",id!==target);
+  }
+  for(const b of document.querySelectorAll("#hcAdminNav [data-hc-admin]"))
+    b.classList.toggle("active",b.dataset.hcAdmin===page);
+  if(isInfo){
+    const name={time:"Playing Time",stats:"Stats",analytics:"Analytics"}[page]||"Stats";
+    if($("hcInfoHeading"))$("hcInfoHeading").textContent=name;
+    if($("hcInfoMessage"))$("hcInfoMessage").textContent=
+      "Open a basketball game to view "+name.toLowerCase()+". Your saved roster remains available for every game.";
+  }
+  if(page==="games")void renderAdminSavedGames();
+  window.scrollTo?.({top:0,behavior:"instant"});
+}
+function renderAdminRoster(){
+  if(!$("hcAdminRosterList"))return;
+  if($("hcRosterCount"))$("hcRosterCount").textContent=roster.length+" / 30";
+  const target=$("hcAdminRosterList");
+  target.innerHTML=roster.length?roster
+    .slice().sort((a,b)=>Number(a.num||0)-Number(b.num||0))
+    .map(p=>'<div class="hc-player-row"><strong class="hc-player-jersey">#'+esc(p.num)+'</strong>'+
+      '<span class="hc-player-name">'+esc(p.name)+'</span>'+
+      '<button type="button" class="hc-player-edit" data-edit-hc-player="'+esc(p.id)+'">Edit</button></div>').join("")
+    :'<p class="hc-muted">No players yet. Add the boys to your season roster to get started.</p>';
+  target.querySelectorAll("[data-edit-hc-player]").forEach(b=>b.onclick=openRosterEditor);
+}
+async function addAdminPlayer(){
+  const status=$("hcRosterAddStatus");
+  if(!cloudUser){openAccount();return}
+  if(state.helperMode){status.textContent="Only the team owner can edit the season roster.";return}
+  if(state.events?.length&&state.gameStartedAt){
+    status.textContent="Finish recording the current game before changing roster identities.";return;
+  }
+  const number=$("hcRosterAddJersey").value.trim(),name=$("hcRosterAddName").value.trim();
+  if(!/^\d{1,3}$/.test(number)||!name){status.textContent="Enter a numeric jersey number and the player’s name.";return}
+  if(roster.some(p=>Number(p.num)===Number(number))){
+    status.textContent="Jersey #"+number+" is already on the roster.";return;
+  }
+  if(roster.length>=30){status.textContent="The roster limit is 30 players.";return;}
+  const btn=$("hcAdminAddPlayer");btn.disabled=true;
+  roster.push({id:crypto.randomUUID(),num:String(Number(number)),name,cloudId:null,headshot:""});
+  state.hasUnsyncedRoster=true;setupRoster();save(true);
+  if(await syncRosterCloud()){
+    state.hasUnsyncedRoster=false;save(true);
+    $("hcRosterAddJersey").value="";$("hcRosterAddName").value="";
+    status.textContent="Saved #"+number+" "+name+" to your basketball roster.";
+  }else{
+    status.textContent="Player saved on this phone, but cloud backup failed. Retry while online before inviting your substitute.";
+  }
+  btn.disabled=false;setupRoster();
+}
+async function renderAdminSavedGames(){
+  const host=$("hcSavedGames");if(!host)return;
+  if(!cloudUser){host.innerHTML='<p class="hc-muted">Sign in to load saved team games.</p>';return;}
+  if(!state.cloudTeamId){host.innerHTML='<p class="hc-muted">Your basketball team is still loading.</p>';return;}
+  host.innerHTML='<p class="hc-muted">Loading cloud games…</p>';
+  const {data,error}=await SB.rpc("get_hardcourt_games",{p_team_id:state.cloudTeamId});
+  if(error){host.innerHTML='<p class="hc-error">Could not load saved games: '+esc(error.message)+'</p>';return;}
+  const games=Array.isArray(data)?data:[];
+  if(!games.length){host.innerHTML='<p class="hc-muted">No games saved yet. Set up Friday’s game above.</p>';return;}
+  host.innerHTML=games.map(g=>{
+    const final=["final","archived","complete","completed"].includes(String(g.status||"").toLowerCase());
+    return '<div class="hc-saved-row"><div class="hc-saved-row-copy"><strong>'+esc(g.opponent_name||"Opponent")+'</strong>'+
+      '<small>'+esc(g.status||"Saved")+' · '+Number(g.event_count||0)+' events</small></div>'+
+      '<button type="button" class="hc-btn hc-btn-small hc-btn-ghost" data-open-hc-cloud="'+esc(g.game_id)+'" '+
+      (final?'disabled title="Finalized games are protected"':'')+'>'+
+      (final?"Final":"Open")+'</button></div>';
+  }).join("");
+  host.querySelectorAll("[data-open-hc-cloud]").forEach(b=>b.onclick=async()=>{
+    b.disabled=true;const opened=await openCloudGame(b.dataset.openHcCloud,false);
+    if(!opened)b.disabled=false;
+  });
+}
+function selectAdminNav(page){
+  if(["time","stats","analytics"].includes(page)&&state.gameStartedAt&&roster.length>=5){
+    startUI();
+    const destination={time:"timeView",stats:"statsView",analytics:"analyticsView"}[page];
+    showView(destination,page);
+    return;
+  }
+  showAdminPage(page);
+}
+$("hcAdminNav")?.addEventListener("click",e=>{
+  const b=e.target.closest("[data-hc-admin]");if(!b)return;
+  selectAdminNav(b.dataset.hcAdmin);
+});
+$("hcRosterContinue")?.addEventListener("click",()=>showAdminPage("games"));
+$("hcInfoGoGame")?.addEventListener("click",()=>showAdminPage("games"));
+$("hcAdminAddPlayer")?.addEventListener("click",addAdminPlayer);
+$("hcRefreshCloudGames")?.addEventListener("click",renderAdminSavedGames);
+
 applyProfileToSetup();setupRoster();$("setupEditTeam").onclick=openTeamEditor;$("setupEditRoster")?.addEventListener("click",openRosterEditor);$("rosterEditBtn")?.addEventListener("click",openRosterEditor);
 ["teamLogo","oppLogo"].forEach(id=>{const el=$(id);if(el)el.onchange=()=>fileData(el.files[0],d=>{state[id]=d;save()})});
 function readGameSetup(){
