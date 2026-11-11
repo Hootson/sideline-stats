@@ -586,8 +586,30 @@ $("startGame").onclick=async()=>{
           return;
         }
       }
-      const opened=await openCloudGame(state.cloudGameId,false);
-      if(!opened)$("setupError").textContent="Could not reopen the saved game. Your local game data remains on this phone.";
+      // Rehydrate cloud events without clearing this device's saved game.
+      // openCloudGame() resets local events first, which is unsafe for owner resume.
+      if(!cloudUser||!SB){
+        $("setupError").textContent="Sign in before reopening this saved game.";
+        return;
+      }
+      const {data:existing,error:readError}=await SB.from("games")
+        .select("sport,status,opponent_name").eq("id",state.cloudGameId).single();
+      if(readError||existing?.sport!=="basketball"||existing?.opponent_name!==state.opp){
+        $("setupError").textContent="Could not verify this saved game in your account. Nothing on this phone was cleared.";
+        return;
+      }
+      if(["final","archived"].includes(existing.status)){
+        $("setupError").textContent="This game is finalized. Open its statistics from Saved Games instead.";
+        return;
+      }
+      if(!await pullCloudEvents()){
+        $("setupError").textContent=lastCloudSyncError||"Could not refresh saved game stats. Your phone copy remains intact.";
+        return;
+      }
+      startCloudRealtime();
+      startUI();
+      showView("gameView","game");
+      save(true);
       return;
     }
     if(!readGameSetup()||!await requireCloudReady())return;
