@@ -322,8 +322,8 @@ async function syncCloudEvents(){
   if(!state.events?.some(e=>e.syncState!=="synced"))return true;
   cloudSyncRunning=true;let allOkay=true;
   try{
-    if(!state.cloudGameId&&state.gameStartedAt&&!state.helperMode)
-      if(!await ensureCloudGame())return false;
+    // Never create a cloud game implicitly from stale browser/demo events.
+    // Only an explicit Game Setup action may create the team's next game.
     if(!state.cloudGameId)return false;
     for(const e of state.events.filter(x=>x.syncState!=="synced")){
       // Keep all player and lineup identities stable across the owner and helper
