@@ -199,7 +199,7 @@ async function openCloudGame(gameId,helper=false){
     if(roster.length<5)throw Error("The assigned game does not have five roster players yet. Ask the team owner to save the roster.");
     if(!await pullCloudEvents())throw Error("Could not read all cloud game events. Retry before statkeeping.");
     startCloudRealtime();
-    startUI();render();save(true);updateCloudStatus();
+    startUI();showView("gameView","game");save(true);updateCloudStatus();
     return true;
   }catch(e){
     console.warn("Hardcourt game load",e);
@@ -411,6 +411,8 @@ function applyProfileToSetup(){
     else holder.textContent=initials(state.team);
   }
   $("oppName").value=state.opp||"";
+  const startButton=$("startGame");
+  if(startButton&&!startButton.disabled)startButton.textContent=state.cloudGameId&&state.gameStartedAt?"Continue Saved Game":"Create & Open Game";
   $("gameType").value=state.gameType||"regular";
   if($("hcGameDate"))$("hcGameDate").value=state.gameDate||"";
   if($("hcGameLocation"))$("hcGameLocation").value=state.gameLocation||"home";
@@ -566,11 +568,29 @@ async function requireCloudReady(){
 // at any time from the in-game Team & Sharing menu.
 $("startGame").onclick=async()=>{
   const button=$("startGame");
-  if(button.disabled||!readGameSetup())return;
+  if(button.disabled)return;
+  $("setupError").textContent="";
   button.disabled=true;
-  button.textContent="Creating game…";
+  button.textContent="Opening game…";
   try{
-    if(!await requireCloudReady())return;
+    // A saved game must be opened as-is, not re-created or have its clock
+    // silently reset by reading the new-game setup form on a later visit.
+    if(state.cloudGameId&&state.gameStartedAt){
+      if($("oppName").value.trim()!==state.opp){
+        $("setupError").textContent="You already have a saved game. Open it below, or choose New Game in Team & Sharing before creating a different opponent.";
+        return;
+      }
+      if(state.events.some(e=>e.syncState!=="synced")){
+        if(!await syncCloudEvents()){
+          $("setupError").textContent=lastCloudSyncError||"Please resolve pending stat sync before reopening this game.";
+          return;
+        }
+      }
+      const opened=await openCloudGame(state.cloudGameId,false);
+      if(!opened)$("setupError").textContent="Could not reopen the saved game. Your local game data remains on this phone.";
+      return;
+    }
+    if(!readGameSetup()||!await requireCloudReady())return;
     if(!await ensureCloudGame()){
       $("setupError").textContent=lastCloudSyncError||"Could not create the game in your account.";
       return;
@@ -580,12 +600,14 @@ $("startGame").onclick=async()=>{
       return;
     }
     state.gameStartedAt=state.gameStartedAt||Date.now();
-    startUI();save(true);
+    startUI();
+    showView("gameView","game");
+    save(true);
   }catch(e){
     $("setupError").textContent=e?.message||"Could not open game. Your roster and saved games have not been deleted.";
   }finally{
     button.disabled=false;
-    button.textContent="Create & Open Game";
+    button.textContent=state.cloudGameId&&state.gameStartedAt?"Continue Saved Game":"Create & Open Game";
   }
 };
 function productHeaders(){document.querySelectorAll(".product-header").forEach(h=>{h.innerHTML='<img class="hardcourt-arena-header" src="./hardcourt-header-arena-ui71.jpg?v=ui71" alt="Bleacher Butt Stats Hardcourt Edition">';h.removeAttribute("role");h.removeAttribute("aria-label")})}
