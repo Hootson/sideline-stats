@@ -166,9 +166,24 @@ async function openCloudGame(gameId,helper=false){
     state.opp=g.opponent_name;state.gameType=g.game_type==="playoff"?"playoffs":"regular";
     state.gameStartedAt=Date.parse(g.started_at||g.created_at||"")||Date.now();
     state.period=Math.max(1,Number(g.current_quarter||1));
+    const config=g.current_state?.hardcourt||{};
+    if(config.periods===2||config.periods===4)state.periods=config.periods;
+    if(Number(config.periodMinutes)>0)state.periodMinutes=config.periodMinutes;
+    if(Number(config.foulLimit)>0)state.foulLimit=config.foulLimit;
+    if(config.bonusRule)state.bonusRule=config.bonusRule;
+    if(config.timeoutMode)state.timeoutMode=config.timeoutMode;
+    if(Number.isFinite(Number(config.timeoutCount)))state.timeoutCount=config.timeoutCount;
+    if(Number(config.otMinutes)>0)state.otMinutes=config.otMinutes;
+    if(typeof config.offenseRight==="boolean")state.offenseRight=config.offenseRight;
     state.clockMs=(state.periodMinutes||8)*60000;
+    state.timeoutsUs=state.timeoutCount??3;state.timeoutsOpp=state.timeoutCount??3;
     state.events=[];state.minutes={};state.active=[];
     await restoreCloudRoster();
+    const starters=g.current_state?.hardcourt?.starters;
+    if(Array.isArray(starters)&&starters.length===5){
+      const translated=starters.map(cid=>roster.find(p=>p.cloudId===cid)?.id);
+      if(translated.every(Boolean)&&new Set(translated).size===5)state.active=translated;
+    }
     if(roster.length<5)throw Error("The assigned game does not have five roster players yet. Ask the team owner to save the roster.");
     await pullCloudEvents();
     startCloudRealtime();
@@ -251,7 +266,17 @@ async function applyCloudContext(ctx){
   return loaded;
 }
 async function ensureCloudGame(){
-  if(state.cloudGameId)return true;
+  if(state.cloudGameId){
+    if(!state.helperMode&&!state.events?.length){
+      const {data,error}=await SB.from("games").select("opponent_name,sport,status").eq("id",state.cloudGameId).single();
+      if(error||data?.sport!=="basketball"||data?.opponent_name!==state.opp){
+        lastCloudSyncError="The saved game's opponent does not match. Select New Game to prepare a different opponent.";
+        return false;
+      }
+      if(data?.status==="final"||data?.status==="archived"){lastCloudSyncError="This game is already finalized.";return false;}
+    }
+    return true;
+  }
   if(state.helperMode)return false;
   if(!await ensureCloudContext())return false;
   if(!state.opp||state.opp==="Opponent"){lastCloudSyncError="Enter the opponent before preparing the game.";return false;}
@@ -261,6 +286,26 @@ async function ensureCloudGame(){
   if(error){lastCloudSyncError=error.message;console.warn("Hardcourt game create",error.message);updateCloudStatus();return false}
   state.cloudGameId=data;state.cloudGameOwner=true;state.gameId=String(data);
   startCloudRealtime();updateCloudStatus();save(true);return true;
+}
+async function savePreparedGameConfiguration(){
+  if(!SB||!cloudUser||state.helperMode||!state.cloudGameId)return false;
+  const {data:prior,error:readErr}=await SB.from("games").select("id,current_state,opponent_name,status")
+    .eq("id",state.cloudGameId).single();
+  if(readErr||!prior||prior.opponent_name!==state.opp||prior.status!=="live")return false;
+  const starterCloudIds=state.active.map(id=>state.cloudPlayerMap?.[id]).filter(Boolean);
+  if(starterCloudIds.length!==5)return false;
+  const config={
+    periods:state.periods,periodMinutes:state.periodMinutes,
+    foulLimit:state.foulLimit,bonusRule:state.bonusRule,
+    timeoutMode:state.timeoutMode,timeoutCount:state.timeoutCount,
+    otMinutes:state.otMinutes,offenseRight:state.offenseRight,
+    starters:starterCloudIds
+  };
+  const next={...(prior.current_state||{}),hardcourt:config};
+  const {data,error}=await SB.from("games").update({current_state:next}).eq("id",state.cloudGameId)
+    .eq("status","live").select("id");
+  if(error||!data?.length){lastCloudSyncError=error?.message||"Game preparation could not be confirmed.";return false;}
+  return true;
 }
 function mergeRemoteEvents(rows){let changed=false;for(const r of rows||[]){const existing=state.events.find(e=>e.id===r.id);if(r.deleted_at){if(existing){state.events=state.events.filter(e=>e.id!==r.id);changed=true}continue}if(existing){const payload={...(r.payload||{})};if(payload.cloudPlayerId)payload.playerId=roster.find(p=>p.cloudId===payload.cloudPlayerId)?.id||payload.playerId;if(payload.cloudLineup?.length)payload.lineup=payload.cloudLineup.map(cid=>roster.find(p=>p.cloudId===cid)?.id).filter(Boolean);existing.payload=payload;existing.period=r.period;existing.clockMs=r.clock_ms;existing.syncState="synced";changed=true;continue;}const payload={...(r.payload||{})};if(payload.cloudPlayerId)payload.playerId=roster.find(p=>p.cloudId===payload.cloudPlayerId)?.id||payload.playerId;if(payload.cloudLineup?.length)payload.lineup=payload.cloudLineup.map(cid=>roster.find(p=>p.cloudId===cid)?.id).filter(Boolean);if(r.event_type==="lineup"&&payload.lineup?.length===5)state.active=[...payload.lineup];if(r.event_type==="overtime_start"){state.period=r.period;state.clockMs=r.clock_ms;state.running=false}if(r.event_type==="clock_start"){state.period=r.period;state.clockMs=r.clock_ms;state.running=false}if(r.event_type==="clock_stop"){state.period=r.period;state.clockMs=r.clock_ms;state.running=false}state.events.push({id:r.id,type:r.event_type,period:r.period,clockMs:r.clock_ms,payload,createdAt:r.client_created_at,syncState:"synced"});changed=true}if(changed){save(true);render()}}
 async function pullCloudEvents(){
@@ -379,6 +424,7 @@ async function prepareGameForHelper(){
   const button=$("prepareHelperGame");if(button)button.disabled=true;
   try{
     if(!await ensureCloudGame())throw Error(lastCloudSyncError||"Could not create Friday’s game.");
+    if(!await savePreparedGameConfiguration())throw Error(lastCloudSyncError||"Game rules and starters could not be saved.");
     save(true);
     openModal("Game Ready for Friday",
       "<p><b>"+esc(state.team)+"</b> vs <b>"+esc(state.opp)+"</b> is linked to your account.</p>"+
@@ -392,6 +438,7 @@ $("prepareHelperGame")?.addEventListener("click",prepareGameForHelper);
 $("startGame").onclick=async()=>{
   if(!readGameSetup()||!await requireCloudReady())return;
   if(!await ensureCloudGame()){$("setupError").textContent=lastCloudSyncError||"Could not connect the game to cloud backup.";return}
+  if(!await savePreparedGameConfiguration()){$("setupError").textContent="Could not save the game rules and starting five. Retry.";return}
   state.gameStartedAt=state.gameStartedAt||Date.now();
   startUI();save(true);
 };
