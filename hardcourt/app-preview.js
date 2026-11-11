@@ -1,13 +1,13 @@
 import{isThreePoint,rimZone,createEvent,derive}from"./engine.js";
 const $=id=>document.getElementById(id),defaults=Array.from({length:10},(_,i)=>({id:"p"+i,num:[2,5,11,14,22,3,7,10,20,24][i],name:["Mason Reed","Liam Carter","Noah Brooks","Ethan Hayes","Caleb Turner","Owen Parker","Jack Bennett","Luke Foster","Henry Collins","Wyatt Cooper"][i],headshot:""}));
-let stored;try{stored=JSON.parse(localStorage.getItem("hardcourt-alpha")||"null")}catch{stored=null}
-let roster=(stored?.roster||[]).map((p,i)=>({...defaults[i],...p}));let state=stored||{events:[],active:roster.slice(0,5).map(x=>x.id),period:1,clockMs:480000,running:false,fast:false,offenseRight:true,minutes:{},lastTick:null,statsScope:"game",chartMode:"shots"};state.teamId??=globalThis.crypto?.randomUUID?.()||"team-"+Date.now();state.gameId??=globalThis.crypto?.randomUUID?.()||"game-"+Date.now();state.clientId??=localStorage.getItem("hardcourt-client-id")||globalThis.crypto?.randomUUID?.()||"local";state.timeScope??="game";state.analyticsDetailTab??="fast";localStorage.setItem("hardcourt-client-id",state.clientId);let timer;const SUPABASE_URL="https://eyuvgzhkhcpwtcbmsvct.supabase.co",SUPABASE_PUBLISHABLE_KEY="sb_publishable_uMOkwO4jyHen4pz4zCkIuQ_Ss-wUf2l" ,HARDCOURT_AUTH_STORAGE_KEY="sb-eyuvgzhkhcpwtcbmsvct-auth-token";const hardcourtAuthOptions={auth:{storageKey:HARDCOURT_AUTH_STORAGE_KEY,persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}};let SB=null,cloudUser=null,cloudChannel=null;
+let stored;try{stored=JSON.parse(localStorage.getItem("hardcourt-preview-alpha")||"null")}catch{stored=null}
+let roster=(stored?.roster||[]).map((p,i)=>({...defaults[i],...p}));let state=stored||{events:[],active:roster.slice(0,5).map(x=>x.id),period:1,clockMs:480000,running:false,fast:false,offenseRight:true,minutes:{},lastTick:null,statsScope:"game",chartMode:"shots"};state.teamId??=globalThis.crypto?.randomUUID?.()||"team-"+Date.now();state.gameId??=globalThis.crypto?.randomUUID?.()||"game-"+Date.now();state.clientId??=localStorage.getItem("hardcourt-preview-client-id")||globalThis.crypto?.randomUUID?.()||"local";state.timeScope??="game";state.analyticsDetailTab??="fast";localStorage.setItem("hardcourt-preview-client-id",state.clientId);let timer;const SUPABASE_URL="https://eyuvgzhkhcpwtcbmsvct.supabase.co",SUPABASE_PUBLISHABLE_KEY="sb_publishable_uMOkwO4jyHen4pz4zCkIuQ_Ss-wUf2l" ,HARDCOURT_AUTH_STORAGE_KEY="sb-eyuvgzhkhcpwtcbmsvct-auth-token";const hardcourtAuthOptions={auth:{storageKey:HARDCOURT_AUTH_STORAGE_KEY,persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}};let SB=null,cloudUser=null,cloudChannel=null;
 function refreshCloudPlayerMap(){state.cloudPlayerMap=Object.fromEntries(roster.filter(p=>p.cloudId).map(p=>[p.id,p.cloudId]))}
 let cloudLoading=false,cloudSyncRunning=false,cloudSyncRequested=false,lastCloudSyncError="";
-function cloudStoreKey(){return cloudUser?.id?"hardcourt-owner-team-"+cloudUser.id:null;}
+function cloudStoreKey(){return cloudUser?.id?"hardcourt-preview-owner-team-"+cloudUser.id:null;}
 
 function elapsedGameMs(){const regulation=Math.min(state.period-1,state.periods||4)*(state.periodMinutes||8)*60000,ot=Math.max(0,state.period-(state.periods||4)-1)*(state.otMinutes||3)*60000,currentLen=state.period>(state.periods||4)?(state.otMinutes||3)*60000:(state.periodMinutes||8)*60000;return Math.max(0,regulation+ot+(currentLen-state.clockMs))}
-function archiveGame(){if(!state.gameId||!state.gameStartedAt)return;const games=JSON.parse(localStorage.getItem("hardcourt-games")||"[]"),snap={gameId:state.gameId,teamId:state.teamId,opponent:state.opp||"Opponent",createdAt:state.gameStartedAt||Date.now(),playoffs:state.gameType==="playoffs",events:state.events,minutes:state.minutes||{},elapsedMs:elapsedGameMs()};const i=games.findIndex(g=>g.gameId===snap.gameId);if(i>=0)games[i]=snap;else games.push(snap);localStorage.setItem("hardcourt-games",JSON.stringify(games))}
+function archiveGame(){if(!state.gameId||!state.gameStartedAt)return;const games=JSON.parse(localStorage.getItem("hardcourt-preview-games")||"[]"),snap={gameId:state.gameId,teamId:state.teamId,opponent:state.opp||"Opponent",createdAt:state.gameStartedAt||Date.now(),playoffs:state.gameType==="playoffs",events:state.events,minutes:state.minutes||{},elapsedMs:elapsedGameMs()};const i=games.findIndex(g=>g.gameId===snap.gameId);if(i>=0)games[i]=snap;else games.push(snap);localStorage.setItem("hardcourt-preview-games",JSON.stringify(games))}
 let lastSave=0;
 async function syncRosterCloud(){
   if(state.helperMode)return false;
@@ -351,7 +351,7 @@ async function syncCloudEvents(){
       e.syncState="synced";
     }
     if(allOkay)lastCloudSyncError="";
-    try{localStorage.setItem("hardcourt-alpha",JSON.stringify({...state,running:false,lastTick:null,roster}))}catch(_){}
+    try{localStorage.setItem("hardcourt-preview-alpha",JSON.stringify({...state,running:false,lastTick:null,roster}))}catch(_){}
     return allOkay;
   }finally{
     cloudSyncRunning=false;updateCloudStatus();
@@ -363,7 +363,7 @@ function save(force=false){
   const now=Date.now();
   if(!force&&state.running&&now-lastSave<1200)return;
   lastSave=now;archiveGame();
-  try{localStorage.setItem("hardcourt-alpha",JSON.stringify({...state,running:false,lastTick:null,roster}))}
+  try{localStorage.setItem("hardcourt-preview-alpha",JSON.stringify({...state,running:false,lastTick:null,roster}))}
   catch(e){console.warn("Hardcourt local save limit reached",e);lastCloudSyncError="Device storage is full; free space without clearing Hardcourt data."}
   if(!cloudLoading&&state.events?.some(e=>e.syncState!=="synced"))void syncCloudEvents();
 }
@@ -675,7 +675,7 @@ function scopeLabel(){return({game:"Game",regular:"Regular Season",playoffs:"Pla
 function liveGameSnapshot(){return{gameId:state.gameId,teamId:state.teamId,opponent:state.opp||"Opponent",createdAt:state.gameStartedAt||Date.now(),playoffs:state.gameType==="playoffs",events:state.events||[],minutes:state.minutes||{},elapsedMs:elapsedGameMs(),live:true}}
 function scopeGames(scope=state.statsScope||"game"){
   if(scope==="game")return[liveGameSnapshot()];
-  let games=JSON.parse(localStorage.getItem("hardcourt-games")||"[]").filter(g=>g.teamId===state.teamId&&g.gameId!==state.gameId);
+  let games=JSON.parse(localStorage.getItem("hardcourt-preview-games")||"[]").filter(g=>g.teamId===state.teamId&&g.gameId!==state.gameId);
   if(state.gameStartedAt)games.push(liveGameSnapshot());
   if(scope==="playoffs")return games.filter(g=>g.playoffs);
   if(scope==="regular")return games.filter(g=>!g.playoffs);
@@ -710,7 +710,7 @@ function newGame(){
   $("shell").classList.add("hidden");$("setup").classList.remove("hidden");$("oppName").value="";
   setupRoster();applyProfileToSetup();save(true);
 }
-function gameHistory(){const games=JSON.parse(localStorage.getItem("hardcourt-games")||"[]").filter(g=>g.teamId===state.teamId).sort((a,b)=>b.createdAt-a.createdAt),rows=games.map(g=>'<div class="history-row"><span><b>'+g.opponent+'</b><small>'+new Date(g.createdAt).toLocaleDateString()+' · '+(g.playoffs?"Playoffs":"Regular Season")+'</small></span><button data-load-game="'+g.gameId+'">View</button></div>').join("");openModal("Game History",'<div class="history-list">'+(rows||"<p>No saved games yet.</p>")+"</div>");document.querySelectorAll("[data-load-game]").forEach(b=>b.onclick=()=>{const g=games.find(x=>x.gameId===b.dataset.loadGame);if(!g)return;state.statsScope="game";state.historyPreview={events:g.events||[],minutes:g.minutes||{},opponent:g.opponent};closeModal();showView("statsView","stats");render()})}
+function gameHistory(){const games=JSON.parse(localStorage.getItem("hardcourt-preview-games")||"[]").filter(g=>g.teamId===state.teamId).sort((a,b)=>b.createdAt-a.createdAt),rows=games.map(g=>'<div class="history-row"><span><b>'+g.opponent+'</b><small>'+new Date(g.createdAt).toLocaleDateString()+' · '+(g.playoffs?"Playoffs":"Regular Season")+'</small></span><button data-load-game="'+g.gameId+'">View</button></div>').join("");openModal("Game History",'<div class="history-list">'+(rows||"<p>No saved games yet.</p>")+"</div>");document.querySelectorAll("[data-load-game]").forEach(b=>b.onclick=()=>{const g=games.find(x=>x.gameId===b.dataset.loadGame);if(!g)return;state.statsScope="game";state.historyPreview={events:g.events||[],minutes:g.minutes||{},opponent:g.opponent};closeModal();showView("statsView","stats");render()})}
 $("gameClockBtn").onclick=()=>state.running?stopClock():startClock();$("gameHistoryBtn").onclick=gameHistory;
 window.addEventListener("pagehide",()=>{accrue();save()});document.addEventListener("visibilitychange",()=>{if(document.hidden&&state.running){stopClock()}});applyDirection();render();
 refreshCloudPlayerMap();
