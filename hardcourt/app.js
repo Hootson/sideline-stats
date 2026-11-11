@@ -61,8 +61,112 @@ async function inviteCoach(){
   }
 }
 async function shareTeam(){if(!cloudUser)return openAccount();if(!await ensureCloudContext())return;const {data,error}=await SB.rpc("create_team_invite",{p_team_id:state.cloudTeamId,p_role:"viewer",p_expires_days:3650});if(error)return openModal("Share Team","<p>"+error.message+"</p>");const url=location.origin+location.pathname+"?viewer="+encodeURIComponent(data);openModal("Parent / Viewer Link",'<p>This permanent team link can be saved once and reused for every game.</p><input id="viewerLink" readonly value="'+url+'"><button id="copyViewerLink" class="primary">Copy Link</button>');$("copyViewerLink").onclick=async()=>{await navigator.clipboard?.writeText(url);$("copyViewerLink").textContent="Copied"}}
-async function inviteHelper(){if(!cloudUser)return openAccount();if(!await ensureCloudGame())return;openModal("Game Helper",'<p>Invite one substitute statkeeper for this game.</p><label>Email<input id="helperEmail" type="email"></label><button id="createHelperLink" class="primary">Create Helper Link</button><div id="helperResult"></div>');$("createHelperLink").onclick=async()=>{const {data,error}=await SB.rpc("create_game_statkeeper_invite",{p_game_id:state.cloudGameId,p_email:$("helperEmail").value.trim(),p_expires_days:7});if(error){$("helperResult").textContent=error.message;return}const row=Array.isArray(data)?data[0]:data,url=location.origin+location.pathname+"?gameStatkeeperInvite="+encodeURIComponent(row.token);$("helperResult").innerHTML='<input id="helperLink" readonly value="'+url+'"><button id="copyHelperLink" class="choice">Copy Link</button>';$("copyHelperLink").onclick=()=>navigator.clipboard?.writeText(url)}}
-async function redeemInviteFromUrl(){if(!SB||!cloudUser)return;const u=new URL(location.href),teamToken=u.searchParams.get("coachInvite")||u.searchParams.get("teamInvite");if(teamToken){const {data,error}=await SB.rpc("redeem_team_invite",{p_token:teamToken});if(error){console.warn(error.message);return}const row=Array.isArray(data)?data[0]:data;state.cloudTeamId=row.team_id||state.cloudTeamId;u.searchParams.delete("coachInvite");u.searchParams.delete("teamInvite");history.replaceState({},"",u);const {data:ctx}=await SB.rpc("get_hardcourt_cloud_context");const contexts=Array.isArray(ctx)?ctx:[];const match=contexts.find(x=>x.teamId===state.cloudTeamId)||contexts[0];if(match){state.cloudTeamId=match.teamId;state.cloudSeasonId=match.seasonId;state.team=match.teamName||state.team;await restoreCloudRoster();save(true)}updateCloudStatus();return}const token=u.searchParams.get("gameStatkeeperInvite");if(!token)return;const {data,error}=await SB.rpc("redeem_game_statkeeper_invite",{p_token:token});if(error){console.warn(error.message);return}const row=Array.isArray(data)?data[0]:data;state.cloudTeamId=row.team_id;state.cloudSeasonId=row.season_id;state.cloudGameId=row.game_id;state.cloudGameOwner=false;state.helperMode=true;state.team=row.team_name;state.opp=row.opponent_name;await restoreCloudRoster();u.searchParams.delete("gameStatkeeperInvite");history.replaceState({},"",u);startCloudRealtime();save(true)}
+async function inviteHelper(){
+  if(!cloudUser)return openAccount();
+  if(state.helperMode){openModal("Game access","Only the team owner can invite another statkeeper.");return}
+  if(!state.cloudGameId){
+    openModal("Prepare Game First","<p>Save Friday’s game from the Game Setup screen before creating a substitute-statkeeper link.</p>");
+    return;
+  }
+  openModal("Invite Game Statkeeper",
+    '<p>Send an email-locked link for <b>'+esc(state.team)+'</b> vs <b>'+esc(state.opp||"Opponent")+'</b>. The recipient signs in with their own email and can record this game, not manage your team.</p>'+
+    '<label>Substitute’s email<input id="helperEmail" type="email" autocomplete="email" placeholder="statkeeper@example.com"></label>'+
+    '<button id="createHelperLink" class="primary">Generate Secure Invitation</button><div id="helperResult"></div>');
+  $("createHelperLink").onclick=async()=>{
+    const email=$("helperEmail").value.trim().toLowerCase();
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){$("helperResult").textContent="Enter the substitute’s actual email address.";return}
+    $("createHelperLink").disabled=true;
+    const {data,error}=await SB.rpc("create_game_statkeeper_invite",{
+      p_game_id:state.cloudGameId,p_email:email,p_expires_days:3
+    });
+    $("createHelperLink").disabled=false;
+    if(error){$("helperResult").textContent=error.message;return}
+    const row=Array.isArray(data)?data[0]:data;
+    if(!row?.token){$("helperResult").textContent="Invitation could not be generated. Please retry.";return}
+    const url=location.origin+location.pathname+"?gameStatkeeperInvite="+encodeURIComponent(row.token);
+    $("helperResult").innerHTML='<p>Send this link to <b>'+esc(email)+'</b>. It is single-recipient and expires after three days.</p>'+
+      '<input id="helperLink" readonly><button id="copyHelperLink" class="choice">Copy Invitation Link</button>';
+    $("helperLink").value=url;
+    $("copyHelperLink").onclick=async()=>{
+      try{if(navigator.clipboard?.writeText)await navigator.clipboard.writeText(url);
+        else{$("helperLink").select();document.execCommand("copy");}
+        $("copyHelperLink").textContent="Copied";
+      }catch(_){$("helperLink").select();$("copyHelperLink").textContent="Select and copy the link above";}
+    };
+  };
+}
+async function redeemInviteFromUrl(){
+  if(!SB||!cloudUser)return false;
+  const u=new URL(location.href);
+  const teamToken=u.searchParams.get("coachInvite")||u.searchParams.get("teamInvite");
+  if(teamToken){
+    const {data,error}=await SB.rpc("redeem_team_invite",{p_token:teamToken});
+    if(error){openModal("Invitation Issue","<p>"+esc(error.message)+"</p>");return true}
+    const row=Array.isArray(data)?data[0]:data;
+    u.searchParams.delete("coachInvite");u.searchParams.delete("teamInvite");
+    history.replaceState({},"",u);
+    state.cloudTeamId=row.team_id||null;state.cloudSeasonId=null;
+    await ensureCloudContext();save(true);return true;
+  }
+  const token=u.searchParams.get("gameStatkeeperInvite");
+  if(!token)return false;
+  const {data,error}=await SB.rpc("redeem_game_statkeeper_invite",{p_token:token});
+  if(error){openModal("Statkeeper Invitation Issue",'<p>'+esc(error.message)+'</p><p>Check that you signed in using the email address the invitation was sent to.</p>');return true;}
+  const row=Array.isArray(data)?data[0]:data;
+  if(!row?.game_id){openModal("Invitation Issue","The invitation did not include a game.");return true;}
+  archiveGame(); // Leave any previous local game in its existing backup.
+  state.helperMode=true;state.cloudOwnerUserId=null;state.cloudTeamId=row.team_id;state.cloudSeasonId=row.season_id;
+  state.cloudGameId=row.game_id;state.gameId=row.game_id;state.team=row.team_name;state.opp=row.opponent_name;
+  state.events=[];state.minutes={};state.active=[];
+  const opened=await openCloudGame(row.game_id,true);
+  if(!opened)return true;
+  u.searchParams.delete("gameStatkeeperInvite");history.replaceState({},"",u);
+  return true;
+}
+async function openCloudGame(gameId,helper=false){
+  if(!SB||!cloudUser||!gameId)return false;
+  cloudLoading=true;
+  try{
+    const {data:g,error}=await SB.from("games")
+      .select("id,season_id,opponent_name,game_type,status,started_at,created_at,current_quarter,current_state")
+      .eq("id",gameId).eq("sport","basketball").single();
+    if(error||!g)throw error||Error("Game not found");
+    if(!helper&&state.gameId!==gameId)archiveGame();
+    state.cloudGameId=g.id;state.gameId=g.id;state.cloudSeasonId=g.season_id;
+    state.helperMode=!!helper;state.cloudGameOwner=!helper;
+    state.opp=g.opponent_name;state.gameType=g.game_type==="playoff"?"playoffs":"regular";
+    state.gameStartedAt=Date.parse(g.started_at||g.created_at||"")||Date.now();
+    state.period=Math.max(1,Number(g.current_quarter||1));
+    state.clockMs=(state.periodMinutes||8)*60000;
+    state.events=[];state.minutes={};state.active=[];
+    await restoreCloudRoster();
+    if(roster.length<5)throw Error("The assigned game does not have five roster players yet. Ask the team owner to save the roster.");
+    await pullCloudEvents();
+    startCloudRealtime();
+    startUI();render();save(true);updateCloudStatus();
+    return true;
+  }catch(e){
+    console.warn("Hardcourt game load",e);
+    openModal("Could Not Open Game","<p>"+esc(e?.message||e)+"</p>");
+    return false;
+  }finally{cloudLoading=false;}
+}
+async function openCloudGames(){
+  if(!cloudUser)return openAccount();
+  if(!state.helperMode&&!await ensureCloudContext())return;
+  const {data,error}=await SB.rpc("get_hardcourt_games",{p_team_id:state.cloudTeamId});
+  if(error){openModal("Saved Games","<p>"+esc(error.message)+"</p>");return}
+  const list=Array.isArray(data)?data:[];
+  openModal("Saved Basketball Games",'<div id="hardcourtCloudGames" class="history-list"></div>');
+  const host=$("hardcourtCloudGames");
+  if(!list.length){host.textContent="No cloud games yet. Prepare your first game from the setup screen.";return}
+  for(const g of list){
+    const b=document.createElement("button");b.className="choice";
+    b.textContent=(g.opponent_name||"Opponent")+" · "+(g.status||"live")+" · "+(g.event_count||0)+" events";
+    b.onclick=async()=>{closeModal();await openCloudGame(g.game_id,state.helperMode)};
+    host.appendChild(b);
+  }
+}
 async function restoreCloudRoster(){
   if(!SB||!state.cloudSeasonId)return false;
   const {data,error}=await SB.from("players").select("id,jersey_number,name").eq("season_id",state.cloudSeasonId).eq("active",true).order("jersey_number");
@@ -117,8 +221,19 @@ async function applyCloudContext(ctx){
   applyProfileToSetup();setupRoster();updateCloudStatus();save(true);
   return loaded;
 }
-async function ensureCloudGame(){if(state.cloudGameId)return true;if(!await ensureCloudContext())return false;const {data,error}=await SB.rpc("create_hardcourt_game",{p_season_id:state.cloudSeasonId,p_opponent:state.opp||"Opponent",p_game_type:state.gameType||"regular"});if(error){console.warn("Hardcourt game create",error.message);return false}state.cloudGameId=data;state.cloudGameOwner=true;startCloudRealtime();updateCloudStatus();return true}
-function mergeRemoteEvents(rows){let changed=false;for(const r of rows||[]){const existing=state.events.find(e=>e.id===r.id);if(r.deleted_at){if(existing){state.events=state.events.filter(e=>e.id!==r.id);changed=true}continue}if(existing){const payload={...(r.payload||{})};if(payload.cloudPlayerId)payload.playerId=roster.find(p=>p.cloudId===payload.cloudPlayerId)?.id||payload.playerId;if(payload.cloudLineup?.length)payload.lineup=payload.cloudLineup.map(cid=>roster.find(p=>p.cloudId===cid)?.id).filter(Boolean);existing.payload=payload;existing.period=r.period;existing.clockMs=r.clock_ms;existing.syncState="synced";changed=true;continue;}const payload={...(r.payload||{})};if(payload.cloudPlayerId&&!payload.playerId)payload.playerId=roster.find(p=>p.cloudId===payload.cloudPlayerId)?.id||payload.playerId;if(payload.cloudLineup?.length)payload.lineup=payload.cloudLineup.map(cid=>roster.find(p=>p.cloudId===cid)?.id).filter(Boolean);if(r.event_type==="lineup"&&payload.lineup?.length===5)state.active=[...payload.lineup];if(r.event_type==="overtime_start"){state.period=r.period;state.clockMs=r.clock_ms;state.running=false}if(r.event_type==="clock_start"){state.period=r.period;state.clockMs=r.clock_ms;state.running=false}if(r.event_type==="clock_stop"){state.period=r.period;state.clockMs=r.clock_ms;state.running=false}state.events.push({id:r.id,type:r.event_type,period:r.period,clockMs:r.clock_ms,payload,createdAt:r.client_created_at,syncState:"synced"});changed=true}if(changed){save(true);render()}}
+async function ensureCloudGame(){
+  if(state.cloudGameId)return true;
+  if(state.helperMode)return false;
+  if(!await ensureCloudContext())return false;
+  if(!state.opp||state.opp==="Opponent"){lastCloudSyncError="Enter the opponent before preparing the game.";return false;}
+  const {data,error}=await SB.rpc("create_hardcourt_game",{
+    p_season_id:state.cloudSeasonId,p_opponent:state.opp,p_game_type:state.gameType||"regular"
+  });
+  if(error){lastCloudSyncError=error.message;console.warn("Hardcourt game create",error.message);updateCloudStatus();return false}
+  state.cloudGameId=data;state.cloudGameOwner=true;state.gameId=String(data);
+  startCloudRealtime();updateCloudStatus();save(true);return true;
+}
+function mergeRemoteEvents(rows){let changed=false;for(const r of rows||[]){const existing=state.events.find(e=>e.id===r.id);if(r.deleted_at){if(existing){state.events=state.events.filter(e=>e.id!==r.id);changed=true}continue}if(existing){const payload={...(r.payload||{})};if(payload.cloudPlayerId)payload.playerId=roster.find(p=>p.cloudId===payload.cloudPlayerId)?.id||payload.playerId;if(payload.cloudLineup?.length)payload.lineup=payload.cloudLineup.map(cid=>roster.find(p=>p.cloudId===cid)?.id).filter(Boolean);existing.payload=payload;existing.period=r.period;existing.clockMs=r.clock_ms;existing.syncState="synced";changed=true;continue;}const payload={...(r.payload||{})};if(payload.cloudPlayerId)payload.playerId=roster.find(p=>p.cloudId===payload.cloudPlayerId)?.id||payload.playerId;if(payload.cloudLineup?.length)payload.lineup=payload.cloudLineup.map(cid=>roster.find(p=>p.cloudId===cid)?.id).filter(Boolean);if(r.event_type==="lineup"&&payload.lineup?.length===5)state.active=[...payload.lineup];if(r.event_type==="overtime_start"){state.period=r.period;state.clockMs=r.clock_ms;state.running=false}if(r.event_type==="clock_start"){state.period=r.period;state.clockMs=r.clock_ms;state.running=false}if(r.event_type==="clock_stop"){state.period=r.period;state.clockMs=r.clock_ms;state.running=false}state.events.push({id:r.id,type:r.event_type,period:r.period,clockMs:r.clock_ms,payload,createdAt:r.client_created_at,syncState:"synced"});changed=true}if(changed){save(true);render()}}
 async function pullCloudEvents(){if(!SB||!state.cloudGameId)return;const {data,error}=await SB.from("hardcourt_events").select("*").eq("game_id",state.cloudGameId).is("deleted_at",null).order("client_created_at");if(!error)mergeRemoteEvents(data)}
 function startCloudRealtime(){if(!SB||!state.cloudGameId)return;if(cloudChannel)SB.removeChannel(cloudChannel);cloudChannel=SB.channel("hardcourt-"+state.cloudGameId).on("postgres_changes",{event:"*",schema:"public",table:"hardcourt_events",filter:"game_id=eq."+state.cloudGameId},p=>mergeRemoteEvents([p.new||p.old])).subscribe();pullCloudEvents()}
 async function syncCloudEvents(){if(!SB||!cloudUser)return;if(!state.cloudGameId&&state.gameStartedAt)await ensureCloudGame();if(!state.cloudGameId)return;for(const e of state.events.filter(x=>x.syncState!=="synced")){const {error}=await SB.rpc("sync_hardcourt_event",{p_id:e.id,p_game_id:state.cloudGameId,p_event_type:e.type,p_period:e.period,p_clock_ms:e.clockMs,p_payload:e.payload||{},p_client_id:state.clientId,p_client_created_at:e.createdAt});if(!error)e.syncState="synced";else console.warn("Hardcourt event sync",error.message)}}
