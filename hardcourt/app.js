@@ -185,7 +185,7 @@ async function openCloudGame(gameId,helper=false){
       if(translated.every(Boolean)&&new Set(translated).size===5)state.active=translated;
     }
     if(roster.length<5)throw Error("The assigned game does not have five roster players yet. Ask the team owner to save the roster.");
-    await pullCloudEvents();
+    if(!await pullCloudEvents())throw Error("Could not read all cloud game events. Retry before statkeeping.");
     startCloudRealtime();
     startUI();render();save(true);updateCloudStatus();
     return true;
@@ -773,7 +773,7 @@ async function initCloud(){
     const prev=cloudUser?.id||null;cloudUser=session?.user||null;updateCloudStatus();
     if(!cloudUser){lastHardcourtBootUser=null;return}
     if(event==="SIGNED_IN"||event==="INITIAL_SESSION"||prev!==cloudUser.id)
-      void bootstrapHardcourt();
+      setTimeout(()=>void bootstrapHardcourt(),0);
   });
   const {data}=await SB.auth.getSession();cloudUser=data?.session?.user||null;
   updateCloudStatus();
