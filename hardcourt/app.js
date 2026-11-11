@@ -391,6 +391,12 @@ function applyProfileToSetup(){
   state.primary??="#111111";state.accent??="#39a852";
   $("setupTeamLabel").textContent=state.team;
   $("setupTeamMeta").textContent=[state.grade,state.division].filter(Boolean).join(" · ");
+  const holder=$("hcAdminTeamLogo");
+  if(holder){
+    holder.textContent="";
+    if(state.teamLogo){const photo=new Image();photo.alt="Team logo";photo.src=state.teamLogo;holder.appendChild(photo);}
+    else holder.textContent=initials(state.team);
+  }
   $("oppName").value=state.opp||"";
   $("gameType").value=state.gameType||"regular";
   if($("hcGameDate"))$("hcGameDate").value=state.gameDate||"";
@@ -746,7 +752,26 @@ function shotPopup(x,y,left,top){
  draw();
 }
 function modal(title,choices,cb){openModal(title,'<div class="choices">'+choices.map(x=>'<button class="choice" data-choice="'+x.value+'">'+x.label+"</button>").join("")+"</div>");document.querySelectorAll("[data-choice]").forEach(b=>b.onclick=()=>{closeModal();cb(b.dataset.choice)})}
-function openModal(t,b){$("modalTitle").textContent=t;$("modalBody").innerHTML=b;$("modal").classList.remove("hidden")}function closeModal(){$("modal").classList.add("hidden")}$("modalClose").onclick=closeModal;
+const hardcourtAdminModalTitles=new Set([
+  "Settings","Hardcourt Account","Sign in to Bleacher Butt Stats","Account",
+  "Edit Basketball Team","Edit Season Roster","Invite Game Statkeeper",
+  "Invite Coach","Parent / Viewer Link","Share Team","Game Helper",
+  "Game Setup","Game Ready for Friday","Prepare Game First",
+  "Select Basketball Team","Create Your Basketball Team",
+  "Saved Basketball Games","Game History","Saved Games",
+  "Invitation Issue","Statkeeper Invitation Issue",
+  "Could Not Open Game","Roster Locked","Roster",
+  "Game Access","Team Settings"
+]);
+function openModal(t,b){
+  $("modalTitle").textContent=t;$("modalBody").innerHTML=b;
+  document.body.classList.toggle("hc-admin-dialog",hardcourtAdminModalTitles.has(t));
+  $("modal").classList.remove("hidden");
+}
+function closeModal(){
+  $("modal").classList.add("hidden");document.body.classList.remove("hc-admin-dialog");
+}
+$("modalClose").onclick=closeModal;
 function choosePlayer(title,type){modal(title,state.active.map(id=>{const p=roster.find(x=>x.id===id);return{label:"#"+p.num+" "+p.name,value:id}}),id=>{state.events.push(createEvent(type,{playerId:id,lineup:[...state.active]},state));render()})}
 $("turnoverBtn").onclick=()=>choosePlayer("Turnover","turnover");$("stealBtn").onclick=()=>choosePlayer("Steal","steal");$("reboundBtn").onclick=()=>choosePlayer("Rebound","rebound");$("blockBtn").onclick=()=>choosePlayer("Block","block");$("foulBtn").onclick=foulFlow;
 function foulFlow(){modal("Foul by",[{label:state.team,value:"us"},{label:state.opp,value:"opp"}],side=>{if(side==="us")modal("Who committed the foul?",state.active.map(id=>{const p=roster.find(x=>x.id===id);return{label:"#"+p.num+" "+p.name,value:id}}),id=>{state.events.push(createEvent("foul",{playerId:id,team:"us",lineup:[...state.active]},state));foulSituation("opp")});else{state.events.push(createEvent("foul",{team:"opp",lineup:[...state.active]},state));foulSituation("us")}})}
