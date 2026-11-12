@@ -72,7 +72,7 @@ function openSettings(){
     '<div class="hc-settings-team"><span class="score-logo">'+imgOrInitial(state.teamLogo,state.team)+'</span><div><h3>'+esc(state.team||"Team")+'</h3><small>'+esc([state.grade,state.division].filter(Boolean).join(" · "))+'</small><p>'+(signed?esc(email):"Not signed in")+'</p></div></div>'+
     '<div class="hc-settings-card"><b>GAME SHARING</b><p>Invite someone to record this game whenever you need them—no decision required at game setup.</p><button id="settingsHelper">🏀 Invite Statkeeper to This Game</button><button id="settingsParent">Invite Parents / Viewers</button><button id="settingsCoach">Invite Coach</button></div>'+
     '<div class="hc-settings-card"><b>TEAM & ACCOUNT</b><button id="settingsEditTeam">Edit '+esc(state.team||"Team")+'</button><button id="settingsRoster">Edit Season Roster</button><button id="settingsAccount">'+(signed?"Account / Sign Out":"Sign In / Create Account")+'</button></div>'+
-    '<div class="hc-settings-card"><b>GAME</b><button id="settingsGame">Game Setup</button><button id="settingsNewGame">New Game</button><button id="settingsHistory">Prior Games</button><button id="settingsCloudGames">Cloud Games</button></div>'+
+    '<div class="hc-settings-card"><b>GAME</b><button id="settingsGame">Game Setup</button><button id="settingsFinalizeGame">🏁 Finalize Current Game</button><button id="settingsNewGame">New Game</button><button id="settingsHistory">Prior Games</button><button id="settingsCloudGames">Cloud Games</button></div>'+
   '</div>');
   $("settingsEditTeam").onclick=()=>{closeModal();openTeamEditor()};
   $("settingsRoster").onclick=()=>{closeModal();openRosterEditor()};
@@ -81,6 +81,8 @@ function openSettings(){
   $("settingsCoach").onclick=()=>{closeModal();inviteCoach()};
   $("settingsHelper").onclick=()=>{closeModal();inviteHelper()};
   $("settingsGame").onclick=()=>{closeModal();if(state.gameStartedAt)openGameSettings();else showAdminPage("games")};
+  $("settingsFinalizeGame").onclick=()=>{closeModal();finalizeCurrentHardcourtGame()};
+  $("settingsFinalizeGame").disabled=!state.cloudGameId||!state.gameStartedAt||state.helperMode||!!state.gameFinalized;
   $("settingsNewGame").onclick=()=>{closeModal();newGame()};
   $("settingsHistory").onclick=()=>{closeModal();gameHistory()};
   $("settingsCloudGames").onclick=()=>{closeModal();openCloudGames()};
@@ -520,8 +522,8 @@ async function renderAdminSavedGames(){
     return '<div class="hc-saved-row"><div class="hc-saved-row-copy"><strong>'+esc(g.opponent_name||"Opponent")+'</strong>'+
       '<small>'+esc(g.status||"Saved")+' · '+Number(g.event_count||0)+' events</small></div>'+
       '<button type="button" class="hc-btn hc-btn-small hc-btn-ghost" data-open-hc-cloud="'+esc(g.game_id)+'" '+
-      (final?'disabled title="Finalized games are protected"':'')+'>'+
-      (final?"Final":"Open")+'</button></div>';
+      ''+'>'+
+      (final?"View Stats":"Open")+'</button></div>';
   }).join("");
   host.querySelectorAll("[data-open-hc-cloud]").forEach(b=>b.onclick=async()=>{
     b.disabled=true;const opened=await openCloudGame(b.dataset.openHcCloud,false);
@@ -859,6 +861,7 @@ const hardcourtAdminModalTitles=new Set([
   "Saved Basketball Games","Game History","Saved Games",
   "Invitation Issue","Statkeeper Invitation Issue",
   "Could Not Open Game","Roster Locked","Roster",
+  "Unsynced Basketball Stats","Finalize Basketball Game","Game Finalized",
   "Game Access","Team Settings"
 ]);
 function openModal(t,b){
@@ -980,7 +983,7 @@ $("timeScope").onclick=e=>{const b=e.target.closest("[data-time-scope]");if(!b)r
 $("statsScope").onclick=e=>{const b=e.target.closest("[data-scope]");if(!b)return;state.historyPreview=null;state.statsScope=b.dataset.scope;document.querySelectorAll("#statsScope button").forEach(x=>x.classList.toggle("active",x===b));render()};
 function applyDirection(){document.querySelector(".half.left").classList.toggle("offense",!state.offenseRight);document.querySelector(".half.right").classList.toggle("offense",state.offenseRight);$("teamControls")?.classList.toggle("controls-right",!state.offenseRight);$("opponentQuick")?.classList.toggle("opponent-right",!state.offenseRight);$("fastWrap")?.classList.toggle("fast-left",!state.offenseRight);$("offenseHint")?.classList.toggle("hint-left",!state.offenseRight);if($("offenseHint"))$("offenseHint").innerHTML=state.offenseRight?"OFFENSE →<small>TAP COURT<br>FOR SHOT</small>":"← OFFENSE<small>TAP COURT<br>FOR SHOT</small>";document.body.classList.toggle("offense-left",!state.offenseRight);document.body.classList.toggle("offense-right",state.offenseRight)}
 function resetGameViewport(){if(!matchMedia("(max-width:899px)").matches)return;const meta=document.querySelector('meta[name="viewport"]');if(!meta)return;const normal="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=yes";meta.setAttribute("content","width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover");document.documentElement.style.zoom="1";window.scrollTo(0,0);document.body.scrollLeft=0;document.body.scrollTop=0;requestAnimationFrame(()=>window.scrollTo(0,0));setTimeout(()=>{meta.setAttribute("content",normal);document.documentElement.style.zoom="";window.scrollTo(0,0)},350)}
-function showView(id,tab){document.querySelectorAll(".view").forEach(v=>v.classList.add("hidden"));$(id).classList.remove("hidden");if(tab){document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("active",x.dataset.tab===tab))}const phone=matchMedia("(max-width:899px)").matches;document.body.classList.toggle("needs-portrait",phone&&id!=="gameView");document.body.classList.toggle("needs-landscape",phone&&id==="gameView");document.body.classList.toggle("game-active",id==="gameView");if(id==="gameView")resetGameViewport();render()}
+function showView(id,tab){if(id==="gameView"&&state.gameFinalized){id="statsView";tab="stats"}document.querySelectorAll(".view").forEach(v=>v.classList.add("hidden"));$(id).classList.remove("hidden");if(tab){document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("active",x.dataset.tab===tab))}const phone=matchMedia("(max-width:899px)").matches;document.body.classList.toggle("needs-portrait",phone&&id!=="gameView");document.body.classList.toggle("needs-landscape",phone&&id==="gameView");document.body.classList.toggle("game-active",id==="gameView");if(id==="gameView")resetGameViewport();render()}
 document.querySelectorAll("nav [data-tab]").forEach(b=>b.onclick=()=>showView({roster:"rosterView",game:"gameView",time:"timeView",stats:"statsView",analytics:"analyticsView"}[b.dataset.tab],b.dataset.tab));
 function populateShotFilters(){const s=$("shotPlayerFilter");s.innerHTML='<option value="team">Whole Team</option>'+roster.map(p=>'<option value="'+p.id+'">#'+p.num+" "+p.name+"</option>").join("");const per=$("shotPeriodFilter"),prefix=state.periods===2?"H":"Q";per.innerHTML='<option value="all">All</option>'+Array.from({length:state.periods||4},(_,i)=>'<option value="'+(i+1)+'">'+prefix+(i+1)+"</option>").join("");["shotPlayerFilter","shotTimeFilter","shotPeriodFilter","shotTypeFilter"].forEach(id=>$(id).onchange=renderShotAnalytics)}
 function shotZone(e){let x=e.payload.x,y=e.payload.y;if(e.payload.rimZone)return e.payload.rimZone==="left_finish"?"Left Finish":e.payload.rimZone==="right_finish"?"Right Finish":"Center Rim";const bx=x>.5?1:0,dx=Math.abs(x-bx),dy=y-.5;if(!e.payload.three){if(dx<.28&&Math.abs(dy)<.22)return dy<-.07?"Left Paint":dy>.07?"Right Paint":"Center Paint";if(Math.abs(dy)>.25)return dy<0?"Left Baseline":"Right Baseline";return dy<-.08?"Left Wing Mid":dy>.08?"Right Wing Mid":"Top Midrange"}if(Math.abs(dy)>.36)return dy<0?"Left Corner 3":"Right Corner 3";return dy<-.13?"Left Wing 3":dy>.13?"Right Wing 3":"Top 3"}
@@ -993,10 +996,10 @@ $("chartMode").onclick=e=>{const b=e.target.closest("[data-chart]");if(!b)return
 $("analyticsDetailTabs").onclick=e=>{const b=e.target.closest("[data-analytics-detail]");if(!b)return;state.analyticsDetailTab=b.dataset.analyticsDetail;renderLineupAnalytics();save()};
 function newGame(){
   if(state.helperMode){openModal("Game Access","Only the team owner can create another game.");return}
-  if(state.events?.length&&state.gameStartedAt&&!confirm("Start a new game? Your current game will remain saved, but make sure all stats have synced first."))return;
+  if(!state.gameFinalized&&state.events?.length&&state.gameStartedAt&&!confirm("Start a new game? Your current game will remain saved, but make sure all stats have synced first."))return;
   stopClock();archiveGame();
   if(cloudChannel&&SB){SB.removeChannel(cloudChannel);cloudChannel=null}
-  state.cloudGameId=null;state.cloudGameOwner=false;state.helperMode=false;state.historyPreview=null;
+  state.cloudGameId=null;state.cloudGameOwner=false;state.helperMode=false;state.historyPreview=null;state.gameFinalized=false;
   state.gameId=crypto.randomUUID();state.gameStartedAt=null;state.opp="";state.gameDate=null;state.gameLocation="home";state.events=[];state.minutes={};
   state.period=1;state.clockMs=(state.periodMinutes||8)*60000;
   state.timeoutsUs=state.timeoutCount??3;state.timeoutsOpp=state.timeoutCount??3;
