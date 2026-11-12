@@ -459,3 +459,29 @@ body.hc-admin-dialog #modal .hc-team-color-preview b{display:block;flex:0 0 auto
 #statsView .table-wrap tbody th{color:#ffffff!important;}
 #statsView .table-wrap tbody tr.team-total td,
 #statsView .table-wrap tbody tr.team-total th{color:#ffffff!important;}
+
+/* 2026-11-11: Non-game screens have a light page canvas but dark content
+   cards. Set contrast at the card level so light page headings, gold tabs,
+   setup forms and the court retain their original foreground colors. */
+#rosterView #rosterCards .card,
+#timeView #timeTable .time-row,
+#timeView #timeCheck.time-warning,
+#analyticsView .shooting-card,
+#analyticsView .zone-table .zone-cell,
+#analyticsView .analytics-grid article,
+#analyticsView .analytics-detail-shell,
+#playerView .player-kpis .kpi {
+  color:#f5f7f6;
+}
+#rosterView #rosterCards .card small,
+#analyticsView .zone-table .zone-cell small {
+  color:#c7d0cc;
+}
+/* Detailed analytics use nested dark panels; text not explicitly styled
+   within each panel must not inherit the dark foreground of the page. */
+#analyticsView .analytics-detail-shell .analytics-player-bar,
+#analyticsView .analytics-detail-shell .visual-lineup-card,
+#analyticsView .analytics-detail-shell .impact-card,
+#analyticsView .analytics-detail-shell .analytics-visual-card {
+  color:#f5f7f6;
+}
