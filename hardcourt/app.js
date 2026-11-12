@@ -994,6 +994,63 @@ function courtLines(){return '<div class="court-lines ui51-hidden-lines"><i clas
 function renderShotAnalytics(){if(!$("analyticsCourt"))return;const shots=filteredShots(),made=shots.filter(e=>e.payload.made),threes=shots.filter(e=>e.payload.three),tm=threes.filter(e=>e.payload.made),twos=shots.filter(e=>!e.payload.three),twoM=twos.filter(e=>e.payload.made);$("shootingSummary").textContent="FG "+made.length+"/"+shots.length+" · "+(shots.length?Math.round(made.length/shots.length*100):0)+"% | 3PT "+tm.length+"/"+threes.length+" · "+(threes.length?Math.round(tm.length/threes.length*100):0)+"% | 2PT "+twoM.length+"/"+twos.length+" · "+(twos.length?Math.round(twoM.length/twos.length*100):0)+"%";const zones={};shots.forEach(e=>{const z=shotZone(e);zones[z]??={a:0,m:0,pts:0};zones[z].a++;if(e.payload.made){zones[z].m++;zones[z].pts+=e.payload.three?3:2}});let heat="";if(state.chartMode!=="shots")heat=Object.entries(zones).map(([z,v])=>{const rs=zoneRects[z];if(!rs)return"";const r=rs[(shots.find(e=>shotZone(e)===z)?.payload.x||0)>.5?1:0];const pct=v.m/v.a,confidence=Math.min(1,v.a/4),score=.5+(pct-.5)*confidence,cls=score<.28?"cold3":score<.4?"cold2":score<.48?"cold1":score<.55?"neutral":score<.67?"hot1":score<.78?"hot2":"hot3";return'<i class="heat-zone '+cls+'" style="left:'+r[0]*100+'%;top:'+r[1]*100+'%;width:'+r[2]*100+'%;height:'+r[3]*100+'%"></i>'}).join("");const dots=state.chartMode==="heat"?"":shots.map(e=>'<i class="shot-dot '+(e.payload.made?"make":"miss")+'" style="left:'+e.payload.x*100+'%;top:'+e.payload.y*100+'%"></i>').join("");$("analyticsCourt").innerHTML=heat+courtLines()+dots;$("zoneTable").innerHTML=Object.entries(zones).sort((a,b)=>b[1].a-a[1].a).map(([z,v])=>'<div class="zone-cell"><b>'+z+"</b><span>"+v.m+"/"+v.a+" · "+Math.round(v.m/v.a*100)+'%</span><small>'+(v.pts/v.a).toFixed(2)+" pts/shot · "+Math.round(v.a/shots.length*100)+"% of shots</small></div>").join("")||'<div class="zone-cell">No shots for these filters yet.</div>'}
 $("chartMode").onclick=e=>{const b=e.target.closest("[data-chart]");if(!b)return;state.chartMode=b.dataset.chart;document.querySelectorAll("#chartMode button").forEach(x=>x.classList.toggle("active",x===b));renderShotAnalytics();save()};
 $("analyticsDetailTabs").onclick=e=>{const b=e.target.closest("[data-analytics-detail]");if(!b)return;state.analyticsDetailTab=b.dataset.analyticsDetail;renderLineupAnalytics();save()};
+
+async function finalizeCurrentHardcourtGame(){
+  if(state.helperMode){openModal("Game Access","Only the team owner can finalize a game.");return;}
+  if(!cloudUser||!SB||!state.cloudGameId||!state.gameStartedAt){
+    openModal("Finalize Basketball Game","<p>Open a saved basketball game before finalizing it.</p>");
+    return;
+  }
+  if(state.gameFinalized){
+    openModal("Game Finalized","<p>This game has already been finalized. Its statistics are available in Saved Games.</p>");
+    return;
+  }
+  stopClock();
+  openModal("Finalize Basketball Game",
+    '<p><b>'+esc(state.team||"Our Team")+' vs '+esc(state.opp||"Opponent")+'</b></p>'+
+    '<p>After the final buzzer and all corrections, finalize to lock this game. We will first verify that every event on this device is saved in the cloud. You can still view game statistics afterward.</p>'+
+    '<button id="confirmFinalizeHardcourt" type="button" class="primary">Finalize and Lock Game</button>'+
+    '<p id="finalizeHardcourtStatus" role="status"></p>');
+  $("confirmFinalizeHardcourt").onclick=async()=>{
+    const btn=$("confirmFinalizeHardcourt"),status=$("finalizeHardcourtStatus");
+    btn.disabled=true;status.textContent="Checking saved events…";
+    try{
+      // The last stopped clock also creates a stat event. Let its sync finish.
+      if(cloudSyncRunning){
+        for(let i=0;i<30&&cloudSyncRunning;i++){
+          await new Promise(resolve=>setTimeout(resolve,200));
+        }
+      }
+      if(cloudSyncRunning)throw Error("Cloud sync is still running. Retry after it finishes.");
+      if(state.events.some(e=>e.syncState!=="synced")){
+        if(!await syncCloudEvents())throw Error(lastCloudSyncError||"Not all events could be synced.");
+      }
+      const {data:rows,error:eventsError}=await SB.from("hardcourt_events").select("id")
+        .eq("game_id",state.cloudGameId).is("deleted_at",null);
+      if(eventsError)throw Error("Could not verify cloud events: "+eventsError.message);
+      const cloudIds=new Set((rows||[]).map(e=>e.id));
+      const missing=state.events.filter(e=>!cloudIds.has(e.id));
+      if(missing.length)throw Error(missing.length+" events on this phone are not yet saved in the cloud. Nothing was finalized.");
+      const {data:live,error:gameError}=await SB.from("games").select("status")
+        .eq("id",state.cloudGameId).eq("sport","basketball").single();
+      if(gameError||!live)throw Error("Could not verify the current game status.");
+      if(live.status!=="live")throw Error("This game is no longer live. Reopen it under Saved Games.");
+      status.textContent="Finalizing the game…";
+      const {data:finished,error:finishError}=await SB.rpc("finalize_hardcourt_game",{p_game_id:state.cloudGameId});
+      if(finishError||finished!==true)throw Error(finishError?.message||"Could not confirm finalization.");
+      state.gameFinalized=true;
+      if(cloudChannel){SB.removeChannel(cloudChannel);cloudChannel=null;}
+      save(true);
+      closeModal();
+      showView("statsView","stats");
+      openModal("Game Finalized",
+        "<p>This game has been finalized and locked. Its statistics remain available through Saved Games → View Stats.</p><p>Use Team &amp; Sharing → New Game for the next matchup.</p>");
+    }catch(e){
+      status.textContent=String(e?.message||e)+" Your game was not finalized and its local stats remain saved.";
+      btn.disabled=false;
+    }
+  };
+}
 function newGame(){
   if(state.helperMode){openModal("Game Access","Only the team owner can create another game.");return}
   if(!state.gameFinalized&&state.events?.length&&state.gameStartedAt&&!confirm("Start a new game? Your current game will remain saved, but make sure all stats have synced first."))return;
