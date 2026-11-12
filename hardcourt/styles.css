@@ -485,3 +485,157 @@ body.hc-admin-dialog #modal .hc-team-color-preview b{display:block;flex:0 0 auto
 #analyticsView .analytics-detail-shell .analytics-visual-card {
   color:#f5f7f6;
 }
+
+/* HARDCOURT LIGHT SECONDARY PAGES v20261111
+   Match the white/dark-text roster setup design on all non-game views.
+   Restrict these changes to the secondary screens: no game-court, menu,
+   statkeeping, event, or score calculation changes. */
+#shell #rosterView, #shell #timeView, #shell #statsView,
+#shell #analyticsView, #shell #playerView {color:#122018;}
+
+/* Tabs and filters: light inactive state with legible dark type. */
+#shell .content .seg button:not(.active) {
+  background:#fff!important;color:#122018!important;
+  border:1px solid #d5ded8!important;
+}
+#shell .content .seg button.active {
+  color:#08180e!important;border-color:#b9c9be!important;
+}
+#shell .content .seg {gap:8px;}
+#shell .content .seg button {box-shadow:0 1px 3px #1020180d;}
+
+/* Player and playing-time cards. */
+#shell #rosterView #rosterCards .card,
+#shell #timeView #timeTable .time-row,
+#shell #timeView #timeCheck.time-warning {
+  background:#fff!important;color:#122018!important;
+  border:1px solid #dbe3de!important;border-radius:12px;
+  box-shadow:0 2px 8px #1020180b;
+}
+#shell #rosterView #rosterCards .card{border-left:4px solid var(--accent)!important;}
+#shell #rosterView #rosterCards .card small{color:#4e6255!important;}
+#shell #timeView #timeTable .time-row b,
+#shell #timeView #timeTable .time-row span{color:#122018!important;}
+#shell #timeView #timeTable .time-bar{background:#e2eae4!important;}
+#shell #timeView #timeTable .time-bar i{background:var(--accent)!important;}
+
+/* Box score: retain sticky player column and horizontal scrolling. */
+#shell #statsView .table-wrap {
+  border:1px solid #d7e1d9!important;background:#fff!important;
+  box-shadow:0 2px 9px #1020180c;
+}
+#shell #statsView .table-wrap table {
+  background:#fff!important;color:#122018!important;
+}
+#shell #statsView .table-wrap thead th{
+  background:#eaf1ed!important;color:#122018!important;
+  border-color:#d5dfd8!important;
+}
+#shell #statsView .table-wrap tbody td,
+#shell #statsView .table-wrap tbody th {
+  background:#fff!important;color:#122018!important;
+  border-color:#e0e8e2!important;
+}
+#shell #statsView .table-wrap tbody tr:nth-child(even):not(.team-total) td,
+#shell #statsView .table-wrap tbody tr:nth-child(even):not(.team-total) th{
+  background:#f7faf8!important;
+}
+#shell #statsView .table-wrap tbody tr.team-total td,
+#shell #statsView .table-wrap tbody tr.team-total th{
+  background:#e6eee8!important;color:#102018!important;
+  border-top:2px solid var(--accent)!important;
+}
+
+/* Player stats view. */
+#shell #playerView .player-kpis .kpi{
+  background:#fff!important;color:#122018!important;
+  border:1px solid #dbe3de!important;border-top:3px solid var(--accent)!important;
+}
+#shell #playerView .back-btn{
+  background:#fff!important;color:#122018!important;
+  border:1px solid #dbe3de!important;
+}
+
+/* Analytics: white cards throughout, including nested report cards. */
+#shell #analyticsView .shooting-card,
+#shell #analyticsView .analytics-grid article,
+#shell #analyticsView .analytics-detail-shell,
+#shell #analyticsView .zone-table .zone-cell,
+#shell #analyticsView .analytics-hero,
+#shell #analyticsView .analytics-section-intro,
+#shell #analyticsView .analytics-kpis>div,
+#shell #analyticsView .analytics-visual-card,
+#shell #analyticsView .visual-lineup-card,
+#shell #analyticsView .impact-card,
+#shell #analyticsView .analytics-empty {
+  background:#fff!important;color:#122018!important;
+  border:1px solid #dbe3de!important;
+  box-shadow:0 2px 8px #1020180a;
+}
+#shell #analyticsView .analytics-detail-shell{
+  border-top:4px solid var(--accent)!important;
+}
+#shell #analyticsView .analytics-hero>span,
+#shell #analyticsView .analytics-section-intro>span {
+  background:#eff6f0!important;color:#122018!important;
+  border:1px solid #d1dfd5!important;box-shadow:none!important;
+}
+#shell #analyticsView .analytics-detail-heading h3,
+#shell #analyticsView .analytics-hero b,
+#shell #analyticsView .analytics-section-intro b,
+#shell #analyticsView .analytics-kpis b,
+#shell #analyticsView .analytics-visual-card h4,
+#shell #analyticsView .analytics-player-bar b,
+#shell #analyticsView .visual-lineup-card header b,
+#shell #analyticsView .impact-card header b,
+#shell #analyticsView .impact-comparison label b {
+  color:#122018!important;
+}
+#shell #analyticsView .analytics-hero p,
+#shell #analyticsView .analytics-section-intro p,
+#shell #analyticsView .analytics-detail-heading>span,
+#shell #analyticsView .analytics-player-bar small,
+#shell #analyticsView .impact-card header small,
+#shell #analyticsView .visual-lineup-card footer,
+#shell #analyticsView .zone-cell small,
+#shell #analyticsView .analytics-kpis span,
+#shell #analyticsView .analytics-visual-card h4 {
+  color:#586b5e!important;
+}
+#shell #analyticsView .analytics-detail-tabs{
+  background:#f0f5f1!important;border:1px solid #dbe3de!important;
+}
+#shell #analyticsView .analytics-detail-tabs button:not(.active){
+  background:#fff!important;color:#122018!important;border-color:#dbe3de!important;
+}
+#shell #analyticsView .analytics-detail-tabs button.active{
+  background:var(--accent)!important;color:#102018!important;
+  border-color:#bed0c1!important;box-shadow:none!important;
+}
+#shell #analyticsView .analytics-player-bar i,
+#shell #analyticsView .impact-comparison label>i,
+#shell #analyticsView .plusminus-track{
+  background:#e4ebe5!important;
+}
+#shell #analyticsView .analytics-ring{
+  background:radial-gradient(circle closest-side,#fff 76%,transparent 78% 99%),
+    conic-gradient(var(--accent) calc(var(--value)*1%),#dce6de 0)!important;
+}
+#shell #analyticsView .analytics-ring small{color:#56675b!important;}
+#shell #analyticsView .analytics-empty small{color:#586b5e!important;}
+#shell #analyticsView .shot-filters select {
+  background:#fff!important;color:#122018!important;border:1px solid #cddbd0!important;
+}
+/* Preserve high-contrast text inside intentionally dark player indicators. */
+#shell #analyticsView .lineup-five span{color:#fff!important;}
+
+/* Bottom navigation: the page area follows the light roster treatment.
+   The live landscape game screen keeps its original controls. */
+body:not(.game-active) #shell nav{background:#fff!important;border-top:1px solid #d7e1da!important;}
+body:not(.game-active) #shell nav button:not(.active){
+  background:#fff!important;color:#122018!important;
+  border-right:1px solid #e0e8e2!important;
+}
+body:not(.game-active) #shell nav button.active{
+  background:linear-gradient(180deg,var(--accent),#d6e9d9)!important;color:#102018!important;
+}
