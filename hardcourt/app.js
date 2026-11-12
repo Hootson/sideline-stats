@@ -165,6 +165,15 @@ async function redeemInviteFromUrl(){
 }
 async function openCloudGame(gameId,helper=false){
   if(!SB||!cloudUser||!gameId)return false;
+  // Do not switch games while a different game has unsynced local events.
+  if(state.cloudGameId&&String(state.cloudGameId)!==String(gameId)&&state.events?.some(e=>e.syncState!=="synced")){
+    if(!await syncCloudEvents()){
+      openModal("Unsynced Basketball Stats","<p>This phone has unsynced events from the previous game. Its local data remains intact. Retry after syncing.</p><p>"+esc(lastCloudSyncError||"Sync incomplete")+"</p>");
+      return false;
+    }
+  }
+  const previousState=JSON.parse(JSON.stringify(state)),previousRoster=roster.map(p=>({...p}));
+  const keepLocal=String(state.cloudGameId||"")===String(gameId)&&String(state.gameId||"")===String(gameId)&&!!state.gameStartedAt;
   cloudLoading=true;
   try{
     const {data:g,error}=await SB.from("games")
@@ -174,10 +183,13 @@ async function openCloudGame(gameId,helper=false){
     if(!helper&&state.gameId!==gameId)archiveGame();
     state.cloudGameId=g.id;state.gameId=g.id;state.cloudSeasonId=g.season_id;
     state.helperMode=!!helper;state.cloudGameOwner=!helper;
+    state.gameFinalized=["final","archived"].includes(g.status);
     state.opp=g.opponent_name;state.gameType=g.game_type==="playoff"?"playoffs":g.game_type==="preseason"?"preseason":"regular";
     state.gameDate=g.game_date||null;state.gameLocation=g.location_type||"home";
-    state.gameStartedAt=Date.parse(g.started_at||g.created_at||"")||Date.now();
-    state.period=Math.max(1,Number(g.current_quarter||1));
+    if(!keepLocal){
+      state.gameStartedAt=Date.parse(g.started_at||g.created_at||"")||Date.now();
+      state.period=Math.max(1,Number(g.current_quarter||1));
+    }
     const config=g.current_state?.hardcourt||{};
     if(config.periods===2||config.periods===4)state.periods=config.periods;
     if(Number(config.periodMinutes)>0)state.periodMinutes=config.periodMinutes;
@@ -186,26 +198,35 @@ async function openCloudGame(gameId,helper=false){
     if(config.timeoutMode)state.timeoutMode=config.timeoutMode;
     if(Number.isFinite(Number(config.timeoutCount)))state.timeoutCount=config.timeoutCount;
     if(Number(config.otMinutes)>0)state.otMinutes=config.otMinutes;
-    if(typeof config.offenseRight==="boolean")state.offenseRight=config.offenseRight;
-    state.clockMs=(state.periodMinutes||8)*60000;
-    state.timeoutsUs=state.timeoutCount??3;state.timeoutsOpp=state.timeoutCount??3;
-    state.events=[];state.minutes={};state.active=[];
-    await restoreCloudRoster();
+    if(typeof config.offenseRight==="boolean"&&!keepLocal)state.offenseRight=config.offenseRight;
+    if(!keepLocal){
+      state.clockMs=(state.periodMinutes||8)*60000;
+      state.timeoutsUs=state.timeoutCount??3;state.timeoutsOpp=state.timeoutCount??3;
+      state.events=[];state.minutes={};state.active=[];
+    }
+    if(!await restoreCloudRoster())throw Error("Could not refresh the game roster. Local stats are safe.");
     const starters=g.current_state?.hardcourt?.starters;
-    if(Array.isArray(starters)&&starters.length===5){
+    if(!keepLocal&&Array.isArray(starters)&&starters.length===5){
       const translated=starters.map(cid=>roster.find(p=>p.cloudId===cid)?.id);
       if(translated.every(Boolean)&&new Set(translated).size===5)state.active=translated;
     }
     if(roster.length<5)throw Error("The assigned game does not have five roster players yet. Ask the team owner to save the roster.");
-    if(!await pullCloudEvents())throw Error("Could not read all cloud game events. Retry before statkeeping.");
-    startCloudRealtime();
-    startUI();showView("gameView","game");save(true);updateCloudStatus();
+    if(!await pullCloudEvents())throw Error("Could not read all cloud game events: "+(lastCloudSyncError||"Retry before statkeeping."));
+    if(!state.gameFinalized)startCloudRealtime();
+    startUI();showView(state.gameFinalized?"statsView":"gameView",state.gameFinalized?"stats":"game");
+    save(true);updateCloudStatus();
     return true;
   }catch(e){
+    // Restore the local state even if a cloud request failed mid-load.
+    state=previousState;roster=previousRoster;refreshCloudPlayerMap();save(true);
     console.warn("Hardcourt game load",e);
     openModal("Could Not Open Game","<p>"+esc(e?.message||e)+"</p>");
     return false;
-  }finally{cloudLoading=false;}
+  }finally{
+    cloudLoading=false;
+    if(!state.gameFinalized&&state.cloudGameId&&state.events?.some(e=>e.syncState!=="synced"))
+      void syncCloudEvents();
+  }
 }
 async function openCloudGames(){
   if(!cloudUser)return openAccount();
