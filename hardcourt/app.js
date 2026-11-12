@@ -207,6 +207,22 @@ async function openCloudGame(gameId,helper=false){
       state.events=[];state.minutes={};state.active=[];
     }
     if(!await restoreCloudRoster())throw Error("Could not refresh the game roster. Local stats are safe.");
+    if(!keepLocal){
+      const localCopies=JSON.parse(localStorage.getItem("hardcourt-games")||"[]");
+      const localCopy=localCopies.find(x=>String(x.gameId)===String(gameId));
+      if(localCopy?.minutes)state.minutes={...localCopy.minutes};
+      else if(config.finalMinutesByPlayerId){
+        state.minutes={};
+        for(const [cloudId,ms] of Object.entries(config.finalMinutesByPlayerId)){
+          const player=roster.find(p=>p.cloudId===cloudId);
+          if(player)state.minutes[player.id]=Math.max(0,Number(ms)||0);
+        }
+      }
+      if(state.gameFinalized&&Number.isFinite(Number(config.finalClockMs)))
+        state.clockMs=Math.max(0,Number(config.finalClockMs));
+      if(state.gameFinalized&&Number(config.finalPeriod)>0)
+        state.period=Number(config.finalPeriod);
+    }
     const starters=g.current_state?.hardcourt?.starters;
     if(!keepLocal&&Array.isArray(starters)&&starters.length===5){
       const translated=starters.map(cid=>roster.find(p=>p.cloudId===cid)?.id);
@@ -1035,6 +1051,27 @@ async function finalizeCurrentHardcourtGame(){
         .eq("id",state.cloudGameId).eq("sport","basketball").single();
       if(gameError||!live)throw Error("Could not verify the current game status.");
       if(live.status!=="live")throw Error("This game is no longer live. Reopen it under Saved Games.");
+      // Persist playing time, period and score with the finalized game so
+      // read-only results work on a second phone, not just localStorage.
+      const minutesByCloudId={};
+      for(const [playerId,ms] of Object.entries(state.minutes||{})){
+        const cloudId=state.cloudPlayerMap?.[playerId];
+        if(!cloudId&&Number(ms)>0)throw Error("A player's playing time has no saved roster ID.");
+        if(cloudId)minutesByCloudId[cloudId]=Math.max(0,Number(ms)||0);
+      }
+      const {data:gameForFinal,error:finalReadError}=await SB.from("games")
+        .select("current_state").eq("id",state.cloudGameId).eq("status","live").single();
+      if(finalReadError||!gameForFinal)throw Error("Could not save the game's final playing time.");
+      const scores=derive(state.events,roster);
+      const nextState={...(gameForFinal.current_state||{}),
+        hardcourt:{...(gameForFinal.current_state?.hardcourt||{}),
+          finalMinutesByPlayerId:minutesByCloudId,finalClockMs:state.clockMs,
+          finalPeriod:state.period,finalElapsedMs:elapsedGameMs()}};
+      const {data:savedFinal,error:finalSaveError}=await SB.from("games").update({
+        current_state:nextState,current_quarter:Math.min(10,state.period),
+        team_score:scores.us,opponent_score:scores.them
+      }).eq("id",state.cloudGameId).eq("status","live").select("id");
+      if(finalSaveError||!savedFinal?.length)throw Error("Final stats could not be saved to the game record.");
       status.textContent="Finalizing the game…";
       const {data:finished,error:finishError}=await SB.rpc("finalize_hardcourt_game",{p_game_id:state.cloudGameId});
       if(finishError||finished!==true)throw Error(finishError?.message||"Could not confirm finalization.");
@@ -1052,6 +1089,11 @@ async function finalizeCurrentHardcourtGame(){
   };
 }
 function newGame(){
+  if(state.events?.some(e=>e.syncState!=="synced")){
+    void syncCloudEvents();
+    openModal("Unsynced Basketball Stats","<p>Some events from this game are still on this phone. The app has requested a sync. Please confirm they are saved before starting another game.</p>");
+    return;
+  }
   if(state.helperMode){openModal("Game Access","Only the team owner can create another game.");return}
   if(!state.gameFinalized&&state.events?.length&&state.gameStartedAt&&!confirm("Start a new game? Your current game will remain saved, but make sure all stats have synced first."))return;
   stopClock();archiveGame();
