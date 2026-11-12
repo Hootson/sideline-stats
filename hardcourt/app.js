@@ -184,7 +184,7 @@ async function openCloudGame(gameId,helper=false){
     if(error||!g)throw error||Error("Game not found");
     if(!helper&&state.gameId!==gameId)archiveGame();
     state.cloudGameId=g.id;state.gameId=g.id;state.cloudSeasonId=g.season_id;
-    state.helperMode=!!helper;state.cloudGameOwner=!helper;
+    state.helperMode=!!helper;state.cloudGameOwner=!helper;state.historyPreview=null;
     state.gameFinalized=["final","archived"].includes(g.status);
     state.opp=g.opponent_name;state.gameType=g.game_type==="playoff"?"playoffs":g.game_type==="preseason"?"preseason":"regular";
     state.gameDate=g.game_date||null;state.gameLocation=g.location_type||"home";
@@ -522,7 +522,7 @@ async function renderAdminSavedGames(){
     return '<div class="hc-saved-row"><div class="hc-saved-row-copy"><strong>'+esc(g.opponent_name||"Opponent")+'</strong>'+
       '<small>'+esc(g.status||"Saved")+' · '+Number(g.event_count||0)+' events</small></div>'+
       '<button type="button" class="hc-btn hc-btn-small hc-btn-ghost" data-open-hc-cloud="'+esc(g.game_id)+'" '+
-      ''+'>'+
+      '>'+
       (final?"View Stats":"Open")+'</button></div>';
   }).join("");
   host.querySelectorAll("[data-open-hc-cloud]").forEach(b=>b.onclick=async()=>{
@@ -1137,6 +1137,6 @@ async function initCloud(){
 }
 initCloud();
 window.addEventListener("online",()=>{if(cloudUser){void syncCloudEvents();if(state.cloudGameId)void pullCloudEvents();}});
-if("serviceWorker" in navigator)window.addEventListener("load",async()=>{try{const r=await navigator.serviceWorker.register("./service-worker.js?v=ui68",{updateViaCache:"none"});await r.update();if(r.waiting)r.waiting.postMessage("SKIP_WAITING");r.addEventListener("updatefound",()=>{const w=r.installing;if(w)w.addEventListener("statechange",()=>{if(w.state==="installed"&&navigator.serviceWorker.controller)w.postMessage("SKIP_WAITING")})});navigator.serviceWorker.addEventListener("controllerchange",()=>{if(!sessionStorage.getItem("ui68-reloaded")){sessionStorage.setItem("ui68-reloaded","1");location.reload()}})}catch(e){}});
+if("serviceWorker" in navigator)window.addEventListener("load",async()=>{try{const r=await navigator.serviceWorker.register("./service-worker.js?v=ui74",{updateViaCache:"none"});await r.update();if(r.waiting)r.waiting.postMessage("SKIP_WAITING");r.addEventListener("updatefound",()=>{const w=r.installing;if(w)w.addEventListener("statechange",()=>{if(w.state==="installed"&&navigator.serviceWorker.controller)w.postMessage("SKIP_WAITING")})});navigator.serviceWorker.addEventListener("controllerchange",()=>{if(!sessionStorage.getItem("ui74-reloaded")){sessionStorage.setItem("ui74-reloaded","1");location.reload()}})}catch(e){}});
 
 $("accountBtn").onclick=openSettings;$("shareTeamBtn").onclick=shareTeam;$("liveShareTeamBtn").onclick=shareTeam;$("helperBtn").onclick=inviteHelper;$("liveHelperBtn").onclick=inviteHelper;$("teamMenuBtn").onclick=openSettings;updateCloudStatus();
