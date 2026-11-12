@@ -450,3 +450,12 @@ body.hc-admin-dialog #modal .hc-team-color-preview b{display:block;flex:0 0 auto
 #modal .hc-optional-foul summary{cursor:pointer;font-size:12px;font-weight:750}
 #modal .hc-optional-foul label{display:block;margin-top:8px;font-size:12px}
 #modal .hc-optional-foul select{display:block;width:100%;min-height:37px;margin-top:5px;padding:5px 9px;border:1px solid #45555d;border-radius:7px;background:#111b20;color:#fff;font-size:14px}
+
+/* 2026-11-11: Stats box score contrast. The stats table stays dark while
+   secondary screens use a light canvas; prevent dark inherited text. */
+#statsView .table-wrap table{color:#f5f7f6!important;}
+#statsView .table-wrap thead th{color:#f0f4f2!important;}
+#statsView .table-wrap tbody td{color:#f5f7f6!important;}
+#statsView .table-wrap tbody th{color:#ffffff!important;}
+#statsView .table-wrap tbody tr.team-total td,
+#statsView .table-wrap tbody tr.team-total th{color:#ffffff!important;}
